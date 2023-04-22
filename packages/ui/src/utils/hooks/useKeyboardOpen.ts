@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 /**
  * Hook to detect if the keyboard is open or not. Useful for hiding fixed elements when the keyboard is open.
@@ -18,9 +18,9 @@ export const useKeyboardOpen = (minKeyboardHeight: number = 300): boolean => {
                 setIsKeyboardOpen(newState);
             }
         };
-        window.visualViewport?.addEventListener('resize', listener);
+        window.visualViewport?.addEventListener("resize", listener);
         return () => {
-            window.visualViewport?.removeEventListener('resize', listener);
+            window.visualViewport?.removeEventListener("resize", listener);
         };
     }, [isKeyboardOpen, minKeyboardHeight]);
 

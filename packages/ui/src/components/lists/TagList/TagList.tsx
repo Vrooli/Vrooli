@@ -1,6 +1,6 @@
-import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { useMemo } from 'react';
-import { TagListProps } from '../types';
+import { Chip, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { useMemo } from "react";
+import { TagListProps } from "../types";
 
 export const TagList = ({
     maxCharacters = 50,
@@ -23,9 +23,9 @@ export const TagList = ({
                         label={tag.tag}
                         size="small"
                         sx={{
-                            backgroundColor: palette.mode === 'light' ? '#8148b0' : '#8148b0', //'#a068ce',
-                            color: 'white',
-                            width: 'fit-content',
+                            backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
+                            color: "white",
+                            width: "fit-content",
                         }} />
                 );
             }
@@ -47,7 +47,7 @@ export const TagList = ({
     // }, []);
 
     return (
-        <Tooltip title={tags.map(t => t.tag).join(', ')} placement="top">
+        <Tooltip title={tags.map(t => t.tag).join(", ")} placement="top">
             <Stack
                 direction="row"
                 spacing={1}

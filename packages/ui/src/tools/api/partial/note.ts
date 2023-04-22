@@ -1,9 +1,9 @@
 import { Note, NoteYou } from "@shared/consts";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const noteYou: GqlPartial<NoteYou> = {
-    __typename: 'NoteYou',
+    __typename: "NoteYou",
     common: {
         canDelete: true,
         canBookmark: true,
@@ -20,13 +20,13 @@ export const noteYou: GqlPartial<NoteYou> = {
 }
 
 export const note: GqlPartial<Note> = {
-    __typename: 'Note',
+    __typename: "Note",
     common: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'nav'),
-            1: async () => rel((await import('./user')).user, 'nav'),
-            2: async () => rel((await import('./tag')).tag, 'list'),
-            3: async () => rel((await import('./label')).label, 'list'),
+            0: async () => rel((await import("./organization")).organization, "nav"),
+            1: async () => rel((await import("./user")).user, "nav"),
+            2: async () => rel((await import("./tag")).tag, "list"),
+            3: async () => rel((await import("./label")).label, "list"),
         },
         id: true,
         created_at: true,
@@ -47,14 +47,14 @@ export const note: GqlPartial<Note> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => rel(noteYou, 'full'),
+        you: () => rel(noteYou, "full"),
     },
     full: {
-        parent: async () => rel((await import('./noteVersion')).noteVersion, 'nav'),
-        versions: async () => rel((await import('./noteVersion')).noteVersion, 'full', { omit: 'root' }),
+        parent: async () => rel((await import("./noteVersion")).noteVersion, "nav"),
+        versions: async () => rel((await import("./noteVersion")).noteVersion, "full", { omit: "root" }),
     },
     list: {
-        versions: async () => rel((await import('./noteVersion')).noteVersion, 'list', { omit: 'root' }),
+        versions: async () => rel((await import("./noteVersion")).noteVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,

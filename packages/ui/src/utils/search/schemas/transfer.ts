@@ -1,11 +1,11 @@
 import { TransferSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { transferFindMany } from "../../api/generated/endpoints/transfer_findMany";
+import { transferFindMany } from "../../../api/generated/endpoints/transfer_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const transferSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchTransfer'),
+    formLayout: searchFormLayout("SearchTransfer"),
     containers: [], //TODO
     fields: [], //TODO
 })

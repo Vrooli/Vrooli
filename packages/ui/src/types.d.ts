@@ -1,14 +1,14 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
-import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from '@shared/consts';
-import { CommonKey } from '@shared/translations';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@shared/consts";
+import { CommonKey } from "@shared/translations";
 import { RoutineStepType } from "utils/consts";
 
-declare module '@local/ui';
-export * from '.';
+declare module "@local/ui";
+export * from ".";
 
 export type CalendarEvent = {
-    __typename: 'CalendarEvent',
+    __typename: "CalendarEvent",
     id: string;
     title: string;
     start: Date;
@@ -45,11 +45,11 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: `${GqlModelType}` | 'Shortcut' | 'Action' | 'CalendarEvent',
+    __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
     id: string,
     projectVersion?: {
-        __typename: 'ProjectVersion',
+        __typename: "ProjectVersion",
         id: string
     } | null,
     root?: {
@@ -58,7 +58,7 @@ export type NavigableObject = {
         id: string,
     } | null,
     routineVersion?: {
-        __typename: 'RoutineVersion',
+        __typename: "RoutineVersion",
         id: string
     } | null,
     to?: {
@@ -158,14 +158,14 @@ export interface ObjectOption {
 }
 
 export interface ShortcutOption {
-    __typename: 'Shortcut';
+    __typename: "Shortcut";
     isFromHistory?: boolean;
     label: string;
     id: string; // Actually URL, but id makes it easier to use
 }
 
 export interface ActionOption {
-    __typename: 'Action';
+    __typename: "Action";
     canPerform: (session: Session) => boolean;
     id: string;
     isFromHistory?: boolean;
@@ -173,7 +173,7 @@ export interface ActionOption {
 }
 
 export interface CalendarEventOption {
-    __typename: 'CalendarEvent';
+    __typename: "CalendarEvent";
     id: string; // Shape is <scheduleId>|<startDate>|<endDate>
     title: string;
 }
@@ -195,7 +195,7 @@ declare global {
 window.cardano = window.cardano || {};
 
 // Add isLeftHanded to MUI theme
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
     interface Theme {
         isLeftHanded: boolean;
     }

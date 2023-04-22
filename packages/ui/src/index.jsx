@@ -1,14 +1,14 @@
-import { ApolloProvider } from '@apollo/client';
-import { initializeApollo } from 'api/utils/initialize';
-import { ErrorBoundary } from 'components/ErrorBoundary/ErrorBoundary';
-import ReactDOM from 'react-dom/client';
-import { App } from './App';
-import './i18n'; // Must import for translations to work
-import reportWebVitals from './reportWebVitals';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
-import { getDeviceInfo } from './utils/display/device';
-import { PubSub } from './utils/pubsub';
-import { Router } from './utils/route';
+import { ApolloProvider } from "@apollo/client";
+import { initializeApollo } from "api/utils/initialize";
+import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
+import ReactDOM from "react-dom/client";
+import { App } from "./App";
+import "./i18n"; // Must import for translations to work
+import reportWebVitals from "./reportWebVitals";
+import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
+import { getDeviceInfo } from "./utils/display/device";
+import { PubSub } from "./utils/pubsub";
+import { Router } from "./utils/route";
 
 export function renderApp(element) {
     const client = initializeApollo();
@@ -35,11 +35,11 @@ if (typeof window !== "undefined") {
     serviceWorkerRegistration.register({
         onUpdate: (registration) => {
             if (registration && registration.waiting) {
-                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                registration.waiting.postMessage({ type: "SKIP_WAITING" });
                 PubSub.get().publishAlertDialog({
-                    message: 'NewVersionAvailable',
+                    message: "NewVersionAvailable",
                     buttons: [
-                        { labelKey: 'Reload', onClick: () => { window.location.reload(); } },
+                        { labelKey: "Reload", onClick: () => { window.location.reload(); } },
                         { labelKey: "Cancel", onClick: () => { } },
                     ]
                 });
@@ -47,17 +47,17 @@ if (typeof window !== "undefined") {
         },
     });
 
-    if ('serviceWorker' in navigator) {
+    if ("serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then((registration) => {
             // Add listener to detect new updates, so we can show a message to the user
-            registration.addEventListener('updatefound', () => {
-                PubSub.get().publishSnack({ message: 'Downloading new updates...', autoHideDuration: 'persist' });
+            registration.addEventListener("updatefound", () => {
+                PubSub.get().publishSnack({ message: "Downloading new updates...", autoHideDuration: "persist" });
             });
             // Send message to service worker to let it know if this is a standalone (i.e. downloaded) PWA. 
             // Standalone PWAs come with more assets, like splash screens.
             //TODO not used yet
             registration.active.postMessage({
-                type: 'IS_STANDALONE',
+                type: "IS_STANDALONE",
                 isStandalone: getDeviceInfo().isStandalone,
             });
         });

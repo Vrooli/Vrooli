@@ -7,7 +7,7 @@ import { SessionContext } from "../SessionContext";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: 'all' });
+    const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: "all" });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session])

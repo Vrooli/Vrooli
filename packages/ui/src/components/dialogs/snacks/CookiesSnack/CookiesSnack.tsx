@@ -1,10 +1,10 @@
-import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from '@mui/material';
-import { CloseIcon, LargeCookieIcon } from '@shared/icons';
-import { CookieSettingsDialog } from 'components/dialogs/CookieSettingsDialog/CookieSettingsDialog';
-import { useState } from 'react';
-import { noSelect } from 'styles';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
-import { CookiesSnackProps } from '../types';
+import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import { CloseIcon, LargeCookieIcon } from "@shared/icons";
+import { CookieSettingsDialog } from "components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { useState } from "react";
+import { noSelect } from "styles";
+import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { CookiesSnackProps } from "../types";
 
 /**
  * "This site uses cookies" consent dialog
@@ -45,14 +45,14 @@ export const CookiesSnack = ({
             <CookieSettingsDialog handleClose={handleCustomizeCookies} isOpen={isCustomizeOpen} />
             {/* Snack */}
             <Box sx={{
-                width: 'min(100%, 500px)',
+                width: "min(100%, 500px)",
                 zIndex: 20000,
                 background: palette.background.paper,
                 color: palette.background.textPrimary,
                 padding: 2,
                 borderRadius: 2,
                 boxShadow: 8,
-                pointerEvents: 'auto',
+                pointerEvents: "auto",
                 ...noSelect,
             }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">

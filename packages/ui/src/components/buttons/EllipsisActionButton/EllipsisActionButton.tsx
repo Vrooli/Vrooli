@@ -1,8 +1,8 @@
-import { Collapse, Stack, Tooltip, useTheme } from '@mui/material';
-import { CloseIcon, EllipsisIcon } from '@shared/icons';
-import { useCallback, useMemo, useState } from 'react';
-import { ColorIconButton } from '../ColorIconButton/ColorIconButton';
-import { EllipsisActionButtonProps } from '../types';
+import { Collapse, Stack, Tooltip, useTheme } from "@mui/material";
+import { CloseIcon, EllipsisIcon } from "@shared/icons";
+import { useCallback, useMemo, useState } from "react";
+import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
+import { EllipsisActionButtonProps } from "../types";
 
 export function EllipsisActionButton({
     children,
@@ -27,7 +27,7 @@ export function EllipsisActionButton({
                     justifyContent="center"
                     p={1}
                     sx={{
-                        overflowX: 'auto',
+                        overflowX: "auto",
                     }}
                 >
                     {children}
@@ -40,8 +40,8 @@ export function EllipsisActionButton({
                     onClick={toggleOpen}
                     sx={{
                         padding: 0,
-                        width: '54px',
-                        height: '54px',
+                        width: "54px",
+                        height: "54px",
                     }}
                 >
                     <Icon fill={palette.secondary.contrastText} width='36px' height='36px' />

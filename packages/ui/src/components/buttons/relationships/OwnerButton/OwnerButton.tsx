@@ -1,34 +1,34 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { OrganizationIcon, UserIcon } from '@shared/icons';
-import { exists } from '@shared/utils';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
-import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
-import { ListMenuItemData, SelectOrCreateObjectType } from 'components/dialogs/types';
-import { userFromSession } from 'components/lists/RelationshipList/RelationshipList';
-import { RelationshipItemOrganization, RelationshipItemUser } from 'components/lists/types';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useField } from 'formik';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { getCurrentUser } from 'utils/authentication/session';
-import { firstString } from 'utils/display/stringTools';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { openObject } from 'utils/navigation/openObject';
-import { useLocation } from 'utils/route';
-import { SessionContext } from 'utils/SessionContext';
-import { OwnerShape } from 'utils/shape/models/types';
-import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
-import { OwnerButtonProps } from '../types';
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { OrganizationIcon, UserIcon } from "@shared/icons";
+import { exists } from "@shared/utils";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
+import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
+import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
+import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
+import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { useField } from "formik";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
+import { firstString } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { openObject } from "utils/navigation/openObject";
+import { useLocation } from "utils/route";
+import { SessionContext } from "utils/SessionContext";
+import { OwnerShape } from "utils/shape/models/types";
+import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { OwnerButtonProps } from "../types";
 
 enum OwnerTypesEnum {
-    Self = 'Self',
-    Organization = 'Organization',
-    AnotherUser = 'AnotherUser',
+    Self = "Self",
+    Organization = "Organization",
+    AnotherUser = "AnotherUser",
 }
 
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
-    { label: 'Self', value: OwnerTypesEnum.Self },
-    { label: 'Organization', value: OwnerTypesEnum.Organization },
+    { label: "Self", value: OwnerTypesEnum.Self },
+    { label: "Organization", value: OwnerTypesEnum.Organization },
     // { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
 ]
 
@@ -42,10 +42,10 @@ export function OwnerButton({
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
-    const [versionField, , versionHelpers] = useField('owner');
-    const [rootField, , rootHelpers] = useField('root.owner');
+    const [versionField, , versionHelpers] = useField("owner");
+    const [rootField, , rootHelpers] = useField("root.owner");
 
-    const isAvailable = useMemo(() => ['Project', 'Routine', 'Standard'].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Project", "Routine", "Standard"].includes(objectType), [objectType]);
 
     // Organization/User owner dialogs (displayed after selecting owner dialog)
     const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
@@ -92,8 +92,8 @@ export function OwnerButton({
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
-        if (isOrganizationDialogOpen) return ['Organization', handleOwnerSelect, closeOrganizationDialog];
-        else if (isAnotherUserDialogOpen) return ['User', handleOwnerSelect, closeAnotherUserDialog];
+        if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
+        else if (isAnotherUserDialogOpen) return ["User", handleOwnerSelect, closeAnotherUserDialog];
         return [null, () => { }, () => { }];
     }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog, isAnotherUserDialogOpen, closeAnotherUserDialog]);
 
@@ -102,12 +102,12 @@ export function OwnerButton({
         // If no owner data, marked as anonymous
         if (!owner) return {
             Icon: null,
-            tooltip: `Marked as anonymous${isEditing ? '' : '. Press to set owner'}`
+            tooltip: `Marked as anonymous${isEditing ? "" : ". Press to set owner"}`
         };
         // If owner is organization, use organization icon
-        if (owner.__typename === 'Organization') {
+        if (owner.__typename === "Organization") {
             const Icon = OrganizationIcon;
-            const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, 'organization');
+            const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, "organization");
             return {
                 Icon,
                 tooltip: `Owner: ${ownerName}`
@@ -119,7 +119,7 @@ export function OwnerButton({
         const ownerName = (owner as RelationshipItemUser).name;
         return {
             Icon,
-            tooltip: `Owner: ${isSelf ? 'Self' : ownerName}`
+            tooltip: `Owner: ${isSelf ? "Self" : ownerName}`
         };
     }, [isEditing, languages, rootField?.value, session, versionField?.value]);
 
@@ -130,7 +130,7 @@ export function OwnerButton({
         <>
             {/* Popup for selecting type of owner */}
             <ListMenu
-                id={'select-owner-type-menu'}
+                id={"select-owner-type-menu"}
                 anchorEl={ownerDialogAnchor}
                 title='Owner Type'
                 data={ownerTypes}

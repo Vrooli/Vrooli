@@ -2,8 +2,8 @@ import { Wallet, WalletUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type WalletShape = Pick<Wallet, 'id'> & {
-    __typename?: 'Wallet';
+export type WalletShape = Pick<Wallet, "id"> & {
+    __typename?: "Wallet";
 }
 
 export const shapeWallet: ShapeModel<WalletShape, null, WalletUpdateInput> = {

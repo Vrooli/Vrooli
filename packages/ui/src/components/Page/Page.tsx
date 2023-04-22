@@ -1,10 +1,10 @@
-import { LINKS } from '@shared/consts';
-import { PageContainer } from 'components/containers/PageContainer/PageContainer';
-import { useContext } from 'react';
-import { PubSub } from 'utils/pubsub';
-import { Redirect, useLocation } from 'utils/route';
-import { SessionContext } from 'utils/SessionContext';
-import { PageProps } from '../../views/wrapper/types';
+import { LINKS } from "@shared/consts";
+import { PageContainer } from "components/containers/PageContainer/PageContainer";
+import { useContext } from "react";
+import { PubSub } from "utils/pubsub";
+import { Redirect, useLocation } from "utils/route";
+import { SessionContext } from "utils/SessionContext";
+import { PageProps } from "../../views/wrapper/types";
 
 export const Page = ({
     children,
@@ -21,7 +21,7 @@ export const Page = ({
     if (mustBeLoggedIn) {
         if (session?.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) {
-            PubSub.get().publishSnack({ messageKey: 'PageRestricted', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
             return <Redirect to={redirect} />
         }
         return null;

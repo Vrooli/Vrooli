@@ -1,9 +1,9 @@
 import { Api, ApiYou } from "@shared/consts";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const apiYou: GqlPartial<ApiYou> = {
-    __typename: 'ApiYou',
+    __typename: "ApiYou",
     full: {
         canDelete: true,
         canBookmark: true,
@@ -18,13 +18,13 @@ export const apiYou: GqlPartial<ApiYou> = {
 }
 
 export const api: GqlPartial<Api> = {
-    __typename: 'Api',
+    __typename: "Api",
     common: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'nav'),
-            1: async () => rel((await import('./user')).user, 'nav'),
-            2: async () => rel((await import('./tag')).tag, 'list'),
-            3: async () => rel((await import('./label')).label, 'list'),
+            0: async () => rel((await import("./organization")).organization, "nav"),
+            1: async () => rel((await import("./user")).user, "nav"),
+            2: async () => rel((await import("./tag")).tag, "list"),
+            3: async () => rel((await import("./label")).label, "list"),
         },
         id: true,
         created_at: true,
@@ -45,15 +45,15 @@ export const api: GqlPartial<Api> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => rel(apiYou, 'full'),
+        you: () => rel(apiYou, "full"),
     },
     full: {
-        parent: async () => rel((await import('./apiVersion')).apiVersion, 'nav'),
-        versions: async () => rel((await import('./apiVersion')).apiVersion, 'full', { omit: 'root' }),
-        stats: async () => rel((await import('./statsApi')).statsApi, 'full'),
+        parent: async () => rel((await import("./apiVersion")).apiVersion, "nav"),
+        versions: async () => rel((await import("./apiVersion")).apiVersion, "full", { omit: "root" }),
+        stats: async () => rel((await import("./statsApi")).statsApi, "full"),
     },
     list: {
-        versions: async () => rel((await import('./apiVersion')).apiVersion, 'list', { omit: 'root' }),
+        versions: async () => rel((await import("./apiVersion")).apiVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,

@@ -1,11 +1,11 @@
 import { PopularSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { feedPopular } from "../../api/generated/endpoints/feed_popular";
+import { feedPopular } from "../../../api/generated/endpoints/feed_popular";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const popularSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchPopular'),
+    formLayout: searchFormLayout("SearchPopular"),
     containers: [], //TODO
     fields: [], //TODO
 })

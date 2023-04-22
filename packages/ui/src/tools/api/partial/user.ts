@@ -1,9 +1,9 @@
 import { User, UserTranslation, UserYou } from "@shared/consts";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const userTranslation: GqlPartial<UserTranslation> = {
-    __typename: 'UserTranslation',
+    __typename: "UserTranslation",
     common: {
         id: true,
         language: true,
@@ -14,7 +14,7 @@ export const userTranslation: GqlPartial<UserTranslation> = {
 }
 
 export const userYou: GqlPartial<UserYou> = {
-    __typename: 'UserYou',
+    __typename: "UserYou",
     common: {
         canDelete: true,
         canReport: true,
@@ -27,7 +27,7 @@ export const userYou: GqlPartial<UserYou> = {
 }
 
 export const user: GqlPartial<User> = {
-    __typename: 'User',
+    __typename: "User",
     common: {
         id: true,
         created_at: true,
@@ -35,13 +35,13 @@ export const user: GqlPartial<User> = {
         name: true,
         bookmarks: true,
         reportsReceivedCount: true,
-        you: () => rel(userYou, 'full'),
+        you: () => rel(userYou, "full"),
     },
     full: {
-        translations: () => rel(userTranslation, 'full'),
+        translations: () => rel(userTranslation, "full"),
     },
     list: {
-        translations: () => rel(userTranslation, 'list'),
+        translations: () => rel(userTranslation, "list"),
     },
     nav: {
         id: true,
@@ -51,7 +51,7 @@ export const user: GqlPartial<User> = {
 }
 
 export const profile: GqlPartial<User> = {
-    __typename: 'User',
+    __typename: "User",
     common: {
         id: true,
         created_at: true,
@@ -77,14 +77,14 @@ export const profile: GqlPartial<User> = {
         isPrivateVotes: true,
         name: true,
         theme: true,
-        emails: async () => rel((await import('./email')).email, 'full'),
-        focusModes: async () => rel((await import('./focusMode')).focusMode, 'full'),
-        pushDevices: async () => rel((await import('./pushDevice')).pushDevice, 'full'),
-        wallets: async () => rel((await import('./wallet')).wallet, 'common'),
-        notifications: async () => rel((await import('./notification')).notification, 'full'),
+        emails: async () => rel((await import("./email")).email, "full"),
+        focusModes: async () => rel((await import("./focusMode")).focusMode, "full"),
+        pushDevices: async () => rel((await import("./pushDevice")).pushDevice, "full"),
+        wallets: async () => rel((await import("./wallet")).wallet, "common"),
+        notifications: async () => rel((await import("./notification")).notification, "full"),
         notificationSettings: true,
-        translations: () => rel(userTranslation, 'full'),
-        you: () => rel(userYou, 'full'),
+        translations: () => rel(userTranslation, "full"),
+        you: () => rel(userYou, "full"),
     },
     full: {},
     list: {},

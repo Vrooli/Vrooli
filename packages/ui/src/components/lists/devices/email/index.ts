@@ -1,2 +1,2 @@
-export * from './EmailList/EmailList';
-export * from './EmailListItem/EmailListItem';
+export * from "./EmailList/EmailList";
+export * from "./EmailListItem/EmailListItem";

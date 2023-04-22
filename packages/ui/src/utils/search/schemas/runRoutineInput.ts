@@ -1,11 +1,11 @@
 import { RunRoutineInputSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { runRoutineInputFindMany } from "../../api/generated/endpoints/runRoutineInput_findMany";
+import { runRoutineInputFindMany } from "../../../api/generated/endpoints/runRoutineInput_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineInputSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchRunRoutineInput'),
+    formLayout: searchFormLayout("SearchRunRoutineInput"),
     containers: [], //TODO
     fields: [], //TODO
 })

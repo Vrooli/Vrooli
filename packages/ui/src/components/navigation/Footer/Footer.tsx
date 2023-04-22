@@ -4,19 +4,19 @@ import {
     ListItemIcon,
     ListItemText, Tooltip,
     useTheme
-} from '@mui/material';
-import { LINKS, SOCIALS } from '@shared/consts';
-import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getDeviceInfo } from 'utils/display/device';
-import { openLink, useLocation } from 'utils/route';
+} from "@mui/material";
+import { LINKS, SOCIALS } from "@shared/consts";
+import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@shared/icons";
+import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { getDeviceInfo } from "utils/display/device";
+import { openLink, useLocation } from "utils/route";
 
 const contactLinks: [string, string, string, string, SvgComponent][] = [
-    ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
-    ['contact-discord', 'Have a question or feedback? Post it on our Discord!', SOCIALS.Discord, 'Join our Discord', DiscordIcon],
-    ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
+    ["contact-twitter", "Find us on Twitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
+    ["contact-discord", "Have a question or feedback? Post it on our Discord!", SOCIALS.Discord, "Join our Discord", DiscordIcon],
+    ["contact-github", "Check out the source code, or contribute :)", SOCIALS.GitHub, "Source Code", GitHubIcon],
 ]
 
 const aboutUsLink = LINKS.About;
@@ -38,7 +38,7 @@ export const Footer = () => {
     if (isStandalone) return null;
     return (
         <Box
-            display={showFooter ? 'block' : 'none'}
+            display={showFooter ? "block" : "none"}
             overflow="hidden"
             position="relative"
             // safe-area-inset-bottom is the iOS navigation bar
@@ -53,7 +53,7 @@ export const Footer = () => {
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary={t(`Resource`, { count: 2 })} sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t("Resource", { count: 2 })} sx={{ textTransform: "uppercase" }} />
                         </ListItem>
                         <ListItem
                             component="a"
@@ -64,7 +64,7 @@ export const Footer = () => {
                             <ListItemIcon>
                                 <InfoIcon fill={palette.primary.contrastText} />
                             </ListItemIcon>
-                            <ListItemText primary={t(`AboutUs`)} sx={{ color: palette.primary.contrastText }} />
+                            <ListItemText primary={t("AboutUs")} sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                         <ListItem
                             component="a"
@@ -75,14 +75,14 @@ export const Footer = () => {
                             <ListItemIcon>
                                 <StatsIcon fill={palette.primary.contrastText} />
                             </ListItemIcon>
-                            <ListItemText primary={t(`StatisticsShort`)} sx={{ color: palette.primary.contrastText }} />
+                            <ListItemText primary={t("StatisticsShort")} sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary={t(`Contact`)} sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t("Contact")} sx={{ textTransform: "uppercase" }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">

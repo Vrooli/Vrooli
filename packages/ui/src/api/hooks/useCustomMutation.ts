@@ -1,4 +1,4 @@
-import { DocumentNode, MutationHookOptions, OperationVariables, TypedDocumentNode, useMutation } from '@apollo/client';
+import { DocumentNode, MutationHookOptions, OperationVariables, TypedDocumentNode, useMutation } from "@apollo/client";
 
 type TDataDefined = object | boolean | number | string;
 
@@ -12,34 +12,36 @@ type TDataDefined = object | boolean | number | string;
  * this removes that top-level object so the result is just the data
  */
 export function useCustomMutation<
-  TData extends TDataDefined | undefined,
-  TVariables extends OperationVariables | undefined
+    TData extends TDataDefined | undefined,
+    TVariables extends OperationVariables | undefined
 >(
-  mutation: DocumentNode | TypedDocumentNode<TData, TVariables> | undefined,
-  options?: (TData extends TDataDefined
-    ? MutationHookOptions<TData, TVariables>
-    : MutationHookOptions<undefined, TVariables>) &
+    mutation: DocumentNode | TypedDocumentNode<TData, TVariables> | undefined,
+    options?: (TData extends TDataDefined
+        ? MutationHookOptions<TData, TVariables>
+        : MutationHookOptions<undefined, TVariables>) &
     { refetchQueries?: any },
 ) {
-  // Create useMutation hook with blank mutation (if none defined) and modified options
-  const [execute, { data, error, loading }] = useMutation(
-    mutation ?? ({ kind: 'Document', definitions: [{
-      kind: 'OperationDefinition',
-      operation: 'mutation',
-      name: { kind: 'Name', value: 'EmptyMutation' },
-      variableDefinitions: [],
-      directives: [],
-      selectionSet: { kind: 'SelectionSet', selections: [] },
-    }] } as DocumentNode),
-    {
-      ...options,
-      variables: options?.variables ? { input: options.variables } : undefined,
-    } as any,
-  );
+    // Create useMutation hook with blank mutation (if none defined) and modified options
+    const [execute, { data, error, loading }] = useMutation(
+        mutation ?? ({
+            kind: "Document", definitions: [{
+                kind: "OperationDefinition",
+                operation: "mutation",
+                name: { kind: "Name", value: "EmptyMutation" },
+                variableDefinitions: [],
+                directives: [],
+                selectionSet: { kind: "SelectionSet", selections: [] },
+            }]
+        } as DocumentNode),
+        {
+            ...options,
+            variables: options?.variables ? { input: options.variables } : undefined,
+        } as any,
+    );
 
-  // When data is received, remove the top-level object
-  const modifiedData: TData | undefined = data && Object.values(data)[0];
+    // When data is received, remove the top-level object
+    const modifiedData: TData | undefined = data && Object.values(data)[0];
 
-  // Return the modified execute function and modified data
-  return [execute, { data: modifiedData, error, loading }] as const;
+    // Return the modified execute function and modified data
+    return [execute, { data: modifiedData, error, loading }] as const;
 }

@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const phoneCreate = gql`
 mutation phoneCreate($input: PhoneCreateInput!) {

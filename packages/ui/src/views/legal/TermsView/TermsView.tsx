@@ -3,7 +3,7 @@ import { LINKS } from "@shared/consts";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import termsMarkdown from '../../../assets/policy/terms.md';
+import termsMarkdown from "../../../assets/policy/terms.md";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { PageTab } from "../../../components/types";
@@ -17,7 +17,7 @@ enum TabOptions {
 }
 
 export const TermsView = ({
-    display = 'page',
+    display = "page",
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -40,7 +40,7 @@ export const TermsView = ({
             display={display}
             onClose={() => { }}
             titleData={{
-                titleKey: 'Terms',
+                titleKey: "Terms",
             }}
             below={<PageTabs
                 ariaLabel="privacy policy and terms tabs"

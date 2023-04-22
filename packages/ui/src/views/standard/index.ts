@@ -1,3 +1,3 @@
-export * from './StandardUpsert/StandardUpsert';
-export * from './StandardView/StandardView';
+export * from "./StandardUpsert/StandardUpsert";
+export * from "./StandardView/StandardView";
 

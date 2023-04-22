@@ -1,11 +1,11 @@
 import { MeetingInviteSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { meetingInviteFindMany } from "../../api/generated/endpoints/meetingInvite_findMany";
+import { meetingInviteFindMany } from "../../../api/generated/endpoints/meetingInvite_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const meetingInviteSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchMeetingInvite'),
+    formLayout: searchFormLayout("SearchMeetingInvite"),
     containers: [], //TODO
     fields: [], //TODO
 })

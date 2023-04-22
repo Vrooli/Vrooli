@@ -13,7 +13,7 @@ import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { addSearchParams, parseSearchParams, useLocation } from 'utils/route';
+import { addSearchParams, parseSearchParams, useLocation } from "utils/route";
 import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";
@@ -31,64 +31,64 @@ type BaseParams = {
 // Data for each tab
 const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Routine,
     tabType: SearchPageTabOption.Routines,
     where: { isInternal: false },
 }, {
     Icon: ProjectIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Project,
     tabType: SearchPageTabOption.Projects,
     where: {},
 }, {
     Icon: HelpIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Invite",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
     Icon: NoteIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Note,
     tabType: SearchPageTabOption.Notes,
     where: {},
 }, {
     Icon: OrganizationIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Organization,
     tabType: SearchPageTabOption.Organizations,
     where: {},
 }, {
     Icon: UserIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
+    popupTitleKey: "Invite",
+    popupTooltipKey: "InviteTooltip",
     searchType: SearchType.User,
     tabType: SearchPageTabOption.Users,
     where: {},
 }, {
     Icon: StandardIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
     Icon: ApiIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Api,
     tabType: SearchPageTabOption.Apis,
     where: {},
 }, {
     Icon: SmartContractIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
     where: {},
@@ -98,7 +98,7 @@ const tabParams: BaseParams[] = [{
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
-    display = 'page',
+    display = "page",
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -139,7 +139,7 @@ export const SearchView = ({
     // On tab change, update BaseParams, document title, where, and URL
     const { popupTitleKey, popupTooltipKey, searchType, where } = useMemo<BaseParams>(() => {
         // Update tab title
-        document.title = `${t(`Search`)} | ${currTab.label}`;
+        document.title = `${t("Search")} | ${currTab.label}`;
         return tabParams[currTab.index];
     }, [currTab.index, currTab.label, t]);
 
@@ -147,7 +147,7 @@ export const SearchView = ({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
             setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
             return;
         }
@@ -182,13 +182,13 @@ export const SearchView = ({
                     size="large"
                     sx={{
                         zIndex: 100,
-                        minWidth: 'min(100%, 200px)',
-                        height: '48px',
+                        minWidth: "min(100%, 200px)",
+                        height: "48px",
                         borderRadius: 3,
-                        position: 'fixed',
-                        bottom: 'calc(5em + env(safe-area-inset-bottom))',
-                        transform: popupButton ? 'translateY(0)' : 'translateY(calc(10em + env(safe-area-inset-bottom)))',
-                        transition: 'transform 1s ease-in-out',
+                        position: "fixed",
+                        bottom: "calc(5em + env(safe-area-inset-bottom))",
+                        transform: popupButton ? "translateY(0)" : "translateY(calc(10em + env(safe-area-inset-bottom)))",
+                        transition: "transform 1s ease-in-out",
                     }}
                 >
                     {t(popupTitleKey)}
@@ -197,7 +197,7 @@ export const SearchView = ({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
-    console.log('search typeeee', searchType, currTab)
+    console.log("search typeeee", searchType, currTab)
 
     return (
         <>
@@ -206,7 +206,7 @@ export const SearchView = ({
                 onClose={() => { }}
                 titleData={{
                     hideOnDesktop: true,
-                    titleKey: 'Search',
+                    titleKey: "Search",
                 }}
                 below={<PageTabs
                     ariaLabel="search-tabs"

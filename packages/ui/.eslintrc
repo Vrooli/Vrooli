@@ -11,12 +11,6 @@
         "quotes": [
             "error",
             "double"
-        ],
-        "import/no-unresolved": [
-            2,
-            {
-                "caseSensitive": true
-            }
         ]
     }
 }

@@ -1,7 +1,7 @@
 import { createOwner } from "./createOwner";
 
-type OwnerPrefix = '' | 'ownedBy';
-type OwnerType = 'User' | 'Organization';
+type OwnerPrefix = "" | "ownedBy";
+type OwnerType = "User" | "Organization";
 
 /**
  * Shapes ownership connect fields for a GraphQL update input
@@ -16,7 +16,7 @@ export const updateOwner = <
 >(
     originalItem: OriginalItem,
     updatedItem: UpdatedItem,
-    prefix: Prefix = '' as Prefix,
+    prefix: Prefix = "" as Prefix,
 ): { [K in `${Prefix}${OType}Connect`]?: string } => {
     // Find owner data in item
     const originalOwnerData = originalItem.owner;

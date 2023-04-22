@@ -1,4 +1,4 @@
-import { SnackSeverity } from './BasicSnack/BasicSnack';
+import { SnackSeverity } from "./BasicSnack/BasicSnack";
 
 export interface BasicSnackProps {
     buttonClicked?: (event?: any) => any;
@@ -7,7 +7,7 @@ export interface BasicSnackProps {
      * Anything you'd like to log in development mode
      */
     data?: any;
-    duration?: number | 'persist';
+    duration?: number | "persist";
     handleClose: () => any;
     id: string;
     message?: string;

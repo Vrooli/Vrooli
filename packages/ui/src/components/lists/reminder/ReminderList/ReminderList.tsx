@@ -1,17 +1,17 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { useTheme } from '@mui/material';
-import { DeleteOneInput, DeleteType, Reminder, Success } from '@shared/consts';
-import { mutationWrapper, useCustomMutation } from 'api';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ReminderUpsert } from 'views/objects/reminder';
-import { ReminderListItem } from '../ReminderListItem/ReminderListItem';
-import { ReminderListProps } from '../types';
+import { useTheme } from "@mui/material";
+import { DeleteOneInput, DeleteType, Reminder, Success } from "@shared/consts";
+import { mutationWrapper, useCustomMutation } from "api";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ReminderUpsert } from "views/objects/reminder";
+import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
+import { ReminderListProps } from "../types";
 
 export const ReminderList = ({
     handleUpdate,
@@ -66,7 +66,7 @@ export const ReminderList = ({
             mutation: deleteMutation,
             input: { id: reminder.id, objectType: DeleteType.Reminder },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName: reminder.name } }),
+            successMessage: () => ({ key: "ObjectDeleted", variables: { objectName: reminder.name } }),
             onSuccess: () => {
                 const newList = [...allReminders];
                 newList.splice(index, 1);
@@ -74,7 +74,7 @@ export const ReminderList = ({
                 handleUpdate && handleUpdate(newList);
                 closeDialog();
             },
-            errorMessage: () => ({ key: 'FailedToDelete' }),
+            errorMessage: () => ({ key: "FailedToDelete" }),
         })
     }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
 
@@ -85,7 +85,7 @@ export const ReminderList = ({
                 id="reminder-dialog"
                 onClose={closeDialog}
                 isOpen={isDialogOpen}
-                titleId={''}
+                titleId={""}
                 zIndex={zIndex + 1}
             >
                 <ReminderUpsert
@@ -102,7 +102,7 @@ export const ReminderList = ({
             {/* List */}
             <TitleContainer
                 titleKey="ToDo"
-                options={[['Create', openDialog]]}
+                options={[["Create", openDialog]]}
             >
                 {/* Existing reminders */}
                 {reminders.map((reminder, index) => (

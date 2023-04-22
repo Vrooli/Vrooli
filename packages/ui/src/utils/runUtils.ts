@@ -1,6 +1,6 @@
 import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { exists, uniqBy } from "@shared/utils";
-import { uuid } from '@shared/uuid';
+import { uuid } from "@shared/uuid";
 import { Status } from "./consts";
 import { NodeShape } from "./shape/models/node";
 import { NodeLinkShape } from "./shape/models/nodeLink";
@@ -60,12 +60,12 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
     const result: { [x: string]: string } = {};
     // Get user inputs, and ignore empty values and blank strings.
     const inputValues = Object.entries(values).filter(([key, value]) =>
-        key.startsWith('inputs-') &&
-        typeof value === 'string' &&
+        key.startsWith("inputs-") &&
+        typeof value === "string" &&
         value.length > 0);
     // Input keys are in the form of inputs-<inputId>. We need the inputId
     for (const [key, value] of inputValues) {
-        const inputId = key.substring(key.indexOf('-') + 1)
+        const inputId = key.substring(key.indexOf("-") + 1)
         result[inputId] = JSON.stringify(value);
     }
     return result;
@@ -127,7 +127,7 @@ export const runInputsUpdate = (
             updatedInputs[currUpdated].id = currOriginal.id;
         }
     }
-    return updateRel({ inputs: original }, { inputs: updatedInputs }, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRunRoutineInput);
+    return updateRel({ inputs: original }, { inputs: updatedInputs }, "inputs", ["Create", "Update", "Delete"], "many", shapeRunRoutineInput);
 }
 
 type GetRoutineVersionStatusResult = {
@@ -145,7 +145,7 @@ type GetRoutineVersionStatusResult = {
  */
 export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
     if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) {
-        return { status: Status.Invalid, messages: ['No node or link data found'], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
+        return { status: Status.Invalid, messages: ["No node or link data found"], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }
     const nodesOnGraph: Node[] = [];
     const nodesOffGraph: Node[] = [];
@@ -167,7 +167,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     const uniqueDict = uniqBy(nodesOnGraph, (n) => `${n.columnIndex}-${n.rowIndex}`);
     // Check if length of removed duplicates is equal to the length of the original positions dictionary
     if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
-        return { status: Status.Invalid, messages: ['Ran into error determining node positions'], nodesById, nodesOffGraph: routineVersion.nodes, nodesOnGraph: [] };
+        return { status: Status.Invalid, messages: ["Ran into error determining node positions"], nodesById, nodesOffGraph: routineVersion.nodes, nodesOnGraph: [] };
     }
     // Now perform checks to see if the routine can be run
     // 1. There is only one start node
@@ -178,26 +178,26 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     // Check 1
     const startNodes = routineVersion.nodes.filter(node => node.nodeType === NodeType.Start);
     if (startNodes.length === 0) {
-        statuses.push([Status.Invalid, 'No start node found']);
+        statuses.push([Status.Invalid, "No start node found"]);
     }
     else if (startNodes.length > 1) {
-        statuses.push([Status.Invalid, 'More than one start node found']);
+        statuses.push([Status.Invalid, "More than one start node found"]);
     }
     // Check 2
     const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.to.id !== node.id));
     if (nodesWithoutIncomingEdges.length === 0) {
         //TODO this would be fine with a redirect link
-        statuses.push([Status.Invalid, 'Error determining start node']);
+        statuses.push([Status.Invalid, "Error determining start node"]);
     }
     else if (nodesWithoutIncomingEdges.length > 1) {
-        statuses.push([Status.Invalid, 'Nodes are not fully connected']);
+        statuses.push([Status.Invalid, "Nodes are not fully connected"]);
     }
     // Check 3
     const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.from.id !== node.id));
     if (nodesWithoutOutgoingEdges.length >= 0) {
         // Check that every node without outgoing edges is an end node
         if (nodesWithoutOutgoingEdges.some(node => node.nodeType !== NodeType.End)) {
-            statuses.push([Status.Invalid, 'Not all paths end with an end node']);
+            statuses.push([Status.Invalid, "Not all paths end with an end node"]);
         }
     }
     // Performs checks which make the routine incomplete, but not invalid
@@ -205,11 +205,11 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     // 2. Every routine list has at least one subroutine
     // Check 1
     if (nodesOffGraph.length > 0) {
-        statuses.push([Status.Incomplete, 'Some nodes are not linked']);
+        statuses.push([Status.Incomplete, "Some nodes are not linked"]);
     }
     // Check 2
     if (nodesOnGraph.some(node => node.nodeType === NodeType.RoutineList && node.routineList?.items?.length === 0)) {
-        statuses.push([Status.Incomplete, 'At least one routine list is empty']);
+        statuses.push([Status.Incomplete, "At least one routine list is empty"]);
     }
     // Return statuses, or valid if no statuses
     if (statuses.length > 0) {
@@ -218,7 +218,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         if (statuses.some(status => status[0] === Status.Invalid)) status = Status.Invalid;
         return { status, messages: statuses.map(status => status[1]), nodesById, nodesOffGraph, nodesOnGraph };
     } else {
-        return { status: Status.Valid, messages: ['Routine is fully connected'], nodesById, nodesOffGraph, nodesOnGraph };
+        return { status: Status.Valid, messages: ["Routine is fully connected"], nodesById, nodesOffGraph, nodesOnGraph };
     }
 }
 
@@ -267,11 +267,11 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         translations: [{
             id: uuid(),
             language,
-            name: 'Subroutine 1',
-        }] as Node['translations'],
+            name: "Subroutine 1",
+        }] as Node["translations"],
     };
     const endNode: NodeShape = {
-        __typename: 'Node',
+        __typename: "Node",
         id: uuid(),
         nodeType: NodeType.End,
         columnIndex: 2,

@@ -1,5 +1,5 @@
-import { FormSchema } from 'forms/types';
-import { DocumentNode } from 'graphql';
+import { FormSchema } from "forms/types";
+import { DocumentNode } from "graphql";
 
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;

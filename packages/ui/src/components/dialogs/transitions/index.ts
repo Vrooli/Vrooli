@@ -1,1 +1,1 @@
-export * from './UpTransition/UpTransition';
+export * from "./UpTransition/UpTransition";

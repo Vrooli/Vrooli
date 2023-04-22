@@ -1,11 +1,11 @@
 import { NotificationSubscriptionSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { notificationSubscriptionFindMany } from "../../api/generated/endpoints/notificationSubscription_findMany";
+import { notificationSubscriptionFindMany } from "../../../api/generated/endpoints/notificationSubscription_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const notificationSubscriptionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchNotificationSubscription'),
+    formLayout: searchFormLayout("SearchNotificationSubscription"),
     containers: [], //TODO
     fields: [], //TODO
 })

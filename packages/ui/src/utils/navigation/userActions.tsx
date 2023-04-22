@@ -4,23 +4,23 @@ import {
     BottomNavigationAction,
     Button,
     IconButton
-} from '@mui/material';
-import { LINKS, Session } from '@shared/consts';
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
-import { CommonKey } from '@shared/translations';
-import i18next from 'i18next';
-import { openLink, SetLocation } from 'utils/route';
-import { checkIfLoggedIn } from '../authentication/session';
+} from "@mui/material";
+import { LINKS, Session } from "@shared/consts";
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from "@shared/icons";
+import { CommonKey } from "@shared/translations";
+import i18next from "i18next";
+import { openLink, SetLocation } from "utils/route";
+import { checkIfLoggedIn } from "../authentication/session";
 
 export enum ACTION_TAGS {
-    Home = 'Home',
-    Search = 'Search',
-    Create = 'Create',
-    Notifications = 'Notifications',
-    About = 'About',
-    Pricing = 'Pricing',
-    LogIn = 'LogIn',
-    MyStuff = 'MyStuff',
+    Home = "Home",
+    Search = "Search",
+    Create = "Create",
+    Notifications = "Notifications",
+    About = "About",
+    Pricing = "Pricing",
+    LogIn = "LogIn",
+    MyStuff = "MyStuff",
 }
 
 export type ActionArray = [string, any, string, any, number];
@@ -44,32 +44,32 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Home always available. Page changes based on login status, 
     // but we don't worry about that here.
     actions.push(
-        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        ["Home", ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
     )
     // Search always available
     actions.push(
-        ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
+        ["Search", ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
     );
     // Actions for logged in users
     if (isLoggedIn) {
         actions.push(
-            ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ['Inbox', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
-            ['MyStuff', ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
+            ["Create", ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
+            ["Inbox", ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
+            ["MyStuff", ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         )
     }
     // Display about, pricing, and login for logged out users 
     else {
-        actions.push(['About', ACTION_TAGS.About, LINKS.About, HelpIcon, 0])
-        actions.push(['Pricing', ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
-        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
+        actions.push(["About", ACTION_TAGS.About, LINKS.About, HelpIcon, 0])
+        actions.push(["Pricing", ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
+        actions.push(["Log In", ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
 
 // Factory for creating action objects
 const createAction = (action: ActionArray): Action => {
-    const keys = ['label', 'value', 'link', 'Icon', 'numNotifications'];
+    const keys = ["label", "value", "link", "Icon", "numNotifications"];
     return action.reduce((obj: {}, val: any, i: number) => { obj[keys[i]] = val; return obj }, {}) as Action;
 }
 
@@ -114,12 +114,12 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
                 // Check if link is different from current location
                 const shouldScroll = link === window.location.pathname;
                 // If same, scroll to top of page instead of navigating
-                if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (shouldScroll) window.scrollTo({ top: 0, behavior: "smooth" });
                 // Otherwise, navigate to link
                 else openLink(setLocation, link);
             }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
-            sx={{ color: 'white' }}
+            sx={{ color: "white" }}
         />
     ));
 }
@@ -130,7 +130,7 @@ interface ActionToIconButtonProps {
     setLocation: SetLocation;
     classes?: { [key: string]: string };
 }
-export const actionToIconButton = ({ action, setLocation, classes = { root: '' } }: ActionToIconButtonProps) => {
+export const actionToIconButton = ({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
     return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(setLocation, link)}>
         <Badge badgeContent={numNotifications} color="error">

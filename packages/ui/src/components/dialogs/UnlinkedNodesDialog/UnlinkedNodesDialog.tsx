@@ -8,15 +8,15 @@ import {
     Tooltip,
     Typography,
     useTheme
-} from '@mui/material';
-import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
-import { EndNode, RedirectNode, RoutineListNode } from 'components/graphs/NodeGraph';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { noSelect } from 'styles';
-import { getTranslation } from 'utils/display/translationTools';
-import { UnlinkedNodesDialogProps } from '../types';
+} from "@mui/material";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from "@shared/consts";
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "@shared/icons";
+import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { noSelect } from "styles";
+import { getTranslation } from "utils/display/translationTools";
+import { UnlinkedNodesDialogProps } from "../types";
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -77,43 +77,43 @@ export const UnlinkedNodesDialog = ({
     }, [language, zIndex])
 
     return (
-        <Tooltip title={t('NodeUnlinked', { count: 2 })}>
+        <Tooltip title={t("NodeUnlinked", { count: 2 })}>
             <Box id="unlinked-nodes-dialog" sx={{
-                alignSelf: open ? 'baseline' : 'auto',
+                alignSelf: open ? "baseline" : "auto",
                 borderRadius: 3,
                 background: palette.secondary.main,
                 color: palette.secondary.contrastText,
                 paddingLeft: 1,
                 paddingRight: 1,
                 marginRight: 1,
-                marginTop: open ? '4px' : 'unset',
-                maxHeight: { xs: '50vh', sm: '65vh', md: '72vh' },
-                overflowX: 'hidden',
-                overflowY: 'auto',
-                width: open ? { xs: '100%', sm: '375px' } : 'fit-content',
-                transition: 'height 1s ease-in-out',
+                marginTop: open ? "4px" : "unset",
+                maxHeight: { xs: "50vh", sm: "65vh", md: "72vh" },
+                overflowX: "hidden",
+                overflowY: "auto",
+                width: open ? { xs: "100%", sm: "375px" } : "fit-content",
+                transition: "height 1s ease-in-out",
                 zIndex: 1500,
                 "&::-webkit-scrollbar": {
                     width: 10,
                 },
                 "&::-webkit-scrollbar-track": {
-                    backgroundColor: '#dae5f0',
+                    backgroundColor: "#dae5f0",
                 },
                 "&::-webkit-scrollbar-thumb": {
-                    borderRadius: '100px',
+                    borderRadius: "100px",
                     backgroundColor: "#409590",
                 },
             }}>
                 <Stack direction="row" onClick={handleToggleOpen} sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%'
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%"
                 }}>
                     <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
-                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? (t('Unlinked') + ' ') : ''}({nodes.length})</Typography>
-                    <Tooltip title={t(open ? 'Shrink' : 'Expand')}>
-                        <IconButton edge="end" color="inherit" aria-label={t(open ? 'Shrink' : 'Expand')}>
+                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: "8px" }}>{open ? (t("Unlinked") + " ") : ""}({nodes.length})</Typography>
+                    <Tooltip title={t(open ? "Shrink" : "Expand")}>
+                        <IconButton edge="end" color="inherit" aria-label={t(open ? "Shrink" : "Expand")}>
                             {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
@@ -121,7 +121,7 @@ export const UnlinkedNodesDialog = ({
                 {open ? (
                     <Stack direction="column" spacing={1}>
                         {nodes.map((node) => (
-                            <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box key={node.id} sx={{ display: "flex", alignItems: "center" }}>
                                 {/* Miniature version of node */}
                                 <Box>
                                     {createNode(node)}
@@ -129,12 +129,12 @@ export const UnlinkedNodesDialog = ({
                                 {/* Node title */}
                                 {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).name}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={t('NodeDeleteWithName', { nodeName: getTranslation(node, [language], true).name })} placement="left">
-                                    <Box sx={{ marginLeft: 'auto' }}>
+                                <Tooltip title={t("NodeDeleteWithName", { nodeName: getTranslation(node, [language], true).name })} placement="left">
+                                    <Box sx={{ marginLeft: "auto" }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={() => handleNodeDelete(node.id)}
-                                            aria-label={t('NodeUnlinkedDelete')}
+                                            aria-label={t("NodeUnlinkedDelete")}
                                         >
                                             <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>

@@ -7,26 +7,26 @@ import {
     Tooltip,
     Typography,
     useTheme
-} from '@mui/material';
-import { LINKS, Success, UserDeleteInput } from '@shared/consts';
-import { DeleteIcon } from '@shared/icons';
-import { userDeleteOneSchema as validationSchema } from '@shared/validation';
-import { useCustomMutation } from 'api';
-import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
-import { mutationWrapper } from 'api/utils';
-import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
-import { Formik } from 'formik';
-import { useContext, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getCurrentUser } from 'utils/authentication/session';
-import { PubSub } from 'utils/pubsub';
-import { useLocation } from 'utils/route';
-import { SessionContext } from 'utils/SessionContext';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { DeleteAccountDialogProps } from '../types';
+} from "@mui/material";
+import { LINKS, Success, UserDeleteInput } from "@shared/consts";
+import { DeleteIcon } from "@shared/icons";
+import { userDeleteOneSchema as validationSchema } from "@shared/validation";
+import { useCustomMutation } from "api";
+import { userDeleteOne } from "api/generated/endpoints/user_deleteOne";
+import { mutationWrapper } from "api/utils";
+import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { Formik } from "formik";
+import { useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
+import { PubSub } from "utils/pubsub";
+import { useLocation } from "utils/route";
+import { SessionContext } from "utils/SessionContext";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { DeleteAccountDialogProps } from "../types";
 
-const titleId = 'delete-object-dialog-title';
+const titleId = "delete-object-dialog-title";
 
 /**
  * Dialog for deleting your account
@@ -61,24 +61,24 @@ export const DeleteAccountDialog = ({
             <Formik
                 enableReinitialize={true}
                 initialValues={{
-                    password: '',
+                    password: "",
                     deletePublicData: false,
                 }}
                 onSubmit={(values, helpers) => {
                     if (!id) {
-                        PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
                     mutationWrapper<Success, UserDeleteInput>({
                         mutation: deleteAccount,
                         input: values,
                         successCondition: (data) => data.success,
-                        successMessage: () => ({ key: 'AccountDeleteSuccess' }),
+                        successMessage: () => ({ key: "AccountDeleteSuccess" }),
                         onSuccess: () => {
                             setLocation(LINKS.Home);
                             handleClose(true);
                         },
-                        errorMessage: () => ({ key: 'AccountDeleteFail' }),
+                        errorMessage: () => ({ key: "AccountDeleteFail" }),
                         onError: () => {
                             handleClose(false);
                         }
@@ -97,7 +97,7 @@ export const DeleteAccountDialog = ({
                             autoComplete="current-password"
                         />
                         {/* Is internal checkbox */}
-                        <Tooltip placement={'top'} title="If checked, all public data owned by your account will be deleted. Please consider transferring and/or exporting anything important if you decide to choose this.">
+                        <Tooltip placement={"top"} title="If checked, all public data owned by your account will be deleted. Please consider transferring and/or exporting anything important if you decide to choose this.">
                             <FormControlLabel
                                 label='Delete public data'
                                 control={
@@ -117,7 +117,7 @@ export const DeleteAccountDialog = ({
                             startIcon={<DeleteIcon />}
                             color="secondary"
                             onClick={() => { formik.submitForm() }}
-                        >{t('Delete')}</Button>
+                        >{t("Delete")}</Button>
                     </Stack>
                 </DialogContent>}
             </Formik>

@@ -1,10 +1,10 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useMemo } from 'react';
-import { calculateNodeSize } from '../../nodes';
-import { BaseEdge } from '../BaseEdge/BaseEdge';
-import { NodeEdgeProps } from '../types';
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "@shared/icons";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useCallback, useMemo } from "react";
+import { calculateNodeSize } from "../../nodes";
+import { BaseEdge } from "../BaseEdge/BaseEdge";
+import { NodeEdgeProps } from "../types";
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -61,7 +61,7 @@ export const NodeEdge = ({
                         onClick={() => { handleAdd(link) }}
                         aria-label='Insert node on edge'
                     >
-                        <AddIcon id="insert-node-on-edge-button-icon" fill={'white'} />
+                        <AddIcon id="insert-node-on-edge-button-icon" fill={"white"} />
                     </ColorIconButton>
                 </Tooltip>
                 {/* Insert Branch */}
@@ -85,7 +85,7 @@ export const NodeEdge = ({
                         onClick={handleEditClick}
                         aria-label='Edit link'
                     >
-                        <EditIcon id="insert-node-on-edge-button-icon" fill={'white'} />
+                        <EditIcon id="insert-node-on-edge-button-icon" fill={"white"} />
                     </ColorIconButton>
                 </Tooltip>
                 {/* Delete link */}

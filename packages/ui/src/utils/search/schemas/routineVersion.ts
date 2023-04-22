@@ -1,11 +1,11 @@
 import { RoutineVersionSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { routineVersionFindMany } from "../../api/generated/endpoints/routineVersion_findMany";
+import { routineVersionFindMany } from "../../../api/generated/endpoints/routineVersion_findMany";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
 export const routineVersionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchRoutineVersion'),
+    formLayout: searchFormLayout("SearchRoutineVersion"),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,

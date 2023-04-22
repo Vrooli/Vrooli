@@ -2,10 +2,10 @@
  * Title container with List inside
  */
 // Used to display popular/search results of a particular object type
-import { List, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { TitleContainer } from '../TitleContainer/TitleContainer';
-import { ListTitleContainerProps } from '../types';
+import { List, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { TitleContainer } from "../TitleContainer/TitleContainer";
+import { ListTitleContainerProps } from "../types";
 
 export function ListTitleContainer({
     children,
@@ -20,10 +20,10 @@ export function ListTitleContainer({
             {
                 isEmpty ?
                     <Typography variant="h6" sx={{
-                        textAlign: 'center',
-                        paddingTop: '8px',
-                    }}>{emptyText ?? t('NoResults', { ns: 'error' })}</Typography> :
-                    <List sx={{ overflow: 'hidden' }}>
+                        textAlign: "center",
+                        paddingTop: "8px",
+                    }}>{emptyText ?? t("NoResults", { ns: "error" })}</Typography> :
+                    <List sx={{ overflow: "hidden" }}>
                         {children}
                     </List>
             }

@@ -32,7 +32,7 @@ export const useBookmarker = ({
     const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne)
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData, { data, loading }] = useCustomLazyQuery<BookmarkSearchResult, BookmarkSearchInput>(bookmarkFindMany, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useCustomLazyQuery<BookmarkSearchResult, BookmarkSearchInput>(bookmarkFindMany, { errorPolicy: "all" });
 
     const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
 
@@ -47,7 +47,7 @@ export const useBookmarker = ({
                 listConnect: bookmarkListId,
                 listCreate: bookmarkListId ? undefined : {
                     id: uuid(),
-                    label: 'Favorites',
+                    label: "Favorites",
                 },
             },
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Bookmark, data) },
@@ -68,7 +68,7 @@ export const useBookmarker = ({
         const bookmarks = data?.edges.map(edge => edge.node);
         // If there are no bookmarks, show error snack
         if (bookmarks === undefined || bookmarks.length === 0) {
-            PubSub.get().publishSnack({ message: 'Could not find bookmark', severity: 'Error' });
+            PubSub.get().publishSnack({ message: "Could not find bookmark", severity: "Error" });
         }
         // If there is exactly one bookmark, delete it
         else if (bookmarks.length === 1) {
@@ -81,7 +81,7 @@ export const useBookmarker = ({
         }
         // If there is more than one bookmark, open dialog to select which one to delete
         else {
-            console.warn('TODO: Open dialog to select which bookmark to delete')
+            console.warn("TODO: Open dialog to select which bookmark to delete")
             //TODO
         }
     }, [data, loading, deleteOne, onActionComplete]);
@@ -90,11 +90,11 @@ export const useBookmarker = ({
     const handleBookmark = useCallback((isAdding: boolean) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasBookmarkingSupport) {
-            PubSub.get().publishSnack({ messageKey: 'BookmarkNotSupported', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "BookmarkNotSupported", severity: "Error" });
             return;
         }
         if (isAdding) {

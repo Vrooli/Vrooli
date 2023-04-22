@@ -9,41 +9,42 @@ import {
     Button, Stack,
     SxProps,
     Typography
-} from '@mui/material';
-import { EmailLogInInput, LINKS, Session } from '@shared/consts';
-import { EmailIcon, WalletIcon } from '@shared/icons';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { authEmailLogIn } from '../../api/generated/endpoints/auth_emailLogIn';
-import { useCustomMutation } from '../../api/hooks';
-import { hasErrorCode, mutationWrapper } from '../../api/utils';
-import { HelpButton } from '../../components/buttons/HelpButton/HelpButton';
-import { LargeDialog } from '../../components/dialogs/LargeDialog/LargeDialog';
-import { WalletInstallDialog } from '../../components/dialogs/WalletInstallDialog/WalletInstallDialog';
-import { WalletSelectDialog } from '../../components/dialogs/WalletSelectDialog/WalletSelectDialog';
-import { TopBar } from '../../components/navigation/TopBar/TopBar';
-import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from '../../forms/auth';
-import { getCurrentUser } from '../../utils/authentication/session';
-import { hasWalletExtension, validateWallet } from '../../utils/authentication/walletIntegration';
-import { Forms } from '../../utils/consts';
-import { useReactSearch } from '../../utils/hooks/useReactSearch';
-import { PubSub } from '../../utils/pubsub';
-import { setupPush } from '../../utils/push';
-import { useLocation } from '../../utils/route';
-import { SessionContext } from '../../utils/SessionContext';
-import { StartViewProps } from '../types';
+} from "@mui/material";
+import { EmailLogInInput, LINKS, Session } from "@shared/consts";
+import { EmailIcon, WalletIcon } from "@shared/icons";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { authEmailLogIn } from "../../api/generated/endpoints/auth_emailLogIn";
+import { useCustomMutation } from "../../api/hooks";
+import { hasErrorCode, mutationWrapper } from "../../api/utils";
+import { HelpButton } from "../../components/buttons/HelpButton/HelpButton";
+import { LargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog";
+import { WalletInstallDialog } from "../../components/dialogs/WalletInstallDialog/WalletInstallDialog";
+import { WalletSelectDialog } from "../../components/dialogs/WalletSelectDialog/WalletSelectDialog";
+import { TopBar } from "../../components/navigation/TopBar/TopBar";
+import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "../../forms/auth";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { hasWalletExtension, validateWallet } from "../../utils/authentication/walletIntegration";
+import { Forms } from "../../utils/consts";
+import { useReactSearch } from "../../utils/hooks/useReactSearch";
+import { PubSub } from "../../utils/pubsub";
+import { setupPush } from "../../utils/push";
+import { useLocation } from "../../utils/route";
+import { SessionContext } from "../../utils/SessionContext";
+import { StartViewProps } from "../types";
+import { StartViewProps } from "../types";
 
 const helpText =
-    `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.`
+    "Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later."
 
 const buttonProps: SxProps = {
-    height: '4em',
+    height: "4em",
 }
 
-const emailTitleId = 'email-login-dialog-title';
+const emailTitleId = "email-login-dialog-title";
 
 export const StartView = ({
-    display = 'page',
+    display = "page",
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -52,8 +53,8 @@ export const StartView = ({
 
     const search = useReactSearch();
     const { redirect, verificationCode } = useMemo(() => ({
-        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
-        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
+        redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === "string" ? search.verificationCode : undefined,
     }), [search]);
 
     const [emailLogIn] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
@@ -87,16 +88,16 @@ export const StartView = ({
                     mutation: emailLogIn,
                     input: { verificationCode },
                     onSuccess: (data) => {
-                        PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
+                        PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publishSession(data);
                         setLocation(redirect ?? LINKS.Home)
                     },
                     onError: (response) => {
-                        if (hasErrorCode(response, 'MustResetPassword')) {
+                        if (hasErrorCode(response, "MustResetPassword")) {
                             PubSub.get().publishAlertDialog({
-                                messageKey: 'ChangePasswordBeforeLogin',
+                                messageKey: "ChangePasswordBeforeLogin",
                                 buttons: [
-                                    { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? LINKS.Home) } },
+                                    { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home) } },
                                 ]
                             });
                         }
@@ -135,11 +136,11 @@ export const StartView = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
             PubSub.get().publishAlertDialog({
-                messageKey: 'WalletProviderNotFoundDetails',
+                messageKey: "WalletProviderNotFoundDetails",
                 buttons: [
-                    { labelKey: 'TryAgain', onClick: openWalletConnectDialog },
-                    { labelKey: 'InstallWallet', onClick: openWalletInstallDialog },
-                    { labelKey: 'EmailLogin', onClick: toEmailLogIn },
+                    { labelKey: "TryAgain", onClick: openWalletConnectDialog },
+                    { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
+                    { labelKey: "EmailLogin", onClick: toEmailLogIn },
                 ]
             });
             return;
@@ -147,7 +148,7 @@ export const StartView = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
+            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" })
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? LINKS.Welcome : (redirect ?? LINKS.Home));
@@ -196,35 +197,35 @@ export const StartView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Start',
+                    titleKey: "Start",
                 }}
             />
             {/* Main content */}
             <Box sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-                height: 'calc(100vh - 128px)', // Minus double the app bar height
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                textAlign: "center",
+                height: "calc(100vh - 128px)", // Minus double the app bar height
                 marginTop: 4,
             }}>
                 <Box sx={{
-                    width: 'min(calc(100vw - 16px), 400px)',
+                    width: "min(calc(100vw - 16px), 400px)",
                 }}>
                     <Box sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                         marginBottom: 2,
                     }}>
                         <Typography
                             variant="h6"
                             sx={{
-                                display: 'inline-block',
+                                display: "inline-block",
                             }}
                         >
-                            {t('SelectLogInMethod')}
+                            {t("SelectLogInMethod")}
                         </Typography>
                         <HelpButton markdown={helpText} />
                     </Box>
@@ -237,13 +238,13 @@ export const StartView = ({
                             onClick={openWalletConnectDialog}
                             startIcon={<WalletIcon />}
                             sx={{ ...buttonProps }}
-                        >{t('Wallet')}</Button>
+                        >{t("Wallet")}</Button>
                         <Button
                             fullWidth
                             onClick={toEmailLogIn}
                             startIcon={<EmailIcon />}
                             sx={{ ...buttonProps }}
-                        >{t('Email')}</Button>
+                        >{t("Email")}</Button>
                     </Stack>
                 </Box>
             </Box>

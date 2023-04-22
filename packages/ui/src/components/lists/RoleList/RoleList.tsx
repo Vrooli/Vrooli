@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { RoleListProps } from '../types';
-import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Chip, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { useMemo } from "react";
+import { RoleListProps } from "../types";
 
 export const RoleList = ({
     maxCharacters = 50,
@@ -22,9 +22,9 @@ export const RoleList = ({
                         label={role.name}
                         size="small"
                         sx={{
-                            backgroundColor: palette.mode === 'light' ? '#1d7691' : '#016d97',
-                            color: 'white',
-                            width: 'fit-content',
+                            backgroundColor: palette.mode === "light" ? "#1d7691" : "#016d97",
+                            color: "white",
+                            width: "fit-content",
                         }} />
                 );
             }
@@ -35,7 +35,7 @@ export const RoleList = ({
     }, [maxCharacters, palette.mode, roles]);
 
     return (
-        <Tooltip title={roles.map(t => t.name).join(', ')} placement="top">
+        <Tooltip title={roles.map(t => t.name).join(", ")} placement="top">
             <Stack
                 direction="row"
                 spacing={1}

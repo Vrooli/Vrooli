@@ -1,11 +1,11 @@
 import { MemberSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { memberFindMany } from "../../api/generated/endpoints/member_findMany";
+import { memberFindMany } from "../../../api/generated/endpoints/member_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const memberSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchMember'),
+    formLayout: searchFormLayout("SearchMember"),
     containers: [], //TODO
     fields: [], //TODO
 })

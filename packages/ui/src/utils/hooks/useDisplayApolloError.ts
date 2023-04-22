@@ -12,7 +12,7 @@ export const useDisplayApolloError = (error: ApolloError | undefined) => {
     useEffect(() => {
         if (error) {
             const message = errorToMessage(error);
-            PubSub.get().publishSnack({ message, severity: 'Error' })
+            PubSub.get().publishSnack({ message, severity: "Error" })
         }
     }, [error]);
 }

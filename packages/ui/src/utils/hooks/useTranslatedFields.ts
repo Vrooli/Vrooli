@@ -1,6 +1,6 @@
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as yup from 'yup';
+import * as yup from "yup";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "../display/translationTools";
 
 /**
@@ -25,7 +25,7 @@ export function useTranslatedFields({
     const [language, setLanguage] = useState<string>(defaultLanguage);
 
     // Get the translated fields, touched status, and error messages
-    const [field, meta, helpers] = useField('translations');
+    const [field, meta, helpers] = useField("translations");
     const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
 
     // Find languages with translations

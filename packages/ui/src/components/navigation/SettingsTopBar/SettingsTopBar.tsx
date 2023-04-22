@@ -1,46 +1,46 @@
-import { Box } from '@mui/material';
-import { SettingsSearchBar } from 'components/inputs/search';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { useLocation } from 'utils/route';
-import { PreSearchItem, translateSearchItems } from 'utils/search/siteToSearch';
-import { SessionContext } from 'utils/SessionContext';
-import { TopBar } from '../TopBar/TopBar';
-import { SettingsTopBarProps } from '../types';
+import { Box } from "@mui/material";
+import { SettingsSearchBar } from "components/inputs/search";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { useLocation } from "utils/route";
+import { PreSearchItem, translateSearchItems } from "utils/search/siteToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { TopBar } from "../TopBar/TopBar";
+import { SettingsTopBarProps } from "../types";
 
 /**
  * Search bar options
  */
 const searchItems: PreSearchItem[] = [
     {
-        label: 'Profile',
-        keywords: ['Bio', 'Handle', 'Name'],
-        value: 'Profile',
+        label: "Profile",
+        keywords: ["Bio", "Handle", "Name"],
+        value: "Profile",
     },
     {
-        label: 'Privacy',
-        keywords: ['History'],
-        value: 'Privacy',
+        label: "Privacy",
+        keywords: ["History"],
+        value: "Privacy",
     },
     {
-        label: 'Authentication',
-        keywords: [{ key: 'Wallet', count: 1 }, { key: 'Wallet', count: 2 }, { key: 'Email', count: 1 }, { key: 'Email', count: 2 }, 'LogOut', 'Security'],
-        value: 'authentication',
+        label: "Authentication",
+        keywords: [{ key: "Wallet", count: 1 }, { key: "Wallet", count: 2 }, { key: "Email", count: 1 }, { key: "Email", count: 2 }, "LogOut", "Security"],
+        value: "authentication",
     },
     {
-        label: 'Display',
-        keywords: ['Theme', 'Light', 'Dark', 'Interests', 'Hidden', { key: 'Tag', count: 1 }, { key: 'Tag', count: 2 }, 'History'],
-        value: 'Display',
+        label: "Display",
+        keywords: ["Theme", "Light", "Dark", "Interests", "Hidden", { key: "Tag", count: 1 }, { key: "Tag", count: 2 }, "History"],
+        value: "Display",
     },
     {
-        label: 'Notification',
+        label: "Notification",
         labelArgs: { count: 2 },
-        keywords: [{ key: 'Alert', count: 1 }, { key: 'Alert', count: 2 }, { key: 'PushNotification', count: 1 }, { key: 'PushNotification', count: 2 }],
-        value: 'Notification',
+        keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
+        value: "Notification",
     },
     {
-        label: 'Schedule',
+        label: "Schedule",
         keywords: [],
-        value: 'Schedule',
+        value: "Schedule",
     }
 ]
 
@@ -54,7 +54,7 @@ export const SettingsTopBar = ({
 }: SettingsTopBarProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const [searchString, setSearchString] = useState<string>('');
+    const [searchString, setSearchString] = useState<string>("");
 
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const onInputSelect = useCallback((newValue: any) => {
@@ -71,8 +71,8 @@ export const SettingsTopBar = ({
             titleData={titleData}
             // Search bar to find settings
             below={<Box sx={{
-                width: 'min(100%, 700px)',
-                margin: 'auto',
+                width: "min(100%, 700px)",
+                margin: "auto",
                 marginTop: 2,
                 marginBottom: 2,
                 paddingLeft: 2,

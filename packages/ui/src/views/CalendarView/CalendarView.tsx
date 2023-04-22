@@ -1,31 +1,31 @@
-import { useTheme } from '@mui/material';
-import { Schedule, ScheduleSearchResult } from '@shared/consts';
-import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from '@shared/icons';
-import { CommonKey } from '@shared/translations';
-import { calculateOccurrences } from '@shared/utils';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SideActionButtons } from 'components/buttons/SideActionButtons/SideActionButtons';
-import { ScheduleDialog } from 'components/dialogs/ScheduleDialog/ScheduleDialog';
-import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { PageTabs } from 'components/PageTabs/PageTabs';
-import { PageTab } from 'components/types';
-import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from 'date-fns';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Calendar, dateFnsLocalizer, DateLocalizer } from 'react-big-calendar';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { useTranslation } from 'react-i18next';
-import { CalendarEvent } from 'types';
-import { getCurrentUser } from 'utils/authentication/session';
-import { getDisplay } from 'utils/display/listTools';
-import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
-import { useDimensions } from 'utils/hooks/useDimensions';
-import { useFindMany } from 'utils/hooks/useFindMany';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { addSearchParams, parseSearchParams, useLocation } from 'utils/route';
-import { CalendarPageTabOption } from 'utils/search/objectToSearch';
-import { SessionContext } from 'utils/SessionContext';
-import { CalendarViewProps } from 'views/types';
+import { useTheme } from "@mui/material";
+import { Schedule, ScheduleSearchResult } from "@shared/consts";
+import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from "@shared/icons";
+import { CommonKey } from "@shared/translations";
+import { calculateOccurrences } from "@shared/utils";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
+import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
+import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Calendar, dateFnsLocalizer, DateLocalizer } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { useTranslation } from "react-i18next";
+import { CalendarEvent } from "types";
+import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
+import { useDimensions } from "utils/hooks/useDimensions";
+import { useFindMany } from "utils/hooks/useFindMany";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { addSearchParams, parseSearchParams, useLocation } from "utils/route";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { CalendarViewProps } from "views/types";
 
 // Tab data type
 type BaseParams = {
@@ -37,19 +37,19 @@ type BaseParams = {
 // Data for each tab
 const tabParams: BaseParams[] = [{
     Icon: OrganizationIcon,
-    titleKey: 'Meeting',
+    titleKey: "Meeting",
     tabType: CalendarPageTabOption.Meetings,
 }, {
     Icon: RoutineIcon,
-    titleKey: 'Routine',
+    titleKey: "Routine",
     tabType: CalendarPageTabOption.Routines,
 }, {
     Icon: ProjectIcon,
-    titleKey: 'Project',
+    titleKey: "Project",
     tabType: CalendarPageTabOption.Projects,
 }, {
     Icon: FocusModeIcon,
-    titleKey: 'FocusMode',
+    titleKey: "FocusMode",
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
@@ -185,7 +185,7 @@ const tabParams: BaseParams[] = [{
 // ];
 
 export const CalendarView = ({
-    display = 'page',
+    display = "page",
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -215,7 +215,7 @@ export const CalendarView = ({
 
                 setLocalizer(newLocalizer);
             } catch (error) {
-                console.error('Failed to load locale:', error);
+                console.error("Failed to load locale:", error);
             }
         };
 
@@ -268,7 +268,7 @@ export const CalendarView = ({
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
         canSearch: true,
-        searchType: 'Schedule',
+        searchType: "Schedule",
         where: {
             // Only find schedules that hav not ended, 
             // and will start before the date range ends
@@ -302,7 +302,7 @@ export const CalendarView = ({
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: 'CalendarEvent',
+                __typename: "CalendarEvent",
                 id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
                 title: getDisplay(schedule, getUserLanguages(session)).title,
                 start: occurrence.start,
@@ -318,7 +318,7 @@ export const CalendarView = ({
 
 
     const openEvent = useCallback((event: any) => {
-        console.log('CalendarEvent clicked:', event);
+        console.log("CalendarEvent clicked:", event);
     }, []);
 
     // Handle scheduling
@@ -367,8 +367,8 @@ export const CalendarView = ({
                     onClick={handleAddSchedule}
                     sx={{
                         padding: 0,
-                        width: '54px',
-                        height: '54px',
+                        width: "54px",
+                        height: "54px",
                     }}
                 >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -394,7 +394,7 @@ export const CalendarView = ({
                 onSelectEvent={openEvent}
                 startAccessor="start"
                 endAccessor="end"
-                views={['month', 'week', 'day']}
+                views={["month", "week", "day"]}
                 style={{
                     height: calendarHeight,
                     background: palette.background.paper,

@@ -1,8 +1,15 @@
 {
     "editor.formatOnSave": true,
-    // "editor.fixAll.eslint": true, // Useful but I have a lot of partially implemented code right now that I don't want deleted
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true
+        "source.organizeImports": true,
+        "source.fixAll.eslint": true,
+    },
+    "eslint.run": "onSave",
+    "[javascript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
     },
     "yaml.schemas": {
         "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "file:///root/Programming/Vrooli/docker-compose-prod.yml"

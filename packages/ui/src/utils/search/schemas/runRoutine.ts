@@ -1,11 +1,11 @@
 import { InputType, RunRoutineSortBy, RunStatus } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { runRoutineFindMany } from "../../api/generated/endpoints/runRoutine_findMany";
+import { runRoutineFindMany } from "../../../api/generated/endpoints/runRoutine_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchRunRoutine'),
+    formLayout: searchFormLayout("SearchRunRoutine"),
     containers: [
         { totalItems: 1 },
     ],
@@ -23,7 +23,7 @@ export const runRoutineSearchSchema = (): FormSchema => ({
                     { label: "Scheduled", value: RunStatus.Scheduled },
                     { label: "Failed", value: RunStatus.Failed },
                     { label: "Cancelled", value: RunStatus.Cancelled },
-                    { label: "Don't Care", value: 'undefined' },
+                    { label: "Don't Care", value: "undefined" },
                 ]
             }
         },

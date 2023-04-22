@@ -1,9 +1,9 @@
 import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const organizationTranslation: GqlPartial<OrganizationTranslation> = {
-    __typename: 'OrganizationTranslation',
+    __typename: "OrganizationTranslation",
     common: {
         id: true,
         language: true,
@@ -15,7 +15,7 @@ export const organizationTranslation: GqlPartial<OrganizationTranslation> = {
 }
 
 export const organizationYou: GqlPartial<OrganizationYou> = {
-    __typename: 'OrganizationYou',
+    __typename: "OrganizationYou",
     common: {
         canAddMembers: true,
         canDelete: true,
@@ -38,10 +38,10 @@ export const organizationYou: GqlPartial<OrganizationYou> = {
 }
 
 export const organization: GqlPartial<Organization> = {
-    __typename: 'Organization',
+    __typename: "Organization",
     common: {
         __define: {
-            0: async () => rel((await import('./tag')).tag, 'list'),
+            0: async () => rel((await import("./tag")).tag, "list"),
         },
         id: true,
         handle: true,
@@ -54,16 +54,16 @@ export const organization: GqlPartial<Organization> = {
         reportsCount: true,
         bookmarks: true,
         tags: { __use: 0 },
-        translations: () => rel(organizationTranslation, 'full'),
-        you: () => rel(organizationYou, 'full'),
+        translations: () => rel(organizationTranslation, "full"),
+        you: () => rel(organizationYou, "full"),
     },
     full: {
-        roles: async () => rel((await import('./role')).role, 'full', { omit: 'organization' }),
+        roles: async () => rel((await import("./role")).role, "full", { omit: "organization" }),
     },
-    list: { },
+    list: {},
     nav: {
         id: true,
         handle: true,
-        you: () => rel(organizationYou, 'full'),
+        you: () => rel(organizationYou, "full"),
     }
 }

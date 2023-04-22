@@ -1,13 +1,13 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { Box, Stack } from '@mui/material';
-import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
-import { useMemo } from 'react';
-import { getTranslation } from 'utils/display/translationTools';
-import { NodeShape } from 'utils/shape/models/node';
-import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { NodeColumnProps } from '../types';
+import { Box, Stack } from "@mui/material";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from "@shared/consts";
+import { useMemo } from "react";
+import { getTranslation } from "utils/display/translationTools";
+import { NodeShape } from "utils/shape/models/node";
+import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
+import { NodeColumnProps } from "../types";
 
 export const NodeColumn = ({
     handleAction,
@@ -107,8 +107,8 @@ export const NodeColumn = ({
             id={id}
             direction="column"
             padding={`${padding}px`}
-            paddingTop={'100px'}
-            paddingBottom={'100px'}
+            paddingTop={"100px"}
+            paddingBottom={"100px"}
             position="relative"
             display="flex"
             justifyContent="center"
@@ -117,7 +117,7 @@ export const NodeColumn = ({
                 // pointerEvents: 'none',
                 gap: `${padding * 4}px`,
                 // Fill available if column is empty
-                width: nodes.length === 0 ? '-webkit-fill-available' : 'auto',
+                width: nodes.length === 0 ? "-webkit-fill-available" : "auto",
             }}
         >
             {nodeList}

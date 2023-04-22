@@ -1,7 +1,7 @@
-import { exists, uppercaseFirstLetter } from '@shared/utils';
-import Markdown from 'markdown-to-jsx';
-import { useCallback, useMemo, useState } from 'react';
-import { PopoverWithArrow } from '../../components/dialogs/PopoverWithArrow/PopoverWithArrow';
+import { exists, uppercaseFirstLetter } from "@shared/utils";
+import Markdown from "markdown-to-jsx";
+import { useCallback, useMemo, useState } from "react";
+import { PopoverWithArrow } from "../../components/dialogs/PopoverWithArrow/PopoverWithArrow";
 
 interface UsePopoverMenuOptions {
     errors: Record<string, string | string[] | null | undefined> | null | undefined;
@@ -25,7 +25,7 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
     }, []);
     const closePopover = useCallback(() => {
         setErrorAnchorEl(null);
-        if (typeof onSetSubmitting === 'function') {
+        if (typeof onSetSubmitting === "function") {
             onSetSubmitting(false);
         }
     }, [onSetSubmitting]);
@@ -35,16 +35,16 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
         // Filter out null and undefined errors
         const filteredErrors = Object.entries(errors ?? {}).filter(([key, value]) => exists(value)) as [string, string | string[]][];
         // Helper to convert string to markdown list item
-        const toListItem = (str: string, level: number) => { return `${'  '.repeat(level)}* ${str}`; };
+        const toListItem = (str: string, level: number) => { return `${"  ".repeat(level)}* ${str}`; };
         // Convert errors to markdown list
         const errorList = filteredErrors.map(([key, value]) => {
             if (Array.isArray(value)) {
-                return toListItem(uppercaseFirstLetter(key), 0) + ': \n' + value.map((str) => toListItem(str, 1)).join('\n');
+                return toListItem(uppercaseFirstLetter(key), 0) + ": \n" + value.map((str) => toListItem(str, 1)).join("\n");
             }
             else {
-                return toListItem(uppercaseFirstLetter(key + ': ' + value), 0);
+                return toListItem(uppercaseFirstLetter(key + ": " + value), 0);
             }
-        }).join('\n');
+        }).join("\n");
         return errorList;
     }, [errors]);
 
@@ -58,9 +58,9 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
                 sxs={{
                     root: {
                         // Remove horizontal spacing for list items
-                        '& ul': {
-                            paddingInlineStart: '20px',
-                            margin: '8px',
+                        "& ul": {
+                            paddingInlineStart: "20px",
+                            margin: "8px",
                         }
                     }
                 }}

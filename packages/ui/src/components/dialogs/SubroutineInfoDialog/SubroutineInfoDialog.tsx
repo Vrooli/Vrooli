@@ -1,12 +1,12 @@
-import { NodeRoutineListItem } from '@shared/consts';
-import { Formik } from 'formik';
-import { BaseFormRef } from 'forms/BaseForm/BaseForm';
-import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from 'forms/SubroutineForm/SubroutineForm';
-import { useContext, useMemo, useRef } from 'react';
-import { getCurrentUser } from 'utils/authentication/session';
-import { SessionContext } from 'utils/SessionContext';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { SubroutineInfoDialogProps } from '../types';
+import { NodeRoutineListItem } from "@shared/consts";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "forms/SubroutineForm/SubroutineForm";
+import { useContext, useMemo, useRef } from "react";
+import { getCurrentUser } from "utils/authentication/session";
+import { SessionContext } from "utils/SessionContext";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { SubroutineInfoDialogProps } from "../types";
 
 /**
  * Drawer to display a routine list item's info on the build page. 
@@ -42,7 +42,7 @@ export const SubroutineInfoDialog = ({
             id="subroutine-dialog"
             onClose={onClose}
             isOpen={open}
-            titleId={''}
+            titleId={""}
             zIndex={zIndex}
         >
             <Formik

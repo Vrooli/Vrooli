@@ -1,9 +1,9 @@
 import { Transfer, TransferYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const transferYou: GqlPartial<TransferYou> = {
-    __typename: 'TransferYou',
+    __typename: "TransferYou",
     common: {
         canDelete: true,
         canUpdate: true,
@@ -13,23 +13,23 @@ export const transferYou: GqlPartial<TransferYou> = {
 }
 
 export const transfer: GqlPartial<Transfer> = {
-    __typename: 'Transfer',
+    __typename: "Transfer",
     common: {
         __define: {
-            0: async () => rel((await import('./api')).api, 'list'),
-            1: async () => rel((await import('./note')).note, 'list'),
-            2: async () => rel((await import('./project')).project, 'list'),
-            3: async () => rel((await import('./routine')).routine, 'list'),
-            4: async () => rel((await import('./smartContract')).smartContract, 'list'),
-            5: async () => rel((await import('./standard')).standard, 'list'),
+            0: async () => rel((await import("./api")).api, "list"),
+            1: async () => rel((await import("./note")).note, "list"),
+            2: async () => rel((await import("./project")).project, "list"),
+            3: async () => rel((await import("./routine")).routine, "list"),
+            4: async () => rel((await import("./smartContract")).smartContract, "list"),
+            5: async () => rel((await import("./standard")).standard, "list"),
         },
         id: true,
         created_at: true,
         updated_at: true,
         mergedOrRejectedAt: true,
         status: true,
-        fromOwner: async () => rel((await import('./user')).user, 'nav'),
-        toOwner: async () => rel((await import('./user')).user, 'nav'),
+        fromOwner: async () => rel((await import("./user")).user, "nav"),
+        toOwner: async () => rel((await import("./user")).user, "nav"),
         object: {
             __union: {
                 Api: 0,
@@ -40,7 +40,7 @@ export const transfer: GqlPartial<Transfer> = {
                 Standard: 5,
             }
         },
-        you: () => rel(transferYou, 'full'),
+        you: () => rel(transferYou, "full"),
     },
     full: {},
     list: {},

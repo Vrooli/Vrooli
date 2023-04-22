@@ -1,11 +1,11 @@
 import { ReportResponseSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { reportResponseFindMany } from "../../api/generated/endpoints/reportResponse_findMany";
+import { reportResponseFindMany } from "../../../api/generated/endpoints/reportResponse_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const reportResponseSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchReportResponse'),
+    formLayout: searchFormLayout("SearchReportResponse"),
     containers: [], //TODO
     fields: [], //TODO
 })

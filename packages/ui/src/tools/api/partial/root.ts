@@ -2,7 +2,7 @@ import { VersionYou } from "@shared/consts";
 import { GqlPartial } from "../types";
 
 export const versionYou: GqlPartial<VersionYou> = {
-    __typename: 'VersionYou',
+    __typename: "VersionYou",
     full: {
         canComment: true,
         canCopy: true,

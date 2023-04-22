@@ -2,7 +2,6 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from "@shared/consts";
 import { ApiIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from 'utils/route';
 import { apiVersionFindOne } from "../../../../api/generated/endpoints/apiVersion_findOne";
 import { BookmarkButton } from "../../../../components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "../../../../components/buttons/ReportsLink/ReportsLink";
@@ -16,11 +15,12 @@ import { placeholderColor } from "../../../../utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { useObjectActions } from "../../../../utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "../../../../utils/hooks/useObjectFromUrl";
+import { useLocation } from "../../../../utils/route";
 import { SessionContext } from "../../../../utils/SessionContext";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: ApiViewProps) => {
@@ -85,7 +85,7 @@ export const ApiView = ({
 
     const actionData = useObjectActions({
         object: apiVersion,
-        objectType: 'ApiVersion',
+        objectType: "ApiVersion",
         setLocation,
         setObject: setApiVersion,
     });
@@ -101,14 +101,14 @@ export const ApiView = ({
             mt={3}
             bgcolor={palette.background.paper}
             sx={{
-                borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: 12 },
-                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+                borderRadius: { xs: "0", sm: 2 },
+                boxShadow: { xs: "none", sm: 12 },
+                width: { xs: "100%", sm: "min(500px, 100vw)" }
             }}
         >
             <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
+                width={"min(100px, 25vw)"}
+                height={"min(100px, 25vw)"}
                 borderRadius='100%'
                 position='absolute'
                 display='flex'
@@ -117,9 +117,9 @@ export const ApiView = ({
                 left='50%'
                 top="-55px"
                 sx={{
-                    border: `1px solid black`,
+                    border: "1px solid black",
                     backgroundColor: profileColors[0],
-                    transform: 'translateX(-50%)',
+                    transform: "translateX(-50%)",
                 }}
             >
                 <ApiIcon fill={profileColors[1]} width='80%' height='80%' />
@@ -130,8 +130,8 @@ export const ApiView = ({
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
-                        display: 'block',
-                        marginLeft: 'auto',
+                        display: "block",
+                        marginLeft: "auto",
                         marginRight: 1,
                     }}
                 >
@@ -142,7 +142,7 @@ export const ApiView = ({
                 {/* Title */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : permissions.canUpdate ? (
@@ -152,7 +152,7 @@ export const ApiView = ({
                                 <IconButton
                                     aria-label="Edit apiVersion"
                                     size="small"
-                                    onClick={() => actionData.onActionStart('Edit')}
+                                    onClick={() => actionData.onActionStart("Edit")}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -173,12 +173,12 @@ export const ApiView = ({
                 {/* Bio */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(summary) ? palette.background.textPrimary : palette.background.textSecondary }}>{summary ?? 'No summary set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(summary) ? palette.background.textPrimary : palette.background.textSecondary }}>{summary ?? "No summary set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -186,7 +186,7 @@ export const ApiView = ({
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton
                         disabled={!canBookmark}
-                        objectId={apiVersion?.id ?? ''}
+                        objectId={apiVersion?.id ?? ""}
                         bookmarkFor={BookmarkFor.Api}
                         isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={apiVersion?.root?.bookmarks ?? 0}
@@ -203,7 +203,7 @@ export const ApiView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Api',
+                    titleKey: "Api",
                 }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -215,15 +215,15 @@ export const ApiView = ({
                 zIndex={zIndex + 1}
             />
             <Box sx={{
-                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
-                display: 'flex',
+                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                display: "flex",
                 paddingTop: 5,
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
                 position: "relative",
             }}>
                 {/* Language display/select */}
                 <Box sx={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 8,
                     right: 8,
                 }}>

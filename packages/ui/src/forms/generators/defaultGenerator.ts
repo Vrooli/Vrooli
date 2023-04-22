@@ -1,6 +1,6 @@
-import { InputType } from '@shared/consts';
-import { FieldData } from 'forms/types';
-import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from '../types';
+import { InputType } from "@shared/consts";
+import { FieldData } from "forms/types";
+import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -10,7 +10,7 @@ import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInp
  */
 const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
-        color: 'secondary',
+        color: "secondary",
         defaultValue: new Array(props.options?.length ?? 0).fill(false),
         options: [],
         row: true,
@@ -20,30 +20,30 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: [],
         ...props
     }),
-    [InputType.JSON]: (props: Partial<Omit<JsonProps, 'id'>>): Omit<JsonProps, 'id'> => ({
-        defaultValue: '',
+    [InputType.JSON]: (props: Partial<Omit<JsonProps, "id">>): Omit<JsonProps, "id"> => ({
+        defaultValue: "",
         ...props
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
         defaultValue: [],
         ...props
     }),
-    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'name'>>): Omit<IntegerInputProps, 'name'> => ({
+    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, "name">>): Omit<IntegerInputProps, "name"> => ({
         ...props
     }),
-    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
-        defaultValue: '',
+    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
+        defaultValue: "",
         ...props
     }),
-    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
-        defaultValue: '',
+    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
+        defaultValue: "",
         ...props
     }), //TODO change when custom prompt input implemented, if it's needed
     [InputType.Radio]: (props: Partial<RadioProps>) => ({
-        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
+        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : "",
         ...props
     }),
-    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, 'name'> => ({
+    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, "name"> => ({
         options: [],
         getOptionLabel: (option: any) => option,
         ...props
@@ -70,8 +70,8 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
     },
     [InputType.Switch]: (props: Partial<SwitchProps>): SwitchProps => ({
         defaultValue: false,
-        color: 'secondary',
-        size: 'medium',
+        color: "secondary",
+        size: "medium",
         ...props
     }),
     [InputType.TagSelector]: (props: Partial<TagSelectorProps>): TagSelectorProps => ({
@@ -79,7 +79,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         ...props
     }),
     [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
-        defaultValue: '',
+        defaultValue: "",
         ...props
     }),
 }
@@ -120,8 +120,8 @@ export const createDefaultFieldData = ({
     return ({
         type: type as any,
         props: defaultMap[type]({}),
-        fieldName: fieldName ?? '',
-        label: label ?? '',
+        fieldName: fieldName ?? "",
+        label: label ?? "",
         yup: yup ?? ({
             checks: [],
         }),

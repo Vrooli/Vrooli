@@ -1,11 +1,11 @@
 import { ProjectSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { projectFindMany } from "../../api/generated/endpoints/project_findMany";
+import { projectFindMany } from "../../../api/generated/endpoints/project_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchProject'),
+    formLayout: searchFormLayout("SearchProject"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),

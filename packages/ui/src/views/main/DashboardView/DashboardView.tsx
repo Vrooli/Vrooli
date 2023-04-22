@@ -1,35 +1,35 @@
-import { useQuery } from '@apollo/client';
-import { Stack } from '@mui/material';
-import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
-import { calculateOccurrences } from '@shared/utils';
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { centeredDiv } from 'styles';
-import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from 'types';
-import { feedHome } from '../../../api/generated/endpoints/feed_home';
-import { ListTitleContainer } from '../../../components/containers/ListTitleContainer/ListTitleContainer';
-import { PageContainer } from '../../../components/containers/PageContainer/PageContainer';
-import { LargeDialog } from '../../../components/dialogs/LargeDialog/LargeDialog';
-import { SiteSearchBar } from '../../../components/inputs/search';
-import { ReminderList } from '../../../components/lists/reminder';
-import { ResourceListHorizontal } from '../../../components/lists/resource';
-import { TopBar } from '../../../components/navigation/TopBar/TopBar';
-import { PageTabs } from '../../../components/PageTabs/PageTabs';
-import { HomePrompt } from '../../../components/text/HomePrompt/HomePrompt';
-import { PageTab } from '../../../components/types';
-import { getCurrentUser, getFocusModeInfo } from '../../../utils/authentication/session';
-import { getDisplay, listToAutocomplete, listToListItems } from '../../../utils/display/listTools';
-import { getUserLanguages } from '../../../utils/display/translationTools';
-import { useDisplayApolloError } from '../../../utils/hooks/useDisplayApolloError';
-import { useReactSearch } from '../../../utils/hooks/useReactSearch';
-import { openObject } from '../../../utils/navigation/openObject';
-import { actionsItems, shortcuts } from '../../../utils/navigation/quickActions';
-import { PubSub } from '../../../utils/pubsub';
-import { useLocation } from '../../../utils/route';
-import { SessionContext } from '../../../utils/SessionContext';
-import { NoteUpsert } from '../../note';
-import { DashboardViewProps } from '../types';
+import { useQuery } from "@apollo/client";
+import { Stack } from "@mui/material";
+import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from "@shared/consts";
+import { calculateOccurrences } from "@shared/utils";
+import { DUMMY_ID, uuid } from "@shared/uuid";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { centeredDiv } from "styles";
+import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from "types";
+import { feedHome } from "../../../api/generated/endpoints/feed_home";
+import { ListTitleContainer } from "../../../components/containers/ListTitleContainer/ListTitleContainer";
+import { PageContainer } from "../../../components/containers/PageContainer/PageContainer";
+import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog";
+import { SiteSearchBar } from "../../../components/inputs/search";
+import { ReminderList } from "../../../components/lists/reminder";
+import { ResourceListHorizontal } from "../../../components/lists/resource";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { PageTabs } from "../../../components/PageTabs/PageTabs";
+import { HomePrompt } from "../../../components/text/HomePrompt/HomePrompt";
+import { PageTab } from "../../../components/types";
+import { getCurrentUser, getFocusModeInfo } from "../../../utils/authentication/session";
+import { getDisplay, listToAutocomplete, listToListItems } from "../../../utils/display/listTools";
+import { getUserLanguages } from "../../../utils/display/translationTools";
+import { useDisplayApolloError } from "../../../utils/hooks/useDisplayApolloError";
+import { useReactSearch } from "../../../utils/hooks/useReactSearch";
+import { openObject } from "../../../utils/navigation/openObject";
+import { actionsItems, shortcuts } from "../../../utils/navigation/quickActions";
+import { PubSub } from "../../../utils/pubsub";
+import { useLocation } from "../../../utils/route";
+import { SessionContext } from "../../../utils/SessionContext";
+import { NoteUpsert } from "../../note";
+import { DashboardViewProps } from "../types";
 
 const zIndex = 200;
 
@@ -37,7 +37,7 @@ const zIndex = 200;
  * View displayed for Home page when logged in
  */
 export const DashboardView = ({
-    display = 'page',
+    display = "page",
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -61,19 +61,19 @@ export const DashboardView = ({
     const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
         e.preventDefault();
         PubSub.get().publishFocusMode({
-            __typename: 'ActiveFocusMode' as const,
+            __typename: "ActiveFocusMode" as const,
             mode: tab.value,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
 
-    const [searchString, setSearchString] = useState<string>('');
+    const [searchString, setSearchString] = useState<string>("");
     const searchParams = useReactSearch();
     useEffect(() => {
-        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+        if (typeof searchParams.search === "string") setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, 'home'>, Wrap<HomeInput, 'input'>>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
     useEffect(() => { refetch() }, [refetch, searchString, activeFocusMode]);
     useDisplayApolloError(error);
 
@@ -84,7 +84,7 @@ export const DashboardView = ({
 
     // Converts resources to a resource list
     const [resourceList, setResourceList] = useState<ResourceList>({
-        __typename: 'ResourceList',
+        __typename: "ResourceList",
         created_at: 0,
         updated_at: 0,
         id: DUMMY_ID,
@@ -114,14 +114,14 @@ export const DashboardView = ({
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
         // If "help" typed, add help and faq shortcuts as first result
-        if (searchString.toLowerCase().startsWith('help')) {
+        if (searchString.toLowerCase().startsWith("help")) {
             firstResults.push({
                 __typename: "Shortcut",
-                label: `Help - Beginner's Guide`,
+                label: "Help - Beginner's Guide",
                 id: LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
-                label: 'Help - FAQ',
+                label: "Help - FAQ",
                 id: LINKS.FAQ,
             });
         }
@@ -140,15 +140,15 @@ export const DashboardView = ({
         if (!newValue) return;
         // If selected item is an action (i.e. no navigation required), do nothing 
         // (search bar performs actions automatically)
-        if (newValue.__typename === 'Action') {
+        if (newValue.__typename === "Action") {
             return;
         }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (newValue.__typename !== "Shortcut" && searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
         else setLocation(LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
-        if (newValue.__typename === 'Shortcut') {
+        if (newValue.__typename === "Shortcut") {
             setLocation(newValue.id);
         }
         // Otherwise, navigate to item page
@@ -174,9 +174,9 @@ export const DashboardView = ({
 
     const notes = useMemo(() => listToListItems({
         beforeNavigation,
-        dummyItems: new Array(5).fill('Note'),
+        dummyItems: new Array(5).fill("Note"),
         items: data?.home?.notes ?? [],
-        keyPrefix: `note-list-item`,
+        keyPrefix: "note-list-item",
         loading,
         zIndex,
     }), [beforeNavigation, data?.home?.notes, loading])
@@ -192,7 +192,7 @@ export const DashboardView = ({
             const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: 'CalendarEvent',
+                __typename: "CalendarEvent",
                 id: uuid(),
                 title: getDisplay(schedule, getUserLanguages(session)).title,
                 start: occurrence.start,
@@ -209,9 +209,9 @@ export const DashboardView = ({
         // Convert to list items
         return listToListItems({
             beforeNavigation,
-            dummyItems: new Array(5).fill('Event'),
+            dummyItems: new Array(5).fill("Event"),
             items: first10,
-            keyPrefix: `event-list-item`,
+            keyPrefix: "event-list-item",
             loading,
             zIndex,
         })
@@ -259,7 +259,7 @@ export const DashboardView = ({
                 )}
             />
             {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
+            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
                 <HomePrompt />
                 <SiteSearchBar
                     id="main-search"
@@ -270,7 +270,7 @@ export const DashboardView = ({
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
                     showSecondaryLabel={true}
-                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
+                    sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Stack>
             {/* Result feeds */}
@@ -288,7 +288,7 @@ export const DashboardView = ({
                 <ListTitleContainer
                     isEmpty={upcomingEvents.length === 0}
                     titleKey="Schedule"
-                    options={[['Open', openSchedule]]}
+                    options={[["Open", openSchedule]]}
                 >
                     {upcomingEvents}
                 </ListTitleContainer>
@@ -306,7 +306,7 @@ export const DashboardView = ({
                     isEmpty={notes.length === 0}
                     titleKey="Note"
                     titleVariables={{ count: 2 }}
-                    options={[['Create', openCreateNote]]}
+                    options={[["Create", openCreateNote]]}
                 >
                     {notes}
                 </ListTitleContainer>

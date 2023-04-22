@@ -1,5 +1,5 @@
-type OwnerPrefix = '' | 'ownedBy';
-type OwnerType = 'User' | 'Organization';
+type OwnerPrefix = "" | "ownedBy";
+type OwnerType = "User" | "Organization";
 
 /**
  * Shapes ownership connect fields for a GraphQL create input. Will only 
@@ -13,12 +13,12 @@ export const createOwner = <
     Prefix extends OwnerPrefix & string
 >(
     item: Item,
-    prefix: Prefix = '' as Prefix,
+    prefix: Prefix = "" as Prefix,
 ): { [K in `${Prefix}${OType}Connect`]?: string } => {
     // Find owner data in item
     const ownerData = item.owner;
     // If owner data is undefined, or type is not a User or Organization return empty object
-    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== 'User' && ownerData.__typename !== 'Organization')) return {};
+    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== "User" && ownerData.__typename !== "Organization")) return {};
     // Create field name (with first letter lowercase)
     let fieldName = `${prefix}${ownerData.__typename}Connect`;
     fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);

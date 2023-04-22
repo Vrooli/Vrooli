@@ -1,23 +1,23 @@
 /**
  * Displays all search options for an organization
  */
-import { Box, Button, Grid, useTheme } from '@mui/material';
-import { CancelIcon, RefreshIcon, SearchIcon } from '@shared/icons';
-import { GridActionButtons } from 'components/buttons/GridActionButtons/GridActionButtons';
-import { GeneratedGrid } from 'components/inputs/generated';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { Formik } from 'formik';
-import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { FieldData, FormSchema } from 'forms/types';
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { parseSearchParams } from 'utils/route';
-import { convertFormikForSearch, convertSearchForFormik } from 'utils/search/inputToSearch';
-import { searchTypeToParams } from 'utils/search/objectToSearch';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { AdvancedSearchDialogProps } from '../types';
+import { Box, Button, Grid, useTheme } from "@mui/material";
+import { CancelIcon, RefreshIcon, SearchIcon } from "@shared/icons";
+import { GridActionButtons } from "components/buttons/GridActionButtons/GridActionButtons";
+import { GeneratedGrid } from "components/inputs/generated";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Formik } from "formik";
+import { generateDefaultProps, generateYupSchema } from "forms/generators";
+import { FieldData, FormSchema } from "forms/types";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { parseSearchParams } from "utils/route";
+import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
+import { searchTypeToParams } from "utils/search/objectToSearch";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { AdvancedSearchDialogProps } from "../types";
 
-const titleId = 'advanced-search-dialog-title';
+const titleId = "advanced-search-dialog-title";
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -72,7 +72,7 @@ export const AdvancedSearchDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: 'AdvancedSearch' }}
+                titleData={{ titleId, titleKey: "AdvancedSearch" }}
             />
             <Formik
                 enableReinitialize={true}
@@ -92,18 +92,18 @@ export const AdvancedSearchDialog = ({
                         onClick={() => { formik.resetForm(); }}
                         startIcon={<RefreshIcon />}
                         sx={{
-                            display: 'flex',
-                            margin: 'auto',
+                            display: "flex",
+                            margin: "auto",
                             marginTop: 2,
                             marginBottom: 2,
                         }}
-                    >{t(`Reset`)}</Button>
+                    >{t("Reset")}</Button>
                     <Box sx={{
-                        margin: 'auto',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        paddingBottom: '64px',
+                        margin: "auto",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        paddingBottom: "64px",
                     }}>
                         {/* Search options */}
                         {schema && <GeneratedGrid
@@ -123,14 +123,14 @@ export const AdvancedSearchDialog = ({
                                 startIcon={<SearchIcon />}
                                 type="submit"
                                 onClick={formik.handleSubmit as any}
-                            >{t(`Search`)}</Button>
+                            >{t("Search")}</Button>
                         </Grid>
                         <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                             <Button
                                 fullWidth
                                 startIcon={<CancelIcon />}
                                 onClick={handleClose}
-                            >{t(`Cancel`)}</Button>
+                            >{t("Cancel")}</Button>
                         </Grid>
                     </GridActionButtons>
                 </>}

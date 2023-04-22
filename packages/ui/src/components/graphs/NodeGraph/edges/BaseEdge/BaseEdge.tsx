@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BaseEdgeProps, EdgePositions, Point } from '../types';
-import { Box, Popover, Tooltip } from '@mui/material';
+import { Box, Popover, Tooltip } from "@mui/material";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BaseEdgeProps, EdgePositions, Point } from "../types";
 
 /**
  * Finds the coordinate of a point on a bezier curve
@@ -53,7 +53,7 @@ const getPoint = (containerId: string, nodeId: string): { x: number, y: number, 
     const graph = document.getElementById(containerId);
     const node = document.getElementById(nodeId);
     if (!graph || !node) {
-        console.error('Could not find node to connect to edge', nodeId);
+        console.error("Could not find node to connect to edge", nodeId);
         return null;
     }
     const nodeRect = node.getBoundingClientRect();
@@ -180,19 +180,19 @@ export const BaseEdge = ({
         const diameter: number = isEditOpen ? thiccness : thiccness * 5 / 6
         return (
             <>
-                <Tooltip title={isEditOpen ? '' : "Edit edge or insert node"}>
+                <Tooltip title={isEditOpen ? "" : "Edit edge or insert node"}>
                     <Box onClick={toggleEdit} sx={{
                         position: "absolute",
                         top: dims.top + bezierPoint.y - (diameter / 2),
                         left: dims.left + bezierPoint.x - (diameter / 2),
                         height: `${diameter}px`,
                         width: `${diameter}px`,
-                        borderRadius: '100%',
-                        border: isEditOpen ? `2px solid #9e3984` : `none`,
-                        cursor: 'pointer',
+                        borderRadius: "100%",
+                        border: isEditOpen ? "2px solid #9e3984" : "none",
+                        cursor: "pointer",
                         zIndex: 2,
-                        background: isEditOpen ? 'transparent' : '#9e3984',
-                        '&:hover': {
+                        background: isEditOpen ? "transparent" : "#9e3984",
+                        "&:hover": {
                             height: `${thiccness}px`,
                             width: `${thiccness}px`,
                             top: dims.top + bezierPoint.y - (thiccness / 2),
@@ -206,18 +206,18 @@ export const BaseEdge = ({
                     onClose={closeEdit}
                     onClick={closeEdit}
                     anchorOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
+                        vertical: "top",
+                        horizontal: "center",
                     }}
                     transformOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
+                        vertical: "bottom",
+                        horizontal: "center",
                     }}
                     sx={{
-                        '& .MuiPopover-paper': {
-                            background: 'transparent',
-                            boxShadow: 'none',
-                            border: 'none',
+                        "& .MuiPopover-paper": {
+                            background: "transparent",
+                            boxShadow: "none",
+                            border: "none",
                             paddingBottom: 1,
                         }
                     }}

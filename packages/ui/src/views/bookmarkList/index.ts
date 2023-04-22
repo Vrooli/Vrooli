@@ -1,1 +1,1 @@
-export * from './BookmarkListView/BookmarkListView';
+export * from "./BookmarkListView/BookmarkListView";

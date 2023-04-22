@@ -1,7 +1,7 @@
 import { Stack } from "@mui/material";
-import { ProfileUpdateInput, User } from '@shared/consts';
+import { ProfileUpdateInput, User } from "@shared/consts";
 import { userValidation } from "@shared/validation";
-import { Formik } from 'formik';
+import { Formik } from "formik";
 import { SettingsPrivacyForm } from "forms/settings";
 import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";
 import { useCustomMutation } from "../../../api/hooks";
@@ -13,7 +13,7 @@ import { PubSub } from "../../../utils/pubsub";
 import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({
-    display = 'page',
+    display = "page",
 }: SettingsPrivacyViewProps) => {
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
@@ -25,7 +25,7 @@ export const SettingsPrivacyView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Authentication',
+                    titleKey: "Authentication",
                 }}
             />
             <Stack direction="row">
@@ -43,7 +43,7 @@ export const SettingsPrivacyView = ({
                     } as ProfileUpdateInput}
                     onSubmit={(values, helpers) => {
                         if (!profile) {
-                            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                             return;
                         }
                         mutationWrapper<User, ProfileUpdateInput>({

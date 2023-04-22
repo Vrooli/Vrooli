@@ -25,7 +25,7 @@ export const updatePrims = <T, K extends keyof T, PK extends keyof T>(
     // If no primary key, return changed fields
     if (!primary) return changedFields as any;
     // If primary key is not an ID, return changed fields with primary key
-    if (primary !== 'id') return { ...changedFields, [primary]: original[primary] } as any;
+    if (primary !== "id") return { ...changedFields, [primary]: original[primary] } as any;
     // If primary key is an ID, return changed fields with primary key, and make sure it's not DUMMY_ID
     return { ...changedFields, [primary]: original[primary] === DUMMY_ID ? uuid() : original[primary] } as any;
 }

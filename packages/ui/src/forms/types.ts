@@ -1,5 +1,5 @@
 import { InputType } from "@shared/consts";
-import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
@@ -105,7 +105,7 @@ export interface ScheduleFormProps extends BaseObjectFormProps<ScheduleShape> { 
 export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
     versions: string[];
 }
-export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, 'display' | 'isLoading'> {
+export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, "display" | "isLoading"> {
     canUpdate: boolean;
     handleViewFull: () => void;
     isEditing: boolean;
@@ -128,7 +128,7 @@ export interface UserFormProps extends BaseObjectFormProps<ProfileShape> { }
  * Props for rendering a Checkbox input component
  */
 export interface CheckboxProps {
-    color?: 'primary' | 'secondary' | 'default';
+    color?: "primary" | "secondary" | "default";
     /**
      * Array of booleans, one for each option in props
      */
@@ -146,28 +146,28 @@ export interface CheckboxProps {
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends Omit<DP, 'onUpload' | 'zIndex'> {
+export interface DropzoneProps extends Omit<DP, "onUpload" | "zIndex"> {
     defaultValue?: [];
 } // onUpload handled by form
 
 /**
  * Props for rendering a JSON input component
  */
-export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface JsonProps extends Omit<JP, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
 
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'languages' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
     defaultValue?: string[];
 }
 
 /**
  * Props for rendering a Markdown input component
  */
-export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface MarkdownProps extends Omit<MP, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
 
@@ -192,7 +192,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, 'selected' | 'handleChange' | 'zIndex'> {
+export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, "selected" | "handleChange" | "zIndex"> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -204,7 +204,7 @@ export interface SliderProps {
     max: number;
     defaultValue?: number; // Maps to defaultValue
     step?: number;
-    valueLabelDisplay?: 'auto' | 'on' | 'off';
+    valueLabelDisplay?: "auto" | "on" | "off";
 }
 
 /**
@@ -212,14 +212,14 @@ export interface SliderProps {
  */
 export interface SwitchProps {
     defaultValue?: boolean; // Maps to defaultChecked
-    size?: 'small' | 'medium';
-    color?: 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'default';
+    size?: "small" | "medium";
+    color?: "primary" | "secondary" | "error" | "info" | "success" | "warning" | "default";
 }
 
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'name' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | "handleTagsUpdate" | "name" | "zIndex"> {
     defaultValue?: TagShape[];
 }
 
@@ -244,7 +244,7 @@ export interface TextFieldProps {
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, 'name'> {
+export interface IntegerInputProps extends Omit<QP, "name"> {
     defaultValue?: any; // Ignored
 }
 
@@ -545,7 +545,7 @@ export interface YupField {
  */
 export interface YupSchema {
     title: string;
-    type: 'object';
+    type: "object";
     required: any[];
     properties: { [x: string]: any };
 }
@@ -563,11 +563,11 @@ export interface YupSchema {
  * on the width of the screen.
  */
 export type GridItemSpacing = number | string | {
-    xs?: number | 'auto';
-    sm?: number | 'auto';
-    md?: number | 'auto';
-    lg?: number | 'auto';
-    xl?: number | 'auto';
+    xs?: number | "auto";
+    sm?: number | "auto";
+    md?: number | "auto";
+    lg?: number | "auto";
+    xl?: number | "auto";
 }
 
 /**
@@ -575,11 +575,11 @@ export type GridItemSpacing = number | string | {
  * on the width of the screen.
  */
 export type GridSpacing = number | string | Array<number | string | null> | {
-    xs?: number | 'auto';
-    sm?: number | 'auto';
-    md?: number | 'auto';
-    lg?: number | 'auto';
-    xl?: number | 'auto';
+    xs?: number | "auto";
+    sm?: number | "auto";
+    md?: number | "auto";
+    lg?: number | "auto";
+    xl?: number | "auto";
 }
 
 /**
@@ -601,7 +601,7 @@ export interface GridContainerBase {
     /**
      * Direction to display items in the container. Overrides parent spacing
      */
-    direction?: 'column' | 'row';
+    direction?: "column" | "row";
     /**
      * Spacing of container's columns. Overrides spacing field
      */
@@ -651,7 +651,7 @@ export interface FormSchema {
     /**
      * Contains information about the overall layout of the form
      */
-    formLayout?: Omit<GridContainerBase, 'rowSpacing' | 'columnSpacing'>;
+    formLayout?: Omit<GridContainerBase, "rowSpacing" | "columnSpacing">;
     /**
      * Contains information about subsections of the form. Subsections 
      * can only be one level deep. If this is empty, then formLayout is 

@@ -9,11 +9,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
-import { useLocation } from 'utils/route';
+import { useLocation } from "utils/route";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: BookmarkListViewProps) => {
@@ -25,7 +25,7 @@ export const BookmarkListView = ({
         partialData,
     });
 
-    const { label } = useMemo(() => ({ label: existing?.label ?? '' }), [existing]);
+    const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
 
     useEffect(() => {
         document.title = `${label} | Vrooli`;
@@ -33,12 +33,12 @@ export const BookmarkListView = ({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: 'BookmarkList',
+        objectType: "BookmarkList",
         setLocation,
         setObject: setBookmarkList,
     });
 
-    const [searchString, setSearchString] = useState('');
+    const [searchString, setSearchString] = useState("");
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
     }, []);
@@ -49,7 +49,7 @@ export const BookmarkListView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'BookmarkList',
+                    titleKey: "BookmarkList",
                     titleVariables: { count: 1 },
                 }}
                 below={<TextField
@@ -72,9 +72,9 @@ export const BookmarkListView = ({
                 </SideActionButtons>
                 <Box
                     sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                     }}
                 >
                     {/* Bookmarks */}

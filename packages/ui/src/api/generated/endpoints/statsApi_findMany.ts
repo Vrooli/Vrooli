@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const statsApiFindMany = gql`
 query statsApi($input: StatsApiSearchInput!) {

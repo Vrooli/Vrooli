@@ -1,6 +1,6 @@
-import { useField } from 'formik';
-import { SelectorBase } from '../SelectorBase/SelectorBase';
-import { SelectorProps } from '../types';
+import { useField } from "formik";
+import { SelectorBase } from "../SelectorBase/SelectorBase";
+import { SelectorProps } from "../types";
 
 export const Selector = <T extends string | number | { [x: string]: any }>({
     name,

@@ -1,16 +1,16 @@
 import {
     Breadcrumbs,
     Link
-} from '@mui/material';
-import { useMemo } from 'react';
-import { noSelect } from 'styles';
-import { openLink, useLocation } from 'utils/route';
-import { BreadcrumbsBaseProps } from '../types';
+} from "@mui/material";
+import { useMemo } from "react";
+import { noSelect } from "styles";
+import { openLink, useLocation } from "utils/route";
+import { BreadcrumbsBaseProps } from "../types";
 
 export const BreadcrumbsBase = ({
     paths,
-    separator = '|',
-    ariaLabel = 'breadcrumb',
+    separator = "|",
+    ariaLabel = "breadcrumb",
     textColor,
     sx,
 }: BreadcrumbsBaseProps) => {
@@ -33,13 +33,13 @@ export const BreadcrumbsBase = ({
         <Breadcrumbs
             sx={{
                 ...sx,
-                '& .MuiBreadcrumbs-li > a': {
-                    color: sx?.color || 'inherit',
-                    minHeight: '48px', // Lighthouse recommends this for SEO, as it is more clickable
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    cursor: 'pointer',
+                "& .MuiBreadcrumbs-li > a": {
+                    color: sx?.color || "inherit",
+                    minHeight: "48px", // Lighthouse recommends this for SEO, as it is more clickable
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    cursor: "pointer",
                     ...noSelect,
                 }
             }}

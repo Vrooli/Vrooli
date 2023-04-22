@@ -2,7 +2,7 @@
  * Search list for a single object type
  */
 import { Box, Button } from "@mui/material";
-import { PlusIcon } from '@shared/icons';
+import { PlusIcon } from "@shared/icons";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
@@ -12,7 +12,7 @@ import { NavigableObject } from "types";
 import { listToListItems } from "utils/display/listTools";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
-import { useLocation } from 'utils/route';
+import { useLocation } from "utils/route";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
@@ -104,9 +104,9 @@ export function SearchList<DataType extends NavigableObject>({
         <>
             <Box
                 sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
                     marginBottom: 1,
                     ...(sxs?.search ?? {})
                 }}
@@ -119,7 +119,7 @@ export function SearchList<DataType extends NavigableObject>({
                     value={searchString}
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
-                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
+                    sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
             <SearchButtons
@@ -135,18 +135,18 @@ export function SearchList<DataType extends NavigableObject>({
                 zIndex={zIndex}
             />
             <ListContainer
-                emptyText={t(`NoResults`, { ns: 'error' })}
+                emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={listItems.length === 0}
             >
                 {listItems}
             </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{
-                maxWidth: '400px',
-                margin: 'auto',
+                maxWidth: "400px",
+                margin: "auto",
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`AddNew`)}</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t("AddNew")}</Button>
             </Box>}
         </>
     )

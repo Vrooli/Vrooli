@@ -1,28 +1,28 @@
-import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from '@shared/icons';
-import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { getTranslation } from 'utils/display/translationTools';
-import { PubSub } from 'utils/pubsub';
-import { ResourceListItemContextMenuProps } from '../types';
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from "@shared/icons";
+import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
+import { ListMenuItemData } from "components/dialogs/types";
+import { getTranslation } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
+import { ResourceListItemContextMenuProps } from "../types";
 
 export enum ResourceContextMenuOption {
-    AddBefore = 'AddBefore',
-    AddAfter = 'AddAfter',
-    Copy = 'Copy',
-    Delete = 'Delete',
-    Edit = 'Edit',
-    Move = 'Move',
-    Share = 'Share',
+    AddBefore = "AddBefore",
+    AddAfter = "AddAfter",
+    Copy = "Copy",
+    Delete = "Delete",
+    Edit = "Edit",
+    Move = "Move",
+    Share = "Share",
 }
 
 const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponent] } = {
-    [ResourceContextMenuOption.AddBefore]: ['Add resource before', MoveLeftIcon],
-    [ResourceContextMenuOption.AddAfter]: ['Add resource after', MoveRightIcon],
-    [ResourceContextMenuOption.Copy]: ['Copy link', CopyIcon],
-    [ResourceContextMenuOption.Edit]: ['Edit', EditIcon],
-    [ResourceContextMenuOption.Delete]: ['Delete', DeleteIcon],
-    [ResourceContextMenuOption.Move]: ['Move', MoveLeftRightIcon],
-    [ResourceContextMenuOption.Share]: ['Share', ShareIcon],
+    [ResourceContextMenuOption.AddBefore]: ["Add resource before", MoveLeftIcon],
+    [ResourceContextMenuOption.AddAfter]: ["Add resource after", MoveRightIcon],
+    [ResourceContextMenuOption.Copy]: ["Copy link", CopyIcon],
+    [ResourceContextMenuOption.Edit]: ["Edit", EditIcon],
+    [ResourceContextMenuOption.Delete]: ["Delete", DeleteIcon],
+    [ResourceContextMenuOption.Move]: ["Move", MoveLeftRightIcon],
+    [ResourceContextMenuOption.Share]: ["Share", ShareIcon],
 }
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
@@ -57,8 +57,8 @@ export const ResourceListItemContextMenu = ({
                 onAddAfter(index);
                 break;
             case ResourceContextMenuOption.Copy:
-                navigator.clipboard.writeText(resource?.link ?? '');
-                PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
+                navigator.clipboard.writeText(resource?.link ?? "");
+                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
                 break;
             case ResourceContextMenuOption.Delete:
                 onDelete(index);

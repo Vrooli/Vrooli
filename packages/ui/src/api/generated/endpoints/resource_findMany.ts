@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const resourceFindMany = gql`
 query resources($input: ResourceSearchInput!) {

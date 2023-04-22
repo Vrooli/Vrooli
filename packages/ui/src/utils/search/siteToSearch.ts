@@ -1,9 +1,9 @@
-import { FilterOptionsState } from '@mui/material';
+import { FilterOptionsState } from "@mui/material";
 import { Session } from "@shared/consts";
-import { CommonKey } from '@shared/translations';
-import i18next from 'i18next';
-import { getSiteLanguage } from '../authentication/session';
-import { normalizeText, removeEmojis, removePunctuation } from '../display/documentTools';
+import { CommonKey } from "@shared/translations";
+import i18next from "i18next";
+import { getSiteLanguage } from "../authentication/session";
+import { normalizeText, removeEmojis, removePunctuation } from "../display/documentTools";
 
 /**
  * A search item before it is translated into the user's language.
@@ -58,8 +58,8 @@ export interface SearchItem {
  */
 export const shapeSearchText = (text: string) => {
     if (!text) {
-        console.warn('No text provided to shapeSearchText');
-        return '';
+        console.warn("No text provided to shapeSearchText");
+        return "";
     }
     // Remove extra whitespace
     let shaped = text.trim();
@@ -86,7 +86,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
         let keywords = [shapeSearchText(label)];
         let unshapedKeywords = [label];
         for (const keyword of item.keywords ?? []) {
-            if (typeof keyword === 'string') {
+            if (typeof keyword === "string") {
                 const keywordText = i18next.t(keyword);
                 keywords.push(shapeSearchText(keywordText));
                 unshapedKeywords.push(keywordText);
@@ -112,7 +112,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
  * @returns A list of matches.
  */
 export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] => {
-    console.log('findSearchResults start', { ...items }, inputValue)
+    console.log("findSearchResults start", { ...items }, inputValue)
     // Shape the search term
     const shapedTerm = shapeSearchText(inputValue);
     // Filter out items which don't contain the shaped search term in their keywords

@@ -63,18 +63,18 @@ export const partialShape = async <T extends { __typename: string }>(
     // Iterate over the keys
     for (const key of Object.keys(data)) {
         // Skip __typename, __define, and __selectionType
-        if (['__typename', '__define', '__selectionType'].includes(key)) continue;
+        if (["__typename", "__define", "__selectionType"].includes(key)) continue;
         // If the key is __union, rename each field in the union to ensure uniqueness
         // NOTE: This case is only reached if the __union field is at the top level of the selection object, rather than 
         // nested within another property. Most of the time, the next case will be reached instead.
-        if (key === '__union') {
+        if (key === "__union") {
             // Initialize __union field if it doesn't exist
             if (!exists(result.__union)) {
                 result.__union = {};
             }
             for (const [unionKey, value] of Object.entries(data.__union!)) {
                 // If value is a string or number, it must be a key for a fragment in the __define field. 
-                if (typeof value === 'string' || typeof value === 'number') {
+                if (typeof value === "string" || typeof value === "number") {
                     // Rename the field to ensure uniqueness
                     if (!exists(currDefine[value])) continue;
                     const defineData = currDefine[value];
@@ -99,7 +99,7 @@ export const partialShape = async <T extends { __typename: string }>(
             }
             for (const [unionKey, value] of Object.entries(data[key].__union)) {
                 // If value is a string or number, it must be a key for a fragment in the __define field. 
-                if (typeof value === 'string' || typeof value === 'number') {
+                if (typeof value === "string" || typeof value === "number") {
                     // Rename the field to ensure uniqueness
                     if (!exists(currDefine[value])) continue;
                     const defineData = currDefine[value];
@@ -124,7 +124,7 @@ export const partialShape = async <T extends { __typename: string }>(
                 result[key] = { __typename: key, __use: uniqueFragmentName(defineData.__typename!, defineData.__selectionType!) };
             }
             // If there are other keys in the object besides __use and __typename, add them to the result
-            if (Object.keys(data[key]).filter(k => k !== '__use' && k !== '__typename').length > 0) {
+            if (Object.keys(data[key]).filter(k => k !== "__use" && k !== "__typename").length > 0) {
                 // Split __define (i.e. fragments) from the object so we can move them to shared fragments
                 const { __define, __use, ...rest } = await unlazy(data[key] as any);
                 uniqueFragments = addFragments(uniqueFragments, __define);
@@ -136,7 +136,7 @@ export const partialShape = async <T extends { __typename: string }>(
         else {
             if (!exists(data[key])) continue;
             // If the key is a boolean, set it to true
-            if (typeof data[key] === 'boolean') {
+            if (typeof data[key] === "boolean") {
                 result[key] = true;
             }
             // Otherwise, assume it's an object and recursively combine

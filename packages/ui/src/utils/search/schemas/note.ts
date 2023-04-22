@@ -1,11 +1,11 @@
 import { NoteSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { noteFindMany } from "../../api/generated/endpoints/note_findMany";
+import { noteFindMany } from "../../../api/generated/endpoints/note_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const noteSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchNote'),
+    formLayout: searchFormLayout("SearchNote"),
     containers: [
         votesContainer(),
         bookmarksContainer(),

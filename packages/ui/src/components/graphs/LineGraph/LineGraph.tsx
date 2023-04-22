@@ -1,6 +1,6 @@
 import { Tooltip } from "@mui/material";
-import { scaleLinear } from 'd3-scale';
-import { curveMonotoneX, line } from 'd3-shape';
+import { scaleLinear } from "d3-scale";
+import { curveMonotoneX, line } from "d3-shape";
 import { useMemo, useState } from "react";
 import { LineGraphProps } from "../types";
 
@@ -13,18 +13,18 @@ type Point = {
 
 // Function to extract the label from a data point
 const toLabel = (datum: any): string => {
-    if (typeof datum === 'object' && datum !== null && 'label' in datum) {
+    if (typeof datum === "object" && datum !== null && "label" in datum) {
         return datum.label;
     }
-    return '';
+    return "";
 };
 
 // Function to extract the value from a data point
 const toValue = (datum: any): number => {
-    if (typeof datum === 'number') {
+    if (typeof datum === "number") {
         return datum;
     }
-    if (typeof datum === 'object' && datum !== null && 'value' in datum) {
+    if (typeof datum === "object" && datum !== null && "value" in datum) {
         return datum.value;
     }
     return 0;
@@ -36,7 +36,7 @@ const toValue = (datum: any): number => {
 export const LineGraph = ({
     dims,
     data,
-    lineColor = '#000',
+    lineColor = "#000",
     lineWidth = 2,
     yAxisLabel,
 }: LineGraphProps) => {
@@ -69,8 +69,8 @@ export const LineGraph = ({
 
     // A tooltip is displayed when the user hovers over a data point
     const tooltipText = useMemo(() => {
-        if (!selectedPoint) return '';
-        return `${selectedPoint.label.length > 0 ? `${selectedPoint.label}: ` : ''} ${selectedPoint.value}`;
+        if (!selectedPoint) return "";
+        return `${selectedPoint.label.length > 0 ? `${selectedPoint.label}: ` : ""} ${selectedPoint.value}`;
     }, [selectedPoint]);
 
     const renderGrid = () => {
@@ -122,7 +122,7 @@ export const LineGraph = ({
                 cx={point.x}
                 cy={point.y}
                 r={3}
-                fill={selectedPoint === point ? lineColor : '#ccc'}
+                fill={selectedPoint === point ? lineColor : "#ccc"}
                 stroke={lineColor}
                 strokeWidth={1}
                 onMouseEnter={() => setSelectedPoint(point)}

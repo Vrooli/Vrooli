@@ -1,7 +1,7 @@
 import { useTheme } from "@mui/material";
 import { FindVersionInput, NoteVersion } from "@shared/consts";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from 'utils/route';
+import { useLocation } from "utils/route";
 import { noteVersionFindOne } from "../../../api/generated/endpoints/noteVersion_findOne";
 import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "../../../components/buttons/SideActionButtons/SideActionButtons";
@@ -15,7 +15,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { NoteViewProps } from "../types";
 
 export const NoteView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: NoteViewProps) => {
@@ -40,7 +40,7 @@ export const NoteView = ({
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
-            text: text ?? '',
+            text: text ?? "",
         };
     }, [language, noteVersion, partialData]);
 
@@ -50,7 +50,7 @@ export const NoteView = ({
 
     const actionData = useObjectActions({
         object: noteVersion,
-        objectType: 'NoteVersion',
+        objectType: "NoteVersion",
         setLocation,
         setObject: setNoteVersion,
     });
@@ -61,7 +61,7 @@ export const NoteView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Note',
+                    titleKey: "Note",
                 }}
             />
             <>
@@ -87,8 +87,8 @@ export const NoteView = ({
                         },
                         textArea: {
                             borderRadius: 0,
-                            resize: 'none',
-                            minHeight: '100vh',
+                            resize: "none",
+                            minHeight: "100vh",
                             background: palette.background.paper,
                         }
                     }}

@@ -1,9 +1,9 @@
 import { Node, NodeTranslation } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const nodeTranslation: GqlPartial<NodeTranslation> = {
-    __typename: 'NodeTranslation',
+    __typename: "NodeTranslation",
     common: {
         id: true,
         language: true,
@@ -16,7 +16,7 @@ export const nodeTranslation: GqlPartial<NodeTranslation> = {
 
 
 export const node: GqlPartial<Node> = {
-    __typename: 'Node',
+    __typename: "Node",
     common: {
         id: true,
         created_at: true,
@@ -25,10 +25,10 @@ export const node: GqlPartial<Node> = {
         nodeType: true,
         rowIndex: true,
         // loopCreate: async () => relPartial((await import('./nodeLoop').nodeLoopCreatePartial, 'full', { omit: 'node' }),
-        end: async () => rel((await import('./nodeEnd')).nodeEnd, 'full', { omit: 'node' }),
-        routineList: async () => rel((await import('./nodeRoutineList')).nodeRoutineList, 'full', { omit: 'node' }),
-        routineVersion: async () => rel((await import('./routineVersion')).routineVersion, 'full', { omit: ['nodes', 'nodeLinks'] }),
-        translations: () => rel(nodeTranslation, 'full'),
+        end: async () => rel((await import("./nodeEnd")).nodeEnd, "full", { omit: "node" }),
+        routineList: async () => rel((await import("./nodeRoutineList")).nodeRoutineList, "full", { omit: "node" }),
+        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "full", { omit: ["nodes", "nodeLinks"] }),
+        translations: () => rel(nodeTranslation, "full"),
     },
     full: {},
     list: {},

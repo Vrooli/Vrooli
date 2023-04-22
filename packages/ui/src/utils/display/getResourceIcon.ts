@@ -1,5 +1,5 @@
-import { ResourceUsedFor } from '@shared/consts';
-import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from '@shared/icons';
+import { ResourceUsedFor } from "@shared/consts";
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from "@shared/icons";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Community]: OrganizationIcon,
@@ -45,7 +45,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any =>
         const url = new URL(link); // eg. https://www.youtube.com/watch?v=dQw4w9WgXcQ
         const host = url.hostname; // eg. www.youtube.com
         // Remove beginning of hostname (usually "www", but sometimes "m")
-        const hostParts = host.split('.').filter(p => !['www', 'm'].includes(p)); // eg. ['youtube', 'com']
+        const hostParts = host.split(".").filter(p => !["www", "m"].includes(p)); // eg. ['youtube', 'com']
         // If no host name found, return default icon
         if (hostParts.length === 0) {
             return ResourceSocialIconMap.default;

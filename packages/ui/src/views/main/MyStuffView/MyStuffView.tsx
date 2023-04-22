@@ -15,7 +15,7 @@ import { PageTab } from "../../../components/types";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { getObjectUrlBase } from "../../../utils/navigation/openObject";
 import { PubSub } from "../../../utils/pubsub";
-import { addSearchParams, parseSearchParams, useLocation } from '../../../utils/route';
+import { addSearchParams, parseSearchParams, useLocation } from "../../../utils/route";
 import { SearchPageTabOption, SearchType } from "../../../utils/search/objectToSearch";
 import { SessionContext } from "../../../utils/SessionContext";
 import { MyStuffViewProps } from "../types";
@@ -72,7 +72,7 @@ const tabParams: BaseParams[] = [{
 }];
 
 export const MyStuffView = ({
-    display = 'page',
+    display = "page",
 }: MyStuffViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -137,9 +137,9 @@ export const MyStuffView = ({
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
-    const { searchType, where } = useMemo<Omit<BaseParams, 'where'> & { where: { [x: string]: any } }>(() => {
+    const { searchType, where } = useMemo<Omit<BaseParams, "where"> & { where: { [x: string]: any } }>(() => {
         // Update tab title
-        document.title = `${t(`Search`)} | ${currTab.label}`;
+        document.title = `${t("Search")} | ${currTab.label}`;
         const params = tabs[currTab.index];
         return {
             ...params,
@@ -151,7 +151,7 @@ export const MyStuffView = ({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
         // If not logged in, redirect to login page
         if (!userId) {
-            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
             setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
             return;
         }
@@ -172,22 +172,22 @@ export const MyStuffView = ({
     const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            <Tooltip title={t('AddTooltip')}>
+            <Tooltip title={t("AddTooltip")}>
                 <Button
                     onClick={onAddClick}
                     size="large"
                     sx={{
                         zIndex: 100,
-                        minWidth: 'min(100%, 200px)',
-                        height: '48px',
+                        minWidth: "min(100%, 200px)",
+                        height: "48px",
                         borderRadius: 3,
-                        position: 'fixed',
-                        bottom: 'calc(5em + env(safe-area-inset-bottom))',
-                        transform: popupButton ? 'translateY(0)' : 'translateY(calc(10em + env(safe-area-inset-bottom)))',
-                        transition: 'transform 1s ease-in-out',
+                        position: "fixed",
+                        bottom: "calc(5em + env(safe-area-inset-bottom))",
+                        transform: popupButton ? "translateY(0)" : "translateY(calc(10em + env(safe-area-inset-bottom)))",
+                        transition: "transform 1s ease-in-out",
                     }}
                 >
-                    {t('Add')}
+                    {t("Add")}
                 </Button>
             </Tooltip>
         </Box>
@@ -200,7 +200,7 @@ export const MyStuffView = ({
                 onClose={() => { }}
                 titleData={{
                     hideOnDesktop: true,
-                    titleKey: 'MyStuff',
+                    titleKey: "MyStuff",
                 }}
                 below={<PageTabs
                     ariaLabel="search-tabs"

@@ -2,7 +2,7 @@ import { Box, Button, Stack, useTheme } from "@mui/material";
 import { ProfileUpdateInput, User } from "@shared/consts";
 import { SearchIcon } from "@shared/icons";
 import { userValidation } from "@shared/validation";
-import { Formik } from 'formik';
+import { Formik } from "formik";
 import { SettingsDisplayForm } from "forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({
-    display = 'page',
+    display = "page",
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -33,24 +33,24 @@ export const SettingsDisplayView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Display',
-                    helpKey: 'DisplaySettingsDescription',
+                    titleKey: "Display",
+                    helpKey: "DisplaySettingsDescription",
                 }}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Stack direction="column" sx={{
-                    margin: 'auto',
-                    display: 'block',
+                    margin: "auto",
+                    display: "block",
                 }}>
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
-                            theme: palette.mode === 'dark' ? 'dark' : 'light'
+                            theme: palette.mode === "dark" ? "dark" : "light"
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             mutationWrapper<User, ProfileUpdateInput>({
@@ -72,11 +72,11 @@ export const SettingsDisplayView = ({
                             {...formik}
                         />}
                     </Formik>
-                    <Box sx={{ marginTop: 5, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
                         <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                        }}>{t('ClearSearchHistory')}</Button>
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                        }}>{t("ClearSearchHistory")}</Button>
                     </Box>
                 </Stack>
             </Stack>

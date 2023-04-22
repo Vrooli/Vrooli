@@ -1,8 +1,8 @@
-import { Box } from '@mui/material';
-import { useCallback, useRef, useState } from 'react';
-import Draggable from 'react-draggable';
-import { PubSub } from 'utils/pubsub';
-import { DraggableNodeProps } from '../types';
+import { Box } from "@mui/material";
+import { useCallback, useRef, useState } from "react";
+import Draggable from "react-draggable";
+import { PubSub } from "utils/pubsub";
+import { DraggableNodeProps } from "../types";
 
 type DragRefs = {
     graphStartScroll: { scrollLeft: number, scrollTop: number } | null;
@@ -44,7 +44,7 @@ export const DraggableNode = ({
         const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
         dragRefs.current.nodeStartPosition = { x, y };
         // Find current scroll position of graph
-        const graph = document.getElementById('graph-root');
+        const graph = document.getElementById("graph-root");
         if (graph) {
             const { scrollLeft, scrollTop } = graph;
             dragRefs.current.graphStartScroll = { scrollLeft, scrollTop };
@@ -80,7 +80,7 @@ export const DraggableNode = ({
         // Get dropped distance from data
         const { x, y } = data;
         // Calculate scroll distance since drag start
-        const grid = document.getElementById('graph-root') as HTMLElement;
+        const grid = document.getElementById("graph-root") as HTMLElement;
         const graphScrollDistance = {
             x: grid.scrollLeft - (dragRefs.current.graphStartScroll as any)?.scrollLeft ?? 0,
             y: grid.scrollTop - (dragRefs.current.graphStartScroll as any)?.scrollTop ?? 0,
@@ -125,9 +125,9 @@ export const DraggableNode = ({
                 sx={{
                     zIndex: isDragging ? 10000 : 100000,
                     opacity: isDragging ? 0.5 : 1,
-                    cursor: canDrag ? 'grab' : 'pointer',
-                    '&:active': {
-                        cursor: canDrag ? 'grabbing' : 'pointer',
+                    cursor: canDrag ? "grab" : "pointer",
+                    "&:active": {
+                        cursor: canDrag ? "grabbing" : "pointer",
                     },
                 }}
                 {...props}

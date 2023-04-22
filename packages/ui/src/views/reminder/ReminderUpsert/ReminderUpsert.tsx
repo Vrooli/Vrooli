@@ -3,7 +3,7 @@ import { FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } fro
 import { DeleteIcon } from "@shared/icons";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 import { mutationWrapper } from "../../../api";
 import { reminderCreate } from "../../../api/generated/endpoints/reminder_create";
 import { reminderFindOne } from "../../../api/generated/endpoints/reminder_findOne";
@@ -19,7 +19,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { ReminderUpsertProps } from "../types";
 
 export const ReminderUpsert = ({
-    display = 'page',
+    display = "page",
     handleDelete,
     isCreate,
     listId,
@@ -49,16 +49,16 @@ export const ReminderUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateReminder' : 'UpdateReminder',
+                    titleKey: isCreate ? "CreateReminder" : "UpdateReminder",
                 }}
                 // Show delete button only when updating
                 below={
                     !isCreate ? (
-                        <Box pb={2} sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <Box pb={2} sx={{ display: "flex", justifyContent: "center" }}>
                             <Button
                                 onClick={handleDelete}
                                 startIcon={<DeleteIcon />}
-                            >{t('Delete')}</Button>
+                            >{t("Delete")}</Button>
                         </Box>
                     ) : undefined
                 }
@@ -68,7 +68,7 @@ export const ReminderUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<Reminder, ReminderCreateInput | ReminderUpdateInput>({

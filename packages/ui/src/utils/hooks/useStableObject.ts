@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from "react";
 
 // A simple deep comparison function
 function deepEqual(a: any, b: any): boolean {
     if (a === b) return true;
     if (a === null || b === null || a === undefined || b === undefined) return false;
-    if (typeof a !== 'object' || typeof b !== 'object') return false;
+    if (typeof a !== "object" || typeof b !== "object") return false;
 
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);

@@ -4,7 +4,7 @@ import React from "react";
 /**
  * Views can be displayed as full pages or as dialogs
  */
-export type ViewDisplayType = 'dialog' | 'page';
+export type ViewDisplayType = "dialog" | "page";
 
 export type BaseViewProps = {
     display?: ViewDisplayType;
@@ -49,10 +49,10 @@ export interface ReportsViewProps extends BaseViewProps { }
 export interface BuildViewProps extends ViewProps<RoutineVersion> {
     handleCancel: () => void;
     handleClose: () => void;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>) => void;
+    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => void;
     isEditing: boolean;
     loading: boolean;
-    routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
+    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
     translationData: {
         language: string;
         setLanguage: (language: string) => void;

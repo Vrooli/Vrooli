@@ -21,7 +21,7 @@ export interface SubroutineViewProps extends BaseViewProps {
     /**
      * Owner of overall routine, not subroutine
      */
-    owner: RoutineVersion['root']['owner'] | null | undefined;
+    owner: RoutineVersion["root"]["owner"] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
     zIndex: number;

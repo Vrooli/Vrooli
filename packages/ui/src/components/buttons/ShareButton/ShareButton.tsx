@@ -1,8 +1,8 @@
-import { IconButton, Tooltip, useTheme } from '@mui/material';
-import { ShareIcon } from '@shared/icons';
-import { ShareObjectDialog } from 'components/dialogs/ShareObjectDialog/ShareObjectDialog';
-import { useCallback, useState } from 'react';
-import { ShareButtonProps } from '../types';
+import { IconButton, Tooltip, useTheme } from "@mui/material";
+import { ShareIcon } from "@shared/icons";
+import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog";
+import { useCallback, useState } from "react";
+import { ShareButtonProps } from "../types";
 
 export const ShareButton = ({
     object,
@@ -13,7 +13,7 @@ export const ShareButton = ({
     const [open, setOpen] = useState<boolean>(false);
     const openDialog = useCallback(() => { setOpen(true); }, []);
     const closeDialog = useCallback(() => { setOpen(false); }, []);
-    
+
     return (
         <>
             <ShareObjectDialog

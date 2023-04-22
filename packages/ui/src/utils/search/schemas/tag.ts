@@ -1,11 +1,11 @@
 import { TagSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { tagFindMany } from "../../api/generated/endpoints/tag_findMany";
+import { tagFindMany } from "../../../api/generated/endpoints/tag_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const tagSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchTag'),
+    formLayout: searchFormLayout("SearchTag"),
     containers: [], //TODO
     fields: [], //TODO
 })

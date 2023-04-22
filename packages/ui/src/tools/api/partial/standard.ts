@@ -1,9 +1,9 @@
 import { Standard, StandardYou } from "@shared/consts";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const standardYou: GqlPartial<StandardYou> = {
-    __typename: 'StandardYou',
+    __typename: "StandardYou",
     common: {
         canDelete: true,
         canBookmark: true,
@@ -20,13 +20,13 @@ export const standardYou: GqlPartial<StandardYou> = {
 }
 
 export const standard: GqlPartial<Standard> = {
-    __typename: 'Standard',
+    __typename: "Standard",
     common: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'nav'),
-            1: async () => rel((await import('./user')).user, 'nav'),
-            2: async () => rel((await import('./tag')).tag, 'list'),
-            3: async () => rel((await import('./label')).label, 'list'),
+            0: async () => rel((await import("./organization")).organization, "nav"),
+            1: async () => rel((await import("./user")).user, "nav"),
+            2: async () => rel((await import("./tag")).tag, "list"),
+            3: async () => rel((await import("./label")).label, "list"),
         },
         id: true,
         created_at: true,
@@ -47,15 +47,15 @@ export const standard: GqlPartial<Standard> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => rel(standardYou, 'full'),
+        you: () => rel(standardYou, "full"),
     },
     full: {
-        parent: async () => rel((await import('./standardVersion')).standardVersion, 'nav'),
-        versions: async () => rel((await import('./standardVersion')).standardVersion, 'full', { omit: 'root' }),
-        stats: async () => rel((await import('./statsStandard')).statsStandard, 'full'),
+        parent: async () => rel((await import("./standardVersion")).standardVersion, "nav"),
+        versions: async () => rel((await import("./standardVersion")).standardVersion, "full", { omit: "root" }),
+        stats: async () => rel((await import("./statsStandard")).statsStandard, "full"),
     },
     list: {
-        versions: async () => rel((await import('./standardVersion')).standardVersion, 'list', { omit: 'root' }),
+        versions: async () => rel((await import("./standardVersion")).standardVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,

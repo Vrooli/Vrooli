@@ -1,11 +1,11 @@
 import { QuestionAnswerSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { questionAnswerFindMany } from "../../api/generated/endpoints/questionAnswer_findMany";
+import { questionAnswerFindMany } from "../../../api/generated/endpoints/questionAnswer_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const questionAnswerSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchQuestionAnswer'),
+    formLayout: searchFormLayout("SearchQuestionAnswer"),
     containers: [], //TODO
     fields: [], //TODO
 })

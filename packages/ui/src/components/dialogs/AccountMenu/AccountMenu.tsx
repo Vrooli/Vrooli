@@ -10,35 +10,35 @@ import {
     SwipeableDrawer,
     Typography,
     useTheme
-} from '@mui/material';
-import { Stack } from '@mui/system';
-import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
-import { userValidation } from '@shared/validation';
-import { authLogOut } from 'api/generated/endpoints/auth_logOut';
-import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
-import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { FocusModeSelector } from 'components/inputs/FocusModeSelector/FocusModeSelector';
-import { LanguageSelector } from 'components/inputs/LanguageSelector/LanguageSelector';
-import { LeftHandedCheckbox } from 'components/inputs/LeftHandedCheckbox/LeftHandedCheckbox';
-import { TextSizeButtons } from 'components/inputs/TextSizeButtons/TextSizeButtons';
-import { ThemeSwitch } from 'components/inputs/ThemeSwitch/ThemeSwitch';
-import { ContactInfo } from 'components/navigation/ContactInfo/ContactInfo';
-import { useFormik } from 'formik';
-import React, { useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { noSelect } from 'styles';
-import { getCurrentUser, guestSession } from 'utils/authentication/session';
-import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { PubSub } from 'utils/pubsub';
-import { useLocation } from 'utils/route';
-import { HistoryPageTabOption } from 'utils/search/objectToSearch';
-import { SessionContext } from 'utils/SessionContext';
-import { shapeProfile } from 'utils/shape/models/profile';
-import { AccountMenuProps } from '../types';
+} from "@mui/material";
+import { Stack } from "@mui/system";
+import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from "@shared/consts";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from "@shared/icons";
+import { userValidation } from "@shared/validation";
+import { authLogOut } from "api/generated/endpoints/auth_logOut";
+import { authSwitchCurrentAccount } from "api/generated/endpoints/auth_switchCurrentAccount";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
+import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
+import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
+import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
+import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
+import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
+import { useFormik } from "formik";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { noSelect } from "styles";
+import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { PubSub } from "utils/pubsub";
+import { useLocation } from "utils/route";
+import { HistoryPageTabOption } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { shapeProfile } from "utils/shape/models/profile";
+import { AccountMenuProps } from "../types";
 
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
@@ -72,7 +72,7 @@ export const AccountMenu = ({
     const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
-            theme: getCurrentUser(session).theme ?? 'light',
+            theme: getCurrentUser(session).theme ?? "light",
         },
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
@@ -84,7 +84,7 @@ export const AccountMenu = ({
             if (!formik.isValid) return;
             const input = shapeProfile.update({
                 id: userId,
-                theme: getCurrentUser(session).theme ?? 'light',
+                theme: getCurrentUser(session).theme ?? "light",
             }, {
                 id: userId,
                 theme: values.theme,
@@ -123,7 +123,7 @@ export const AccountMenu = ({
             mutationWrapper<Session, SwitchCurrentAccountInput>({
                 mutation: switchCurrentAccount,
                 input: { id: user.id },
-                successMessage: () => ({ key: 'LoggedInAs', variables: { name: user.name ?? user.handle ?? '' } }),
+                successMessage: () => ({ key: "LoggedInAs", variables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => { PubSub.get().publishSession(data) },
             })
         }
@@ -141,7 +141,7 @@ export const AccountMenu = ({
         mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id: user.id },
-            successMessage: () => ({ key: 'LoggedOutOf', variables: { name: user.name ?? user.handle ?? '' } }),
+            successMessage: () => ({ key: "LoggedOutOf", variables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => { PubSub.get().publishSession(data) },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession) },
@@ -189,15 +189,15 @@ export const AccountMenu = ({
 
     return (
         <SwipeableDrawer
-            anchor={(isMobile && isLeftHanded) ? 'left' : 'right'}
+            anchor={(isMobile && isLeftHanded) ? "left" : "right"}
             open={open}
             onOpen={() => { }}
             onClose={handleClose}
             sx={{
                 zIndex: 20000,
-                '& .MuiDrawer-paper': {
+                "& .MuiDrawer-paper": {
                     background: palette.background.default,
-                    overflowY: 'auto',
+                    overflowY: "auto",
                 }
             }}
         >
@@ -207,15 +207,15 @@ export const AccountMenu = ({
                 spacing={1}
                 sx={{
                     ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     padding: 1,
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
-                    textAlign: 'center',
-                    fontSize: { xs: '1.5rem', sm: '2rem' },
-                    height: '64px', // Matches Navbar height
+                    textAlign: "center",
+                    fontSize: { xs: "1.5rem", sm: "2rem" },
+                    height: "64px", // Matches Navbar height
                     paddingRight: 3, // Matches navbar padding
                 }}
             >
@@ -225,8 +225,8 @@ export const AccountMenu = ({
                     edge="end"
                     onClick={handleClose}
                     sx={{
-                        marginLeft: (isMobile && isLeftHanded) ? 'unset' : 'auto',
-                        marginRight: (isMobile && isLeftHanded) ? 'auto' : 'unset',
+                        marginLeft: (isMobile && isLeftHanded) ? "unset" : "auto",
+                        marginRight: (isMobile && isLeftHanded) ? "auto" : "unset",
                     }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
@@ -241,36 +241,36 @@ export const AccountMenu = ({
                     <ListItemIcon>
                         <PlusIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`AddAccount`)} />
+                    <ListItemText primary={t("AddAccount")} />
                 </ListItem>}
                 {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
                     <ListItemIcon>
                         <LogOutIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`LogOut`)} />
+                    <ListItemText primary={t("LogOut")} />
                 </ListItem>}
             </List>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* Display Settings */}
             <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
-                display: 'flex',
-                alignItems: 'center',
-                textAlign: 'left',
+                display: "flex",
+                alignItems: "center",
+                textAlign: "left",
                 paddingLeft: 2,
                 paddingRight: 2,
                 paddingTop: 1,
                 paddingBottom: 1,
             }}>
-                <Box sx={{ minWidth: '56px', display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
                     <DisplaySettingsIcon fill={palette.background.textPrimary} />
                 </Box>
-                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`Display`)}</Typography>
+                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("Display")}</Typography>
                 {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
-            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block', minHeight: 'auto!important' }}>
+            <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
                 <Stack direction="column" spacing={2} sx={{
-                    minWidth: 'fit-content',
-                    height: 'fit-content',
+                    minWidth: "fit-content",
+                    height: "fit-content",
                     padding: 1,
                 }}>
                     <ThemeSwitch />
@@ -288,55 +288,55 @@ export const AccountMenu = ({
                     <ListItemIcon>
                         <SettingsIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`Settings`)} />
+                    <ListItemText primary={t("Settings")} />
                 </ListItem>
                 {/* Bookmarked */}
                 <ListItem button onClick={handleOpenBookmarks}>
                     <ListItemIcon>
                         <BookmarkFilledIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`Bookmark`, { count: 2 })} />
+                    <ListItemText primary={t("Bookmark", { count: 2 })} />
                 </ListItem>
                 {/* History */}
                 <ListItem button onClick={handleOpenHistory}>
                     <ListItemIcon>
                         <HistoryIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`History`)} />
+                    <ListItemText primary={t("History")} />
                 </ListItem>
                 {/* Awards */}
                 <ListItem button onClick={handleOpenAwards}>
                     <ListItemIcon>
                         <AwardIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`Award`, { count: 2 })} />
+                    <ListItemText primary={t("Award", { count: 2 })} />
                 </ListItem>
                 {/* Premium */}
                 <ListItem button onClick={handleOpenPremium}>
                     <ListItemIcon>
                         <PremiumIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`Premium`)} />
+                    <ListItemText primary={t("Premium")} />
                 </ListItem>
             </List>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* Additional Resources */}
             <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
-                display: 'flex',
-                alignItems: 'center',
-                textAlign: 'left',
+                display: "flex",
+                alignItems: "center",
+                textAlign: "left",
                 paddingLeft: 2,
                 paddingRight: 2,
                 paddingTop: 1,
                 paddingBottom: 1,
             }}>
-                <Box sx={{ minWidth: '56px', display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
                     <HelpIcon fill={palette.background.textPrimary} />
                 </Box>
-                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`AdditionalResources`)}</Typography>
+                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("AdditionalResources")}</Typography>
                 {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
-            <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
+            <Collapse in={isAdditionalResourcesOpen} sx={{ display: "inline-block" }}>
                 <ContactInfo />
             </Collapse>
         </SwipeableDrawer>

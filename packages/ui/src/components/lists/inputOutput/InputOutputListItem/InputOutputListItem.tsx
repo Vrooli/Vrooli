@@ -1,22 +1,22 @@
-import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
-import { StandardVersion } from '@shared/consts';
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import { uuid } from '@shared/uuid';
-import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
-import { EditableText } from 'components/containers/EditableText/EditableText';
-import { StandardInput } from 'components/inputs/standards/StandardInput/StandardInput';
-import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
-import { useFormik } from 'formik';
-import { standardInitialValues } from 'forms/StandardForm/StandardForm';
-import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { linkColors } from 'styles';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { SessionContext } from 'utils/SessionContext';
-import { updateArray } from 'utils/shape/general';
-import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'utils/shape/models/routineVersionInput';
-import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
-import { StandardVersionShape } from 'utils/shape/models/standardVersion';
-import { InputOutputListItemProps } from '../types';
+import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { StandardVersion } from "@shared/consts";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "@shared/icons";
+import { uuid } from "@shared/uuid";
+import { routineVersionInputValidation, routineVersionOutputValidation } from "@shared/validation";
+import { EditableText } from "components/containers/EditableText/EditableText";
+import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
+import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
+import { useFormik } from "formik";
+import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { linkColors } from "styles";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
+import { updateArray } from "utils/shape/general";
+import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from "utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputTranslationShape } from "utils/shape/models/routineVersionOutput";
+import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { InputOutputListItemProps } from "../types";
 
 //TODO handle language change somehow
 export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
@@ -55,10 +55,10 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
     const formik = useFormik({
         initialValues: {
             id: item.id,
-            description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? '',
-            helpText: getTranslation(item as RoutineVersionInputShape, [language]).helpText ?? '',
+            description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? "",
+            helpText: getTranslation(item as RoutineVersionInputShape, [language]).helpText ?? "",
             isRequired: true,
-            name: item.name ?? '' as string,
+            name: item.name ?? "" as string,
         },
         enableReinitialize: true,
         validationSchema: (isInput ? routineVersionInputValidation : routineVersionOutputValidation).create({}),
@@ -98,11 +98,11 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
 
     return (
         <Box
-            id={`${isInput ? 'input' : 'output'}-item-${index}`}
+            id={`${isInput ? "input" : "output"}-item-${index}`}
             sx={{
                 zIndex: 1,
-                background: 'white',
-                overflow: 'hidden',
+                background: "white",
+                overflow: "hidden",
                 flexGrow: 1,
             }}
             ref={ref}
@@ -113,64 +113,64 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                 onClick={toggleOpen}
                 sx={{
                     background: palette.primary.main,
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'left',
-                    overflow: 'hidden',
-                    height: '48px', // Lighthouse SEO requirement
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    paddingLeft: '8px !important',
-                    paddingRight: '8px !important',
-                    '&:hover': {
-                        filter: `brightness(120%)`,
-                        transition: 'filter 0.2s',
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "left",
+                    overflow: "hidden",
+                    height: "48px", // Lighthouse SEO requirement
+                    textAlign: "center",
+                    cursor: "pointer",
+                    paddingLeft: "8px !important",
+                    paddingRight: "8px !important",
+                    "&:hover": {
+                        filter: "brightness(120%)",
+                        transition: "filter 0.2s",
                     },
                 }}
             >
                 {/* Show order in list */}
                 <Tooltip placement="top" title="Order">
                     <Typography variant="h6" sx={{
-                        margin: '0',
+                        margin: "0",
                         marginRight: 1,
-                        padding: '0',
+                        padding: "0",
                     }}>
                         {index + 1}.
                     </Typography>
                 </Tooltip>
                 {/* Show delete icon if editing */}
                 {isEditing && (
-                    <Tooltip placement="top" title={`Delete ${isInput ? 'input' : 'output'}. This will not delete the standard`}>
+                    <Tooltip placement="top" title={`Delete ${isInput ? "input" : "output"}. This will not delete the standard`}>
                         <IconButton color="inherit" onClick={() => handleDelete(index)} aria-label="delete" sx={{
-                            height: 'fit-content',
-                            marginTop: 'auto',
-                            marginBottom: 'auto',
+                            height: "fit-content",
+                            marginTop: "auto",
+                            marginBottom: "auto",
                         }}>
-                            <DeleteIcon fill={'white'} />
+                            <DeleteIcon fill={"white"} />
                         </IconButton>
                     </Tooltip>
                 )}
                 {/* Show name and description if closed */}
                 {!isOpen && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <Box sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
                         <Typography variant="h6" sx={{
-                            fontWeight: 'bold',
-                            margin: '0',
-                            padding: '0',
-                            paddingRight: '0.5em',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            fontWeight: "bold",
+                            margin: "0",
+                            padding: "0",
+                            paddingRight: "0.5em",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                         }}>
                             {formik.values.name}
                         </Typography>
                         <Typography variant="body2" sx={{
-                            margin: '0',
-                            padding: '0',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            margin: "0",
+                            padding: "0",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                         }}>
                             {formik.values.description}
                         </Typography>
@@ -178,11 +178,11 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                 )}
                 {/* Show reorder icon if editing */}
                 {isEditing && (
-                    <Box {...dragHandleProps} sx={{ marginLeft: 'auto' }}>
+                    <Box {...dragHandleProps} sx={{ marginLeft: "auto" }}>
                         <DragIcon />
                     </Box>
                 )}
-                <IconButton sx={{ marginLeft: isEditing ? 'unset' : 'auto' }}>
+                <IconButton sx={{ marginLeft: isEditing ? "unset" : "auto" }}>
                     {isOpen ?
                         <ExpandMoreIcon fill={palette.secondary.contrastText} /> :
                         <ExpandLessIcon fill={palette.secondary.contrastText} />
@@ -199,7 +199,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                             component='TextField'
                             isEditing={isEditing}
                             name='name'
-                            props={{ label: 'identifier' }}
+                            props={{ label: "identifier" }}
                         />
                     </Grid>
                     <Grid item xs={12}>
@@ -207,7 +207,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                             component='TextField'
                             isEditing={isEditing}
                             name='description'
-                            props={{ placeholder: 'Short description (optional)' }}
+                            props={{ placeholder: "Short description (optional)" }}
                         />
                     </Grid>
                     <Grid item xs={12}>
@@ -215,7 +215,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                             component='Markdown'
                             isEditing={isEditing}
                             name='helpText'
-                            props={{ placeholder: 'Detailed information (optional)' }}
+                            props={{ placeholder: "Detailed information (optional)" }}
                         />
                     </Grid>
                     {/* Select standard */}
@@ -223,7 +223,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
                             selected={!canUpdateStandardVersion ? {
-                                translations: standardVersion.translations ?? [{ __typename: 'StandardVersionTranslation' as const, language: getUserLanguages(session)[0], name: '' }]
+                                translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }]
                             } as any : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
@@ -238,7 +238,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         />
                     </Grid>
                     {isInput && <Grid item xs={12}>
-                        <Tooltip placement={'right'} title='Is this input mandatory?'>
+                        <Tooltip placement={"right"} title='Is this input mandatory?'>
                             <FormControlLabel
                                 disabled={!isEditing}
                                 label='Required'

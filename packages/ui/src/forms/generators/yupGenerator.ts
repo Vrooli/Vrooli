@@ -1,7 +1,7 @@
-import { FormSchema, YupSchema, YupType } from "../types";
-import { buildYup } from 'schema-to-yup';
-import { FormikConfig } from "formik";
 import { InputType } from "@shared/consts";
+import { FormikConfig } from "formik";
+import { buildYup } from "schema-to-yup";
+import { FormSchema, YupSchema, YupType } from "../types";
 
 /**
  * Maps input types to their yup types. 
@@ -10,14 +10,14 @@ import { InputType } from "@shared/consts";
  */
 export const InputToYupType: { [key in InputType]?: YupType } = {
     // [InputType.Checkbox]: 'array', //TODO
-    [InputType.JSON]: 'string',
-    [InputType.IntegerInput]: 'number',
-    [InputType.Markdown]: 'string',
-    [InputType.Radio]: 'string',
-    [InputType.Selector]: 'string',
-    [InputType.Slider]: 'number',
-    [InputType.Switch]: 'boolean',
-    [InputType.TextField]: 'string',
+    [InputType.JSON]: "string",
+    [InputType.IntegerInput]: "number",
+    [InputType.Markdown]: "string",
+    [InputType.Radio]: "string",
+    [InputType.Selector]: "string",
+    [InputType.Slider]: "number",
+    [InputType.Switch]: "boolean",
+    [InputType.TextField]: "string",
 };
 
 /**
@@ -26,12 +26,12 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): FormikConfig<any>['validationSchema'] => {
+export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): FormikConfig<any>["validationSchema"] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
-        title: 'validationSchema',
-        type: 'object',
+        title: "validationSchema",
+        type: "object",
         required: [], // Name of every field that is required
         properties: {}
     }

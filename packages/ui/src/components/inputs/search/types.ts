@@ -1,7 +1,7 @@
-import { InputProps } from '@mui/material';
-import { CommonKey } from '@shared/translations';
-import { AutocompleteOption } from 'types';
-import { SearchItem } from 'utils/search/siteToSearch';
+import { InputProps } from "@mui/material";
+import { CommonKey } from "@shared/translations";
+import { AutocompleteOption } from "types";
+import { SearchItem } from "utils/search/siteToSearch";
 
 export type SiteSearchBarProps = InputProps & {
     debounce?: number;

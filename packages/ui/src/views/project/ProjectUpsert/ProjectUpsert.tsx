@@ -5,7 +5,7 @@ import { projectVersionCreate } from "../../../api/generated/endpoints/projectVe
 import { projectVersionFindOne } from "../../../api/generated/endpoints/projectVersion_findOne";
 import { projectVersionUpdate } from "../../../api/generated/endpoints/projectVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "../../../api/hooks";
-import { mutationWrapper } from '../../../api/utils';
+import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "../../../forms/ProjectForm/ProjectForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { ProjectUpsertProps } from "../types";
 
 export const ProjectUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -42,7 +42,7 @@ export const ProjectUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateProject' : 'UpdateProject',
+                    titleKey: isCreate ? "CreateProject" : "UpdateProject",
                 }}
             />
             <Formik
@@ -50,7 +50,7 @@ export const ProjectUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({

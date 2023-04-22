@@ -5,7 +5,7 @@ import { noteVersionCreate } from "../../../api/generated/endpoints/noteVersion_
 import { noteVersionFindOne } from "../../../api/generated/endpoints/noteVersion_findOne";
 import { noteVersionUpdate } from "../../../api/generated/endpoints/noteVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "../../../api/hooks";
-import { mutationWrapper } from '../../../api/utils';
+import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "../../../forms/NoteForm/NoteForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { NoteUpsertProps } from "../types";
 
 export const NoteUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -42,7 +42,7 @@ export const NoteUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateNote' : 'UpdateNote',
+                    titleKey: isCreate ? "CreateNote" : "UpdateNote",
                 }}
             />
             <Formik
@@ -50,7 +50,7 @@ export const NoteUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<NoteVersion, NoteVersionCreateInput | NoteVersionUpdateInput>({

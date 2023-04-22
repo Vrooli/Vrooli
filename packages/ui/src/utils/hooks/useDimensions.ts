@@ -42,11 +42,11 @@ export const useDimensions = (): UseDimensionsReturn => {
             if (ref.current) {
                 refreshDimensions();
             } else {
-                console.warn('No ref found for useDimensions hook.');
+                console.warn("No ref found for useDimensions hook.");
             }
         };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
     }, [refreshDimensions]);
 
     return { dimensions, ref, refreshDimensions };

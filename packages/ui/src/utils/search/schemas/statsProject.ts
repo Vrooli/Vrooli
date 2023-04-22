@@ -1,11 +1,11 @@
 import { StatsProjectSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { statsProjectFindMany } from "../../api/generated/endpoints/statsProject_findMany";
+import { statsProjectFindMany } from "../../../api/generated/endpoints/statsProject_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const statsProjectSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchStatsProject'),
+    formLayout: searchFormLayout("SearchStatsProject"),
     containers: [], //TODO
     fields: [], //TODO
 })

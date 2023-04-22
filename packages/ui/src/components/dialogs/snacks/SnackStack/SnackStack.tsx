@@ -1,13 +1,13 @@
-import { Stack } from '@mui/material';
-import { uuid } from '@shared/uuid';
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getDeviceInfo } from 'utils/display/device';
-import { translateSnackMessage } from 'utils/display/translationTools';
-import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from 'utils/pubsub';
-import { BasicSnack, SnackSeverity } from '../BasicSnack/BasicSnack';
-import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
-import { BasicSnackProps } from '../types';
+import { Stack } from "@mui/material";
+import { uuid } from "@shared/uuid";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getDeviceInfo } from "utils/display/device";
+import { translateSnackMessage } from "utils/display/translationTools";
+import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from "utils/pubsub";
+import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack";
+import { CookiesSnack } from "../CookiesSnack/CookiesSnack";
+import { BasicSnackProps } from "../types";
 
 /**
  * Displays a stack of snack messages. 
@@ -72,13 +72,13 @@ export const SnackStack = () => {
     return (
         // Snacks displayed in bottom left corner
         <Stack direction="column" spacing={1} sx={{
-            display: visible ? 'flex' : 'none',
-            position: 'fixed',
+            display: visible ? "flex" : "none",
+            position: "fixed",
             // Displays above the bottom nav bar, accounting for PWA inset-bottom
-            bottom: { xs: 'calc(64px + env(safe-area-inset-bottom))', md: 'calc(8px + env(safe-area-inset-bottom))' },
-            left: 'calc(8px + env(safe-area-inset-left))',
+            bottom: { xs: "calc(64px + env(safe-area-inset-bottom))", md: "calc(8px + env(safe-area-inset-bottom))" },
+            left: "calc(8px + env(safe-area-inset-left))",
             zIndex: 20000,
-            pointerEvents: 'none',
+            pointerEvents: "none",
         }}>
             {/* Basic snacks on top */}
             {snacks.map((snack) => (

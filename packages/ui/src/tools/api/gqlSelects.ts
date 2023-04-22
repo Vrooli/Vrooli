@@ -2,14 +2,14 @@
  * Converts graphql query/mutation data (which is set up to be type-safe and reduce code duplication) into a graphql-tag strings.
  * This is done during build to reduce runtime computation.
  */
-import fs from 'fs';
-import { endpoints } from '../api/endpoints';
+import fs from "fs";
+import { endpoints } from "../api/endpoints";
 
-console.info('Generating graphql-tag strings for endpoints...');
+console.info("Generating graphql-tag strings for endpoints...");
 
 // Step 1: Create output folders
 // Create the output folders if they doesn't exist
-const outputFolder = './src/api/generated';
+const outputFolder = "./src/api/generated";
 const fragmentsFolder = `${outputFolder}/fragments`;
 const endpointsFolder = `${outputFolder}/endpoints`;
 for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
@@ -34,10 +34,10 @@ for (const objectType of Object.keys(endpoints)) {
             allFragments[name] = fragment;
         }
         // Calculate imports, startig with the gql import
-        let importsString = `import gql from 'graphql-tag';`;
+        let importsString = "import gql from \"graphql-tag\";";
         // Add import for each fragment
         for (const [fragmentName] of fragments) {
-            importsString += `\nimport { ${fragmentName} } from '../fragments/${fragmentName}';`;
+            importsString += `\nimport { ${fragmentName} } from "../fragments/${fragmentName}";`;
         }
         // Write imports and endpoint to file
         const endpointString = `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
@@ -57,4 +57,4 @@ for (const [name, fragment] of Object.entries(allFragments)) {
     fs.writeFileSync(outputPath, `export const ${name} = \`${fragment}\`;`);
 }
 
-console.info('Finished generating graphql-tag strings for endpoints🚀');
+console.info("Finished generating graphql-tag strings for endpoints🚀");

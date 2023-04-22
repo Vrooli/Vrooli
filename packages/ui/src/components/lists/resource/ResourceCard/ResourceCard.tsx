@@ -4,24 +4,24 @@ import {
     Tooltip,
     Typography,
     useTheme
-} from '@mui/material';
-import { ResourceUsedFor } from '@shared/consts';
-import { DeleteIcon, EditIcon } from '@shared/icons';
-import { CommonKey } from '@shared/translations';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { forwardRef, useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { multiLineEllipsis, noSelect } from 'styles';
-import { getResourceIcon } from 'utils/display/getResourceIcon';
-import { getDisplay } from 'utils/display/listTools';
-import { firstString } from 'utils/display/stringTools';
-import { getUserLanguages } from 'utils/display/translationTools';
-import usePress from 'utils/hooks/usePress';
-import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
-import { PubSub } from 'utils/pubsub';
-import { openLink, useLocation } from 'utils/route';
-import { SessionContext } from 'utils/SessionContext';
-import { ResourceCardProps } from '../types';
+} from "@mui/material";
+import { ResourceUsedFor } from "@shared/consts";
+import { DeleteIcon, EditIcon } from "@shared/icons";
+import { CommonKey } from "@shared/translations";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { multiLineEllipsis, noSelect } from "styles";
+import { getResourceIcon } from "utils/display/getResourceIcon";
+import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import usePress from "utils/hooks/usePress";
+import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { openLink, useLocation } from "utils/route";
+import { SessionContext } from "utils/SessionContext";
+import { ResourceCardProps } from "../types";
 
 export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     canUpdate,
@@ -43,7 +43,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            title: Boolean(title) ? title : t((data.usedFor ?? 'Context') as CommonKey),
+            title: Boolean(title) ? title : t((data.usedFor ?? "Context") as CommonKey),
             subtitle,
         };
     }, [data, session, t]);
@@ -56,17 +56,17 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     const handleClick = useCallback((target: EventTarget) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
-        if (targetId && targetId.startsWith('edit-')) {
+        if (targetId && targetId.startsWith("edit-")) {
             onEdit?.(index);
         }
-        else if (targetId && targetId.startsWith('delete-')) {
+        else if (targetId && targetId.startsWith("delete-")) {
             onDelete?.(index);
         }
         else {
             // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
             if (!resourceType || !href) {
-                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
+                PubSub.get().publishSnack({ messageKey: "CannotOpenLink", severity: "Error" });
                 return;
             }
             // Open link
@@ -95,7 +95,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     });
 
     return (
-        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + " - " : ""}${data.link}`}>
             <Box
                 ref={ref}
                 {...dragProps}
@@ -109,38 +109,38 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                     boxShadow: 8,
                     background: palette.primary.light,
                     color: palette.secondary.contrastText,
-                    borderRadius: '16px',
+                    borderRadius: "16px",
                     margin: 0,
                     padding: 1,
-                    cursor: 'pointer',
-                    width: '120px',
-                    minWidth: '120px',
-                    minHeight: '120px',
-                    height: '120px',
-                    position: 'relative',
-                    '&:hover': {
-                        filter: `brightness(120%)`,
-                        transition: 'filter 0.2s',
+                    cursor: "pointer",
+                    width: "120px",
+                    minWidth: "120px",
+                    minHeight: "120px",
+                    height: "120px",
+                    position: "relative",
+                    "&:hover": {
+                        filter: "brightness(120%)",
+                        transition: "filter 0.2s",
                     },
                 } as any}
             >
                 {/* Edit and delete icons, only visible on hover */}
                 {showIcons && (
                     <>
-                        <Tooltip title={t('Edit')}>
+                        <Tooltip title={t("Edit")}>
                             <ColorIconButton
                                 id='edit-icon-button'
                                 background='#c5ab17'
-                                sx={{ position: 'absolute', top: 4, left: 4 }}
+                                sx={{ position: "absolute", top: 4, left: 4 }}
                             >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
                             </ColorIconButton>
                         </Tooltip>
-                        <Tooltip title={t('Delete')}>
+                        <Tooltip title={t("Delete")}>
                             <ColorIconButton
                                 id='delete-icon-button'
                                 background={palette.error.main}
-                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                                sx={{ position: "absolute", top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
                             </ColorIconButton>
@@ -153,20 +153,20 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                     justifyContent="center"
                     alignItems="center"
                     sx={{
-                        height: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
+                        height: "100%",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                     }}
                 >
-                    <Icon sx={{ fill: 'white' }} />
+                    <Icon sx={{ fill: "white" }} />
                     <Typography
                         gutterBottom
                         variant="body2"
                         component="h3"
                         sx={{
                             ...multiLineEllipsis(3),
-                            textAlign: 'center',
-                            lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
+                            textAlign: "center",
+                            lineBreak: Boolean(title) ? "auto" : "anywhere", // Line break anywhere only if showing link
                         }}
                     >
                         {firstString(title, data.link)}

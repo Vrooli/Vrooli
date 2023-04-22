@@ -2,7 +2,7 @@ import { ReputationHistory } from "@shared/consts";
 import { GqlPartial } from "../types";
 
 export const reputationHistory: GqlPartial<ReputationHistory> = {
-    __typename: 'ReputationHistory',
+    __typename: "ReputationHistory",
     full: {
         id: true,
         created_at: true,

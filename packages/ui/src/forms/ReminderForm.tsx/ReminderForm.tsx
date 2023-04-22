@@ -9,7 +9,7 @@ import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
 import { forwardRef, useCallback } from "react";
-import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -20,15 +20,15 @@ export const reminderInitialValues = (
     reminderListId: string | undefined,
     existing?: Reminder | null | undefined
 ): ReminderShape => ({
-    __typename: 'Reminder' as const,
+    __typename: "Reminder" as const,
     id: DUMMY_ID,
     description: null,
     dueDate: null,
     index: 0,
     isComplete: false,
-    name: '',
+    name: "",
     reminderList: {
-        __typename: 'ReminderList' as const,
+        __typename: "ReminderList" as const,
         id: reminderListId ?? DUMMY_ID,
         // If there's no reminderListId, add additional fields to create a new reminderList
         ...(reminderListId === undefined && {
@@ -47,7 +47,7 @@ export function transformReminderValues(values: ReminderShape, existing?: Remind
 
 export const validateReminderValues = async (values: ReminderShape, existing?: ReminderShape) => {
     const transformedValues = transformReminderValues(values, existing);
-    const validationSchema = reminderValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = reminderValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }
@@ -68,8 +68,8 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [, , dueDateHelpers] = useField('dueDate');
-    const [reminderItemsField, , reminderItemsHelpers] = useField('reminderItems');
+    const [, , dueDateHelpers] = useField("dueDate");
+    const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
     const handleDeleteStep = (index: number) => {
         const newReminderItems = [...reminderItemsField.value];
@@ -82,8 +82,8 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
             ...reminderItemsField.value,
             {
                 id: Date.now(),
-                name: '',
-                description: '',
+                name: "",
+                description: "",
                 dueDate: null,
             },
         ]);
@@ -120,12 +120,12 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                     isLoading={isLoading}
                     ref={ref}
                     style={{
-                        display: 'block',
-                        width: 'min(500px, 100vw - 16px)',
-                        margin: 'auto',
-                        paddingLeft: 'env(safe-area-inset-left)',
-                        paddingRight: 'env(safe-area-inset-right)',
-                        paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                        display: "block",
+                        width: "min(500px, 100vw - 16px)",
+                        margin: "auto",
+                        paddingLeft: "env(safe-area-inset-left)",
+                        paddingRight: "env(safe-area-inset-right)",
+                        paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                     }}
                 >
                     <Stack direction="column" spacing={4} sx={{
@@ -136,13 +136,13 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                             <Field
                                 fullWidth
                                 name="name"
-                                label={t('Name')}
+                                label={t("Name")}
                                 as={TextField}
                             />
                             <Field
                                 fullWidth
                                 name="description"
-                                label={t('Description')}
+                                label={t("Description")}
                                 as={TextField}
                             />
                         </Stack>
@@ -153,7 +153,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                             type="datetime-local"
                             InputProps={{
                                 endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                         <input type="hidden" />
                                         <IconButton edge="end" size="small" onClick={() => { clearDueDate() }}>
                                             <CloseIcon fill={palette.background.textPrimary} />
@@ -193,17 +193,17 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                             spacing={2}
                                                             sx={{ boxShadow: 6 }}
                                                         >
-                                                            <Stack spacing={1} sx={{ width: '100%' }}>
+                                                            <Stack spacing={1} sx={{ width: "100%" }}>
                                                                 <Field
                                                                     fullWidth
                                                                     name={`reminderItems[${i}].name`}
-                                                                    label={t('Name')}
+                                                                    label={t("Name")}
                                                                     as={TextField}
                                                                 />
                                                                 <Field
                                                                     fullWidth
                                                                     name={`reminderItems[${i}].description`}
-                                                                    label={t('Description')}
+                                                                    label={t("Description")}
                                                                     as={TextField}
                                                                 />
                                                                 <Field
@@ -213,7 +213,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     type="datetime-local"
                                                                     InputProps={{
                                                                         endAdornment: (
-                                                                            <InputAdornment position="end" sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                                                                 <input type="hidden" />
                                                                                 <IconButton edge="end" size="small" onClick={() => { clearDueDate(i) }}>
                                                                                     <CloseIcon fill={palette.background.textPrimary} />
@@ -232,7 +232,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     edge="end"
                                                                     size="small"
                                                                     onClick={() => handleDeleteStep(i)}
-                                                                    sx={{ margin: 'auto' }}
+                                                                    sx={{ margin: "auto" }}
                                                                 >
                                                                     <DeleteIcon fill={palette.error.light} />
                                                                 </IconButton>
@@ -255,7 +255,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                         <Button
                             startIcon={<AddIcon />}
                             onClick={handleAddStep}
-                            sx={{ alignSelf: 'center', mt: 1 }}
+                            sx={{ alignSelf: "center", mt: 1 }}
                         >
                             Add Step
                         </Button>

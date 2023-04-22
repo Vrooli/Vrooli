@@ -1,4 +1,4 @@
-import { DropzoneStandardInputProps } from '../types';
+import { DropzoneStandardInputProps } from "../types";
 
 /**
 * Input for entering (and viewing format of) Dropzone data that 

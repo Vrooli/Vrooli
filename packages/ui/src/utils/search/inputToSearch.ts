@@ -1,5 +1,5 @@
-import { InputType, Tag } from '@shared/consts';
-import { FormSchema } from '../../forms/types';
+import { InputType, Tag } from "@shared/consts";
+import { FormSchema } from "../../forms/types";
 
 /**
  * Converts a radio button value (which can only be a string) to its underlying search URL value
@@ -8,9 +8,9 @@ import { FormSchema } from '../../forms/types';
  */
 const radioValueToSearch = (value: string): string | boolean | undefined => {
     // Check if value should be a boolean
-    if (value === 'true' || value === 'false') return value === 'true';
+    if (value === "true" || value === "false") return value === "true";
     // Check if value should be undefined
-    if (value === 'undefined') return undefined;
+    if (value === "undefined") return undefined;
     // Otherwise, return as-is
     return value;
 };
@@ -20,7 +20,7 @@ const radioValueToSearch = (value: string): string | boolean | undefined => {
  * @param value The value of the radio button
  * @returns The value stringified
  */
-const searchToRadioValue = (value: string | boolean | undefined): string => value + '';
+const searchToRadioValue = (value: string | boolean | undefined): string => value + "";
 
 /**
  * Converts an array of items to a search URL value
@@ -45,14 +45,14 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
-    [InputType.Markdown]: (value: string) => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined,
-    [InputType.Prompt]: (value: string) => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined,
+    [InputType.Markdown]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
+    [InputType.Prompt]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
     [InputType.Radio]: (value: string) => radioValueToSearch(value),
     [InputType.Selector]: (value) => value, //TODO
     [InputType.Slider]: (value) => value, //TODO
     [InputType.Switch]: (value) => value, //TODO 
     [InputType.TagSelector]: (value: Tag[]) => arrayConvert(value, ({ tag }) => tag),
-    [InputType.TextField]: (value: string) => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined,
+    [InputType.TextField]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
 }
 
 /**

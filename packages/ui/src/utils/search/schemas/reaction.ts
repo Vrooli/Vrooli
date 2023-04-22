@@ -1,11 +1,11 @@
 import { ReactionSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { reactionFindMany } from "../../api/generated/endpoints/reaction_findMany";
+import { reactionFindMany } from "../../../api/generated/endpoints/reaction_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const reactionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchReaction'),
+    formLayout: searchFormLayout("SearchReaction"),
     containers: [], //TODO
     fields: [], //TODO
 })

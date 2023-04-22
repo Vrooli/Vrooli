@@ -1,11 +1,11 @@
 import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@shared/consts";
-import { Formik } from 'formik';
+import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { routineVersionCreate } from "../../../api/generated/endpoints/routineVersion_create";
 import { routineVersionFindOne } from "../../../api/generated/endpoints/routineVersion_findOne";
 import { routineVersionUpdate } from "../../../api/generated/endpoints/routineVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "../../../api/hooks";
-import { mutationWrapper } from '../../../api/utils';
+import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "../../../forms/RoutineForm/RoutineForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "../../../utils/SessionContext";
 import { RoutineUpsertProps } from "../types";
 
 export const RoutineUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     isSubroutine = false,
     onCancel,
@@ -43,7 +43,7 @@ export const RoutineUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateRoutine' : 'UpdateRoutine',
+                    titleKey: isCreate ? "CreateRoutine" : "UpdateRoutine",
                 }}
             />
             <Formik
@@ -51,7 +51,7 @@ export const RoutineUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({

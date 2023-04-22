@@ -1,9 +1,9 @@
 import { QuizQuestion, QuizQuestionTranslation, QuizQuestionYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const quizQuestionTranslation: GqlPartial<QuizQuestionTranslation> = {
-    __typename: 'QuizQuestionTranslation',
+    __typename: "QuizQuestionTranslation",
     common: {
         id: true,
         language: true,
@@ -15,7 +15,7 @@ export const quizQuestionTranslation: GqlPartial<QuizQuestionTranslation> = {
 }
 
 export const quizQuestionYou: GqlPartial<QuizQuestionYou> = {
-    __typename: 'QuizQuestionYou',
+    __typename: "QuizQuestionYou",
     common: {
         canDelete: true,
         canUpdate: true,
@@ -25,7 +25,7 @@ export const quizQuestionYou: GqlPartial<QuizQuestionYou> = {
 }
 
 export const quizQuestion: GqlPartial<QuizQuestion> = {
-    __typename: 'QuizQuestion',
+    __typename: "QuizQuestion",
     common: {
         id: true,
         created_at: true,
@@ -33,15 +33,15 @@ export const quizQuestion: GqlPartial<QuizQuestion> = {
         order: true,
         points: true,
         responsesCount: true,
-        quiz: async () => rel((await import('./quiz')).quiz, 'nav', { omit: 'quizQuestions' }),
-        standardVersion: async () => rel((await import('./standardVersion')).standardVersion, 'nav'),
-        you: () => rel(quizQuestionYou, 'full'),
+        quiz: async () => rel((await import("./quiz")).quiz, "nav", { omit: "quizQuestions" }),
+        standardVersion: async () => rel((await import("./standardVersion")).standardVersion, "nav"),
+        you: () => rel(quizQuestionYou, "full"),
     },
     full: {
-        responses: async () => rel((await import('./quizQuestionResponse')).quizQuestionResponse, 'full', { omit: 'quizQuestion' }),
-        translations: () => rel(quizQuestionTranslation, 'full'),
+        responses: async () => rel((await import("./quizQuestionResponse")).quizQuestionResponse, "full", { omit: "quizQuestion" }),
+        translations: () => rel(quizQuestionTranslation, "full"),
     },
     list: {
-        translations: () => rel(quizQuestionTranslation, 'list'),
+        translations: () => rel(quizQuestionTranslation, "list"),
     }
 }

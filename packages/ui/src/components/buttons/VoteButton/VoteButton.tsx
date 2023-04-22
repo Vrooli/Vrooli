@@ -1,13 +1,13 @@
-import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { Success } from '@shared/consts';
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { getReactionScore, removeModifiers } from '@shared/utils';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ObjectActionComplete } from 'utils/actions/objectActions';
-import { getCurrentUser } from 'utils/authentication/session';
-import { useVoter } from 'utils/hooks/useVoter';
-import { SessionContext } from 'utils/SessionContext';
-import { VoteButtonProps } from '../types';
+import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { Success } from "@shared/consts";
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "@shared/icons";
+import { getReactionScore, removeModifiers } from "@shared/utils";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ObjectActionComplete } from "utils/actions/objectActions";
+import { getCurrentUser } from "utils/authentication/session";
+import { useVoter } from "utils/hooks/useVoter";
+import { SessionContext } from "utils/SessionContext";
+import { VoteButtonProps } from "../types";
 
 export const VoteButton = ({
     direction = "column",
@@ -42,13 +42,13 @@ export const VoteButton = ({
     const onVoteComplete = useCallback((action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => {
         // If cancelling, subtracts existing feeling.
         // Otherwise, same logic as calculating the internal score
-        const updatedFeeling = getReactionScore(action === ObjectActionComplete.VoteUp ? '👍' : '👎');
+        const updatedFeeling = getReactionScore(action === ObjectActionComplete.VoteUp ? "👍" : "👎");
         const existingFeeling = getReactionScore(internalEmoji ? removeModifiers(internalEmoji) : null);
         const cancelsVote = existingFeeling === updatedFeeling;
         const newScore = cancelsVote ?
             internalScore - existingFeeling :
             internalScore + updatedFeeling - existingFeeling;
-        const newEmoji = cancelsVote ? null : action === ObjectActionComplete.VoteUp ? '👍' : '👎';
+        const newEmoji = cancelsVote ? null : action === ObjectActionComplete.VoteUp ? "👍" : "👎";
         onChange(newEmoji, newScore);
     }, [internalEmoji, internalScore, onChange]);
 
@@ -69,7 +69,7 @@ export const VoteButton = ({
     const handleUpvoteClick = useCallback((event: any) => {
         if (!userId || disabled) return;
         // If already upvoted, cancel the vote
-        const vote = getReactionScore(internalEmoji) > 0 ? null : '👍';
+        const vote = getReactionScore(internalEmoji) > 0 ? null : "👍";
         setInternalEmoji(vote);
         handleVote(event, vote);
     }, [userId, disabled, internalEmoji, handleVote]);
@@ -77,7 +77,7 @@ export const VoteButton = ({
     const handleDownvoteClick = useCallback((event: any) => {
         if (!userId || disabled) return;
         // If already downvoted, cancel the vote
-        const vote = getReactionScore(internalEmoji) < 0 ? null : '👎';
+        const vote = getReactionScore(internalEmoji) < 0 ? null : "👎";
         setInternalEmoji(vote);
         handleVote(event, vote);
     }, [userId, disabled, internalEmoji, handleVote]);
@@ -99,7 +99,7 @@ export const VoteButton = ({
     }, [userId, disabled, palette.background.textSecondary, internalEmoji, direction]);
 
     return (
-        <Stack direction={direction} sx={{ pointerEvents: 'none' }}>
+        <Stack direction={direction} sx={{ pointerEvents: "none" }}>
             {/* Upvote arrow */}
             <Box
                 display="inline-block"
@@ -107,19 +107,19 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) > 0}
                 sx={{
-                    cursor: (userId || disabled) ? 'pointer' : 'default',
-                    pointerEvents: 'all',
-                    display: 'flex',
-                    '&:hover': {
-                        filter: userId ? `brightness(120%)` : 'none',
-                        transition: 'filter 0.2s',
+                    cursor: (userId || disabled) ? "pointer" : "default",
+                    pointerEvents: "all",
+                    display: "flex",
+                    "&:hover": {
+                        filter: userId ? "brightness(120%)" : "none",
+                        transition: "filter 0.2s",
                     },
                 }}
             >
                 <UpvoteIcon width="36px" height="36px" fill={upvoteColor} />
             </Box>
             {/* Score */}
-            <Typography variant="body1" textAlign="center" sx={{ margin: 'auto', pointerEvents: 'none' }}>{internalScore}</Typography>
+            <Typography variant="body1" textAlign="center" sx={{ margin: "auto", pointerEvents: "none" }}>{internalScore}</Typography>
             {/* Downvote arrow */}
             <Box
                 display="inline-block"
@@ -127,12 +127,12 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) < 0}
                 sx={{
-                    cursor: (userId || disabled) ? 'pointer' : 'default',
-                    pointerEvents: 'all',
-                    display: 'flex',
-                    '&:hover': {
-                        filter: userId ? `brightness(120%)` : 'none',
-                        transition: 'filter 0.2s',
+                    cursor: (userId || disabled) ? "pointer" : "default",
+                    pointerEvents: "all",
+                    display: "flex",
+                    "&:hover": {
+                        filter: userId ? "brightness(120%)" : "none",
+                        transition: "filter 0.2s",
                     },
                 }}
             >

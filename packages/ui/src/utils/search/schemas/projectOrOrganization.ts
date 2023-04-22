@@ -1,11 +1,11 @@
 import { InputType, ProjectOrOrganizationSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { projectOrOrganizationFindMany } from "../../api/generated/endpoints/projectOrOrganization_findMany";
+import { projectOrOrganizationFindMany } from "../../../api/generated/endpoints/projectOrOrganization_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
 
 export const projectOrOrganizationSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchProjectOrOrganization'),
+    formLayout: searchFormLayout("SearchProjectOrOrganization"),
     containers: [
         { totalItems: 1 },
         bookmarksContainer(),
@@ -18,12 +18,12 @@ export const projectOrOrganizationSearchSchema = (): FormSchema => ({
             label: "Object Type",
             type: InputType.Radio,
             props: {
-                defaultValue: 'undefined',
+                defaultValue: "undefined",
                 row: true,
                 options: [
-                    { label: "Project", value: 'Project' },
-                    { label: "Organization", value: 'Organization' },
-                    { label: "Don't Care", value: 'undefined' },
+                    { label: "Project", value: "Project" },
+                    { label: "Organization", value: "Organization" },
+                    { label: "Don't Care", value: "undefined" },
                 ]
             }
         },

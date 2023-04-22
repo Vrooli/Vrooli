@@ -1,5 +1,5 @@
-import { GqlPartial } from '../types';
-import { partialToString } from './partialToString';
+import { GqlPartial } from "../types";
+import { partialToString } from "./partialToString";
 
 /**
  * Helper function for generating a GraphQL muation for a given endpoint.
@@ -14,7 +14,7 @@ import { partialToString } from './partialToString';
 export const toMutation = async <
     Endpoint extends string,
     Partial extends GqlPartial<any>,
-    Selection extends 'common' | 'full' | 'list' | 'nav',
+    Selection extends "common" | "full" | "list" | "nav",
 >(
     endpointName: Endpoint,
     inputType: string | null,
@@ -22,7 +22,7 @@ export const toMutation = async <
     selectionType?: Selection | null | undefined
 ) => {
     return await partialToString({
-        endpointType: 'mutation',
+        endpointType: "mutation",
         endpointName,
         inputType,
         indent: 0,

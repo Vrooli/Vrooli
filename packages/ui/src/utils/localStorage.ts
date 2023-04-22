@@ -8,8 +8,8 @@ interface GetLocalStorageKeysProps {
  * @returns Array of keys
  */
 export const getLocalStorageKeys = ({
-    prefix = '',
-    suffix = '',
+    prefix = "",
+    suffix = "",
 }: GetLocalStorageKeysProps): string[] => {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {

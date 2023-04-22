@@ -15,6 +15,6 @@ export const createPrims = <T, K extends keyof T>(
     // Create prims
     const prims = fields.reduce((acc, field) => ({ ...acc, [field]: object[field] !== null ? object[field] : undefined }), {}) as any;
     // If "id" is defined in fields, make sure it's not DUMMY_ID
-    if (!fields.includes('id' as K)) return prims;
+    if (!fields.includes("id" as K)) return prims;
     return { ...prims, id: prims.id === DUMMY_ID ? uuid() : prims.id };
 }

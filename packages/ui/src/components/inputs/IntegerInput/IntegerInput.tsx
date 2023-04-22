@@ -1,4 +1,4 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
+import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { MinusIcon, PlusIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from "formik";
@@ -7,7 +7,7 @@ import { IntegerInputProps } from "../types";
 
 const buttonProps = {
     minWidth: 30,
-    width: '20%',
+    width: "20%",
 }
 
 // Time for a button press to become a hold
@@ -25,12 +25,12 @@ export const IntegerInput = ({
     disabled = false,
     key,
     initial = 0,
-    label = 'Number',
+    label = "Number",
     max = 2097151,
     min = -2097151,
     name,
     step = 1,
-    tooltip = '',
+    tooltip = "",
     ...props
 }: IntegerInputProps) => {
     const { palette } = useTheme();
@@ -85,8 +85,8 @@ export const IntegerInput = ({
     return (
         <Tooltip title={tooltip}>
             <Box key={key} {...props} sx={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
                 ...props?.sx ?? {},
             }}>
                 <ColorIconButton
@@ -100,17 +100,17 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
-                        borderRadius: '5px 0 0 5px',
-                        maxWidth: '48px',
+                        borderRadius: "5px 0 0 5px",
+                        maxWidth: "48px",
                     }}>
                     <MinusIcon />
                 </ColorIconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
-                    width: '60%',
-                    maxWidth: `12ch`,
-                    height: '100%',
-                    display: 'grid',
+                    width: "60%",
+                    maxWidth: "12ch",
+                    height: "100%",
+                    display: "grid",
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
                         display: "none",
                     }
@@ -119,7 +119,7 @@ export const IntegerInput = ({
                         htmlFor={`quantity-box-${name}`}
                         sx={{
                             color: palette.background.textSecondary,
-                            paddingTop: '10px'
+                            paddingTop: "10px"
                         }}
                     >{label}</InputLabel>
                     <Input
@@ -154,8 +154,8 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
-                        borderRadius: '0 5px 5px 0',
-                        maxWidth: '48px',
+                        borderRadius: "0 5px 5px 0",
+                        maxWidth: "48px",
                     }}>
                     <PlusIcon />
                 </ColorIconButton>

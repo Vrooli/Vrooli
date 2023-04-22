@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const statsUserFindMany = gql`
 query statsUser($input: StatsUserSearchInput!) {

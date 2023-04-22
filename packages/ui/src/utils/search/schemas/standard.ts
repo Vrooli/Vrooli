@@ -1,11 +1,11 @@
 import { StandardSortBy } from "@shared/consts";
 import { FormSchema } from "forms/types";
-import { standardFindMany } from "../../api/generated/endpoints/standard_findMany";
+import { standardFindMany } from "../../../api/generated/endpoints/standard_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const standardSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchStandard'),
+    formLayout: searchFormLayout("SearchStandard"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),

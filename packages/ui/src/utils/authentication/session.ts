@@ -7,7 +7,7 @@ import { getUserLanguages } from "../display/translationTools";
  * Session object that indicates no user is logged in
  */
 export const guestSession: Session = {
-    __typename: 'Session',
+    __typename: "Session",
     isLoggedIn: false,
     users: [],
 }
@@ -36,7 +36,7 @@ export const getCurrentUser = (session: Session | null | undefined): Partial<Ses
  */
 export const checkIfLoggedIn = (session: Session | null | undefined): boolean => {
     // If there is no session, check local storage
-    if (!session) return localStorage.getItem('isLoggedIn') === 'true';
+    if (!session) return localStorage.getItem("isLoggedIn") === "true";
     // Otherwise, check session
     return session.isLoggedIn;
 }
@@ -47,7 +47,7 @@ export const checkIfLoggedIn = (session: Session | null | undefined): boolean =>
  * 
  * Missing a language you want to use? Consider contributing to the project!
  */
-export const siteLanguages = ['en'];
+export const siteLanguages = ["en"];
 
 /**
  * Finds which language the site should be displayed in.

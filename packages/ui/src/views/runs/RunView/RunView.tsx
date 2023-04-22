@@ -158,7 +158,7 @@ const convertRoutineVersionToStep = (
 ): RoutineListStep | null => {
     // Check for required data to calculate steps
     if (!routineVersion || !routineVersion.nodes || !routineVersion.nodeLinks) {
-        console.log('routineVersion does not have enough data to calculate steps');
+        console.log("routineVersion does not have enough data to calculate steps");
         return null;
     }
     // Find all nodes that are routine lists
@@ -182,8 +182,8 @@ const convertRoutineVersionToStep = (
         resultSteps.push({
             type: RoutineStepType.Decision,
             links: startLinks,
-            name: 'Decision',
-            description: 'Select a subroutine to run next',
+            name: "Decision",
+            description: "Select a subroutine to run next",
         });
     }
     // Loop through all nodes
@@ -195,23 +195,23 @@ const convertRoutineVersionToStep = (
                 type: RoutineStepType.Subroutine,
                 index: item.index,
                 routineVersion: item.routineVersion,
-                name: getTranslation(item.routineVersion, languages, true).name ?? 'Untitled',
-                description: getTranslation(item.routineVersion, languages, true).description ?? 'Description not found matching selected language',
+                name: getTranslation(item.routineVersion, languages, true).name ?? "Untitled",
+                description: getTranslation(item.routineVersion, languages, true).description ?? "Description not found matching selected language",
             }))
         // Find decision step
         const links = routineVersion.nodeLinks.filter((link: NodeLink) => link.from.id === node.id);
         const decisionSteps: DecisionStep[] = links.length > 1 ? [{
             type: RoutineStepType.Decision,
             links,
-            name: 'Decision',
-            description: 'Select a subroutine to run next',
+            name: "Decision",
+            description: "Select a subroutine to run next",
         }] : [];
         resultSteps.push({
             type: RoutineStepType.RoutineList,
             nodeId: node.id,
             isOrdered: node.routineList?.isOrdered ?? false,
-            name: getTranslation(node, languages, true).name ?? 'Untitled',
-            description: getTranslation(node, languages, true).description ?? 'Description not found matching selected language',
+            name: getTranslation(node, languages, true).name ?? "Untitled",
+            description: getTranslation(node, languages, true).description ?? "Description not found matching selected language",
             steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
         });
     }
@@ -220,14 +220,14 @@ const convertRoutineVersionToStep = (
         type: RoutineStepType.RoutineList,
         routineVersionId: routineVersion.id,
         isOrdered: true,
-        name: getTranslation(routineVersion, languages, true).name ?? 'Untitled',
-        description: getTranslation(routineVersion, languages, true).description ?? 'Description not found matching selected language',
+        name: getTranslation(routineVersion, languages, true).name ?? "Untitled",
+        description: getTranslation(routineVersion, languages, true).description ?? "Description not found matching selected language",
         steps: resultSteps,
     };
 }
 
 export const RunView = ({
-    display = 'page',
+    display = "page",
     handleClose,
     runnableObject,
     zIndex,
