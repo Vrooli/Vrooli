@@ -2,17 +2,17 @@ import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mu
 import { CSSProperties } from "@mui/styles";
 import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@shared/consts";
 import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@shared/icons";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Earth from "../../../assets/img/Earth.svg";
 import RelaxingCouch from "../../../assets/img/relaxing-couch.jpg";
 import RobotsCollab from "../../../assets/img/robots-collab.jpg";
 import WomanTriumph from "../../../assets/img/woman-triumph.jpg";
-import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { greenNeonText, iconButtonProps, slideImageContainer, slideText, slideTitle, textPop } from "../../../styles";
 import { PulseButton } from "../../../components/buttons/PulseButton/PulseButton";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "../../../components/slides";
 import { TwinkleStars } from "../../../components/TwinkleStars/TwinkleStars";
+import { greenNeonText, iconButtonProps, slideImageContainer, slideText, slideTitle, textPop } from "../../../styles";
 import { openLink, useLocation } from "../../../utils/route";
 import { LandingViewProps } from "../types";
 
@@ -40,7 +40,7 @@ const GlossyContainer = ({
                 height: "100%",
                 maxWidth: "500px",
                 margin: "auto",
-                ...sx
+                ...sx,
             }}
             {...props}
         >
@@ -50,20 +50,20 @@ const GlossyContainer = ({
 };
 
 // Used for scroll snapping and url hash
-const slide1Id = "open-source-economy"
-const slide2Id = "three-steps"
-const slide3Id = "freedom"
-const slide4Id = "share"
-const slide5Id = "automate"
-const slide6Id = "sky-is-limit"
-const slide7Id = "get-started"
+const slide1Id = "open-source-economy";
+const slide2Id = "three-steps";
+const slide3Id = "freedom";
+const slide4Id = "share";
+const slide5Id = "automate";
+const slide6Id = "sky-is-limit";
+const slide7Id = "get-started";
 const slideContentIds = [slide1Id, slide2Id, slide3Id, slide4Id, slide5Id, slide6Id, slide7Id];
 
 /**
  * View displayed for Home page when not logged in
  */
 export const LandingView = ({
-    display = "page"
+    display = "page",
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -89,7 +89,7 @@ export const LandingView = ({
                 const rect = element.getBoundingClientRect();
                 const windowHeight = (window.innerHeight || document.documentElement.clientHeight);
                 return rect.top < windowHeight / 2;
-            }
+            };
             // Use slides 6 and 7 to determine earth position and sky visibility
             const earthHorizonSlide = document.getElementById(slide6Id);
             const earthFullSlide = document.getElementById(slide7Id);
@@ -134,13 +134,13 @@ export const LandingView = ({
                 }
                 nearestSlide?.scrollIntoView({ behavior: "smooth" });
             }, 350);
-        }
+        };
         // Add scroll listener to body
         window.addEventListener("scroll", onScroll, { passive: true });
         return () => {
             window.removeEventListener("scroll", onScroll);
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        }
+        };
     }, []);
 
     return (
@@ -235,7 +235,7 @@ export const LandingView = ({
                                 color: "#ffe768",
                                 filter: "drop-shadow(0 0 1px #ffe768) drop-shadow(0 0 10px #ffe768) drop-shadow(0 0 41px #ffe768)",
                                 paddingLeft: 2,
-                                transform: "scale(1.05"
+                                transform: "scale(1.05",
                             }}>
                                 <b>self-improving productivity machine</b>
                             </Box>
@@ -387,5 +387,5 @@ export const LandingView = ({
                 </SlideContainer>
             </SlidePage >
         </>
-    )
-}
+    );
+};

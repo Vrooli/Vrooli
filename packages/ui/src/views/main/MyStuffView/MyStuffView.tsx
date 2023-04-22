@@ -7,11 +7,11 @@ import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, Ro
 import { CommonKey } from "@shared/translations";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { centeredDiv } from "../../../styles";
 import { SearchList } from "../../../components/lists/SearchList/SearchList";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { PageTab } from "../../../components/types";
+import { centeredDiv } from "../../../styles";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { getObjectUrlBase } from "../../../utils/navigation/openObject";
 import { PubSub } from "../../../utils/pubsub";
@@ -133,7 +133,7 @@ export const MyStuffView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -148,7 +148,7 @@ export const MyStuffView = ({
     }, [currTab.index, currTab.label, t, tabs, userId]);
 
     const onAddClick = useCallback((ev: any) => {
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
             PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
@@ -165,11 +165,11 @@ export const MyStuffView = ({
         }
         // Otherwise, navigate to add page
         else {
-            setLocation(addUrl)
+            setLocation(addUrl);
         }
     }, [searchType, setLocation, userId]);
 
-    const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
+    const handleScrolledFar = useCallback(() => { setPopupButton(true); }, []);
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
             <Tooltip title={t("AddTooltip")}>
@@ -233,5 +233,5 @@ export const MyStuffView = ({
             />}
             {popupButtonContainer}
         </>
-    )
-}
+    );
+};

@@ -64,7 +64,7 @@ const createCards: CreateInfo[] = [
         description: "CreateApiDescription",
         Icon: ApiIcon,
     },
-]
+];
 
 export const CreateView = ({
     display = "page",
@@ -98,5 +98,5 @@ export const CreateView = ({
                 ))}
             </CardGrid>
         </PageContainer>
-    )
+    );
 };

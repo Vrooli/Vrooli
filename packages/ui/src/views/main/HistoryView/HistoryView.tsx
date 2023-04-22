@@ -78,7 +78,7 @@ export const HistoryView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -88,7 +88,7 @@ export const HistoryView = ({
         return {
             ...tabParams[currTab.index],
             title: currTab.label,
-        }
+        };
     }, [currTab.index, currTab.label, t]);
 
     return (
@@ -116,10 +116,10 @@ export const HistoryView = ({
                 sxs={{
                     search: {
                         marginTop: 2,
-                    }
+                    },
                 }}
                 where={where}
             />}
         </>
-    )
-}
+    );
+};

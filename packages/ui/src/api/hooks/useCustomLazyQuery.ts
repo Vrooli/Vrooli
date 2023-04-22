@@ -35,7 +35,7 @@ export function useCustomLazyQuery<
                 variableDefinitions: [],
                 directives: [],
                 selectionSet: { kind: "SelectionSet", selections: [] },
-            }]
+            }],
         } as DocumentNode),
         {
             ...options,
@@ -51,7 +51,7 @@ export function useCustomLazyQuery<
                 return execute({ ...props, variables: { input: props.variables } });
             }
             return execute(props);
-        }
+        };
     }, [execute]);
     // Return the modified execute function and modified data
     return [executeWithVariables, { data: modifiedData, error, loading, refetch }] as const;

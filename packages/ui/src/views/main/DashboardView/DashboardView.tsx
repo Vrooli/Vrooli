@@ -53,7 +53,7 @@ export const DashboardView = ({
         value: mode,
     })), [allFocusModes]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id)
+        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
@@ -72,9 +72,9 @@ export const DashboardView = ({
     useEffect(() => {
         if (typeof searchParams.search === "string") setSearchString(searchParams.search);
     }, [searchParams]);
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
     const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
-    useEffect(() => { refetch() }, [refetch, searchString, activeFocusMode]);
+    useEffect(() => { refetch(); }, [refetch, searchString, activeFocusMode]);
     useDisplayApolloError(error);
 
     // Only show tabs if:
@@ -162,8 +162,8 @@ export const DashboardView = ({
     }, [setLocation]);
 
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true) }, []);
-    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false) }, []);
+    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
+    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
     const onNoteCreated = useCallback((note: NoteVersion) => {
         //TODO - add note to note list
     }, []);
@@ -179,7 +179,7 @@ export const DashboardView = ({
         keyPrefix: "note-list-item",
         loading,
         zIndex,
-    }), [beforeNavigation, data?.home?.notes, loading])
+    }), [beforeNavigation, data?.home?.notes, loading]);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -204,7 +204,7 @@ export const DashboardView = ({
             result.push(...events);
         });
         // Sort events by start date, and return the first 10
-        result.sort((a, b) => a.start.getTime() - b.start.getTime())
+        result.sort((a, b) => a.start.getTime() - b.start.getTime());
         const first10 = result.slice(0, 10);
         // Convert to list items
         return listToListItems({
@@ -214,7 +214,7 @@ export const DashboardView = ({
             keyPrefix: "event-list-item",
             loading,
             zIndex,
-        })
+        });
     }, [beforeNavigation, data?.home?.schedules, loading, session]);
 
     const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -312,5 +312,5 @@ export const DashboardView = ({
                 </ListTitleContainer>
             </Stack>
         </PageContainer>
-    )
-}
+    );
+};

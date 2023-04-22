@@ -1,6 +1,5 @@
 import { BaseViewProps } from "../../views/types";
 
-
 export interface CreateViewProps extends BaseViewProps { }
 
 export interface DashboardViewProps extends BaseViewProps { }

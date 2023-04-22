@@ -42,7 +42,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as any);
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
-}
+};
 
 /**
  * Determines string used to reference object in URL slug
@@ -67,7 +67,7 @@ export const getObjectSlug = (object: {
     if (object.root) return object.root.handle ?? uuidToBase36(object.root.id);
     // Otherwise, use object's handle or id
     return object.handle ?? uuidToBase36(object.id);
-}
+};
 
 /**
  * Determines string for object's search params
@@ -78,7 +78,7 @@ export const getObjectSearchParams = (
     object: {
         __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
         id: string
-    }
+    },
 ): string | null => {
     // If object is an action/shortcut, return blank
     if (isOfType(object, "Action", "Shortcut")) return "";
@@ -87,7 +87,7 @@ export const getObjectSearchParams = (
     // If object is a run
     if (object.__typename === "RunRoutine") return stringifySearchParams({ run: uuidToBase36(object.id) });
     return "";
-}
+};
 // Omit<NavigableObject, '__typename'> & { __typename: `${GqlModelType}`}
 
 /**
@@ -143,7 +143,7 @@ export const getResourceType = (link: string): ResourceType | null => {
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (adaHandleRegex.test(link)) return ResourceType.Handle;
     return null;
-}
+};
 
 /**
  * Finds the URL for a resource
@@ -156,4 +156,4 @@ export const getResourceUrl = (link: string): string | undefined => {
     if (resourceType === ResourceType.Handle) return `https://handle.me/${link}`;
     if (resourceType === ResourceType.Wallet) return `https://cardanoscan.io/address/${link}`;
     return undefined;
-}
+};

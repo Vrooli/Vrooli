@@ -8,6 +8,6 @@ export const HomeView = (props: HomeViewProps) => {
     const session = useContext(SessionContext);
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    if (isLoggedIn) return <DashboardView  {...props} />
-    return <LandingView {...props} />
-}
+    if (isLoggedIn) return <DashboardView  {...props} />;
+    return <LandingView {...props} />;
+};
