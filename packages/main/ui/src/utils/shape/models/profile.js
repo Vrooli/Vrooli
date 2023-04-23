@@ -1,0 +1,14 @@
+import { shapeFocusMode } from "./focusMode";
+import { createPrims, shapeUpdate, updatePrims, updateRel } from "./tools";
+export const shapeProfileTranslation = {
+    create: (d) => createPrims(d, "id", "language", "bio"),
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio"), a),
+};
+export const shapeProfile = {
+    update: (o, u, a) => shapeUpdate(u, {
+        ...updatePrims(o, u, null, "handle", "isPrivate", "isPrivateApis", "isPrivateApisCreated", "isPrivateMemberships", "isPrivateOrganizationsCreated", "isPrivateProjects", "isPrivateProjectsCreated", "isPrivatePullRequests", "isPrivateQuestionsAnswered", "isPrivateQuestionsAsked", "isPrivateQuizzesCreated", "isPrivateRoles", "isPrivateRoutines", "isPrivateRoutinesCreated", "isPrivateStandards", "isPrivateStandardsCreated", "isPrivateBookmarks", "isPrivateVotes", "name", "theme"),
+        ...updateRel(o, u, "focusModes", ["Create", "Update", "Delete"], "many", shapeFocusMode),
+        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeProfileTranslation),
+    }, a),
+};
+//# sourceMappingURL=profile.js.map

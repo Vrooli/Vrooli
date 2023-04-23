@@ -1,0 +1,1 @@
+{"version":3,"file":"translate.js","sourceRoot":"","sources":["translate.ts"],"names":[],"mappings":"AAGA,MAAM,CAAC,MAAM,SAAS,GAA0B;IAC5C,UAAU,EAAE,WAAW;IACvB,MAAM,EAAE;QACJ,MAAM,EAAE,IAAI;QACZ,QAAQ,EAAE,IAAI;KACjB;IACD,IAAI,EAAE,EAAE;IACR,IAAI,EAAE,EAAE;CACX,CAAC"}

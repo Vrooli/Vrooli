@@ -1,14 +1,14 @@
 # Run this file by typing: docker-compose up -d
 version: "3.9"
 services:
-  server:
+  main:
     build:
       context: .
-      dockerfile: ./packages/server/Dockerfile
+      dockerfile: ./packages/main/Dockerfile
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
-    container_name: server
-    image: server:dev
+    container_name: main
+    image: main:dev
     restart: always
     environment:
       NODE_ENV: "development"
@@ -58,7 +58,7 @@ services:
     depends_on:
       - redis
       - db
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/main.sh"
   db:
     image: postgres:13-alpine
     restart: always

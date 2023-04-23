@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url loc="https://vrooli.com/about" priority="0.5" changefreq="monthly"/>
+  <url loc="https://vrooli.com/create" priority="0.4" changefreq="monthly"/>
+  <url loc="https://vrooli.com/forgot-password" priority="0.2" changefreq="yearly"/>
+  <url loc="https://vrooli.com/" priority="1.0" changefreq="weekly"/>
+  <url loc="https://vrooli.com/inbox" priority="0.4" changefreq="monthly"/>
+  <url loc="https://vrooli.com/premium" priority="0.5" changefreq="weekly"/>
+  <url loc="https://vrooli.com/privacy" priority="0.2" changefreq="yearly"/>
+  <url loc="https://vrooli.com/password-reset" priority="0.2" changefreq="yearly"/>
+  <url loc="https://vrooli.com/search" priority="0.4" changefreq="monthly"/>
+  <url loc="https://vrooli.com/start" priority="0.2" changefreq="yearly"/>
+  <url loc="https://vrooli.com/stats" priority="0.5" changefreq="weekly"/>
+  <url loc="https://vrooli.com/terms" priority="0.2" changefreq="yearly"/>
+  <url loc="https://vrooli.com/tutorial" priority="0.5" changefreq="monthly"/>
+  <url loc="https://vrooli.com/welcome" priority="0.5" changefreq="monthly"/>
+</urlset>

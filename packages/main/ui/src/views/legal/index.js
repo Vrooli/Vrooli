@@ -1,0 +1,3 @@
+export * from "./PrivacyPolicyView/PrivacyPolicyView";
+export * from "./TermsView/TermsView";
+//# sourceMappingURL=index.js.map

@@ -8,7 +8,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Default SVG directory
-DIRECTORY="packages/shared/icons/svgs"
+DIRECTORY="packages/main/icons/svgs"
 
 # Read arguments
 while getopts "d:ho:" opt; do

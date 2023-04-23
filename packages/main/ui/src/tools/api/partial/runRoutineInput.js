@@ -1,0 +1,19 @@
+import { rel } from "../utils";
+export const runRoutineInput = {
+    __typename: "RunRoutineInput",
+    common: {
+        id: true,
+        data: true,
+        input: {
+            id: true,
+            index: true,
+            isRequired: true,
+            name: true,
+            routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
+            standardVersion: async () => rel((await import("./standardVersion")).standardVersion, "list"),
+        },
+    },
+    full: {},
+    list: {},
+};
+//# sourceMappingURL=runRoutineInput.js.map

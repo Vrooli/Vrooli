@@ -1,0 +1,19 @@
+import { rel } from "../utils";
+export const runRoutineStep = {
+    __typename: "RunRoutineStep",
+    common: {
+        id: true,
+        order: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+        completedAt: true,
+        name: true,
+        status: true,
+        step: true,
+        subroutine: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
+    },
+    full: {},
+    list: {},
+};
+//# sourceMappingURL=runRoutineStep.js.map

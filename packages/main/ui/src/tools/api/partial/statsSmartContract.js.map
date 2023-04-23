@@ -1,0 +1,1 @@
+{"version":3,"file":"statsSmartContract.js","sourceRoot":"","sources":["statsSmartContract.ts"],"names":[],"mappings":"AAGA,MAAM,CAAC,MAAM,kBAAkB,GAAmC;IAC9D,UAAU,EAAE,oBAAoB;IAChC,IAAI,EAAE;QACF,EAAE,EAAE,IAAI;QACR,WAAW,EAAE,IAAI;QACjB,SAAS,EAAE,IAAI;QACf,UAAU,EAAE,IAAI;QAChB,KAAK,EAAE,IAAI;QACX,eAAe,EAAE,IAAI;KACxB;CACJ,CAAC"}

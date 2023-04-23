@@ -137,12 +137,10 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Generating type models for Prisma"
     cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
 
-    "${HERE}/shared.sh"
 else
     info "Skipping global dependencies installation - production environment detected"
     info "Skipping local dependencies installation - production environment detected"
     info "Skipping type models generation - production environment detected"
-    info "Skipping shared.sh - production environment detected"
 fi
 
 header "Generating JWT key pair for authentication"

@@ -1,0 +1,83 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { orDefault } from "@local/utils";
+import { DUMMY_ID } from "@local/uuid";
+import { noteVersionTranslationValidation, noteVersionValidation } from "@local/validation";
+import { useTheme } from "@mui/material";
+import { forwardRef, useContext } from "react";
+import { useTranslation } from "react-i18next";
+import { EllipsisActionButton } from "../../components/buttons/EllipsisActionButton/EllipsisActionButton";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { SideActionButtons } from "../../components/buttons/SideActionButtons/SideActionButtons";
+import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { shapeNoteVersion } from "../../utils/shape/models/noteVersion";
+import { BaseForm } from "../BaseForm/BaseForm";
+export const noteInitialValues = (session, existing) => ({
+    __typename: "NoteVersion",
+    id: DUMMY_ID,
+    directoryListings: [],
+    isPrivate: true,
+    root: {
+        id: DUMMY_ID,
+        isPrivate: true,
+        owner: { __typename: "User", id: getCurrentUser(session).id },
+        parent: null,
+        tags: [],
+    },
+    versionLabel: existing?.versionLabel ?? "1.0.0",
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+            __typename: "NoteVersionTranslation",
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            name: "",
+            text: "",
+        }]),
+});
+export function transformNoteValues(values, existing) {
+    return existing === undefined
+        ? shapeNoteVersion.create(values)
+        : shapeNoteVersion.update(existing, values);
+}
+export const validateNoteValues = async (values, existing) => {
+    const transformedValues = transformNoteValues(values, existing);
+    const validationSchema = noteVersionValidation[existing === undefined ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
+export const NoteForm = forwardRef(({ display, dirty, isCreate, isLoading, isOpen, onCancel, values, zIndex, ...props }, ref) => {
+    const session = useContext(SessionContext);
+    const { palette } = useTheme();
+    const { t } = useTranslation();
+    const { language, translationErrors, } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: ["description", "name", "text"],
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
+    });
+    return (_jsxs(_Fragment, { children: [_jsx(SideActionButtons, { display: display, hasGridActions: true, zIndex: zIndex + 1, children: _jsx(EllipsisActionButton, { children: _jsx(RelationshipList, { isEditing: true, objectType: "Note", zIndex: zIndex }) }) }), _jsxs(BaseForm, { dirty: dirty, isLoading: isLoading, ref: ref, style: {
+                    display: "block",
+                    width: "min(100vw - 16px, 700px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+                }, children: [_jsx(TranslatedMarkdownInput, { language: language, name: "text", placeholder: t("PleaseBeNice"), minRows: 3, sxs: {
+                            bar: {
+                                borderRadius: 0,
+                                background: palette.primary.main,
+                            },
+                            textArea: {
+                                borderRadius: 0,
+                                resize: "none",
+                                minHeight: "100vh",
+                                background: palette.background.paper,
+                            },
+                        } }), _jsx(GridSubmitButtons, { display: display, errors: combineErrorsWithTranslations(props.errors, translationErrors), isCreate: isCreate, loading: props.isSubmitting, onCancel: onCancel, onSetSubmitting: props.setSubmitting, onSubmit: props.handleSubmit })] })] }));
+});
+//# sourceMappingURL=NoteForm.js.map
