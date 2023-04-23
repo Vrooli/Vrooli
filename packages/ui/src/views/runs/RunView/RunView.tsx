@@ -106,7 +106,9 @@ const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): R
     for (let i = 0; i < locationArray.length; i++) {
         // Can only continue if end not reached and step is a routine list (no other step type has substeps)
         if (currNestedSteps !== null && currNestedSteps.type === RoutineStepType.RoutineList) {
-            currNestedSteps = currNestedSteps.steps.length > Math.max(locationArray[i] - 1, 0) ? currNestedSteps.steps[Math.max(locationArray[i] - 1, 0)] : null;
+            currNestedSteps = (currNestedSteps as RoutineListStep).steps.length > Math.max(locationArray[i] - 1, 0) ?
+                (currNestedSteps as RoutineListStep).steps[Math.max(locationArray[i] - 1, 0)] :
+                null;
         }
     }
     return currNestedSteps;
@@ -143,6 +145,8 @@ const getStepComplexity = (step: RoutineStep): number => {
         // Complexity of a list is the sum of its children's complexities
         case RoutineStepType.RoutineList:
             return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
+        default:
+            return 0;
     }
 };
 

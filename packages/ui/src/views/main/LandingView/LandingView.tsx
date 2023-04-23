@@ -4,10 +4,6 @@ import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@shared/consts";
 import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@shared/icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Earth from "../../../assets/img/Earth.svg";
-import RelaxingCouch from "../../../assets/img/relaxing-couch.jpg";
-import RobotsCollab from "../../../assets/img/robots-collab.jpg";
-import WomanTriumph from "../../../assets/img/woman-triumph.jpg";
 import { PulseButton } from "../../../components/buttons/PulseButton/PulseButton";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "../../../components/slides";
@@ -261,7 +257,7 @@ export const LandingView = ({
                                     <Box
                                         component="img"
                                         alt="Showcases the concept of taking back your freedom. Features a woman who looks empowered and in control, looking straight ahead, with triumph in her eyes"
-                                        src={WomanTriumph}
+                                        src={"assets/img/woman-triumph.jpg"}
                                         sx={{ borderRadius: "32px", objectFit: "cover" }}
                                     />
                                 </Box>
@@ -278,7 +274,7 @@ export const LandingView = ({
                                     <Box
                                         component="img"
                                         alt="showcases the concept of 'Sharing is Scaling' through the use of robots collaborating to build something."
-                                        src={RobotsCollab}
+                                        src={"assets/img/robots-collab.jpg"}
                                         sx={{ borderRadius: "32px", objectFit: "cover" }}
                                     />
                                 </Box>
@@ -312,7 +308,7 @@ export const LandingView = ({
                                     <Box
                                         component="img"
                                         alt="Visually represents the concept of 'Automate With Minimal Effort'. Features a modern living room environment with a clean and minimalistic design. Within this environment, there is a person relaxing on a couch using an AR headset to access automation technology, which is visually represented in the image in a way that conveys ease of use and minimal effort. The person's interactions with a device or interface that is visually distinct from the rest of the environment, such as a touchscreen or a voice-activated assistant."
-                                        src={RelaxingCouch}
+                                        src={"assets/img/relaxing-couch.jpg"}
                                         sx={{ borderRadius: "32px", objectFit: "cover" }}
                                     />
                                 </Box>
@@ -341,7 +337,7 @@ export const LandingView = ({
                     <Box
                         id="earth"
                         component="img"
-                        src={Earth}
+                        src={"assets/img/Earth.svg"}
                         alt="Earth illustration"
                         sx={{
                             width: "150%",

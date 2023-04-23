@@ -11,7 +11,7 @@ import { parseSearchParams, stringifySearchParams, useLocation } from "../../uti
 import { SessionContext } from "../../utils/SessionContext";
 import { PremiumViewProps } from "../types";
 
-const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
 // Features comparison table data
 function createData(feature, nonPremium, premium) {

@@ -62,6 +62,7 @@
         "stripe": "^11.17.0",
         "twilio": "^3.61.0",
         "typescript": "4.9.5",
+        "vite-plugin-ssr": "^0.4.115",
         "web-push": "^3.5.0",
         "winston": "^3.7.2"
     },

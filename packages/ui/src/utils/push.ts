@@ -1,7 +1,7 @@
 import { PushDevice, PushDeviceCreateInput } from "@shared/consts";
-import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { pushDeviceCreate } from "../api/generated/endpoints/pushDevice_create";
 import { documentNodeWrapper, errorToCode } from "../api/utils";
+import { requestNotificationPermission, subscribeUserToPush } from "../serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
 
