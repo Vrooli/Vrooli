@@ -1,4 +1,4 @@
-import { RunRoutine, RunRoutineYou } from ":local/consts";
+import { RunRoutine, RunRoutineYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

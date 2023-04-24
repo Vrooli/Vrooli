@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from ":local/consts";
+import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from ":/consts";
 import { BoxProps } from "@mui/material";
 import { MouseEvent } from "react";
 import { BuildAction } from "../../../../utils/consts";

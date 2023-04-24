@@ -1,4 +1,4 @@
-import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from ":local/consts";
+import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from ":/consts";
 import { useQuery } from "@apollo/client";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

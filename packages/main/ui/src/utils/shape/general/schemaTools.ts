@@ -1,4 +1,4 @@
-import { StandardVersion } from ":local/consts";
+import { StandardVersion } from ":/consts";
 import { FieldData } from "../../../forms/types";
 
 export interface StandardVersionToFieldDataProps {

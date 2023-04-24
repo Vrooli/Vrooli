@@ -1,5 +1,5 @@
-import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from ":local/consts";
-import { quizQuestionResponseValidation } from ":local/validation";
+import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from ":/consts";
+import { quizQuestionResponseValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";

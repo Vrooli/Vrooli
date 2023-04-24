@@ -3,6 +3,18 @@
         "target": "ESNext",
         "rootDir": ".",
         "outDir": "./dist",
+        "baseUrl": ".",
+        "paths": {
+            "@local/server": [
+                "server/dist"
+            ],
+            "@local/shared": [
+                "shared/dist"
+            ],
+            "@local/ui": [
+                "ui/dist"
+            ],
+        },
         "lib": [
             "ESNext"
         ],

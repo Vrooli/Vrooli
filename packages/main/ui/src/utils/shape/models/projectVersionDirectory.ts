@@ -1,4 +1,4 @@
-import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from ":local/consts";
+import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from ":/consts";
 import { ShapeModel } from "../../../types";
 import { ApiVersionShape } from "./apiVersion";
 import { NoteVersionShape } from "./noteVersion";

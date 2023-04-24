@@ -1,7 +1,7 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from ":local/icons";
+import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from ":/icons";
 import {
     Stack,
     Tooltip,

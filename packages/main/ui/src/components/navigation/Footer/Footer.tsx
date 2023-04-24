@@ -1,5 +1,5 @@
-import { LINKS, SOCIALS } from ":local/consts";
-import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from ":local/icons";
+import { LINKS, SOCIALS } from "@local/shared/consts";
+import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@local/shared/icons";
 import {
     Box, Grid, List,
     ListItem,

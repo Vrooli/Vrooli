@@ -1,4 +1,4 @@
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import { CustomError, logger } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType } from "../types";

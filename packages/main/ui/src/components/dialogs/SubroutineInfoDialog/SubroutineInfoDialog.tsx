@@ -1,4 +1,4 @@
-import { NodeRoutineListItem } from ":local/consts";
+import { NodeRoutineListItem } from ":/consts";
 import { Formik } from "formik";
 import { useContext, useMemo, useRef } from "react";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";

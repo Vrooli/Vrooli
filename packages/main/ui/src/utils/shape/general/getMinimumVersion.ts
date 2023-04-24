@@ -1,4 +1,4 @@
-import { meetsMinVersion } from ":local/validation";
+import { meetsMinVersion } from ":/validation";
 
 /**
 * Determines mimimum version. This is either: 

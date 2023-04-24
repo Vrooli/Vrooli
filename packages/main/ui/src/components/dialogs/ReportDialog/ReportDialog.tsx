@@ -1,6 +1,6 @@
-import { Report, ReportCreateInput } from ":local/consts";
-import { uuid } from ":local/uuid";
-import { reportCreateForm } from ":local/validation";
+import { Report, ReportCreateInput } from ":/consts";
+import { uuid } from ":/uuid";
+import { reportCreateForm } from ":/validation";
 import { DialogContent, Link, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { Formik } from "formik";

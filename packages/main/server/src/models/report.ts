@@ -1,5 +1,5 @@
-import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou } from ":local/consts";
-import { reportValidation } from ":local/validation";
+import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou } from ":/consts";
+import { reportValidation } from ":/validation";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

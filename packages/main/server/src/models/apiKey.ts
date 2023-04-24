@@ -1,6 +1,6 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, MaxObjects } from ":local/consts";
-import { uuid } from ":local/uuid";
-import { apiKeyValidation } from ":local/validation";
+import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, MaxObjects } from ":/consts";
+import { uuid } from ":/uuid";
+import { apiKeyValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { randomString } from "../auth";
 import { noNull } from "../builders";

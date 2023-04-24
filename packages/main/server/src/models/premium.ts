@@ -1,4 +1,4 @@
-import { MaxObjects, Premium } from ":local/consts";
+import { MaxObjects, Premium } from ":/consts";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";

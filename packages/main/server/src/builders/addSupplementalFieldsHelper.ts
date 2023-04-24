@@ -1,5 +1,5 @@
-import { GqlModelType } from ":local/consts";
-import { getDotNotationValue, setDotNotationValue } from ":local/utils";
+import { GqlModelType } from ":/consts";
+import { getDotNotationValue, setDotNotationValue } from ":/utils";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";
 import { PrismaType, RecursivePartial, SessionUserToken } from "../types";

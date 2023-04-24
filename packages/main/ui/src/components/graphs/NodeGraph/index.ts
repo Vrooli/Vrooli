@@ -1,4 +1,4 @@
-import { NodeType } from ":local/consts";
+import { NodeType } from ":/consts";
 
 export * from "./AddAfterLinkDialog/AddAfterLinkDialog";
 export * from "./AddBeforeLinkDialog/AddBeforeLinkDialog";

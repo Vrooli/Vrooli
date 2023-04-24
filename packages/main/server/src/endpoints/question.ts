@@ -1,4 +1,4 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from ":local/consts";
+import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

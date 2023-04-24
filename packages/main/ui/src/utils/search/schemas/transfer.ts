@@ -1,4 +1,4 @@
-import { TransferSortBy } from ":local/consts";
+import { TransferSortBy } from ":/consts";
 import { transferFindMany } from "../../../api/generated/endpoints/transfer_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

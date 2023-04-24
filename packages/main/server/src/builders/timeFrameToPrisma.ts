@@ -1,4 +1,4 @@
-import { TimeFrame } from ":local/consts";
+import { TimeFrame } from ":/consts";
 
 /**
  * Converts time frame to Prisma "where" query

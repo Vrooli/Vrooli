@@ -2,7 +2,7 @@
  * Handles giving reputation to users when some action is performed.
  */
 
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { logger } from "./logger";

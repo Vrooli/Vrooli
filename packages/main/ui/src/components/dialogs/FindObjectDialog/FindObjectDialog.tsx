@@ -1,5 +1,5 @@
-import { FindByIdInput } from ":local/consts";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from ":local/icons";
+import { FindByIdInput } from "@local/shared/consts";
+import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from "@local/shared/icons";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,12 +12,12 @@ import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } f
 import { SearchPageTabOption, SearchType, searchTypeToParams } from "../../../utils/search/objectToSearch";
 import { SearchParams } from "../../../utils/search/schemas/base";
 import { UpsertProps } from "../../../views/types";
+import { PageTabs } from "../../PageTabs/PageTabs";
 import { ColorIconButton } from "../../buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "../../buttons/SideActionButtons/SideActionButtons";
 import { SearchList } from "../../lists/SearchList/SearchList";
 import { TIDCard } from "../../lists/TIDCard/TIDCard";
 import { TopBar } from "../../navigation/TopBar/TopBar";
-import { PageTabs } from "../../PageTabs/PageTabs";
 import { PageTab } from "../../types";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";

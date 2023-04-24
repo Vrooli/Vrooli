@@ -1,8 +1,8 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { CancelIcon, CreateIcon, SaveIcon } from ":local/icons";
-import { exists } from ":local/utils";
+import { CancelIcon, CreateIcon, SaveIcon } from "@local/shared/icons";
+import { exists } from "@local/shared/utils";
 import { Box, Button, CircularProgress, Grid } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,13 +1,13 @@
-import { LINKS } from ":local/consts";
-import { LogInIcon, ProfileIcon } from ":local/icons";
+import { LINKS } from "@local/shared/consts";
+import { LogInIcon, ProfileIcon } from "@local/shared/icons";
 import { Button, Container, IconButton, Palette, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SessionContext } from "../../../utils/SessionContext";
 import { checkIfLoggedIn, getCurrentUser } from "../../../utils/authentication/session";
 import { useWindowSize } from "../../../utils/hooks/useWindowSize";
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "../../../utils/navigation/userActions";
+import { ACTION_TAGS, Action, actionsToMenu, getUserActions } from "../../../utils/navigation/userActions";
 import { openLink, useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { PopupMenu } from "../../buttons/PopupMenu/PopupMenu";
 import { AccountMenu } from "../../dialogs/AccountMenu/AccountMenu";
 import { ContactInfo } from "../ContactInfo/ContactInfo";

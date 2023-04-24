@@ -1,4 +1,4 @@
-import { RunProjectOrRunRoutineSortBy } from ":local/consts";
+import { RunProjectOrRunRoutineSortBy } from ":/consts";
 import { runProjectOrRunRoutineFindMany } from "../../../api/generated/endpoints/runProjectOrRunRoutine_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

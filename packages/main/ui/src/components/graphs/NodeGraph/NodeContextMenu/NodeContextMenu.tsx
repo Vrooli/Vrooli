@@ -10,7 +10,7 @@ import {
     MoveNodeIcon,
     SvgComponent,
     UnlinkNodeIcon
-} from ":local/icons";
+} from ":/icons";
 import { useMemo } from "react";
 import { BuildAction } from "../../../../utils/consts";
 import { ListMenu } from "../../../dialogs/ListMenu/ListMenu";

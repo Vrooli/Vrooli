@@ -1,4 +1,4 @@
-import { RedirectIcon } from ":local/icons";
+import { RedirectIcon } from ":/icons";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
 import { calculateNodeSize, DraggableNode } from "..";

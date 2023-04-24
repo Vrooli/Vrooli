@@ -1,8 +1,8 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from ":local/consts";
-import { AddIcon } from ":local/icons";
+import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from "@local/shared/consts";
+import { AddIcon } from "@local/shared/icons";
 import { Box, Button } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,8 +16,8 @@ import { updateArray } from "../../../../../utils/shape/general";
 import { ListContainer } from "../../../../containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "../../../../dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "../../../../dialogs/WalletSelectDialog/WalletSelectDialog";
-import { WalletListProps } from "../types";
 import { WalletListItem } from "../WalletListItem/WalletListItem";
+import { WalletListProps } from "../types";
 
 export const WalletList = ({
     handleUpdate,

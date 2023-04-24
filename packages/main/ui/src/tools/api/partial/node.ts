@@ -1,4 +1,4 @@
-import { Node, NodeTranslation } from ":local/consts";
+import { Node, NodeTranslation } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

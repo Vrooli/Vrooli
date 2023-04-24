@@ -1,7 +1,7 @@
 /**
  * Displays all search options for an organization
  */
-import { CancelIcon, RefreshIcon, SearchIcon } from ":local/icons";
+import { CancelIcon, RefreshIcon, SearchIcon } from ":/icons";
 import { Box, Button, Grid, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useEffect, useMemo, useState } from "react";

@@ -1,4 +1,4 @@
-import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from ":local/consts";
+import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from ":/consts";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth/request";

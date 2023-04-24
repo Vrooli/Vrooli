@@ -1,21 +1,21 @@
-import { StandardVersion } from ":local/consts";
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from ":local/icons";
-import { uuid } from ":local/uuid";
-import { routineVersionInputValidation, routineVersionOutputValidation } from ":local/validation";
+import { StandardVersion } from "@local/shared/consts";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "@local/shared/icons";
+import { uuid } from "@local/shared/uuid";
+import { routineVersionInputValidation, routineVersionOutputValidation } from "@local/shared/validation";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { standardInitialValues } from "../../../../forms/StandardForm/StandardForm";
 import { linkColors } from "../../../../styles";
-import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { SessionContext } from "../../../../utils/SessionContext";
+import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { updateArray } from "../../../../utils/shape/general";
 import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from "../../../../utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputTranslationShape } from "../../../../utils/shape/models/routineVersionOutput";
 import { StandardVersionShape } from "../../../../utils/shape/models/standardVersion";
 import { EditableText } from "../../../containers/EditableText/EditableText";
-import { StandardInput } from "../../../inputs/standards/StandardInput/StandardInput";
 import { StandardVersionSelectSwitch } from "../../../inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
+import { StandardInput } from "../../../inputs/standards/StandardInput/StandardInput";
 import { InputOutputListItemProps } from "../types";
 
 //TODO handle language change somehow

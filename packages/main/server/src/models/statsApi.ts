@@ -1,4 +1,4 @@
-import { StatsApi, StatsApiSearchInput, StatsApiSortBy } from ":local/consts";
+import { StatsApi, StatsApiSearchInput, StatsApiSortBy } from ":/consts";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";

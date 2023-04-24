@@ -1,4 +1,4 @@
-import { ReportIcon } from ":local/icons";
+import { ReportIcon } from ":/icons";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "../../../styles";

@@ -1,4 +1,4 @@
-import { NodeLink } from ":local/consts";
+import { NodeLink } from ":/consts";
 
 export type Point = {
     x: number;

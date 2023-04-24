@@ -1,4 +1,4 @@
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import { CustomError } from "../events";
 
 /**

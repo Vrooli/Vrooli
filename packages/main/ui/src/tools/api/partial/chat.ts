@@ -1,4 +1,4 @@
-import { Chat, ChatTranslation, ChatYou } from ":local/consts";
+import { Chat, ChatTranslation, ChatYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

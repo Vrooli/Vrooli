@@ -3,59 +3,9 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-        "composite": true,
-        "baseUrl": ".",
-        "paths": {
-            ":local/consts": [
-                "../consts/src",
-            ],
-            ":local/icons": [
-                "../icons/src",
-            ],
-            ":local/translations": [
-                "../translations/src",
-            ],
-            ":local/ui": [
-                "../ui/src",
-            ],
-            ":local/utils": [
-                "../utils/src",
-            ],
-            ":local/uuid": [
-                "../uuid/src",
-            ],
-            ":local/validation": [
-                "../validation/src",
-            ],
-        }
+        "composite": true
     },
     "include": [
         "src/**/*"
     ],
-    "references": [
-        {
-            "path": "./tsconfig.node.json"
-        },
-        {
-            "path": "../consts/src"
-        },
-        {
-            "path": "../icons/src"
-        },
-        {
-            "path": "../translations/src"
-        },
-        {
-            "path": "../ui/src"
-        },
-        {
-            "path": "../utils/src"
-        },
-        {
-            "path": "../uuid/src"
-        },
-        {
-            "path": "../validation/src"
-        }
-    ]
 }

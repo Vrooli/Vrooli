@@ -1,4 +1,4 @@
-import { SmartContractSortBy } from ":local/consts";
+import { SmartContractSortBy } from ":/consts";
 import { smartContractFindMany } from "../../../api/generated/endpoints/smartContract_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

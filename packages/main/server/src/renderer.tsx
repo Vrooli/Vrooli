@@ -1,4 +1,4 @@
-import { renderApp } from ":local/ui";
+import { renderApp } from "@local/ui";
 import { createRef } from "react";
 import { renderToString } from "react-dom/server";
 

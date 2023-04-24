@@ -1,4 +1,4 @@
-import { BookmarkListSortBy } from ":local/consts";
+import { BookmarkListSortBy } from ":/consts";
 import { bookmarkListFindMany } from "../../../api/generated/endpoints/bookmarkList_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

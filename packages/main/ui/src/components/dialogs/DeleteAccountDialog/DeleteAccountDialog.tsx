@@ -1,6 +1,6 @@
-import { LINKS, Success, UserDeleteInput } from ":local/consts";
-import { DeleteIcon } from ":local/icons";
-import { userDeleteOneSchema as validationSchema } from ":local/validation";
+import { LINKS, Success, UserDeleteInput } from "@local/shared/consts";
+import { DeleteIcon } from "@local/shared/icons";
+import { userDeleteOneSchema as validationSchema } from "@local/shared/validation";
 import {
     Button,
     Checkbox,
@@ -17,10 +17,10 @@ import { useTranslation } from "react-i18next";
 import { useCustomMutation } from "../../../api";
 import { userDeleteOne } from "../../../api/generated/endpoints/user_deleteOne";
 import { mutationWrapper } from "../../../api/utils";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { PubSub } from "../../../utils/pubsub";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { PasswordTextField } from "../../inputs/PasswordTextField/PasswordTextField";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";

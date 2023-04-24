@@ -1,4 +1,4 @@
-import { ProjectOrRoutine } from ":local/consts";
+import { ProjectOrRoutine } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

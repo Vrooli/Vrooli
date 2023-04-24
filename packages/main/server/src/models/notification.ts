@@ -1,4 +1,4 @@
-import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from ":local/consts";
+import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from ":/consts";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

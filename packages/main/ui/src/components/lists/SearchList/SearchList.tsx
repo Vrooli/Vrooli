@@ -1,7 +1,7 @@
 /**
  * Search list for a single object type
  */
-import { PlusIcon } from ":local/icons";
+import { PlusIcon } from ":/icons";
 import { Box, Button } from "@mui/material";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { StandardVersion, StandardVersionTranslation } from ":local/consts";
+import { StandardVersion, StandardVersionTranslation } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";

@@ -1,4 +1,4 @@
-import { ErrorKey } from ":local/translations";
+import { ErrorKey } from ":/translations";
 import { ApolloError } from "@apollo/client";
 
 /**

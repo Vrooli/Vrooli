@@ -1,4 +1,4 @@
-import { StandardVersionSortBy } from ":local/consts";
+import { StandardVersionSortBy } from ":/consts";
 import { standardVersionFindMany } from "../../../api/generated/endpoints/standardVersion_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

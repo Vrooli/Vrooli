@@ -1,4 +1,4 @@
-import { ReactionSortBy } from ":local/consts";
+import { ReactionSortBy } from ":/consts";
 import { reactionFindMany } from "../../../api/generated/endpoints/reaction_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

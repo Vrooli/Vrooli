@@ -1,4 +1,4 @@
-import { LINKS } from ":local/consts";
+import { LINKS } from ":/consts";
 import { useContext } from "react";
 import { PubSub } from "../../utils/pubsub";
 import { Redirect, useLocation } from "../../utils/route";

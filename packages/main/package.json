@@ -22,13 +22,8 @@
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
     },
     "dependencies": {
-        ":local/consts": "*",
-        ":local/icons": "*",
-        ":local/server": "*",
-        ":local/translations": "*",
-        ":local/ui": "*",
-        ":local/utils": "*",
-        ":local/uuid": "*",
-        ":local/validation": "*"
+        "@local/server": "*",
+        "@local/shared": "*",
+        "@local/ui": "*"
     }
 }

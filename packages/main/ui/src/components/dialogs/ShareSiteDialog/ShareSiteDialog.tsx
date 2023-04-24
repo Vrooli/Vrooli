@@ -1,8 +1,8 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { LINKS } from ":local/consts";
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from ":local/icons";
+import { LINKS } from "@local/shared/consts";
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "@local/shared/icons";
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";

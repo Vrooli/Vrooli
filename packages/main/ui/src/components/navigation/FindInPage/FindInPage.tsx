@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from ":local/icons";
+import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from ":/icons";
 import {
     Box,
     Dialog,

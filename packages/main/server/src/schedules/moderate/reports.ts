@@ -1,5 +1,5 @@
-import { GqlModelType, ReportSuggestedAction } from ":local/consts";
-import { uppercaseFirstLetter } from ":local/utils";
+import { GqlModelType, ReportSuggestedAction } from ":/consts";
+import { uppercaseFirstLetter } from ":/utils";
 import pkg, { ReportStatus } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, Trigger } from "../../events";

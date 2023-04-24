@@ -1,8 +1,8 @@
-import { AddIcon } from ":local/icons";
-import { uuid } from ":local/uuid";
+import { AddIcon } from "@local/shared/icons";
+import { uuid } from "@local/shared/uuid";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { updateArray } from "../../../../utils/shape/general";
 import { RoutineVersionInputShape } from "../../../../utils/shape/models/routineVersionInput";

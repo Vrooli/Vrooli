@@ -1,4 +1,4 @@
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import { permissionsSelectHelper } from "../builders";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";

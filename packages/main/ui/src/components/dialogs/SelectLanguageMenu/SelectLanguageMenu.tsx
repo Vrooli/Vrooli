@@ -1,14 +1,14 @@
-import { Translate, TranslateInput } from ":local/consts";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from ":local/icons";
+import { Translate, TranslateInput } from "@local/shared/consts";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "@local/shared/icons";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { translateTranslate } from "../../../api/generated/endpoints/translate_translate";
 import { useCustomLazyQuery } from "../../../api/hooks";
 import { queryWrapper } from "../../../api/utils";
+import { SessionContext } from "../../../utils/SessionContext";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ListMenu } from "../ListMenu/ListMenu";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuItemData, SelectLanguageMenuProps } from "../types";

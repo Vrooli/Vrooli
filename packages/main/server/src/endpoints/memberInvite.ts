@@ -1,4 +1,4 @@
-import { FindByIdInput, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteStatus, MemberInviteUpdateInput } from ":local/consts";
+import { FindByIdInput, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteStatus, MemberInviteUpdateInput } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { CustomError } from "../events";

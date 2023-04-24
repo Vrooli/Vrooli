@@ -1,5 +1,5 @@
-import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from ":local/consts";
-import { questionValidation } from ":local/validation";
+import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from ":/consts";
+import { questionValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";

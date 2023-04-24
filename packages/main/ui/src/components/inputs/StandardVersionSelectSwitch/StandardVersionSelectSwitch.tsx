@@ -1,4 +1,4 @@
-import { EditIcon as CustomIcon, LinkIcon } from ":local/icons";
+import { EditIcon as CustomIcon, LinkIcon } from ":/icons";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

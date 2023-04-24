@@ -1,5 +1,5 @@
-import { MaxObjects, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from ":local/consts";
-import { reminderItemValidation } from ":local/validation";
+import { MaxObjects, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from ":/consts";
+import { reminderItemValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

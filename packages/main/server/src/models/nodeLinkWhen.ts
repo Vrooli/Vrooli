@@ -1,5 +1,5 @@
-import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput } from ":local/consts";
-import { nodeLinkWhenValidation } from ":local/validation";
+import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput } from ":/consts";
+import { nodeLinkWhenValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

@@ -1,4 +1,4 @@
-import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput } from ":local/consts";
+import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput } from ":/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

@@ -1,5 +1,5 @@
-import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects } from ":local/consts";
-import { issueValidation } from ":local/validation";
+import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects } from ":/consts";
+import { issueValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

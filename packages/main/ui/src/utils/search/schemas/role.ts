@@ -1,4 +1,4 @@
-import { RoleSortBy } from ":local/consts";
+import { RoleSortBy } from ":/consts";
 import { roleFindMany } from "../../../api/generated/endpoints/role_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

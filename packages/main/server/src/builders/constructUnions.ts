@@ -1,5 +1,5 @@
-import { GqlModelType } from ":local/consts";
-import { exists, isObject } from ":local/utils";
+import { GqlModelType } from ":/consts";
+import { exists, isObject } from ":/utils";
 import { GqlRelMap } from "../models/types";
 
 /**

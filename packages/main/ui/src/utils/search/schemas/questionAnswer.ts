@@ -1,4 +1,4 @@
-import { QuestionAnswerSortBy } from ":local/consts";
+import { QuestionAnswerSortBy } from ":/consts";
 import { questionAnswerFindMany } from "../../../api/generated/endpoints/questionAnswer_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

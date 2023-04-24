@@ -1,4 +1,4 @@
-import { UserSortBy } from ":local/consts";
+import { UserSortBy } from ":/consts";
 import { userFindMany } from "../../../api/generated/endpoints/user_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

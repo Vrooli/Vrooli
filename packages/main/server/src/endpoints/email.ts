@@ -1,4 +1,4 @@
-import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from ":local/consts";
+import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper } from "../actions";
 import { setupVerificationCode } from "../auth";

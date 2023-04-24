@@ -1,4 +1,4 @@
-import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from ":local/consts";
+import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth";

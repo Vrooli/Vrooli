@@ -1,6 +1,6 @@
-import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from ":local/consts";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from ":local/icons";
-import { userValidation } from ":local/validation";
+import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared/consts";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from "@local/shared/icons";
+import { userValidation } from "@local/shared/validation";
 import {
     Box,
     Collapse,
@@ -24,13 +24,13 @@ import { userProfileUpdate } from "../../../api/generated/endpoints/user_profile
 import { useCustomMutation } from "../../../api/hooks";
 import { mutationWrapper } from "../../../api/utils";
 import { noSelect } from "../../../styles";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getCurrentUser, guestSession } from "../../../utils/authentication/session";
 import { useIsLeftHanded } from "../../../utils/hooks/useIsLeftHanded";
 import { useWindowSize } from "../../../utils/hooks/useWindowSize";
 import { PubSub } from "../../../utils/pubsub";
 import { useLocation } from "../../../utils/route";
 import { HistoryPageTabOption } from "../../../utils/search/objectToSearch";
-import { SessionContext } from "../../../utils/SessionContext";
 import { shapeProfile } from "../../../utils/shape/models/profile";
 import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector";

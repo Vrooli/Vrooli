@@ -1,4 +1,4 @@
-import { Role, RoleTranslation } from ":local/consts";
+import { Role, RoleTranslation } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

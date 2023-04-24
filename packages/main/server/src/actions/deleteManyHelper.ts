@@ -1,4 +1,4 @@
-import { Count } from ":local/consts";
+import { Count } from ":/consts";
 import { assertRequestFrom } from "../auth/request";
 import { CustomError } from "../events";
 import { cudHelper } from "./cudHelper";

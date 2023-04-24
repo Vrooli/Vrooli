@@ -1,4 +1,4 @@
-import { InputType, Tag } from ":local/consts";
+import { InputType, Tag } from ":/consts";
 import { FormSchema } from "../../forms/types";
 
 /**

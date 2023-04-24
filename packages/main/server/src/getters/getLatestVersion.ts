@@ -1,5 +1,5 @@
-import { GqlModelType } from ":local/consts";
-import { isOfType } from ":local/utils";
+import { GqlModelType } from ":/consts";
+import { isOfType } from ":/utils";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType } from "../types";

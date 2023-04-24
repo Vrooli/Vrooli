@@ -1,4 +1,4 @@
-import { Issue, IssueTranslation, IssueYou } from ":local/consts";
+import { Issue, IssueTranslation, IssueYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

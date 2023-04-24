@@ -1,4 +1,4 @@
-import { ReminderItem } from ":local/consts";
+import { ReminderItem } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

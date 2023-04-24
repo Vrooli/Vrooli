@@ -1,4 +1,4 @@
-import { Member } from ":local/consts";
+import { Member } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

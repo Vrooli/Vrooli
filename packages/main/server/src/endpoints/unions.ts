@@ -1,7 +1,7 @@
 /**
  * Endpoints optimized for specific pages
  */
-import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrOrganizationSortBy, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from ":local/consts";
+import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrOrganizationSortBy, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from ":/consts";
 import { gql } from "apollo-server-express";
 import { readManyAsFeedHelper } from "../actions";
 import { getUser } from "../auth";

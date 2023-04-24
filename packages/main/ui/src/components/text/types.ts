@@ -1,5 +1,5 @@
-import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from ":local/consts";
-import { SvgComponent } from ":local/icons";
+import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@local/shared/consts";
+import { SvgComponent } from "@local/shared/icons";
 import { BoxProps, TypographyProps } from "@mui/material";
 import { ObjectType } from "../../utils/navigation/openObject";
 

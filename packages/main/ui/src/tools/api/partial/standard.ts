@@ -1,4 +1,4 @@
-import { Standard, StandardYou } from ":local/consts";
+import { Standard, StandardYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

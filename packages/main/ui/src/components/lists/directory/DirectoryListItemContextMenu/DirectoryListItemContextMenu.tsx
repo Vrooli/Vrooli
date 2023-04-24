@@ -1,4 +1,4 @@
-import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from ":local/icons";
+import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from ":/icons";
 import { useContext } from "react";
 import { getDisplay } from "../../../../utils/display/listTools";
 import { getUserLanguages } from "../../../../utils/display/translationTools";

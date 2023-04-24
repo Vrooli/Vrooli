@@ -1,6 +1,6 @@
-import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from ":local/consts";
-import { uppercaseFirstLetter } from ":local/utils";
-import { resourceListValidation } from ":local/validation";
+import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from ":/consts";
+import { uppercaseFirstLetter } from ":/utils";
+import { resourceListValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

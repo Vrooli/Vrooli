@@ -1,4 +1,4 @@
-import { PullRequest, PullRequestTranslation, PullRequestYou } from ":local/consts";
+import { PullRequest, PullRequestTranslation, PullRequestYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,4 +1,4 @@
-import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from ":local/consts";
+import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from ":/consts";
 import { ShapeModel } from "../../../types";
 import { NodeLinkWhenShape, shapeNodeLinkWhen } from "./nodeLinkWhen";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

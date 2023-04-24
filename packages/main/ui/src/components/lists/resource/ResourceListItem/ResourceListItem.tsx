@@ -1,10 +1,11 @@
 // Used to display popular/search results of a particular object type
-import { ResourceUsedFor } from ":local/consts";
-import { DeleteIcon, EditIcon, OpenInNewIcon } from ":local/icons";
-import { adaHandleRegex, urlRegex, walletAddressRegex } from ":local/validation";
+import { ResourceUsedFor } from "@local/shared/consts";
+import { DeleteIcon, EditIcon, OpenInNewIcon } from "@local/shared/icons";
+import { adaHandleRegex, urlRegex, walletAddressRegex } from "@local/shared/validation";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { multiLineEllipsis } from "../../../../styles";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { ResourceType } from "../../../../utils/consts";
 import { getResourceIcon } from "../../../../utils/display/getResourceIcon";
 import { getDisplay } from "../../../../utils/display/listTools";
@@ -14,7 +15,6 @@ import usePress from "../../../../utils/hooks/usePress";
 import { getResourceUrl } from "../../../../utils/navigation/openObject";
 import { PubSub } from "../../../../utils/pubsub";
 import { openLink, useLocation } from "../../../../utils/route";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { TextLoading } from "../../TextLoading/TextLoading";
 import { ResourceListItemProps } from "../types";
 

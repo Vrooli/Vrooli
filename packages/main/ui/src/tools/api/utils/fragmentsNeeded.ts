@@ -1,4 +1,4 @@
-import { exists } from ":local/utils";
+import { exists } from ":/utils";
 
 /**
  * Determines which fragments are needed for a given partial. 

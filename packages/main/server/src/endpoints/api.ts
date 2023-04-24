@@ -1,4 +1,4 @@
-import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, FindByIdInput } from ":local/consts";
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, FindByIdInput } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

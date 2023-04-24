@@ -1,11 +1,11 @@
-import { InputType } from ":local/consts";
-import { CompleteIcon, RefreshIcon } from ":local/icons";
-import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from ":local/validation";
+import { InputType } from "@local/shared/consts";
+import { CompleteIcon, RefreshIcon } from "@local/shared/icons";
+import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from "@local/shared/validation";
 import { Box, Button, Grid } from "@mui/material";
 import { Formik, useField } from "formik";
 import { t } from "i18next";
 import { useMemo } from "react";
-import { CheckboxStandardInput, DropzoneStandardInput, emptyCheckboxOption, emptyRadioOption, IntegerStandardInput, JsonStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from "..";
+import { CheckboxStandardInput, DropzoneStandardInput, IntegerStandardInput, JsonStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput, emptyCheckboxOption, emptyRadioOption } from "..";
 import { FieldData } from "../../../../forms/types";
 import { BaseStandardInputProps } from "../types";
 

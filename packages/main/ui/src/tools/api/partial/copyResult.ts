@@ -1,4 +1,4 @@
-import { CopyResult } from ":local/consts";
+import { CopyResult } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

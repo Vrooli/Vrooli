@@ -1,4 +1,4 @@
-import { OrganizationSortBy } from ":local/consts";
+import { OrganizationSortBy } from ":/consts";
 import { organizationFindMany } from "../../../api/generated/endpoints/organization_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

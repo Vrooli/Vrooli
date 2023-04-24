@@ -2,9 +2,9 @@
  * Navigate to various objects and object search pages
  */
 
-import { Bookmark, GqlModelType, LINKS, Reaction, RunProject, RunRoutine, View } from ":local/consts";
-import { isOfType } from ":local/utils";
-import { adaHandleRegex, urlRegex, walletAddressRegex } from ":local/validation";
+import { Bookmark, GqlModelType, LINKS, Reaction, RunProject, RunRoutine, View } from "@local/shared/consts";
+import { isOfType } from "@local/shared/utils";
+import { adaHandleRegex, urlRegex, walletAddressRegex } from "@local/shared/validation";
 import { NavigableObject } from "../../types";
 import { ResourceType } from "../consts";
 import { SetLocation, stringifySearchParams } from "../route";

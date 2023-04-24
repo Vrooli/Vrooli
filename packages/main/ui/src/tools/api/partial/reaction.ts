@@ -1,4 +1,4 @@
-import { Reaction } from ":local/consts";
+import { Reaction } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

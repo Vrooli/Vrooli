@@ -1,4 +1,4 @@
-import { Tag } from ":local/consts";
+import { Tag } from ":/consts";
 import { useField } from "formik";
 import { TagShape } from "../../../../utils/shape/models/tag";
 import { TagSelectorBase } from "../../TagSelectorBase/TagSelectorBase";

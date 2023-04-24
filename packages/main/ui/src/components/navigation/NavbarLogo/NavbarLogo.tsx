@@ -1,4 +1,4 @@
-import { BUSINESS_NAME } from ":local/consts";
+import { BUSINESS_NAME } from "@local/shared/consts";
 import { Box, Typography, useTheme } from "@mui/material";
 import { NavbarLogoProps } from "../types";
 

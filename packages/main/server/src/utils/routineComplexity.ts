@@ -1,4 +1,4 @@
-import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from ":local/consts";
+import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from ":/consts";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
 

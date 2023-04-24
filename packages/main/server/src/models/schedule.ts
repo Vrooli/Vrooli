@@ -1,4 +1,4 @@
-import { Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from ":local/consts";
+import { Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from ":/consts";
 import { Prisma } from "@prisma/client";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

@@ -1,5 +1,5 @@
-import { Comment, CommentCreateInput, CommentUpdateInput } from ":local/consts";
-import { exists } from ":local/utils";
+import { Comment, CommentCreateInput, CommentUpdateInput } from ":/consts";
+import { exists } from ":/utils";
 import { useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useMemo, useRef } from "react";

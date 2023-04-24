@@ -1,12 +1,12 @@
-import { Success } from ":local/consts";
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from ":local/icons";
-import { getReactionScore, removeModifiers } from ":local/utils";
+import { Success } from "@local/shared/consts";
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "@local/shared/icons";
+import { getReactionScore, removeModifiers } from "@local/shared/utils";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { SessionContext } from "../../../utils/SessionContext";
 import { ObjectActionComplete } from "../../../utils/actions/objectActions";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { useVoter } from "../../../utils/hooks/useVoter";
-import { SessionContext } from "../../../utils/SessionContext";
 import { VoteButtonProps } from "../types";
 
 export const VoteButton = ({

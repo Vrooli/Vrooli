@@ -1,4 +1,4 @@
-import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from ":local/consts";
+import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from ":/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

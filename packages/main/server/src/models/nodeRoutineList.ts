@@ -1,5 +1,5 @@
-import { MaxObjects, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from ":local/consts";
-import { nodeRoutineListValidation } from ":local/validation";
+import { MaxObjects, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from ":/consts";
+import { nodeRoutineListValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

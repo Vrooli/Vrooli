@@ -1,5 +1,5 @@
-import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from ":local/consts";
-import { runProjectStepValidation } from ":local/validation";
+import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from ":/consts";
+import { runProjectStepValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

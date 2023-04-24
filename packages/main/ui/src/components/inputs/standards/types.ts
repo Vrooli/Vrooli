@@ -1,4 +1,4 @@
-import { InputType } from ":local/consts";
+import { InputType } from ":/consts";
 import { FieldData, FieldDataBase } from "../../../forms/types";
 
 /**

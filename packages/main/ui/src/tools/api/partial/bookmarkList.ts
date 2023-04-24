@@ -1,4 +1,4 @@
-import { BookmarkList } from ":local/consts";
+import { BookmarkList } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

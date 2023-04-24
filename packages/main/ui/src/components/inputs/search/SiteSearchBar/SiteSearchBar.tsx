@@ -1,14 +1,14 @@
-import { BookmarkFor } from ":local/consts";
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from ":local/icons";
+import { BookmarkFor } from "@local/shared/consts";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from "@local/shared/icons";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, Tooltip, useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AutocompleteOption } from "../../../../types";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { getCurrentUser } from "../../../../utils/authentication/session";
 import { useDebounce } from "../../../../utils/hooks/useDebounce";
 import { getLocalStorageKeys } from "../../../../utils/localStorage";
 import { performAction } from "../../../../utils/navigation/quickActions";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { BookmarkButton } from "../../../buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "../../../buttons/MicrophoneButton/MicrophoneButton";
 import { SiteSearchBarProps } from "../types";

@@ -1,4 +1,4 @@
-import { exists } from ":local/utils";
+import { exists } from ":/utils";
 import { MaybeLazyAsync, NonMaybe } from "../../../types";
 import { DeepPartialBooleanWithFragments } from "../types";
 import { uniqueFragmentName } from "./uniqueFragmentName";

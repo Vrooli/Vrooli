@@ -1,4 +1,4 @@
-import { QuizQuestion, QuizQuestionTranslation, QuizQuestionYou } from ":local/consts";
+import { QuizQuestion, QuizQuestionTranslation, QuizQuestionYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

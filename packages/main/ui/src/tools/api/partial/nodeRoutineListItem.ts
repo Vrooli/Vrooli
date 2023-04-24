@@ -1,4 +1,4 @@
-import { NodeRoutineListItem, NodeRoutineListItemTranslation } from ":local/consts";
+import { NodeRoutineListItem, NodeRoutineListItemTranslation } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

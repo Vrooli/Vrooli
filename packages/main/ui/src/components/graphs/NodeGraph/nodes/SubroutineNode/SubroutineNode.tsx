@@ -1,6 +1,6 @@
-import { Routine } from ":local/consts";
-import { CloseIcon } from ":local/icons";
-import { name as nameValidation, reqErr } from ":local/validation";
+import { Routine } from "@local/shared/consts";
+import { CloseIcon } from "@local/shared/icons";
+import { name as nameValidation, reqErr } from "@local/shared/validation";
 import {
     Box,
     Checkbox,

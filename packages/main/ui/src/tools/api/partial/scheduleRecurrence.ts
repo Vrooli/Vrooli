@@ -1,4 +1,4 @@
-import { ScheduleRecurrence } from ":local/consts";
+import { ScheduleRecurrence } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

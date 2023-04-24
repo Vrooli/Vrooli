@@ -1,15 +1,15 @@
-import { ProjectIcon, RoutineIcon } from ":local/icons";
-import { exists } from ":local/utils";
+import { ProjectIcon, RoutineIcon } from "@local/shared/icons";
+import { exists } from "@local/shared/utils";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { firstString } from "../../../../utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { openObject } from "../../../../utils/navigation/openObject";
 import { PubSub } from "../../../../utils/pubsub";
 import { useLocation } from "../../../../utils/route";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { FindObjectDialog } from "../../../dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "../../../dialogs/types";
 import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from "../../../lists/types";

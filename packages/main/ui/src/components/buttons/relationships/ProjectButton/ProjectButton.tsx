@@ -1,13 +1,13 @@
-import { ProjectIcon } from ":local/icons";
-import { exists } from ":local/utils";
+import { ProjectIcon } from "@local/shared/icons";
+import { exists } from "@local/shared/utils";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { firstString } from "../../../../utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { openObject } from "../../../../utils/navigation/openObject";
 import { useLocation } from "../../../../utils/route";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { FindObjectDialog } from "../../../dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "../../../dialogs/types";
 import { RelationshipItemProjectVersion } from "../../../lists/types";

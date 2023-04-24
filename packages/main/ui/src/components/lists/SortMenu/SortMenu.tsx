@@ -1,6 +1,6 @@
 // Menu for selecting 
 
-import { CommonKey } from ":local/translations";
+import { CommonKey } from ":/translations";
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

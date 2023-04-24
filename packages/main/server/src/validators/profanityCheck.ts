@@ -1,4 +1,4 @@
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";

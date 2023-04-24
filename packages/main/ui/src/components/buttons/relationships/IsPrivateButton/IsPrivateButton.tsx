@@ -1,4 +1,4 @@
-import { InvisibleIcon, VisibleIcon } from ":local/icons";
+import { InvisibleIcon, VisibleIcon } from ":/icons";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";

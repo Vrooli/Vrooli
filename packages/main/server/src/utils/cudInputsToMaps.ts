@@ -1,4 +1,4 @@
-import { GqlModelType } from ":local/consts";
+import { GqlModelType } from ":/consts";
 import pkg from "lodash";
 import { PrismaUpdate } from "../builders/types";
 import { getLogic } from "../getters";

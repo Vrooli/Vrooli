@@ -1,4 +1,4 @@
-import { Tag, TagTranslation, TagYou } from ":local/consts";
+import { Tag, TagTranslation, TagYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

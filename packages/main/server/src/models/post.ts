@@ -1,5 +1,5 @@
-import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from ":local/consts";
-import { postValidation } from ":local/validation";
+import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from ":/consts";
+import { postValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

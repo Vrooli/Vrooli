@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS } from ":local/consts";
+import { BUSINESS_NAME, LINKS } from ":/consts";
 import { useTranslation } from "react-i18next";
 import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
 import { CopyrightBreadcrumbsProps } from "../types";

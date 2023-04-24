@@ -1,5 +1,5 @@
-import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiYou, MaxObjects } from ":local/consts";
-import { apiValidation } from ":local/validation";
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiYou, MaxObjects } from ":/consts";
+import { apiValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

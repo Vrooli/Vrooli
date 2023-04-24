@@ -1,5 +1,5 @@
-import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from ":local/consts";
-import { notificationSubscriptionValidation } from ":local/validation";
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from ":/consts";
+import { notificationSubscriptionValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";

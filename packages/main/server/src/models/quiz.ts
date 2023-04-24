@@ -1,5 +1,5 @@
-import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from ":local/consts";
-import { quizValidation } from ":local/validation";
+import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from ":/consts";
+import { quizValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

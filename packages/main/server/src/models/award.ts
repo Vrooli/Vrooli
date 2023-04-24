@@ -1,5 +1,5 @@
-import { Award, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from ":local/consts";
-import { AwardKey } from ":local/translations";
+import { Award, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from ":/consts";
+import { AwardKey } from ":/translations";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";

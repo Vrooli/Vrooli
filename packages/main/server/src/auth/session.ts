@@ -1,5 +1,5 @@
-import { Session, SessionUser } from ":local/consts";
-import { getActiveFocusMode } from ":local/utils";
+import { Session, SessionUser } from ":/consts";
+import { getActiveFocusMode } from ":/utils";
 import { Request } from "express";
 import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
 import { PrismaType, SessionUserToken } from "../types";

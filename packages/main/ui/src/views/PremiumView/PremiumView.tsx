@@ -1,14 +1,14 @@
-import { LINKS } from ":local/consts";
-import { CompleteIcon } from ":local/icons";
+import { LINKS } from "@local/shared/consts";
+import { CompleteIcon } from "@local/shared/icons";
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { loadStripe } from "@stripe/stripe-js";
 import { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { PubSub } from "../../utils/pubsub";
 import { parseSearchParams, stringifySearchParams, useLocation } from "../../utils/route";
-import { SessionContext } from "../../utils/SessionContext";
 import { PremiumViewProps } from "../types";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");

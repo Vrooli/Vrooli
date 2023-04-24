@@ -1,4 +1,4 @@
-import { exists } from ":local/utils";
+import { exists } from ":/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";

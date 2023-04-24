@@ -1,5 +1,5 @@
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou } from ":local/consts";
-import { runRoutineValidation } from ":local/validation";
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou } from ":/consts";
+import { runRoutineValidation } from ":/validation";
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, SelectWrap } from "../builders/types";

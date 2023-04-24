@@ -1,5 +1,5 @@
-import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou } from ":local/consts";
-import { routineValidation } from ":local/validation";
+import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou } from ":/consts";
+import { routineValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

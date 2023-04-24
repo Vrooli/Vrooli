@@ -1,4 +1,4 @@
-import { HomeResult, PopularResult } from ":local/consts";
+import { HomeResult, PopularResult } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

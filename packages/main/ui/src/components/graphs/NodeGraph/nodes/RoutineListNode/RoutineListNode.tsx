@@ -1,6 +1,6 @@
-import { NodeRoutineListItem } from ":local/consts";
-import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from ":local/icons";
-import { name as nameValidation, reqErr } from ":local/validation";
+import { NodeRoutineListItem } from "@local/shared/consts";
+import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from "@local/shared/icons";
+import { name as nameValidation, reqErr } from "@local/shared/validation";
 import {
     Checkbox,
     Collapse,
@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
+import { DraggableNode, SubroutineNode, calculateNodeSize } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { multiLineEllipsis, noSelect, textShadow } from "../../../../../styles";
 import { BuildAction } from "../../../../../utils/consts";

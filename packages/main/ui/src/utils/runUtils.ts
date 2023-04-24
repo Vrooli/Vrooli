@@ -1,6 +1,6 @@
-import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from ":local/consts";
-import { exists, uniqBy } from ":local/utils";
-import { uuid } from ":local/uuid";
+import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@local/shared/consts";
+import { exists, uniqBy } from "@local/shared/utils";
+import { uuid } from "@local/shared/uuid";
 import { Status } from "./consts";
 import { NodeShape } from "./shape/models/node";
 import { NodeLinkShape } from "./shape/models/nodeLink";

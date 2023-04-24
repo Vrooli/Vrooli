@@ -1,29 +1,29 @@
-import { ReactionFor, RunProject, RunRoutine, RunStatus } from ":local/consts";
-import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from ":local/icons";
-import { isOfType } from ":local/utils";
-import { uuid } from ":local/uuid";
+import { ReactionFor, RunProject, RunRoutine, RunStatus } from "@local/shared/consts";
+import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from "@local/shared/icons";
+import { isOfType } from "@local/shared/utils";
+import { uuid } from "@local/shared/uuid";
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "../../../styles";
+import { SessionContext } from "../../../utils/SessionContext";
 import { ObjectAction } from "../../../utils/actions/objectActions";
-import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "../../../utils/display/listTools";
+import { ListObjectType, getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";
 import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import usePress from "../../../utils/hooks/usePress";
 import { useWindowSize } from "../../../utils/hooks/useWindowSize";
 import { getObjectEditUrl, getObjectUrl } from "../../../utils/navigation/openObject";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { BookmarkButton } from "../../buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "../../buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "../../buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "../../buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu";
 import { RoleList } from "../RoleList/RoleList";
-import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
+import { smallHorizontalScrollbar } from "../styles";
 import { ObjectListItemProps } from "../types";
 
 export function CompletionBar(props) {

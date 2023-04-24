@@ -1,4 +1,4 @@
-import { NoteSortBy } from ":local/consts";
+import { NoteSortBy } from ":/consts";
 import { noteFindMany } from "../../../api/generated/endpoints/note_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

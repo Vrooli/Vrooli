@@ -1,4 +1,4 @@
-import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput } from ":local/consts";
+import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput } from ":/consts";
 import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

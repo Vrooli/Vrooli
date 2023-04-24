@@ -1,4 +1,4 @@
-import { CloseIcon, EllipsisIcon } from ":local/icons";
+import { CloseIcon, EllipsisIcon } from ":/icons";
 import { Collapse, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";

@@ -1,14 +1,14 @@
-import { OrganizationIcon, UserIcon } from ":local/icons";
-import { exists } from ":local/utils";
+import { OrganizationIcon, UserIcon } from "@local/shared/icons";
+import { exists } from "@local/shared/utils";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { getCurrentUser } from "../../../../utils/authentication/session";
 import { firstString } from "../../../../utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { openObject } from "../../../../utils/navigation/openObject";
 import { useLocation } from "../../../../utils/route";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { OwnerShape } from "../../../../utils/shape/models/types";
 import { FindObjectDialog } from "../../../dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "../../../dialogs/ListMenu/ListMenu";

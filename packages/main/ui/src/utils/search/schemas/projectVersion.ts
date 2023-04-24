@@ -1,4 +1,4 @@
-import { ProjectVersionSortBy } from ":local/consts";
+import { ProjectVersionSortBy } from ":/consts";
 import { projectVersionFindMany } from "../../../api/generated/endpoints/projectVersion_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

@@ -1,4 +1,4 @@
-import { Reminder, ReminderItem } from ":local/consts";
+import { Reminder, ReminderItem } from ":/consts";
 
 export interface ReminderListProps {
     handleUpdate?: (updatedList: Reminder[]) => void;

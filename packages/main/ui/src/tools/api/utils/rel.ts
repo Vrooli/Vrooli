@@ -1,4 +1,4 @@
-import { exists } from ":local/utils";
+import { exists } from ":/utils";
 import pkg from "lodash";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { findSelection } from "./findSelection";

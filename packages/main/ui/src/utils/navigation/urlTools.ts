@@ -1,6 +1,6 @@
-import { LINKS } from ":local/consts";
-import { uuidValidate } from ":local/uuid";
-import { adaHandleRegex } from ":local/validation";
+import { LINKS } from "@local/shared/consts";
+import { uuidValidate } from "@local/shared/uuid";
+import { adaHandleRegex } from "@local/shared/validation";
 import { PubSub } from "../pubsub";
 import { getLastUrlPart } from "../route";
 

@@ -1,13 +1,13 @@
-import { LINKS, SOCIALS, WHITE_PAPER_URL } from ":local/consts";
-import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from ":local/icons";
+import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@local/shared/consts";
+import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@local/shared/icons";
 import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TwinkleStars } from "../../../components/TwinkleStars/TwinkleStars";
 import { PulseButton } from "../../../components/buttons/PulseButton/PulseButton";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "../../../components/slides";
-import { TwinkleStars } from "../../../components/TwinkleStars/TwinkleStars";
 import { greenNeonText, iconButtonProps, slideImageContainer, slideText, slideTitle, textPop } from "../../../styles";
 import { openLink, useLocation } from "../../../utils/route";
 import { LandingViewProps } from "../types";

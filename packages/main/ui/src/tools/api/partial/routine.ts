@@ -1,4 +1,4 @@
-import { Routine, RoutineYou } from ":local/consts";
+import { Routine, RoutineYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

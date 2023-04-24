@@ -1,4 +1,4 @@
-import { CommentSortBy } from ":local/consts";
+import { CommentSortBy } from ":/consts";
 import { commentFindMany } from "../../../api/generated/endpoints/comment_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

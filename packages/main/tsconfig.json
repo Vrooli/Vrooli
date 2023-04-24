@@ -3,28 +3,13 @@
     "files": [],
     "references": [
         {
-            "path": "consts"
-        },
-        {
-            "path": "icons"
-        },
-        {
             "path": "server"
         },
         {
-            "path": "translations"
+            "path": "shared"
         },
         {
             "path": "ui"
-        },
-        {
-            "path": "utils"
-        },
-        {
-            "path": "uuid"
-        },
-        {
-            "path": "validation"
         }
     ],
 }

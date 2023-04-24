@@ -10,24 +10,14 @@ WORKDIR ${PROJECT_DIR}
 # Copy all package.json files. Doing this first helps with caching (I think).
 COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/main/package.json packages/main/
-COPY --chown=node:node packages/main/consts/package.json packages/main/consts/
-COPY --chown=node:node packages/main/icons/package.json packages/main/icons/
 COPY --chown=node:node packages/main/server/package.json packages/main/server/
-COPY --chown=node:node packages/main/translations/package.json packages/main/translations/
+COPY --chown=node:node packages/main/shared/package.json packages/main/shared/
 COPY --chown=node:node packages/main/ui/package.json packages/main/ui/
-COPY --chown=node:node packages/main/utils/package.json packages/main/utils/
-COPY --chown=node:node packages/main/uuid/package.json packages/main/uuid/
-COPY --chown=node:node packages/main/validation/package.json packages/main/validation/
 
 # Copy source files
-COPY --chown=node:node packages/main/consts/src packages/main/consts/src/
-COPY --chown=node:node packages/main/icons/src packages/main/icons/src/
 COPY --chown=node:node packages/main/server/src packages/main/server/src/
-COPY --chown=node:node packages/main/translations/src packages/main/translations/src/
+COPY --chown=node:node packages/main/shared/src packages/main/shared/src/
 COPY --chown=node:node packages/main/ui/src packages/main/ui/src/
-COPY --chown=node:node packages/main/utils/src packages/main/utils/src/
-COPY --chown=node:node packages/main/uuid/src packages/main/uuid/src/
-COPY --chown=node:node packages/main/validation/src packages/main/validation/src/
 
 # Copy other necessary files
 COPY --chown=node:node packages/main/ui/index.html packages/main/ui/index.html

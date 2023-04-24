@@ -1,5 +1,5 @@
-import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from ":local/consts";
-import { nodeLoopWhileValidation } from ":local/validation";
+import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from ":/consts";
+import { nodeLoopWhileValidation } from ":/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

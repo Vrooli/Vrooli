@@ -1,11 +1,11 @@
-import { LINKS } from ":local/consts";
+import { LINKS } from "@local/shared/consts";
 import { Box } from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import privacyMarkdown from "../../../assets/policy/privacy.md";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { PageTabs } from "../../../components/PageTabs/PageTabs";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { PageTab } from "../../../components/types";
 import { useMarkdown } from "../../../utils/hooks/useMarkdown";
 import { useLocation } from "../../../utils/route";

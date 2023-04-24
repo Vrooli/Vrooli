@@ -1,4 +1,4 @@
-import { IssueSortBy } from ":local/consts";
+import { IssueSortBy } from ":/consts";
 import { issueFindMany } from "../../../api/generated/endpoints/issue_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

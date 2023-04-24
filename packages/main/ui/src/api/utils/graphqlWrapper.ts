@@ -1,6 +1,6 @@
-import { CommonKey, ErrorKey } from ":local/translations";
-import { exists } from ":local/utils";
 import { ApolloError, DocumentNode } from "@apollo/client";
+import { CommonKey, ErrorKey } from "@local/shared/translations";
+import { exists } from "@local/shared/utils";
 import { PubSub } from "../../utils/pubsub";
 import { errorToCode } from "./errorParser";
 import { initializeApollo } from "./initialize";

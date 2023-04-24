@@ -1,8 +1,8 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { NodeType } from ":local/consts";
-import { uuid } from ":local/uuid";
+import { NodeType } from ":/consts";
+import { uuid } from ":/uuid";
 import {
     Autocomplete,
     Box, DialogContent,

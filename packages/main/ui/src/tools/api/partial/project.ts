@@ -1,4 +1,4 @@
-import { Project, ProjectYou } from ":local/consts";
+import { Project, ProjectYou } from ":/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

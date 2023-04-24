@@ -1,4 +1,4 @@
-import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from ":local/consts";
+import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from ":/consts";
 import { Prisma } from "@prisma/client";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

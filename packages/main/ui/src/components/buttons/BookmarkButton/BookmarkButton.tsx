@@ -1,13 +1,13 @@
-import { Bookmark, BookmarkFor } from ":local/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from ":local/icons";
-import { uuidValidate } from ":local/uuid";
+import { Bookmark, BookmarkFor } from "@local/shared/consts";
+import { BookmarkFilledIcon, BookmarkOutlineIcon } from "@local/shared/icons";
+import { uuidValidate } from "@local/shared/uuid";
 import { Box, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { SessionContext } from "../../../utils/SessionContext";
 import { ObjectActionComplete } from "../../../utils/actions/objectActions";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { useBookmarker } from "../../../utils/hooks/useBookmarker";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { BookmarkButtonProps } from "../types";
 
 export const BookmarkButton = ({
