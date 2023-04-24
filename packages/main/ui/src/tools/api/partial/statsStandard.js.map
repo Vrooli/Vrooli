@@ -1,1 +1,0 @@
-{"version":3,"file":"statsStandard.js","sourceRoot":"","sources":["statsStandard.ts"],"names":[],"mappings":"AAGA,MAAM,CAAC,MAAM,aAAa,GAA8B;IACpD,UAAU,EAAE,eAAe;IAC3B,IAAI,EAAE;QACF,EAAE,EAAE,IAAI;QACR,WAAW,EAAE,IAAI;QACjB,SAAS,EAAE,IAAI;QACf,UAAU,EAAE,IAAI;QAChB,aAAa,EAAE,IAAI;QACnB,cAAc,EAAE,IAAI;KACvB;CACJ,CAAC"}

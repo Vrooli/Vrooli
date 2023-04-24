@@ -1,1 +1,0 @@
-{"version":3,"file":"openGraph.js","sourceRoot":"","sources":["openGraph.ts"],"names":[],"mappings":"AAKA,MAAM,cAAc,GAAG,2GAA2G,CAAC;AAOnI,MAAM,UAAU,KAAK,CAAC,SAAiB;IACnC,OAAO,CAAC,GAAG,CAAC,qBAAqB,EAAE,SAAS,CAAC,CAAC;IAC9C,OAAO,cAAc,CAAC,IAAI,CAAC,SAAS,CAAC,CAAC;AAC1C,CAAC"}

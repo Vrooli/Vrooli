@@ -1,8 +1,0 @@
-import gql from "graphql-tag";
-export const runRoutineDeleteAll = gql `
-mutation runRoutineDeleteAll {
-  runRoutineDeleteAll {
-    count
-  }
-}`;
-//# sourceMappingURL=runRoutine_deleteAll.js.map

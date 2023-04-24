@@ -1,6 +1,0 @@
-export const Phone_full = `fragment Phone_full on Phone {
-id
-phoneNumber
-verified
-}`;
-//# sourceMappingURL=Phone_full.js.map
