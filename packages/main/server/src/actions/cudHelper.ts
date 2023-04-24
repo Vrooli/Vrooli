@@ -1,5 +1,5 @@
-import { Count, GqlModelType } from ":/consts";
-import { reqArr } from ":/validation";
+import { reqArr } from "@local/shared";
+import { Count, GqlModelType } from "@local/shared;";
 import { modelToGql, selectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";

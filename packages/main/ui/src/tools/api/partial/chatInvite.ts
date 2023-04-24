@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteYou } from ":/consts";
+import { ChatInvite, ChatInviteYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

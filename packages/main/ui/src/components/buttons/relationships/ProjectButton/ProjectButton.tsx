@@ -1,5 +1,4 @@
-import { ProjectIcon } from "@local/shared/icons";
-import { exists } from "@local/shared/utils";
+import { ProjectIcon, exists } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";

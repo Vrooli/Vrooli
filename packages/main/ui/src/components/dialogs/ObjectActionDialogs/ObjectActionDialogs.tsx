@@ -1,8 +1,8 @@
-import { DeleteType, ReportFor } from ":/consts";
+import { DeleteType, ReportFor } from "@local/shared;";
 import { useContext } from "react";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getDisplay } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";
-import { SessionContext } from "../../../utils/SessionContext";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";

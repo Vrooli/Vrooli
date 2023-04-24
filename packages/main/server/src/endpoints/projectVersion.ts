@@ -1,4 +1,4 @@
-import { FindVersionInput, ProjectVersion, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult, ProjectVersionContentsSortBy, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput } from ":/consts";
+import { FindVersionInput, ProjectVersion, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult, ProjectVersionContentsSortBy, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { CustomError } from "../events";

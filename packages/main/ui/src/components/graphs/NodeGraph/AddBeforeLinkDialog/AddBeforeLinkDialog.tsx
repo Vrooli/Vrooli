@@ -1,11 +1,11 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { NodeLink } from ":/consts";
+import { NodeLink } from "@local/shared;";
 import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
-import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { SessionContext } from "../../../../utils/SessionContext";
+import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
 import { LargeDialog } from "../../../dialogs/LargeDialog/LargeDialog";
 import { ListMenuItemData } from "../../../dialogs/types";
 import { TopBar } from "../../../navigation/TopBar/TopBar";

@@ -1,5 +1,4 @@
-import { DeleteOneInput, LINKS, Success } from "@local/shared/consts";
-import { DeleteIcon } from "@local/shared/icons";
+import { DeleteIcon, DeleteOneInput, LINKS, Success } from "@local/shared";
 import {
     Button,
     DialogContent,

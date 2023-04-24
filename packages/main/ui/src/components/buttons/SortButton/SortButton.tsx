@@ -1,5 +1,4 @@
-import { SortIcon } from "@local/shared/icons";
-import { CommonKey } from "@local/shared/translations";
+import { CommonKey, SortIcon } from "@local/shared";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

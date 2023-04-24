@@ -1,5 +1,4 @@
-import { Translate, TranslateInput } from "@local/shared/consts";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "@local/shared/icons";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";

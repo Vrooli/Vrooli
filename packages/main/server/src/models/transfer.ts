@@ -1,5 +1,5 @@
-import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from ":/consts";
-import { transferValidation } from ":/validation";
+import { transferValidation } from "@local/shared";
+import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";

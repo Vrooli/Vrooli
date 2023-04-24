@@ -1,9 +1,7 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Comment, CommentThread as ThreadType } from "@local/shared/consts";
-import { CreateIcon } from "@local/shared/icons";
-import { uuidValidate } from "@local/shared/uuid";
+import { Comment, CreateIcon, CommentThread as ThreadType, uuidValidate } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

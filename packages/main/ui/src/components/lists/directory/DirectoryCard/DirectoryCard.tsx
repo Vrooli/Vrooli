@@ -1,4 +1,4 @@
-import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from ":/icons";
+import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "@local/shared;";
 import {
     Box,
     Stack,
@@ -9,12 +9,12 @@ import {
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis, noSelect } from "../../../../styles";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { getDisplay } from "../../../../utils/display/listTools";
 import { getUserLanguages } from "../../../../utils/display/translationTools";
 import usePress from "../../../../utils/hooks/usePress";
 import { getObjectUrl } from "../../../../utils/navigation/openObject";
 import { useLocation } from "../../../../utils/route";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { ColorIconButton } from "../../../buttons/ColorIconButton/ColorIconButton";
 import { DirectoryCardProps } from "../types";
 

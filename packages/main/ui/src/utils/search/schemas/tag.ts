@@ -1,4 +1,4 @@
-import { TagSortBy } from ":/consts";
+import { TagSortBy } from "@local/shared;";
 import { tagFindMany } from "../../../api/generated/endpoints/tag_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

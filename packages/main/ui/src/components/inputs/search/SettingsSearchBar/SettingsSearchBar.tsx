@@ -1,8 +1,8 @@
-import { SearchIcon } from ":/icons";
+import { SearchIcon } from "@local/shared;";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { findSearchResults, SearchItem, shapeSearchText } from "../../../../utils/search/siteToSearch";
+import { SearchItem, findSearchResults, shapeSearchText } from "../../../../utils/search/siteToSearch";
 import { SettingsSearchBarProps } from "../types";
 
 const FullWidthPopper = function (props) {

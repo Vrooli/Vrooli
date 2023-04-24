@@ -1,4 +1,4 @@
-import { ReportIcon } from ":/icons";
+import { ReportIcon } from "@local/shared;";
 import { IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { getObjectSlug, getObjectUrlBase } from "../../../utils/navigation/openObject";

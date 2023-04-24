@@ -1,4 +1,4 @@
-import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from ":/icons";
+import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "@local/shared;";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

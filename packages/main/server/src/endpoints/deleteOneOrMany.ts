@@ -1,4 +1,4 @@
-import { Count, DeleteManyInput, DeleteOneInput, DeleteType, Success } from ":/consts";
+import { Count, DeleteManyInput, DeleteOneInput, DeleteType, Success } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { deleteManyHelper, deleteOneHelper } from "../actions";
 import { rateLimit } from "../middleware";

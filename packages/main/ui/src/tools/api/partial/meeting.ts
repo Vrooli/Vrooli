@@ -1,4 +1,4 @@
-import { Meeting, MeetingTranslation, MeetingYou } from ":/consts";
+import { Meeting, MeetingTranslation, MeetingYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,9 +1,9 @@
-import { GqlModelType } from ":/consts";
+import { GqlModelType } from "@local/shared;";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType, SessionUserToken } from "../types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
-import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
+import { RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate, RelationshipType } from "./types";
 
 // Array if isOneToOne is false, otherwise single
 type MaybeArray<T, IsOneToOne extends boolean> =

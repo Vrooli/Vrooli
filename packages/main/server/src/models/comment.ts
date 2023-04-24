@@ -1,6 +1,5 @@
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from ":/consts";
-import { lowercaseFirstLetter } from ":/utils";
-import { commentValidation } from ":/validation";
+import { commentValidation, lowercaseFirstLetter } from "@local/shared";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../auth";
@@ -8,7 +7,7 @@ import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPart
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { SearchMap, bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";

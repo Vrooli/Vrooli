@@ -1,5 +1,5 @@
-import { GqlModelType } from ":/consts";
-import { isObject } from ":/utils";
+import { isObject } from "@local/shared";
+import { GqlModelType } from "@local/shared;";
 import pkg from "lodash";
 import { SingleOrArray } from "../types";
 import { isRelationshipObject } from "./isRelationshipObject";

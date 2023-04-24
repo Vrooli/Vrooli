@@ -1,4 +1,4 @@
-import { FindByIdInput, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput } from ":/consts";
+import { FindByIdInput, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

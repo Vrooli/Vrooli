@@ -1,4 +1,4 @@
-import { ErrorKey } from ":/translations";
+import { ErrorKey } from "@local/shared;";
 import { CustomError } from "../events";
 
 /**

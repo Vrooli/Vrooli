@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageTranslation, ChatMessageYou } from ":/consts";
+import { ChatMessage, ChatMessageTranslation, ChatMessageYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,5 +1,5 @@
-import { MaxObjects, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou } from ":/consts";
-import { meetingInviteValidation } from ":/validation";
+import { meetingInviteValidation } from "@local/shared";
+import { MaxObjects, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

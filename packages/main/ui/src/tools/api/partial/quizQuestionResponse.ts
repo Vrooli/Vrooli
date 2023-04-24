@@ -1,4 +1,4 @@
-import { QuizQuestionResponse, QuizQuestionResponseYou } from ":/consts";
+import { QuizQuestionResponse, QuizQuestionResponseYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

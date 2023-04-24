@@ -1,4 +1,4 @@
-import { isObject } from ":/utils";
+import { isObject } from "@local/shared;";
 
 /**
  * JSON format error object. Used when 

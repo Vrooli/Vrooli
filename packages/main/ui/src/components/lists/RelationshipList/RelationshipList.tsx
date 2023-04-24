@@ -1,4 +1,4 @@
-import { Session } from ":/consts";
+import { Session } from "@local/shared;";
 import { Stack, useTheme } from "@mui/material";
 import { noSelect } from "../../../styles";
 import { getCurrentUser } from "../../../utils/authentication/session";

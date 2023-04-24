@@ -1,8 +1,8 @@
-import { LINKS } from ":/consts";
+import { LINKS } from "@local/shared;";
 import { useContext } from "react";
+import { SessionContext } from "../../utils/SessionContext";
 import { PubSub } from "../../utils/pubsub";
 import { Redirect, useLocation } from "../../utils/route";
-import { SessionContext } from "../../utils/SessionContext";
 import { PageProps } from "../../views/wrapper/types";
 import { PageContainer } from "../containers/PageContainer/PageContainer";
 

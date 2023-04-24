@@ -1,9 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from "@local/shared/consts";
-import { AddIcon } from "@local/shared/icons";
-import { emailValidation } from "@local/shared/validation";
+import { AddIcon, DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success, emailValidation } from "@local/shared";
 import { Stack, TextField, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback } from "react";

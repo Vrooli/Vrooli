@@ -1,14 +1,14 @@
 /**
  * Dialog for sharing an object
  */
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from ":/icons";
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "@local/shared;";
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { getDeviceInfo } from "../../../utils/display/device";
 import usePress from "../../../utils/hooks/usePress";
-import { getObjectUrl, ObjectType } from "../../../utils/navigation/openObject";
+import { ObjectType, getObjectUrl } from "../../../utils/navigation/openObject";
 import { PubSub } from "../../../utils/pubsub";
 import { ColorIconButton } from "../../buttons/ColorIconButton/ColorIconButton";
 import { TopBar } from "../../navigation/TopBar/TopBar";

@@ -1,4 +1,4 @@
-import { FindByIdInput, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, ResourceUsedFor } from ":/consts";
+import { FindByIdInput, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, ResourceUsedFor } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

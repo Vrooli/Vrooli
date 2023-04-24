@@ -1,7 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from "@local/shared/consts";
-import { calculateOccurrences } from "@local/shared/utils";
-import { DUMMY_ID, uuid } from "@local/shared/uuid";
+import { DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList, calculateOccurrences, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

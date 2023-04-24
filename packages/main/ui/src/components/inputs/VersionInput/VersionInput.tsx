@@ -1,5 +1,4 @@
-import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@local/shared/icons";
-import { calculateVersionsFromString, meetsMinVersion } from "@local/shared/validation";
+import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon, calculateVersionsFromString, meetsMinVersion } from "@local/shared";
 import { Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";

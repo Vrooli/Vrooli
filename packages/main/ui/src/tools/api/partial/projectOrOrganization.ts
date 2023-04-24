@@ -1,4 +1,4 @@
-import { ProjectOrOrganization } from ":/consts";
+import { ProjectOrOrganization } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

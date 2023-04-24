@@ -1,4 +1,4 @@
-import { InputType, ProjectOrRoutineSortBy } from ":/consts";
+import { InputType, ProjectOrRoutineSortBy } from "@local/shared;";
 import { projectOrRoutineFindMany } from "../../../api/generated/endpoints/projectOrRoutine_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

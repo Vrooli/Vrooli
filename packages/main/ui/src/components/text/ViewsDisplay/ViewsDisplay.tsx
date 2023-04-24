@@ -1,4 +1,4 @@
-import { VisibleIcon } from ":/icons";
+import { VisibleIcon } from "@local/shared;";
 import { Box, Typography, useTheme } from "@mui/material";
 import { ViewsDisplayProps } from "../types";
 

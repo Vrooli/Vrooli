@@ -1,5 +1,5 @@
-import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionYou } from ":/consts";
-import { noteVersionValidation } from ":/validation";
+import { noteVersionValidation } from "@local/shared";
+import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

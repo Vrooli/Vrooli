@@ -1,4 +1,4 @@
-import { QuizAttempt, QuizAttemptYou } from ":/consts";
+import { QuizAttempt, QuizAttemptYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

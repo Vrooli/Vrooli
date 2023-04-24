@@ -1,7 +1,7 @@
-import { RedirectIcon } from ":/icons";
+import { RedirectIcon } from "@local/shared;";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
-import { calculateNodeSize, DraggableNode } from "..";
+import { DraggableNode, calculateNodeSize } from "..";
 import { NodeWidth } from "../..";
 import { noSelect } from "../../../../../styles";
 import usePress from "../../../../../utils/hooks/usePress";

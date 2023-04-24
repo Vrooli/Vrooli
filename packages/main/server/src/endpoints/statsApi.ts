@@ -1,4 +1,4 @@
-import { StatsApiSearchInput, StatsApiSearchResult } from ":/consts";
+import { StatsApiSearchInput, StatsApiSearchResult } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { readManyHelper } from "../actions";
 import { rateLimit } from "../middleware";

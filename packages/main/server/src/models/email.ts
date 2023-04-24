@@ -1,5 +1,5 @@
-import { Email, EmailCreateInput, MaxObjects } from ":/consts";
-import { emailValidation } from ":/validation";
+import { emailValidation } from "@local/shared";
+import { Email, EmailCreateInput, MaxObjects } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";

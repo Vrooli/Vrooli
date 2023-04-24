@@ -1,5 +1,4 @@
-import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@local/shared/consts";
-import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@local/shared/icons";
+import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, PlayIcon, SOCIALS, TwitterIcon, WHITE_PAPER_URL } from "@local/shared";
 import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { useEffect, useRef, useState } from "react";

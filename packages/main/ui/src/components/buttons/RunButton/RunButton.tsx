@@ -1,6 +1,4 @@
-import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } from "@local/shared/consts";
-import { PlayIcon } from "@local/shared/icons";
-import { uuidValidate } from "@local/shared/uuid";
+import { GqlModelType, PlayIcon, ProjectVersion, RoutineVersion, RunProject, RunRoutine, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { Status } from "../../../utils/consts";

@@ -1,4 +1,4 @@
-import { CloseIcon, LargeCookieIcon } from ":/icons";
+import { CloseIcon, LargeCookieIcon } from "@local/shared;";
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { useState } from "react";
 import { noSelect } from "../../../../styles";

@@ -1,4 +1,4 @@
-import { FocusMode } from ":/consts";
+import { FocusMode } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

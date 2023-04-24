@@ -1,5 +1,5 @@
-import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularObjectType, PopularResult, PopularSortBy, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from ":/consts";
-import { exists } from ":/utils";
+import { exists } from "@local/shared";
+import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularObjectType, PopularResult, PopularSortBy, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { readManyAsFeedHelper } from "../actions";
 import { assertRequestFrom, getUser } from "../auth/request";

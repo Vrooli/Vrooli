@@ -1,4 +1,4 @@
-import { StandardSortBy } from ":/consts";
+import { StandardSortBy } from "@local/shared;";
 import { standardFindMany } from "../../../api/generated/endpoints/standard_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

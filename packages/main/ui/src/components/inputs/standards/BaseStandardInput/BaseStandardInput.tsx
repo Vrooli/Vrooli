@@ -1,6 +1,4 @@
-import { InputType } from "@local/shared/consts";
-import { CompleteIcon, RefreshIcon } from "@local/shared/icons";
-import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from "@local/shared/validation";
+import { CompleteIcon, InputType, RefreshIcon, checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from "@local/shared";
 import { Box, Button, Grid } from "@mui/material";
 import { Formik, useField } from "formik";
 import { t } from "i18next";

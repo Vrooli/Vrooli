@@ -1,4 +1,4 @@
-import { Report, ReportYou } from ":/consts";
+import { Report, ReportYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

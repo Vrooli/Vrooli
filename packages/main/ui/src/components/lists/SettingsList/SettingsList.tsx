@@ -1,4 +1,4 @@
-import { LINKS } from ":/consts";
+import { LINKS } from "@local/shared;";
 import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

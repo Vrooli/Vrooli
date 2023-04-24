@@ -1,7 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput } from "@local/shared/consts";
-import { LinkIcon } from "@local/shared/icons";
+import { Count, DeleteManyInput, LinkIcon } from "@local/shared";
 import { Box, CircularProgress, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { deleteOneOrManyDeleteMany } from "../../../../api/generated/endpoints/deleteOneOrMany_deleteMany";

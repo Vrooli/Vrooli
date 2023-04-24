@@ -1,10 +1,10 @@
-import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from ":/icons";
+import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from "@local/shared;";
 import { useContext } from "react";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { getDisplay } from "../../../../utils/display/listTools";
 import { getUserLanguages } from "../../../../utils/display/translationTools";
 import { getObjectUrl } from "../../../../utils/navigation/openObject";
 import { PubSub } from "../../../../utils/pubsub";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { ListMenu } from "../../../dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "../../../dialogs/types";
 import { DirectoryListItemContextMenuProps } from "../types";

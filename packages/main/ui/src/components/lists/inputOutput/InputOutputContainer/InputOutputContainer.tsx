@@ -1,5 +1,4 @@
-import { AddIcon } from "@local/shared/icons";
-import { uuid } from "@local/shared/uuid";
+import { AddIcon, uuid } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";

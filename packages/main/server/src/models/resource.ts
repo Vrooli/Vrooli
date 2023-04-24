@@ -1,5 +1,5 @@
-import { MaxObjects, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput } from ":/consts";
-import { resourceValidation } from ":/validation";
+import { resourceValidation } from "@local/shared";
+import { MaxObjects, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

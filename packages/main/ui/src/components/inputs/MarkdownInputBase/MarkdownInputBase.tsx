@@ -1,7 +1,7 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from ":/icons";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared;";
 import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

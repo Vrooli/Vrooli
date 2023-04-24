@@ -1,9 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { GqlModelType, LINKS } from "@local/shared/consts";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps } from "@local/shared/icons";
-import { CommonKey } from "@local/shared/translations";
+import { AddIcon, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

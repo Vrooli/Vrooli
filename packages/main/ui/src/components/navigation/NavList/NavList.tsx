@@ -1,5 +1,4 @@
-import { LINKS } from "@local/shared/consts";
-import { LogInIcon, ProfileIcon } from "@local/shared/icons";
+import { LINKS, LogInIcon, ProfileIcon } from "@local/shared";
 import { Button, Container, IconButton, Palette, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,8 +1,8 @@
-import { Node, NodeEnd } from ":/consts";
+import { Node, NodeEnd } from "@local/shared;";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { useCallback, useMemo, useState } from "react";
-import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from "../..";
+import { DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth, calculateNodeSize } from "../..";
 import { noSelect } from "../../../../../styles";
 import { BuildAction } from "../../../../../utils/consts";
 import { firstString } from "../../../../../utils/display/stringTools";

@@ -2,7 +2,7 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { EditIcon } from ":/icons";
+import { EditIcon } from "@local/shared;";
 import { DialogContent, DialogContentText, IconButton, Stack, TextField } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";

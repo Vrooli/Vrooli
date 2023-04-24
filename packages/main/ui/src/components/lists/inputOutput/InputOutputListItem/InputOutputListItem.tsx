@@ -1,7 +1,4 @@
-import { StandardVersion } from "@local/shared/consts";
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "@local/shared/icons";
-import { uuid } from "@local/shared/uuid";
-import { routineVersionInputValidation, routineVersionOutputValidation } from "@local/shared/validation";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon, StandardVersion, routineVersionInputValidation, routineVersionOutputValidation, uuid } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";

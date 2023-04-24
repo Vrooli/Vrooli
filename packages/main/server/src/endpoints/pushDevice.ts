@@ -1,4 +1,4 @@
-import { PushDeviceCreateInput, PushDeviceUpdateInput } from ":/consts";
+import { PushDeviceCreateInput, PushDeviceUpdateInput } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth";

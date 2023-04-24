@@ -1,11 +1,11 @@
-import { ReactionFor } from ":/consts";
+import { ReactionFor } from "@local/shared;";
 import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { getCounts, getYou } from "../../../utils/display/listTools";
 import { ReportsLink } from "../../buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "../../buttons/VoteButton/VoteButton";
-import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
+import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 
 /**
  * Displays basic stats about an object, in a short format.

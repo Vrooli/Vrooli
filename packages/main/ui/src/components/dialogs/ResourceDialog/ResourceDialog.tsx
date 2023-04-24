@@ -1,4 +1,4 @@
-import { Resource, ResourceCreateInput, ResourceUpdateInput } from ":/consts";
+import { Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared;";
 import { Formik } from "formik";
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { resourceCreate } from "../../../api/generated/endpoints/resource_create";
@@ -7,8 +7,8 @@ import { useCustomMutation } from "../../../api/hooks";
 import { mutationWrapper } from "../../../api/utils";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "../../../forms/ResourceForm/ResourceForm";
-import { PubSub } from "../../../utils/pubsub";
 import { SessionContext } from "../../../utils/SessionContext";
+import { PubSub } from "../../../utils/pubsub";
 import { shapeResource } from "../../../utils/shape/models/resource";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";

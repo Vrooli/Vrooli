@@ -1,4 +1,4 @@
-import { InvisibleIcon, VisibleIcon } from ":/icons";
+import { InvisibleIcon, VisibleIcon } from "@local/shared;";
 import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useState } from "react";

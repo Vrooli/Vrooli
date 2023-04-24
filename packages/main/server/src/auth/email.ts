@@ -1,4 +1,4 @@
-import { Session } from ":/consts";
+import { Session } from "@local/shared;";
 import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";

@@ -1,4 +1,4 @@
-import { RoutineSortBy } from ":/consts";
+import { RoutineSortBy } from "@local/shared";
 import { routineFindMany } from "../../../api/generated/endpoints/routine_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

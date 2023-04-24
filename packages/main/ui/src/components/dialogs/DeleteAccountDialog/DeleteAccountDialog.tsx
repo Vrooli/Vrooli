@@ -1,6 +1,4 @@
-import { LINKS, Success, UserDeleteInput } from "@local/shared/consts";
-import { DeleteIcon } from "@local/shared/icons";
-import { userDeleteOneSchema as validationSchema } from "@local/shared/validation";
+import { DeleteIcon, LINKS, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import {
     Button,
     Checkbox,

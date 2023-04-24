@@ -1,6 +1,4 @@
-import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared/consts";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from "@local/shared/icons";
-import { userValidation } from "@local/shared/validation";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, User, UserIcon, userValidation } from "@local/shared";
 import {
     Box,
     Collapse,

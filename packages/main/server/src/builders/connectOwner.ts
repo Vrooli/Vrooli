@@ -1,4 +1,4 @@
-import { SessionUser } from ":/consts";
+import { SessionUser } from "@local/shared;";
 
 type ConnectOwnerInput = {
     userConnect?: string | null | undefined;

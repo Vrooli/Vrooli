@@ -1,4 +1,4 @@
-import { ScheduleException } from ":/consts";
+import { ScheduleException } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

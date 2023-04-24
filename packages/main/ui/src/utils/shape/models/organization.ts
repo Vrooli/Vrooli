@@ -1,9 +1,9 @@
-import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from ":/consts";
+import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | "language" | "bio" | "name"> & {

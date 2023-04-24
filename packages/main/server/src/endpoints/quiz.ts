@@ -1,4 +1,4 @@
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput } from ":/consts";
+import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput } from "@local/shared;";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

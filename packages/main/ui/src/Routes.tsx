@@ -1,10 +1,10 @@
-import { LINKS } from ":/consts";
+import { LINKS } from "@local/shared;";
 import { Box } from "@mui/material";
 import { lazily } from "react-lazily";
 import { FullPageSpinner } from "./components/FullPageSpinner/FullPageSpinner";
-import { NavbarProps } from "./components/navigation/types";
 import { Page } from "./components/Page/Page";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { NavbarProps } from "./components/navigation/types";
 import { ForgotPasswordForm, ResetPasswordForm } from "./forms/auth";
 import { Route, RouteProps, Switch } from "./utils/route";
 import { PageProps } from "./views/wrapper/types";

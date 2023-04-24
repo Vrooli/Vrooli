@@ -1,4 +1,4 @@
-import { RefreshIcon } from ":/icons";
+import { RefreshIcon } from "@local/shared;";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { getDeviceInfo } from "../../utils/display/device";

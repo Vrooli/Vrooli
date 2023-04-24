@@ -1,5 +1,5 @@
-import { MaxObjects, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou } from ":/consts";
-import { routineVersionValidation } from ":/validation";
+import { routineVersionValidation } from "@local/shared";
+import { MaxObjects, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";

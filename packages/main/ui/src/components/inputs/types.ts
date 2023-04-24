@@ -1,5 +1,4 @@
-import { Comment, CommentFor, StandardVersion, Tag } from "@local/shared/consts";
-import { SvgComponent, SvgProps } from "@local/shared/icons";
+import { Comment, CommentFor, StandardVersion, SvgComponent, SvgProps, Tag } from "@local/shared";
 import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { StringSchema } from "yup";
 import { JSONVariable } from "../../forms/types";

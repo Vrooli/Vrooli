@@ -1,4 +1,4 @@
-import { Resource, ResourceTranslation } from ":/consts";
+import { Resource, ResourceTranslation } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

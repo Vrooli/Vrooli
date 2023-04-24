@@ -1,5 +1,5 @@
-import { MaxObjects, Phone, PhoneCreateInput } from ":/consts";
-import { phoneValidation } from ":/validation";
+import { phoneValidation } from "@local/shared";
+import { MaxObjects, Phone, PhoneCreateInput } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Trigger } from "../events";

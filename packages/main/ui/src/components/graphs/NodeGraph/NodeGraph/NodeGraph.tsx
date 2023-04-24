@@ -4,14 +4,14 @@
  * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
-import { Node, NodeType } from ":/consts";
+import { Node, NodeType } from "@local/shared;";
 import { Box, Stack, useTheme } from "@mui/material";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "../../../../utils/display/stringTools";
 import { usePinchZoom } from "../../../../utils/hooks/usePinchZoom";
 import { PubSub } from "../../../../utils/pubsub";
-import { NodeEdge } from "../edges";
 import { NodeColumn } from "../NodeColumn/NodeColumn";
+import { NodeEdge } from "../edges";
 import { NodeGraphProps } from "../types";
 
 type DragRefs = {

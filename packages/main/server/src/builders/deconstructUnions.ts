@@ -1,4 +1,4 @@
-import { GqlModelType } from ":/consts";
+import { GqlModelType } from "@local/shared;";
 import { GqlRelMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 

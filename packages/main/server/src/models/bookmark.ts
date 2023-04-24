@@ -1,6 +1,5 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from ":/consts";
-import { exists, uppercaseFirstLetter } from ":/utils";
-import { bookmarkValidation } from ":/validation";
+import { bookmarkValidation, exists, uppercaseFirstLetter } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../builders";

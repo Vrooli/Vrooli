@@ -1,5 +1,4 @@
-import { BookmarkFor } from "@local/shared/consts";
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from "@local/shared/icons";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, BookmarkFor, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, Tooltip, useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,12 +1,12 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { Node, NodeEnd, NodeRoutineList, NodeType } from ":/consts";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/shared;";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { getTranslation } from "../../../../utils/display/translationTools";
 import { NodeShape } from "../../../../utils/shape/models/node";
-import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
+import { EndNode, RedirectNode, RoutineListNode, StartNode, calculateNodeSize } from "../nodes";
 import { NodeColumnProps } from "../types";
 
 export const NodeColumn = ({

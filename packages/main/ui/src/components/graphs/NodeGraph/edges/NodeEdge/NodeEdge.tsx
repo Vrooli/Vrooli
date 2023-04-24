@@ -1,4 +1,4 @@
-import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from ":/icons";
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "@local/shared;";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { ColorIconButton } from "../../../../buttons/ColorIconButton/ColorIconButton";

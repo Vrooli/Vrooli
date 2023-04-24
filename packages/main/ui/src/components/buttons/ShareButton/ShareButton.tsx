@@ -1,4 +1,4 @@
-import { ShareIcon } from ":/icons";
+import { ShareIcon } from "@local/shared;";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { ShareObjectDialog } from "../../dialogs/ShareObjectDialog/ShareObjectDialog";

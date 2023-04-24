@@ -1,5 +1,5 @@
-import { MaxObjects, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou } from ":/consts";
-import { memberInviteValidation } from ":/validation";
+import { memberInviteValidation } from "@local/shared";
+import { MaxObjects, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

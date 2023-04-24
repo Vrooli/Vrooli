@@ -1,4 +1,4 @@
-import { QuestionAnswer, QuestionAnswerTranslation } from ":/consts";
+import { QuestionAnswer, QuestionAnswerTranslation } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -2,8 +2,8 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType } from ":/consts";
-import { uuid } from ":/uuid";
+import { uuid } from "@local/shared";
+import { InputType } from "@local/shared;";
 import { hashPassword } from "../../auth";
 import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";

@@ -1,6 +1,4 @@
-import { Success } from "@local/shared/consts";
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "@local/shared/icons";
-import { getReactionScore, removeModifiers } from "@local/shared/utils";
+import { DownvoteTallIcon, DownvoteWideIcon, Success, UpvoteTallIcon, UpvoteWideIcon, getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { SessionContext } from "../../../utils/SessionContext";

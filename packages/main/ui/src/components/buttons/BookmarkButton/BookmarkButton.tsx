@@ -1,6 +1,4 @@
-import { Bookmark, BookmarkFor } from "@local/shared/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from "@local/shared/icons";
-import { uuidValidate } from "@local/shared/uuid";
+import { Bookmark, BookmarkFilledIcon, BookmarkFor, BookmarkOutlineIcon, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { SessionContext } from "../../../utils/SessionContext";

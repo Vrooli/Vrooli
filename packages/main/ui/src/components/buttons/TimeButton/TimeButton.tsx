@@ -1,5 +1,4 @@
-import { TimeFrame } from "@local/shared/consts";
-import { HistoryIcon as TimeIcon } from "@local/shared/icons";
+import { TimeFrame, HistoryIcon as TimeIcon } from "@local/shared";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";

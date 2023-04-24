@@ -1,12 +1,12 @@
-import { BuildIcon, VisibleIcon } from ":/icons";
+import { BuildIcon, VisibleIcon } from "@local/shared;";
 import { Box, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useState } from "react";
 import { FieldData } from "../../../../forms/types";
 import { InputTypeOption, InputTypeOptions } from "../../../../utils/consts";
-import { GeneratedInputComponent } from "../../generated";
 import { SelectorBase } from "../../SelectorBase/SelectorBase";
 import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
+import { GeneratedInputComponent } from "../../generated";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";
 import { StandardInputProps } from "../types";
 

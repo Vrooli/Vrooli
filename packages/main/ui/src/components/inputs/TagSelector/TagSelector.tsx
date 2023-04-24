@@ -1,5 +1,5 @@
-import { Tag } from ":/consts";
-import { exists } from ":/utils";
+import { exists } from "@local/shared";
+import { Tag } from "@local/shared;";
 import { useField } from "formik";
 import { useCallback } from "react";
 import { TagShape } from "../../../utils/shape/models/tag";

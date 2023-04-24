@@ -1,5 +1,5 @@
-import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, MaxObjects } from ":/consts";
-import { labelValidation } from ":/validation";
+import { labelValidation } from "@local/shared";
+import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, MaxObjects } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

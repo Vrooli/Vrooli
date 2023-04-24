@@ -1,4 +1,4 @@
-import { StatsProject, StatsProjectSearchInput, StatsProjectSortBy } from ":/consts";
+import { StatsProject, StatsProjectSearchInput, StatsProjectSortBy } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";

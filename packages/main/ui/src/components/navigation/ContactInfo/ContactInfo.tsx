@@ -1,5 +1,4 @@
-import { LINKS, SOCIALS } from "@local/shared/consts";
-import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@local/shared/icons";
+import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, LINKS, SOCIALS, StatsIcon, SvgComponent, TwitterIcon } from "@local/shared";
 import {
     BottomNavigation,
     BottomNavigationAction,

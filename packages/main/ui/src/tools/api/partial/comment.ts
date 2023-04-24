@@ -1,4 +1,4 @@
-import { Comment, CommentThread, CommentTranslation, CommentYou } from ":/consts";
+import { Comment, CommentThread, CommentTranslation, CommentYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

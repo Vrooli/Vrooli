@@ -1,7 +1,6 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
-import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared/consts";
-import { CommonKey } from "@local/shared/translations";
+import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
 import { RoutineStepType } from "utils/consts";
 
 declare module "@local/ui";

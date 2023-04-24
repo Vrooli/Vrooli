@@ -1,5 +1,4 @@
-import { Session } from "@local/shared/consts";
-import { CommonKey } from "@local/shared/translations";
+import { CommonKey, Session } from "@local/shared";
 import { FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
 import { getSiteLanguage } from "../authentication/session";

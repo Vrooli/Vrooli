@@ -1,6 +1,4 @@
-import { ResourceUsedFor } from "@local/shared/consts";
-import { DeleteIcon, EditIcon } from "@local/shared/icons";
-import { CommonKey } from "@local/shared/translations";
+import { CommonKey, DeleteIcon, EditIcon, ResourceUsedFor } from "@local/shared";
 import {
     Box,
     Stack,

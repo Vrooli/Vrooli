@@ -1,5 +1,5 @@
-import { MaxObjects, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, VersionYou } from ":/consts";
-import { standardVersionValidation } from ":/validation";
+import { standardVersionValidation } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, VersionYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { randomString } from "../auth/wallet";
 import { noNull, shapeHelper } from "../builders";

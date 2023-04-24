@@ -1,10 +1,10 @@
-import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from ":/consts";
+import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/shared;";
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { setupVerificationCode } from "../auth";
-import { isObjectSubscribable, Notify } from "../notify";
+import { Notify, isObjectSubscribable } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
-import { objectReputationEvent, Reputation } from "./reputation";
+import { Reputation, objectReputationEvent } from "./reputation";
 
 export type ActionTrigger = "AccountNew" |
     "ObjectComplete" | // except runs

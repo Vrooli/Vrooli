@@ -1,10 +1,10 @@
-import { EditIcon as CustomIcon, LinkIcon } from ":/icons";
+import { EditIcon as CustomIcon, LinkIcon } from "@local/shared;";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "../../../styles";
-import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { SessionContext } from "../../../utils/SessionContext";
+import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { ColorIconButton } from "../../buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog";
 import { StandardVersionSelectSwitchProps } from "../types";

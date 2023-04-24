@@ -1,9 +1,10 @@
-import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from ":/consts";
-import { getActiveFocusMode } from ":/utils";
-import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
+import { getActiveFocusMode } from "@local/shared";
+import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared;";
+import { Box, CssBaseline, StyledEngineProvider, Theme, ThemeProvider, createTheme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Routes } from "./Routes";
 import { authValidateSession } from "./api/generated/endpoints/auth_validateSession";
 import { focusModeSetActive } from "./api/generated/endpoints/focusMode_setActive";
 import { useCustomMutation } from "./api/hooks";
@@ -11,22 +12,21 @@ import { hasErrorCode, mutationWrapper } from "./api/utils";
 import { AsyncConfetti } from "./components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "./components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "./components/DiagonalWaveLoader/DiagonalWaveLoader";
+import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
 import { AlertDialog } from "./components/dialogs/AlertDialog/AlertDialog";
-import { SnackStack } from "./components/dialogs/snacks";
 import { WelcomeDialog } from "./components/dialogs/WelcomeDialog/WelcomeDialog";
+import { SnackStack } from "./components/dialogs/snacks";
 import { BottomNav } from "./components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "./components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "./components/navigation/FindInPage/FindInPage";
 import { Footer } from "./components/navigation/Footer/Footer";
-import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
-import { Routes } from "./Routes";
+import { SessionContext } from "./utils/SessionContext";
 import { getCurrentUser, getSiteLanguage, guestSession } from "./utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "./utils/cookies";
 import { getDeviceInfo } from "./utils/display/device";
 import { themes } from "./utils/display/theme";
 import { useReactHash } from "./utils/hooks/useReactHash";
 import { PubSub } from "./utils/pubsub";
-import { SessionContext } from "./utils/SessionContext";
 
 /**
  * Adds font size to theme

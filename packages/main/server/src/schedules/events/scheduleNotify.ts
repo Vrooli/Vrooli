@@ -1,9 +1,9 @@
-import { GqlModelType } from ":/consts";
-import { calculateOccurrences, uppercaseFirstLetter } from ":/utils";
+import { calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
+import { GqlModelType } from "@local/shared;";
 import { PrismaClient } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events";
-import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from "../../notify";
+import { Notify, ScheduleSubscriptionContext, parseSubscriptionContext } from "../../notify";
 import { initializeRedis } from "../../redisConn";
 import { PrismaType } from "../../types";
 

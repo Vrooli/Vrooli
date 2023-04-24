@@ -1,8 +1,8 @@
-import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from ":/consts";
+import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { shapeSmartContract, SmartContractShape } from "./smartContract";
+import { SmartContractShape, shapeSmartContract } from "./smartContract";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, "id" | "language" | "description" | "name" | "jsonVariable"> & {

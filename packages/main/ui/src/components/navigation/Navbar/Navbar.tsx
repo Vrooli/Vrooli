@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS } from ":/consts";
+import { BUSINESS_NAME, LINKS } from "@local/shared;";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { noSelect } from "../../../styles";
@@ -8,8 +8,8 @@ import { useWindowSize } from "../../../utils/hooks/useWindowSize";
 import { useLocation } from "../../../utils/route";
 import { Header } from "../../text/Header/Header";
 import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
-import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavList } from "../NavList/NavList";
+import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavbarLogoState, NavbarProps } from "../types";
 
 /**

@@ -1,4 +1,4 @@
-import { isOfType } from ":/utils";
+import { isOfType } from "@local/shared;";
 import { TextField, Typography, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import Markdown from "markdown-to-jsx";
@@ -7,7 +7,7 @@ import { MarkdownInput } from "../../inputs/MarkdownInput/MarkdownInput";
 import { TranslatedMarkdownInput } from "../../inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "../../inputs/TranslatedTextField/TranslatedTextField";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
-import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } from "../types";
+import { EditTextComponent, EditableTextCollapseProps, PropsByComponentType } from "../types";
 
 /**
  * A text collapse that supports editing mode, either with 

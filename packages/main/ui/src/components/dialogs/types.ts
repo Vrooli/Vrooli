@@ -1,5 +1,4 @@
-import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, User } from "@local/shared/consts";
-import { SvgComponent } from "@local/shared/icons";
+import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { BaseObjectFormProps } from "../../forms/types";
 import { NavigableObject, RoutineStep } from "../../types";

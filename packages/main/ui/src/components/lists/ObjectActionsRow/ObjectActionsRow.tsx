@@ -1,10 +1,10 @@
-import { EllipsisIcon } from ":/icons";
+import { EllipsisIcon } from "@local/shared;";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, ObjectAction } from "../../../utils/actions/objectActions";
+import { SessionContext } from "../../../utils/SessionContext";
+import { ObjectAction, getActionsDisplayData, getAvailableActions } from "../../../utils/actions/objectActions";
 import { getDisplay } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ObjectActionDialogs } from "../../dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ObjectActionsRowObject, ObjectActionsRowProps } from "../types";

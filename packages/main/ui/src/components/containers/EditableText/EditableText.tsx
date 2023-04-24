@@ -1,11 +1,11 @@
-import { isOfType } from ":/utils";
+import { isOfType } from "@local/shared;";
 import { TextField, Typography } from "@mui/material";
 import { Field, useField } from "formik";
 import Markdown from "markdown-to-jsx";
 import { MarkdownInput } from "../../inputs/MarkdownInput/MarkdownInput";
 import { TranslatedMarkdownInput } from "../../inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "../../inputs/TranslatedTextField/TranslatedTextField";
-import { EditableTextProps, EditTextComponent, PropsByComponentType } from "../types";
+import { EditTextComponent, EditableTextProps, PropsByComponentType } from "../types";
 
 export function EditableText<T extends EditTextComponent>({
     component,

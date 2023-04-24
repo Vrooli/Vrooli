@@ -1,5 +1,5 @@
-import { Resource, ResourceList } from ":/consts";
-import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
+import { Resource, ResourceList } from "@local/shared;";
+import { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from "react-beautiful-dnd";
 
 export interface ResourceCardProps {
     canUpdate: boolean;

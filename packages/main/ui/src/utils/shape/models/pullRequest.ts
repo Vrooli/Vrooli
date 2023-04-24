@@ -1,4 +1,4 @@
-import { PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from ":/consts";
+import { PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 

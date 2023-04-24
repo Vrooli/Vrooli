@@ -1,4 +1,4 @@
-import { FindByIdInput, Transfer, TransferDenyInput, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput } from ":/consts";
+import { FindByIdInput, Transfer, TransferDenyInput, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput } from "@local/shared;";
 import { TransferStatus } from "@prisma/client";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper, updateHelper } from "../actions";

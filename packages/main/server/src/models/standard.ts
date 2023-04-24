@@ -1,5 +1,5 @@
-import { MaxObjects, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardYou } from ":/consts";
-import { standardValidation } from ":/validation";
+import { standardValidation } from "@local/shared";
+import { MaxObjects, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

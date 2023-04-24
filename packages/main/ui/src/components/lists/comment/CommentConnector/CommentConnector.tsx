@@ -1,4 +1,4 @@
-import { OpenThreadIcon, OrganizationIcon, UserIcon } from ":/icons";
+import { OpenThreadIcon, OrganizationIcon, UserIcon } from "@local/shared;";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { placeholderColor } from "../../../../utils/display/listTools";

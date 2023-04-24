@@ -1,6 +1,5 @@
-import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from ":/consts";
-import { DUMMY_ID } from ":/uuid";
-import { scheduleValidation } from ":/validation";
+import { DUMMY_ID, scheduleValidation } from "@local/shared";
+import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared;";
 import { Formik } from "formik";
 import { useCallback, useRef } from "react";
 import { scheduleCreate } from "../../../api/generated/endpoints/schedule_create";

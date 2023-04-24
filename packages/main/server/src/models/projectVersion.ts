@@ -1,5 +1,5 @@
-import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, VersionYou } from ":/consts";
-import { projectVersionValidation } from ":/validation";
+import { projectVersionValidation } from "@local/shared";
+import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, VersionYou } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";

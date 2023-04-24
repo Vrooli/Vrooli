@@ -1,5 +1,5 @@
-import { LINKS } from ":/consts";
-import { generateSitemap, generateSitemapIndex, SitemapEntryContent } from ":/utils";
+import { generateSitemap, generateSitemapIndex, SitemapEntryContent } from "@local/shared";
+import { LINKS } from "@local/shared;";
 import pkg from "@prisma/client";
 import fs from "fs";
 import zlib from "zlib";

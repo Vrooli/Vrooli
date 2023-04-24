@@ -1,5 +1,4 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success } from "@local/shared/consts";
-import { DeleteIcon, ReplyIcon } from "@local/shared/icons";
+import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, DeleteType, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { deleteOneOrManyDeleteOne } from "../../../../api/generated/endpoints/deleteOneOrMany_deleteOne";

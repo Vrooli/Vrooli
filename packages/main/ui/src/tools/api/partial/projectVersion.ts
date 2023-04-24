@@ -1,4 +1,4 @@
-import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from ":/consts";
+import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@local/shared;";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";

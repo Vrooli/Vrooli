@@ -1,7 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, Resource } from "@local/shared/consts";
-import { LinkIcon } from "@local/shared/icons";
+import { Count, DeleteManyInput, LinkIcon, Resource } from "@local/shared";
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";

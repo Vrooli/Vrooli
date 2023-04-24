@@ -1,8 +1,7 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from "@local/shared/consts";
-import { AddIcon } from "@local/shared/icons";
+import { AddIcon, DeleteOneInput, Success, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";

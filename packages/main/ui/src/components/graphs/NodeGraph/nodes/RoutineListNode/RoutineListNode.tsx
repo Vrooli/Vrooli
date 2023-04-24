@@ -1,6 +1,4 @@
-import { NodeRoutineListItem } from "@local/shared/consts";
-import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from "@local/shared/icons";
-import { name as nameValidation, reqErr } from "@local/shared/validation";
+import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon, NodeRoutineListItem, name as nameValidation, reqErr } from "@local/shared";
 import {
     Checkbox,
     Collapse,

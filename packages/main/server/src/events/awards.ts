@@ -3,7 +3,7 @@
  * award
  */
 
-import { AwardCategory, awardNames, awardVariants, GqlModelType } from ":/consts";
+import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@local/shared;";
 import i18next from "i18next";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";

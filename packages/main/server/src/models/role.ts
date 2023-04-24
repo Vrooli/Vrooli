@@ -1,5 +1,5 @@
-import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from ":/consts";
-import { roleValidation } from ":/validation";
+import { roleValidation } from "@local/shared";
+import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from "@local/shared;";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
