@@ -1,4 +1,4 @@
-import { Reminder } from "@local/consts";
+import { Reminder } from ":local/consts";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface ReminderUpsertProps extends UpsertProps<Reminder> {

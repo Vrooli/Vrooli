@@ -1,5 +1,5 @@
+import { ErrorKey } from ":local/translations";
 import { ApolloError } from "@apollo/client";
-import { ErrorKey } from "@local/translations";
 
 /**
  * Finds the error code in an ApolloError object

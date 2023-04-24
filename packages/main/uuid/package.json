@@ -1,5 +1,5 @@
 {
-    "name": "@local/uuid",
+    "name": ":local/uuid",
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.9.0",

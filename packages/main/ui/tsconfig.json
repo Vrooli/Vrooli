@@ -6,25 +6,25 @@
         "composite": true,
         "baseUrl": ".",
         "paths": {
-            "@local/consts": [
+            ":local/consts": [
                 "../consts/src",
             ],
-            "@local/icons": [
+            ":local/icons": [
                 "../icons/src",
             ],
-            "@local/translations": [
+            ":local/translations": [
                 "../translations/src",
             ],
-            "@local/ui": [
+            ":local/ui": [
                 "../ui/src",
             ],
-            "@local/utils": [
+            ":local/utils": [
                 "../utils/src",
             ],
-            "@local/uuid": [
+            ":local/uuid": [
                 "../uuid/src",
             ],
-            "@local/validation": [
+            ":local/validation": [
                 "../validation/src",
             ],
         }

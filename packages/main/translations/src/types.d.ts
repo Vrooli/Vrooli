@@ -5,7 +5,7 @@ import error from './locales/en/error.json'
 import notify from './locales/en/notify.json'
 // import validate from './locales/en/validate.json'
 
-declare module '@local/translations';
+declare module ':local/translations';
 export * from '.'
 
 declare module "i18next" {

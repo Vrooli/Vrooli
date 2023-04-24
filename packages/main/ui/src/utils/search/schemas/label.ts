@@ -1,4 +1,4 @@
-import { LabelSortBy } from "@local/consts";
+import { LabelSortBy } from ":local/consts";
 import { labelFindMany } from "../../../api/generated/endpoints/label_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

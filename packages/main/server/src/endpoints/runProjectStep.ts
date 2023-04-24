@@ -1,4 +1,4 @@
-import { RunProjectStepStatus } from "@local/consts";
+import { RunProjectStepStatus } from ":local/consts";
 import { gql } from "apollo-server-express";
 
 export const typeDef = gql`

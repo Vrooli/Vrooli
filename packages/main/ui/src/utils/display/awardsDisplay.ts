@@ -1,4 +1,4 @@
-import { Award, awardNames } from "@local/consts";
+import { Award, awardNames } from ":local/consts";
 import { AwardDisplay } from "../../types";
 
 /**

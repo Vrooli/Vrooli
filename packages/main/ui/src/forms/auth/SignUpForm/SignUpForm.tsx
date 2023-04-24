@@ -1,5 +1,5 @@
-import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from "@local/consts";
-import { emailSignUpFormValidation } from "@local/validation";
+import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from ":local/consts";
+import { emailSignUpFormValidation } from ":local/validation";
 import {
     Button,
     Checkbox,

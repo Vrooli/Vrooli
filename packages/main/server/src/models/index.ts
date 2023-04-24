@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import { ApiModel } from "./api";
 import { ApiKeyModel } from "./apiKey";
 import { ApiVersionModel } from "./apiVersion";

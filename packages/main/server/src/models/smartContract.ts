@@ -1,5 +1,5 @@
-import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from "@local/consts";
-import { smartContractValidation } from "@local/validation";
+import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from ":local/consts";
+import { smartContractValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

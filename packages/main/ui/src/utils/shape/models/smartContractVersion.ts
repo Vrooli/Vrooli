@@ -1,4 +1,4 @@
-import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from "@local/consts";
+import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { ResourceListShape, shapeResourceList } from "./resourceList";

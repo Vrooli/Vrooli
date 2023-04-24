@@ -1,5 +1,5 @@
-import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SearchList } from "../../../components/lists/SearchList/SearchList";

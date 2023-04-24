@@ -1,4 +1,4 @@
-import { uuidValidate } from "@local/uuid";
+import { uuidValidate } from ":local/uuid";
 
 /**
  * Filters out any invalid IDs from an array of IDs.

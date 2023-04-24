@@ -1,4 +1,4 @@
-import { AwardKey } from "@local/translations";
+import { AwardKey } from ":local/translations";
 import { AwardCategory } from "./graphqlTypes";
 
 /**

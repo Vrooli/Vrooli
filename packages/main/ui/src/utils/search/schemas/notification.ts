@@ -1,4 +1,4 @@
-import { NotificationSortBy } from "@local/consts";
+import { NotificationSortBy } from ":local/consts";
 import { notificationFindMany } from "../../../api/generated/endpoints/notification_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

@@ -1,5 +1,5 @@
-import { DeleteOneInput, LINKS, Success } from "@local/consts";
-import { DeleteIcon } from "@local/icons";
+import { DeleteOneInput, LINKS, Success } from ":local/consts";
+import { DeleteIcon } from ":local/icons";
 import {
     Button,
     DialogContent,

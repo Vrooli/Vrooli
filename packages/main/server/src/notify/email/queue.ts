@@ -1,4 +1,4 @@
-import { APP_URL, BUSINESS_NAME } from "@local/consts";
+import { APP_URL, BUSINESS_NAME } from ":local/consts";
 import Bull from "bull";
 import fs from "fs";
 import { HOST, PORT } from "../../redisConn.js";

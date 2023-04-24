@@ -1,4 +1,4 @@
-import { RunRoutineInput } from "@local/consts";
+import { RunRoutineInput } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,4 +1,4 @@
-import { StatsApi } from "@local/consts";
+import { StatsApi } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const statsApi: GqlPartial<StatsApi> = {

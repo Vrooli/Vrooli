@@ -1,4 +1,4 @@
-import { InputType } from "@local/consts";
+import { InputType } from ":local/consts";
 import { useMemo } from "react";
 import { GeneratedCheckbox } from "../GeneratedCheckbox/GeneratedCheckbox";
 import { GeneratedDropzone } from "../GeneratedDropzone/GeneratedDropzone";

@@ -1,4 +1,4 @@
-import { Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/consts";
+import { Reminder, ReminderCreateInput, ReminderUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { ReminderItemShape, shapeReminderItem } from "./reminderItem";
 import { ReminderListShape, shapeReminderList } from "./reminderList";

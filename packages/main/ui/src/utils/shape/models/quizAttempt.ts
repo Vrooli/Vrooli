@@ -1,4 +1,4 @@
-import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptUpdateInput } from "@local/consts";
+import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput } from "@local/consts";
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom, focusModeSelect, updateSessionCurrentUser } from "../auth";

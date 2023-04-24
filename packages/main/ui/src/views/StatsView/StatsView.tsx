@@ -1,4 +1,4 @@
-import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/consts";
+import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from ":local/consts";
 import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

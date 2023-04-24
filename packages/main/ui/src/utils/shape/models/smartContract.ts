@@ -1,4 +1,4 @@
-import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from "@local/consts";
+import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "./smartContractVersion";

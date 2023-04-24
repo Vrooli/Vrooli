@@ -1,6 +1,6 @@
-import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/consts";
-import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@local/icons";
-import { profileEmailUpdateValidation } from "@local/validation";
+import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from ":local/consts";
+import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from ":local/icons";
+import { profileEmailUpdateValidation } from ":local/validation";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useState } from "react";

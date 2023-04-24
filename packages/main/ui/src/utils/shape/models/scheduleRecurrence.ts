@@ -1,4 +1,4 @@
-import { ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput } from "@local/consts";
+import { ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";

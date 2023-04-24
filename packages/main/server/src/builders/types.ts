@@ -1,4 +1,4 @@
-import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from "@local/consts";
+import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from ":local/consts";
 import { GraphQLResolveInfo } from "graphql";
 import { SessionUserToken, SingleOrArray } from "../types";
 

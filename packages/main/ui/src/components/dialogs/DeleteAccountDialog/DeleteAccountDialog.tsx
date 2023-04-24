@@ -1,6 +1,6 @@
-import { LINKS, Success, UserDeleteInput } from "@local/consts";
-import { DeleteIcon } from "@local/icons";
-import { userDeleteOneSchema as validationSchema } from "@local/validation";
+import { LINKS, Success, UserDeleteInput } from ":local/consts";
+import { DeleteIcon } from ":local/icons";
+import { userDeleteOneSchema as validationSchema } from ":local/validation";
 import {
     Button,
     Checkbox,

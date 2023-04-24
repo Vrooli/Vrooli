@@ -1,5 +1,5 @@
-import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from "@local/consts";
-import { projectVersionDirectoryValidation } from "@local/validation";
+import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from ":local/consts";
+import { projectVersionDirectoryValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

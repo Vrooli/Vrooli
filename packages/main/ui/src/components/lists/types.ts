@@ -1,6 +1,6 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from "@local/consts";
-import { SvgComponent } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from ":local/consts";
+import { SvgComponent } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import { AwardDisplay, NavigableObject } from "../../types";
 import { ObjectAction } from "../../utils/actions/objectActions";
 import { ListObjectType } from "../../utils/display/listTools";

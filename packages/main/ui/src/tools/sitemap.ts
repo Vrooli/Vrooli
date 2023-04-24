@@ -3,7 +3,7 @@
  * Doing this in a script during the build process - as opposed to options like react-dynamic-sitemap - 
  * allows us to view the generated sitemap in the public folder to check that it's correct.
  */
-import { generateSitemap, SitemapEntryMain } from "@local/utils";
+import { generateSitemap, SitemapEntryMain } from ":local/utils";
 import fs from "fs";
 
 /**

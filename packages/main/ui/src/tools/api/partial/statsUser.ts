@@ -1,4 +1,4 @@
-import { StatsUser } from "@local/consts";
+import { StatsUser } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const statsUser: GqlPartial<StatsUser> = {

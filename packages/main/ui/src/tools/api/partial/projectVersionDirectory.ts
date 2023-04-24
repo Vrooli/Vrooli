@@ -1,4 +1,4 @@
-import { ProjectVersionDirectory, ProjectVersionDirectoryTranslation } from "@local/consts";
+import { ProjectVersionDirectory, ProjectVersionDirectoryTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

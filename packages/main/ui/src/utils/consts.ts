@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, ValueOf } from "@local/consts";
+import { InputType, ValueOf } from ":local/consts";
 
 export const Forms = {
     ForgotPassword: "forgot-password",

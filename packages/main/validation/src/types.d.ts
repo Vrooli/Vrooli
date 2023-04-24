@@ -1,2 +1,2 @@
-declare module "@local/validation";
+declare module ":local/validation";
 export * from ".";

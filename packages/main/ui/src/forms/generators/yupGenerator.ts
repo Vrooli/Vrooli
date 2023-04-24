@@ -1,4 +1,4 @@
-import { InputType } from "@local/consts";
+import { InputType } from ":local/consts";
 import { FormikConfig } from "formik";
 import { buildYup } from "schema-to-yup";
 import { FormSchema, YupSchema, YupType } from "../types";

@@ -1,4 +1,4 @@
-import { Resource, ResourceList } from "@local/consts";
+import { Resource, ResourceList } from ":local/consts";
 import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 
 export interface ResourceCardProps {

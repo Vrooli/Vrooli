@@ -1,4 +1,4 @@
-import { NoteVersion, NoteVersionTranslation } from "@local/consts";
+import { NoteVersion, NoteVersionTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";

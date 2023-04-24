@@ -1,4 +1,4 @@
-import { ApiVersionSortBy } from "@local/consts";
+import { ApiVersionSortBy } from ":local/consts";
 import { apiVersionFindMany } from "../../../api/generated/endpoints/apiVersion_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

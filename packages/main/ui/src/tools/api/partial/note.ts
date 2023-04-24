@@ -1,4 +1,4 @@
-import { Note, NoteYou } from "@local/consts";
+import { Note, NoteYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

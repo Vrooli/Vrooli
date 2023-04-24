@@ -1,4 +1,4 @@
-import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@local/consts";
+import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from ":local/consts";
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { setupVerificationCode } from "../auth";
 import { isObjectSubscribable, Notify } from "../notify";

@@ -1,4 +1,4 @@
-import { ChatMessageSortBy } from "@local/consts";
+import { ChatMessageSortBy } from ":local/consts";
 import { chatMessageFindMany } from "../../../api/generated/endpoints/chatMessage_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

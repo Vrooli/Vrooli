@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionTranslation } from "@local/consts";
+import { ApiVersion, ApiVersionTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";

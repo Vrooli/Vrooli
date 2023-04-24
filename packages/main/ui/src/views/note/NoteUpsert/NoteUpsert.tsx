@@ -1,4 +1,4 @@
-import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/consts";
+import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { noteVersionCreate } from "../../../api/generated/endpoints/noteVersion_create";

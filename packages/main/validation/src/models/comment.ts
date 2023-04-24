@@ -1,4 +1,4 @@
-import { CommentFor } from "@local/consts";
+import { CommentFor } from ":local/consts";
 import * as yup from "yup";
 import { blankToUndefined, enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 

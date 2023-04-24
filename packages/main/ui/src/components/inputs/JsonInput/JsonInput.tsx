@@ -1,7 +1,7 @@
 /**
  * Input for creating a JSON schema.
  */
-import { InvisibleIcon, VisibleIcon } from "@local/icons";
+import { InvisibleIcon, VisibleIcon } from ":local/icons";
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import Markdown from "markdown-to-jsx";

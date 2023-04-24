@@ -1,6 +1,6 @@
-import { Success } from "@local/consts";
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "@local/icons";
-import { getReactionScore, removeModifiers } from "@local/utils";
+import { Success } from ":local/consts";
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from ":local/icons";
+import { getReactionScore, removeModifiers } from ":local/utils";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "../../../utils/actions/objectActions";

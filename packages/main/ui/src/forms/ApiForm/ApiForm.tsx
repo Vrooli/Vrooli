@@ -1,7 +1,7 @@
-import { ApiVersion, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { apiVersionTranslationValidation, apiVersionValidation } from "@local/validation";
+import { ApiVersion, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { apiVersionTranslationValidation, apiVersionValidation } from ":local/validation";
 import { Stack, TextField } from "@mui/material";
 import { Field } from "formik";
 import { forwardRef, useContext } from "react";

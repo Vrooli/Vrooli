@@ -1,6 +1,6 @@
-import { LINKS } from "@local/consts";
-import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { LINKS } from ":local/consts";
+import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/containers/PageContainer/PageContainer";

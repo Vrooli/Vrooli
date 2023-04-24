@@ -1,4 +1,4 @@
-import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/consts";
+import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from ":local/consts";
 import { ReportStatus } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper, toPartialGqlInfo } from "../builders";

@@ -1,7 +1,7 @@
-import { ReactionFor, RunProject, RunRoutine, RunStatus } from "@local/consts";
-import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from "@local/icons";
-import { isOfType } from "@local/utils";
-import { uuid } from "@local/uuid";
+import { ReactionFor, RunProject, RunRoutine, RunStatus } from ":local/consts";
+import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from ":local/icons";
+import { isOfType } from ":local/utils";
+import { uuid } from ":local/uuid";
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

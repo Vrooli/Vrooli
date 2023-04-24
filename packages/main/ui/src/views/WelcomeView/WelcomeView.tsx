@@ -1,5 +1,5 @@
-import { LINKS, WHITE_PAPER_URL } from "@local/consts";
-import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from "@local/icons";
+import { LINKS, WHITE_PAPER_URL } from ":local/consts";
+import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from ":local/icons";
 import { Box, Button, Link, Stack, Typography, useTheme } from "@mui/material";
 import { useContext, useEffect } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { RunProjectStepStatus } from "@local/consts";
+import { RunProjectStepStatus } from ":local/consts";
 import * as yup from "yup";
 import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 

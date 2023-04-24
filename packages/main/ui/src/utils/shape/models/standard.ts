@@ -1,4 +1,4 @@
-import { Standard, StandardCreateInput, StandardUpdateInput } from "@local/consts";
+import { Standard, StandardCreateInput, StandardUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";

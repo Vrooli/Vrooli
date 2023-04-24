@@ -1,4 +1,4 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/consts";
+import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { routineVersionCreate } from "../../../api/generated/endpoints/routineVersion_create";

@@ -1,4 +1,4 @@
-import { EmailIcon, PhoneIcon } from "@local/icons";
+import { EmailIcon, PhoneIcon } from ":local/icons";
 import { Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";

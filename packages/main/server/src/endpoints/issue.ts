@@ -1,4 +1,4 @@
-import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, IssueUpdateInput } from "@local/consts";
+import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, IssueUpdateInput } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { CustomError } from "../events";

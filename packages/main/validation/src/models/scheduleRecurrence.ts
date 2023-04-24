@@ -1,4 +1,4 @@
-import { ScheduleRecurrenceType } from "@local/consts";
+import { ScheduleRecurrenceType } from ":local/consts";
 import * as yup from "yup";
 import { endDate, enumToYup, id, intPositiveOrOne, maxNumErr, minNumErr, opt, req, YupModel, yupObj } from "../utils";
 import { scheduleValidation } from "./schedule";

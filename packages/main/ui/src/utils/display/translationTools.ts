@@ -1,6 +1,6 @@
-import { Session } from "@local/consts";
-import { CommonKey, ErrorKey } from "@local/translations";
-import { uuid } from "@local/uuid";
+import { Session } from ":local/consts";
+import { CommonKey, ErrorKey } from ":local/translations";
+import { uuid } from ":local/uuid";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { ObjectSchema, ValidationError } from "yup";

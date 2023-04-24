@@ -1,4 +1,4 @@
-import { exists } from "@local/utils";
+import { exists } from ":local/utils";
 import { ShapeModel } from "../../../../types";
 import { hasObjectChanged } from "../../general";
 import { createRel } from "./createRel";

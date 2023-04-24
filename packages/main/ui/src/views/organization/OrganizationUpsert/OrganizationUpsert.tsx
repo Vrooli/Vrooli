@@ -1,4 +1,4 @@
-import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/consts";
+import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { organizationCreate } from "../../../api/generated/endpoints/organization_create";

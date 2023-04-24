@@ -1,6 +1,6 @@
-import { CommentFor, ResourceList, RoutineVersion, Tag } from "@local/consts";
-import { SuccessIcon } from "@local/icons";
-import { exists } from "@local/utils";
+import { CommentFor, ResourceList, RoutineVersion, Tag } from ":local/consts";
+import { SuccessIcon } from ":local/icons";
+import { exists } from ":local/utils";
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

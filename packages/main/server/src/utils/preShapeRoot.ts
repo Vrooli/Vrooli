@@ -1,5 +1,5 @@
-import { GqlModelType } from "@local/consts";
-import { exists } from "@local/utils";
+import { GqlModelType } from ":local/consts";
+import { exists } from ":local/utils";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { transfer } from "../models";

@@ -1,4 +1,4 @@
-import { StatsQuizSearchInput, StatsQuizSearchResult } from "@local/consts";
+import { StatsQuizSearchInput, StatsQuizSearchResult } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { readManyHelper } from "../actions";
 import { rateLimit } from "../middleware";

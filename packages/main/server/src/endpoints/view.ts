@@ -1,4 +1,4 @@
-import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from "@local/consts";
+import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { GraphQLResolveInfo } from "graphql";
 import { readManyHelper } from "../actions";

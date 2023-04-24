@@ -1,4 +1,4 @@
-import { DUMMY_ID, uuid } from "@local/uuid";
+import { DUMMY_ID, uuid } from ":local/uuid";
 
 /**
  * Helper function for setting a list of primitive fields of an update 

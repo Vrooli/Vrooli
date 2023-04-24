@@ -1,5 +1,5 @@
-import { LINKS } from "@local/consts";
-import { CompleteIcon } from "@local/icons";
+import { LINKS } from ":local/consts";
+import { CompleteIcon } from ":local/icons";
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { loadStripe } from "@stripe/stripe-js";
 import { useContext, useEffect, useMemo } from "react";

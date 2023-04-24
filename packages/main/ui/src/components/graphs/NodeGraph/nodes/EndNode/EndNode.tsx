@@ -1,4 +1,4 @@
-import { Node, NodeEnd } from "@local/consts";
+import { Node, NodeEnd } from ":local/consts";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { useCallback, useMemo, useState } from "react";

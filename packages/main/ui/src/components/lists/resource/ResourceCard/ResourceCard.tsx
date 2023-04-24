@@ -1,6 +1,6 @@
-import { ResourceUsedFor } from "@local/consts";
-import { DeleteIcon, EditIcon } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { ResourceUsedFor } from ":local/consts";
+import { DeleteIcon, EditIcon } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import {
     Box,
     Stack,

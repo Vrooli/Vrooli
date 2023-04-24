@@ -1,2 +1,2 @@
-declare module "@local/uuid";
+declare module ":local/uuid";
 export * from ".";

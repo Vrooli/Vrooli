@@ -1,5 +1,5 @@
-import { GqlModelType } from "@local/consts";
-import { calculateOccurrences, uppercaseFirstLetter } from "@local/utils";
+import { GqlModelType } from ":local/consts";
+import { calculateOccurrences, uppercaseFirstLetter } from ":local/utils";
 import { PrismaClient } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events";

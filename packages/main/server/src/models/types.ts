@@ -1,4 +1,4 @@
-import { Count, DotNotation, GqlModelType, ObjectLimit } from "@local/consts";
+import { Count, DotNotation, GqlModelType, ObjectLimit } from ":local/consts";
 import { ObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { PrismaType, PromiseOrValue, RecursivePartial, SessionUserToken } from "../types";

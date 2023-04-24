@@ -1,4 +1,4 @@
-import { SubscribableObject } from "@local/consts";
+import { SubscribableObject } from ":local/consts";
 import { bool, enumToYup, id, opt, req, YupModel, yupObj } from "../utils";
 
 const subscribableObject = enumToYup(SubscribableObject);

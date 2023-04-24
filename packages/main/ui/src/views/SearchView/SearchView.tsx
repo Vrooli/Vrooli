@@ -1,6 +1,6 @@
-import { GqlModelType, LINKS } from "@local/consts";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { GqlModelType, LINKS } from ":local/consts";
+import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

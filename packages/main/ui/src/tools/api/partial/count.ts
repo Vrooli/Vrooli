@@ -1,4 +1,4 @@
-import { Count } from "@local/consts";
+import { Count } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const count: GqlPartial<Count> = {

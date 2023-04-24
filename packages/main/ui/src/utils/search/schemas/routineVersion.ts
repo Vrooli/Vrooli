@@ -1,4 +1,4 @@
-import { RoutineVersionSortBy } from "@local/consts";
+import { RoutineVersionSortBy } from ":local/consts";
 import { routineVersionFindMany } from "../../../api/generated/endpoints/routineVersion_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

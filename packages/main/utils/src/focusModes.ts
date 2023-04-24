@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "@local/consts";
+import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from ":local/consts";
 
 /**
  * Calculate occurrences of a scheduled event within a given time frame.

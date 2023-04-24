@@ -1,7 +1,7 @@
-import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou } from "@local/consts";
-import { exists } from "@local/utils";
-import { uuid } from "@local/uuid";
-import { organizationValidation } from "@local/validation";
+import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou } from ":local/consts";
+import { exists } from ":local/utils";
+import { uuid } from ":local/uuid";
+import { organizationValidation } from ":local/validation";
 import { Prisma, role } from "@prisma/client";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

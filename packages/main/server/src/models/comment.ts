@@ -1,6 +1,6 @@
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from "@local/consts";
-import { lowercaseFirstLetter } from "@local/utils";
-import { commentValidation } from "@local/validation";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from ":local/consts";
+import { lowercaseFirstLetter } from ":local/utils";
+import { commentValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../auth";

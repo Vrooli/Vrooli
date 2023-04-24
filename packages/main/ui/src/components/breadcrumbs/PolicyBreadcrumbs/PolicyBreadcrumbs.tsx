@@ -1,4 +1,4 @@
-import { LINKS } from "@local/consts";
+import { LINKS } from ":local/consts";
 import { useTranslation } from "react-i18next";
 import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
 import { PolicyBreadcrumbsProps } from "../types";

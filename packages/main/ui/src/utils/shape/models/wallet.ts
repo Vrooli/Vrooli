@@ -1,4 +1,4 @@
-import { Wallet, WalletUpdateInput } from "@local/consts";
+import { Wallet, WalletUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

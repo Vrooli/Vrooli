@@ -1,4 +1,4 @@
-import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from "@local/consts";
+import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

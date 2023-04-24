@@ -1,4 +1,4 @@
-import { Notification, NotificationSettings, NotificationSettingsCategory } from "@local/consts";
+import { Notification, NotificationSettings, NotificationSettingsCategory } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

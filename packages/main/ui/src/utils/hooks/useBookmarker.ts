@@ -1,6 +1,6 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, Success } from "@local/consts";
-import { exists } from "@local/utils";
-import { uuid } from "@local/uuid";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, Success } from ":local/consts";
+import { exists } from ":local/utils";
+import { uuid } from ":local/uuid";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "../../api";
 import { bookmarkCreate } from "../../api/generated/endpoints/bookmark_create";

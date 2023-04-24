@@ -1,7 +1,7 @@
-import { StandardVersion } from "@local/consts";
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "@local/icons";
-import { uuid } from "@local/uuid";
-import { routineVersionInputValidation, routineVersionOutputValidation } from "@local/validation";
+import { StandardVersion } from ":local/consts";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from ":local/icons";
+import { uuid } from ":local/uuid";
+import { routineVersionInputValidation, routineVersionOutputValidation } from ":local/validation";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";

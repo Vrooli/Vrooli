@@ -1,4 +1,4 @@
-import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from "@local/consts";
+import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { hasObjectChanged } from "../general";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";

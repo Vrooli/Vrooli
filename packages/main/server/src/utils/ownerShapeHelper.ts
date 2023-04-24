@@ -1,5 +1,5 @@
-import { GqlModelType } from "@local/consts";
-import { lowercaseFirstLetter } from "@local/utils";
+import { GqlModelType } from ":local/consts";
+import { lowercaseFirstLetter } from ":local/utils";
 import { shapeHelper, ShapeHelperOutput } from "../builders";
 import { PrismaType, SessionUserToken } from "../types";
 

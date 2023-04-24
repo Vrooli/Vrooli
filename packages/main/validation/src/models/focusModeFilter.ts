@@ -1,4 +1,4 @@
-import { FocusModeFilterType } from "@local/consts";
+import { FocusModeFilterType } from ":local/consts";
 import { enumToYup, id, req, YupModel, yupObj } from "../utils";
 import { tagValidation } from "./tag";
 

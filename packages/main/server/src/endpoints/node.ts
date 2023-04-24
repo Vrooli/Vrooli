@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeUpdateInput } from "@local/consts";
+import { Node, NodeCreateInput, NodeUpdateInput } from ":local/consts";
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
 import { createHelper, updateHelper } from "../actions";

@@ -6,7 +6,7 @@
         "composite": true,
         "baseUrl": ".",
         "paths": {
-            "@local/consts": [
+            ":local/consts": [
                 "../consts/src",
             ],
         }

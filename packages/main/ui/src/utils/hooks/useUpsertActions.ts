@@ -1,4 +1,4 @@
-import { LINKS } from "@local/consts";
+import { LINKS } from ":local/consts";
 import { useCallback, useMemo } from "react";
 import { ObjectDialogAction } from "../../components/dialogs/types";
 import { ViewDisplayType } from "../../views/types";

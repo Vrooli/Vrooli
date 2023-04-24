@@ -1,6 +1,6 @@
-import { InputType } from "@local/consts";
-import { CompleteIcon, RefreshIcon } from "@local/icons";
-import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from "@local/validation";
+import { InputType } from ":local/consts";
+import { CompleteIcon, RefreshIcon } from ":local/icons";
+import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from ":local/validation";
 import { Box, Button, Grid } from "@mui/material";
 import { Formik, useField } from "formik";
 import { t } from "i18next";

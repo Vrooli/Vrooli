@@ -1,4 +1,4 @@
-import { Wallet } from "@local/consts";
+import { Wallet } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const wallet: GqlPartial<Wallet> = {

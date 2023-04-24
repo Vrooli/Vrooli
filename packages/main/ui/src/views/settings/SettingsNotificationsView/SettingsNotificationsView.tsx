@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/consts";
+import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from ":local/consts";
 import { Stack } from "@mui/material";
 import { Formik } from "formik";
 import { mutationWrapper } from "../../../api";

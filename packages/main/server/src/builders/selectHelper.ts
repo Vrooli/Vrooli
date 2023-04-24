@@ -1,4 +1,4 @@
-import { isObject } from "@local/utils";
+import { isObject } from ":local/utils";
 import { removeTypenames } from "./removeTypenames";
 import { selPad } from "./selPad";
 import { toPartialPrismaSelect } from "./toPartialPrismaSelect";

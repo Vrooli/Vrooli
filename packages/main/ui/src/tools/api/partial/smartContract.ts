@@ -1,4 +1,4 @@
-import { SmartContract, SmartContractYou } from "@local/consts";
+import { SmartContract, SmartContractYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

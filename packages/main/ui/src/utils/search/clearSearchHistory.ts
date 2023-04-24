@@ -1,4 +1,4 @@
-import { Session } from "@local/consts";
+import { Session } from ":local/consts";
 import { getCurrentUser } from "../authentication/session";
 import { getLocalStorageKeys } from "../localStorage";
 import { PubSub } from "../pubsub";

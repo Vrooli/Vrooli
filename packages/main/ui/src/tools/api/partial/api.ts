@@ -1,4 +1,4 @@
-import { Api, ApiYou } from "@local/consts";
+import { Api, ApiYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

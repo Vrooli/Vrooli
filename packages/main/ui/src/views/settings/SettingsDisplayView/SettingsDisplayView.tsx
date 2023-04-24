@@ -1,6 +1,6 @@
-import { ProfileUpdateInput, User } from "@local/consts";
-import { SearchIcon } from "@local/icons";
-import { userValidation } from "@local/validation";
+import { ProfileUpdateInput, User } from ":local/consts";
+import { SearchIcon } from ":local/icons";
+import { userValidation } from ":local/validation";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useContext } from "react";

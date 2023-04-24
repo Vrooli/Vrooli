@@ -4,7 +4,7 @@
  * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
-import { Node, NodeType } from "@local/consts";
+import { Node, NodeType } from ":local/consts";
 import { Box, Stack, useTheme } from "@mui/material";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "../../../../utils/display/stringTools";

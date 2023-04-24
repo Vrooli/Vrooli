@@ -1,7 +1,7 @@
-import { NoteVersion, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { noteVersionTranslationValidation, noteVersionValidation } from "@local/validation";
+import { NoteVersion, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { noteVersionTranslationValidation, noteVersionValidation } from ":local/validation";
 import { useTheme } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";

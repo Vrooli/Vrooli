@@ -1,4 +1,4 @@
-import { NodeType } from "@local/consts";
+import { NodeType } from ":local/consts";
 import * as yup from "yup";
 import { description, enumToYup, id, minNumErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { nodeEndValidation } from "./nodeEnd";

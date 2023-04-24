@@ -1,4 +1,4 @@
-import { CompleteIcon } from "@local/icons";
+import { CompleteIcon } from ":local/icons";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";

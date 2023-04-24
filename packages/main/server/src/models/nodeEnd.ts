@@ -1,5 +1,5 @@
-import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "@local/consts";
-import { nodeEndValidation } from "@local/validation";
+import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from ":local/consts";
+import { nodeEndValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

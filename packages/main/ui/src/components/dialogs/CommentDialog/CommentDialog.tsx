@@ -1,4 +1,4 @@
-import { commentTranslationValidation } from "@local/validation";
+import { commentTranslationValidation } from ":local/validation";
 import { Box, Typography, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

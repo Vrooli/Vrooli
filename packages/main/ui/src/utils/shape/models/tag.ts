@@ -1,4 +1,4 @@
-import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@local/consts";
+import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

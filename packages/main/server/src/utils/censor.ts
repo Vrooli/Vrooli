@@ -1,4 +1,4 @@
-import { exists, isObject } from "@local/utils";
+import { exists, isObject } from ":local/utils";
 import fs from "fs";
 import pkg from "lodash";
 import { CustomError } from "../events/error";

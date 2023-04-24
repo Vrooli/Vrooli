@@ -1,5 +1,5 @@
-import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from "@local/consts";
-import { routineVersionInputValidation } from "@local/validation";
+import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from ":local/consts";
+import { routineVersionInputValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

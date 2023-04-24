@@ -1,5 +1,5 @@
-import { EmailLogInInput, LINKS, Session } from "@local/consts";
-import { emailLogInFormValidation } from "@local/validation";
+import { EmailLogInInput, LINKS, Session } from ":local/consts";
+import { emailLogInFormValidation } from ":local/validation";
 import {
     Button,
     Grid,

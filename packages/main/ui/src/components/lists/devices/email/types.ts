@@ -1,4 +1,4 @@
-import { Email } from "@local/consts";
+import { Email } from ":local/consts";
 
 export interface EmailListProps {
     handleUpdate: (emails: Email[]) => void;

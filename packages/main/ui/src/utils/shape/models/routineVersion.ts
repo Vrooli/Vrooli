@@ -1,4 +1,4 @@
-import { RoutineVersion, RoutineVersionCreateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput } from "@local/consts";
+import { RoutineVersion, RoutineVersionCreateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { NodeShape, shapeNode } from "./node";
 import { NodeLinkShape, shapeNodeLink } from "./nodeLink";

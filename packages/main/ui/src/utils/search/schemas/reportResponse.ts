@@ -1,4 +1,4 @@
-import { ReportResponseSortBy } from "@local/consts";
+import { ReportResponseSortBy } from ":local/consts";
 import { reportResponseFindMany } from "../../../api/generated/endpoints/reportResponse_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

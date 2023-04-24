@@ -1,5 +1,5 @@
-import { BookmarkFor, FindByIdInput, Question } from "@local/consts";
-import { EditIcon, EllipsisIcon, HelpIcon } from "@local/icons";
+import { BookmarkFor, FindByIdInput, Question } from ":local/consts";
+import { EditIcon, EllipsisIcon, HelpIcon } from ":local/icons";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { questionFindOne } from "../../../api/generated/endpoints/question_findOne";

@@ -1,4 +1,4 @@
-import { ChatParticipant } from "@local/consts";
+import { ChatParticipant } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

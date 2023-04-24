@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import { PrismaUpdate } from "../builders/types";
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";

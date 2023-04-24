@@ -1,5 +1,5 @@
-import { GqlModelType } from "@local/consts";
-import { omit } from "@local/utils";
+import { GqlModelType } from ":local/consts";
+import { omit } from ":local/utils";
 import pkg from "lodash";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";

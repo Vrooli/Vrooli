@@ -1,5 +1,5 @@
-import { PaymentType } from "@local/consts";
-import { i18nConfig } from "@local/translations";
+import { PaymentType } from ":local/consts";
+import { i18nConfig } from ":local/translations";
 import { PrismaClient } from "@prisma/client";
 import { ApolloServer } from "apollo-server-express";
 import cookieParser from "cookie-parser";

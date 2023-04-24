@@ -1,5 +1,5 @@
-import { BookmarkFor, FindVersionInput, ProjectVersion } from "@local/consts";
-import { EditIcon, EllipsisIcon } from "@local/icons";
+import { BookmarkFor, FindVersionInput, ProjectVersion } from ":local/consts";
+import { EditIcon, EllipsisIcon } from ":local/icons";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

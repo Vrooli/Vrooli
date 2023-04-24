@@ -1,4 +1,4 @@
-import { BumpModerateIcon } from "@local/icons";
+import { BumpModerateIcon } from ":local/icons";
 import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";

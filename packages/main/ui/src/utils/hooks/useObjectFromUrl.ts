@@ -1,5 +1,5 @@
+import { exists } from ":local/utils";
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
-import { exists } from "@local/utils";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { useCustomLazyQuery } from "../../api";

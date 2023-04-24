@@ -1,4 +1,4 @@
-import { GqlModelType, InputMaybe, TimeFrame, VisibilityType } from "@local/consts";
+import { GqlModelType, InputMaybe, TimeFrame, VisibilityType } from ":local/consts";
 import { PeriodType } from "@prisma/client";
 import { timeFrameToPrisma, visibilityBuilder } from "../builders";
 import { SessionUserToken } from "../types";

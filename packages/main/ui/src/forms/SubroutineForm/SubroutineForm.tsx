@@ -1,8 +1,8 @@
-import { ResourceList, Session } from "@local/consts";
-import { CloseIcon, OpenInNewIcon } from "@local/icons";
-import { exists, orDefault } from "@local/utils";
-import { DUMMY_ID, uuid } from "@local/uuid";
-import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from "@local/validation";
+import { ResourceList, Session } from ":local/consts";
+import { CloseIcon, OpenInNewIcon } from ":local/icons";
+import { exists, orDefault } from ":local/utils";
+import { DUMMY_ID, uuid } from ":local/uuid";
+import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from ":local/validation";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useCallback, useContext } from "react";

@@ -1,6 +1,6 @@
-import { EmailResetPasswordInput, LINKS, Session } from "@local/consts";
-import { uuidValidate } from "@local/uuid";
-import { emailResetPasswordSchema } from "@local/validation";
+import { EmailResetPasswordInput, LINKS, Session } from ":local/consts";
+import { uuidValidate } from ":local/uuid";
+import { emailResetPasswordSchema } from ":local/validation";
 import {
     Button,
     Grid

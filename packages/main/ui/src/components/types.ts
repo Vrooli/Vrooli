@@ -1,4 +1,4 @@
-import { SvgProps } from "@local/icons";
+import { SvgProps } from ":local/icons";
 
 export interface DiagonalWaveLoaderProps {
     size?: number;

@@ -1,5 +1,5 @@
-import { CopyInput, CopyResult, CopyType } from "@local/consts";
-import { lowercaseFirstLetter } from "@local/utils";
+import { CopyInput, CopyResult, CopyType } from ":local/consts";
+import { lowercaseFirstLetter } from ":local/utils";
 import { gql } from "apollo-server-express";
 import { copyHelper } from "../actions";
 import { rateLimit } from "../middleware";

@@ -1,6 +1,6 @@
-import { LINKS } from "@local/consts";
-import { SvgComponent } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { LINKS } from ":local/consts";
+import { SvgComponent } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import { BaseViewProps } from "../types";
 
 export type SettingsPageType = "Profile" | "Privacy" | "Authentication" | "Display" | "Notification" | "FocusMode";

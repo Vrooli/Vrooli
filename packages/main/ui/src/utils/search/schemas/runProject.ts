@@ -1,4 +1,4 @@
-import { RunProjectSortBy } from "@local/consts";
+import { RunProjectSortBy } from ":local/consts";
 import { runProjectFindMany } from "../../../api/generated/endpoints/runProject_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

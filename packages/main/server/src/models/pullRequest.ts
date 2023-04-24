@@ -1,5 +1,5 @@
-import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from "@local/consts";
-import { pullRequestValidation } from "@local/validation";
+import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from ":local/consts";
+import { pullRequestValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, noNull } from "../builders";
 import { SelectWrap } from "../builders/types";

@@ -1,9 +1,9 @@
 /**
  * Handles selecting a run from a list of runs.
  */
-import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@local/consts";
-import { DeleteIcon } from "@local/icons";
-import { uuid } from "@local/uuid";
+import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from ":local/consts";
+import { DeleteIcon } from ":local/icons";
+import { uuid } from ":local/uuid";
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { deleteOneOrManyDeleteOne } from "../../../api/generated/endpoints/deleteOneOrMany_deleteOne";

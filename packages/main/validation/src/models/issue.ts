@@ -1,4 +1,4 @@
-import { IssueFor } from "@local/consts";
+import { IssueFor } from ":local/consts";
 import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { labelValidation } from "./label";
 

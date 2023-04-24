@@ -1,4 +1,4 @@
-import { VisibilityType } from "@local/consts";
+import { VisibilityType } from ":local/consts";
 import { getUser } from "../auth";
 import { combineQueries, timeFrameToPrisma, visibilityBuilder } from "../builders";
 import { CountInputBase } from "../builders/types";

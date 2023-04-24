@@ -1,4 +1,4 @@
-import { InputType } from "@local/consts";
+import { InputType } from ":local/consts";
 import { FormikProps } from "formik";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "../components/inputs/types";
 import { Forms } from "../utils/consts";

@@ -1,4 +1,4 @@
-import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from "@local/consts";
+import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 import { onlyValidIds, selPad } from "../builders";

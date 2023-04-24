@@ -1,4 +1,4 @@
-import { Report, ReportCreateInput, ReportFor, ReportUpdateInput } from "@local/consts";
+import { Report, ReportCreateInput, ReportFor, ReportUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 

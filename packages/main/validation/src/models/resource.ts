@@ -1,4 +1,4 @@
-import { ResourceUsedFor } from "@local/consts";
+import { ResourceUsedFor } from ":local/consts";
 import * as yup from "yup";
 import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 

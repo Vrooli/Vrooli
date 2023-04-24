@@ -1,4 +1,4 @@
-import { DotNotation } from "@local/consts";
+import { DotNotation } from ":local/consts";
 import { Displayer, ModelLogic, ModelLogicType } from "../models/types";
 
 /**

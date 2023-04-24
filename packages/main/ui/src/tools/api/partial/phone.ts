@@ -1,4 +1,4 @@
-import { Phone } from "@local/consts";
+import { Phone } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const phone: GqlPartial<Phone> = {

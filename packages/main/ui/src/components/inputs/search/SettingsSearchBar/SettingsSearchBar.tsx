@@ -1,4 +1,4 @@
-import { SearchIcon } from "@local/icons";
+import { SearchIcon } from ":local/icons";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";

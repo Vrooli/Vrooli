@@ -1,5 +1,5 @@
-import { AddIcon } from "@local/icons";
-import { uuid } from "@local/uuid";
+import { AddIcon } from ":local/icons";
+import { uuid } from ":local/uuid";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";

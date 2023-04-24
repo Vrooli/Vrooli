@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Report, ReportSearchInput, ReportSearchResult } from "@local/consts";
+import { Report, ReportSearchInput, ReportSearchResult } from ":local/consts";
 import { Box, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { User, UserTranslation, UserYou } from "@local/consts";
+import { User, UserTranslation, UserYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

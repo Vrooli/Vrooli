@@ -1,4 +1,4 @@
-import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslation, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput } from "@local/consts";
+import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslation, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

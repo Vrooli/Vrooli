@@ -1,4 +1,4 @@
-import { MeetingSortBy } from "@local/consts";
+import { MeetingSortBy } from ":local/consts";
 import { meetingFindMany } from "../../../api/generated/endpoints/meeting_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

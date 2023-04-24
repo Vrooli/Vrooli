@@ -1,8 +1,8 @@
-import { Resource, ResourceUsedFor, Session } from "@local/consts";
-import { CommonKey } from "@local/translations";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { resourceValidation, userTranslationValidation } from "@local/validation";
+import { Resource, ResourceUsedFor, Session } from ":local/consts";
+import { CommonKey } from ":local/translations";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { resourceValidation, userTranslationValidation } from ":local/validation";
 import { Stack } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";

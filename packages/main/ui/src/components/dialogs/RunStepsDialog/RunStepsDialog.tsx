@@ -1,7 +1,7 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from "@local/icons";
+import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from ":local/icons";
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import {
     alpha,

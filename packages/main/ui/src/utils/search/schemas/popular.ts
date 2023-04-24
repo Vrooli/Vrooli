@@ -1,4 +1,4 @@
-import { PopularSortBy } from "@local/consts";
+import { PopularSortBy } from ":local/consts";
 import { feedPopular } from "../../../api/generated/endpoints/feed_popular";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

@@ -1,4 +1,4 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, Success } from "@local/consts";
+import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, Success } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { createHelper, deleteOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth";

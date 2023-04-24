@@ -5,8 +5,8 @@
  *      import { PubSub } from "../utils";
  *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
-import { ActiveFocusMode, Session } from "@local/consts";
-import { CommonKey, ErrorKey } from "@local/translations";
+import { ActiveFocusMode, Session } from ":local/consts";
+import { CommonKey, ErrorKey } from ":local/translations";
 import { SnackSeverity } from "../components/dialogs/snacks";
 
 export type Pubs = "Celebration" |

@@ -1,4 +1,4 @@
-import { RunRoutineSearchInput, RunRoutineSortBy, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from "@local/consts";
+import { RunRoutineSearchInput, RunRoutineSortBy, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

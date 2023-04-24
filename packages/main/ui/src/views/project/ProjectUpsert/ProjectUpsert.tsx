@@ -1,4 +1,4 @@
-import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/consts";
+import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { projectVersionCreate } from "../../../api/generated/endpoints/projectVersion_create";

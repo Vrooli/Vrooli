@@ -1,6 +1,6 @@
-import { CommentFor, FindVersionInput, LINKS, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag } from "@local/consts";
-import { EditIcon, RoutineIcon, SuccessIcon } from "@local/icons";
-import { exists, setDotNotationValue } from "@local/utils";
+import { CommentFor, FindVersionInput, LINKS, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag } from ":local/consts";
+import { EditIcon, RoutineIcon, SuccessIcon } from ":local/icons";
+import { exists, setDotNotationValue } from ":local/utils";
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
 import { Formik, useFormik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

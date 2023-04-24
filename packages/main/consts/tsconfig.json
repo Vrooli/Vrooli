@@ -6,7 +6,7 @@
         "composite": true,
         "baseUrl": ".",
         "paths": {
-            "@local/translations": [
+            ":local/translations": [
                 "../translations/src"
             ],
         }

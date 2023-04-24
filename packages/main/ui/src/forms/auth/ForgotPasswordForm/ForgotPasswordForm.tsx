@@ -1,5 +1,5 @@
-import { EmailRequestPasswordChangeInput, LINKS, Success } from "@local/consts";
-import { emailRequestPasswordChangeSchema } from "@local/validation";
+import { EmailRequestPasswordChangeInput, LINKS, Success } from ":local/consts";
+import { emailRequestPasswordChangeSchema } from ":local/validation";
 import {
     Button,
     Grid,

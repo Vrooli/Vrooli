@@ -1,5 +1,5 @@
-import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/consts";
-import { SvgProps } from "@local/icons";
+import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from ":local/consts";
+import { SvgProps } from ":local/icons";
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import React from "react";
 import { FormSchema } from "../../forms/types";

@@ -1,7 +1,7 @@
-import { Schedule, ScheduleSearchResult } from "@local/consts";
-import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from "@local/icons";
-import { CommonKey } from "@local/translations";
-import { calculateOccurrences } from "@local/utils";
+import { Schedule, ScheduleSearchResult } from ":local/consts";
+import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from ":local/icons";
+import { CommonKey } from ":local/translations";
+import { calculateOccurrences } from ":local/utils";
 import { useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

@@ -1,5 +1,5 @@
-import { LINKS } from "@local/consts";
-import { LogInIcon, ProfileIcon } from "@local/icons";
+import { LINKS } from ":local/consts";
+import { LogInIcon, ProfileIcon } from ":local/icons";
 import { Button, Container, IconButton, Palette, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

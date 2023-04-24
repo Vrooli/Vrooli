@@ -1,5 +1,5 @@
-import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "@local/consts";
-import { pushDeviceValidation } from "@local/validation";
+import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from ":local/consts";
+import { pushDeviceValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";

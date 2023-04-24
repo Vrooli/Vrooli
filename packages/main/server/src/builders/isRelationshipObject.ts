@@ -1,4 +1,4 @@
-import { isObject } from "@local/utils";
+import { isObject } from ":local/utils";
 
 /**
  * Determines if an object is a relationship object, and not an array of relationship objects.

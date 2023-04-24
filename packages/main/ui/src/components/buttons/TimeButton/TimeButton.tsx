@@ -1,5 +1,5 @@
-import { TimeFrame } from "@local/consts";
-import { HistoryIcon as TimeIcon } from "@local/icons";
+import { TimeFrame } from ":local/consts";
+import { HistoryIcon as TimeIcon } from ":local/icons";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";

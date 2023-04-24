@@ -1,4 +1,4 @@
-import { EllipsisIcon } from "@local/icons";
+import { EllipsisIcon } from ":local/icons";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, ObjectAction } from "../../../utils/actions/objectActions";

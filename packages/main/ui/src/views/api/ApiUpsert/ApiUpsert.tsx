@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@local/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { mutationWrapper } from "../../../api";

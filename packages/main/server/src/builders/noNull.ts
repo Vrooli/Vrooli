@@ -1,4 +1,4 @@
-import { exists } from "@local/utils";
+import { exists } from ":local/utils";
 
 /**
  * Returns the first non-null value from the list of 

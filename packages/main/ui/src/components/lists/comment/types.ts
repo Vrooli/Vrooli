@@ -1,4 +1,4 @@
-import { Comment, CommentThread } from "@local/consts";
+import { Comment, CommentThread } from ":local/consts";
 import { NavigableObject } from "../../../types";
 
 export interface CommentConnectorProps {

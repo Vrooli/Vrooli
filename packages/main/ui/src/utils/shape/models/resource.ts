@@ -1,5 +1,5 @@
-import { Resource, ResourceCreateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "@local/consts";
-import { addHttps } from "@local/validation";
+import { Resource, ResourceCreateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from ":local/consts";
+import { addHttps } from ":local/validation";
 import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

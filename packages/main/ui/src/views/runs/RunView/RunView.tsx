@@ -1,4 +1,4 @@
-import { Node, NodeLink, NodeRoutineListItem, NodeType, RoutineVersion } from "@local/consts";
+import { Node, NodeLink, NodeRoutineListItem, NodeType, RoutineVersion } from ":local/consts";
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "../../../types";
 import { RoutineStepType } from "../../../utils/consts";
 import { getTranslation } from "../../../utils/display/translationTools";

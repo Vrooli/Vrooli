@@ -1,4 +1,4 @@
-import { MinusIcon, PlusIcon } from "@local/icons";
+import { MinusIcon, PlusIcon } from ":local/icons";
 import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useEffect, useRef } from "react";

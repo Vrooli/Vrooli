@@ -1,4 +1,4 @@
-import { ResourceSortBy } from "@local/consts";
+import { ResourceSortBy } from ":local/consts";
 import { resourceFindMany } from "../../../api/generated/endpoints/resource_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

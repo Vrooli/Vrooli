@@ -1,4 +1,4 @@
-import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@local/consts";
+import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { ResourceShape, shapeResource } from "./resource";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

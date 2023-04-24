@@ -1,5 +1,5 @@
-import { MaxObjects, Wallet, WalletUpdateInput } from "@local/consts";
-import { walletValidation } from "@local/validation";
+import { MaxObjects, Wallet, WalletUpdateInput } from ":local/consts";
+import { walletValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";

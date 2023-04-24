@@ -1,4 +1,4 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/consts";
+import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { mutationWrapper } from "../../../api";

@@ -1,6 +1,6 @@
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, Organization, ResourceList, VisibilityType } from "@local/consts";
-import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@local/icons";
-import { uuidValidate } from "@local/uuid";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, Organization, ResourceList, VisibilityType } from ":local/consts";
+import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from ":local/icons";
+import { uuidValidate } from ":local/uuid";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

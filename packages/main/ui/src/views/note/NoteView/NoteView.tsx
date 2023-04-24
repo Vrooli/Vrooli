@@ -1,4 +1,4 @@
-import { FindVersionInput, NoteVersion } from "@local/consts";
+import { FindVersionInput, NoteVersion } from ":local/consts";
 import { useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { noteVersionFindOne } from "../../../api/generated/endpoints/noteVersion_findOne";

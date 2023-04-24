@@ -1,4 +1,4 @@
-import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/consts";
+import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { ScheduleExceptionShape, shapeScheduleException } from "./scheduleException";

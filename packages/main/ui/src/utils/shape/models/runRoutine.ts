@@ -1,4 +1,4 @@
-import { RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/consts";
+import { RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

@@ -1,5 +1,5 @@
 
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { IdsByAction, IdsByType } from "./types";

@@ -1,5 +1,5 @@
-import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from "@local/consts";
-import { ApiIcon, EditIcon, EllipsisIcon } from "@local/icons";
+import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from ":local/consts";
+import { ApiIcon, EditIcon, EllipsisIcon } from ":local/icons";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiVersionFindOne } from "../../../api/generated/endpoints/apiVersion_findOne";

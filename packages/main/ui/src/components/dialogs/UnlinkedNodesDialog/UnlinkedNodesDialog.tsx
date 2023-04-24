@@ -1,8 +1,8 @@
 /**
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
-import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/consts";
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "@local/icons";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from ":local/consts";
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from ":local/icons";
 import {
     Box,
     IconButton,

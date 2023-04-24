@@ -1,4 +1,4 @@
-import { exists } from "@local/utils";
+import { exists } from ":local/utils";
 import { GqlPartial } from "../types";
 
 /**

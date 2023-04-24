@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@local/consts";
-import { AwardKey } from "@local/translations";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from ":local/consts";
+import { AwardKey } from ":local/translations";
 import { Stack } from "@mui/material";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ import { AwardsViewProps } from "../types";
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
 
-//TODO store tiers in @local/consts, so we can show tier progress and stuff
+//TODO store tiers in :local/consts, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 export const AwardsView = ({

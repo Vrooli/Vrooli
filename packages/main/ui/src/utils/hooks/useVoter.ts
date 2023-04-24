@@ -1,5 +1,5 @@
-import { ReactInput, ReactionFor, Success } from "@local/consts";
-import { exists, getReactionScore } from "@local/utils";
+import { ReactInput, ReactionFor, Success } from ":local/consts";
+import { exists, getReactionScore } from ":local/utils";
 import { useCallback } from "react";
 import { mutationWrapper, useCustomMutation } from "../../api";
 import { reactionReact } from "../../api/generated/endpoints/reaction_react";

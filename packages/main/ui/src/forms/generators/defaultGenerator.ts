@@ -1,4 +1,4 @@
-import { InputType } from "@local/consts";
+import { InputType } from ":local/consts";
 import { CheckboxProps, DropzoneProps, FieldData, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
 
 /**

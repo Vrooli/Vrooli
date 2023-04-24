@@ -1,5 +1,5 @@
-import { COOKIE } from "@local/consts";
-import { uuidValidate } from "@local/uuid";
+import { COOKIE } from ":local/consts";
+import { uuidValidate } from ":local/uuid";
 import { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import jwt from "jsonwebtoken";

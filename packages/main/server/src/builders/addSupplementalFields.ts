@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import pkg from "lodash";
 import { getLogic } from "../getters";
 import { ObjectMap } from "../models";

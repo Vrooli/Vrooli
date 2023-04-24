@@ -1,5 +1,5 @@
-import { TimeFrame } from "@local/consts";
-import { exists } from "@local/utils";
+import { TimeFrame } from ":local/consts";
+import { exists } from ":local/utils";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useCustomLazyQuery } from "../../api";
 import { SearchQueryVariablesInput } from "../../components/lists/types";

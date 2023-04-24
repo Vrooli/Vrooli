@@ -1,4 +1,4 @@
-import { BookmarkFor } from "@local/consts";
+import { BookmarkFor } from ":local/consts";
 import { enumToYup, id, req, YupModel, yupObj } from "../utils";
 import { bookmarkListValidation } from "./bookmarkList";
 

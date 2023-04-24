@@ -1,5 +1,5 @@
-import { LINKS, PopularInput, PopularResult } from "@local/consts";
-import { uuidValidate } from "@local/uuid";
+import { LINKS, PopularInput, PopularResult } from ":local/consts";
+import { uuidValidate } from ":local/uuid";
 import { DialogContent, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,5 +1,5 @@
-import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from "@local/consts";
-import { runProjectValidation } from "@local/validation";
+import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from ":local/consts";
+import { runProjectValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

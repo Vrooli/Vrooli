@@ -1,5 +1,5 @@
 {
-    "name": "@local/consts",
+    "name": ":local/consts",
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.9.0",
@@ -12,7 +12,7 @@
         "build": "yarn tsc"
     },
     "dependencies": {
-        "@local/translations": "*",
+        ":local/translations": "*",
         "react": "^18.0.0",
         "react-dom": "^18.0.0",
         "yup": "^0.32.9"

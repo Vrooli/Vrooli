@@ -1,7 +1,7 @@
 /**
  * Dialog for sharing an object
  */
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "@local/icons";
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from ":local/icons";
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

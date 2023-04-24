@@ -1,5 +1,5 @@
-import { Node, NodeLink, NodeType } from "@local/consts";
-import { OpenInNewIcon } from "@local/icons";
+import { Node, NodeLink, NodeType } from ":local/consts";
+import { OpenInNewIcon } from ":local/icons";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";

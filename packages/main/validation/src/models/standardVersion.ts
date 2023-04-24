@@ -1,4 +1,4 @@
-import { InputType } from "@local/consts";
+import { InputType } from ":local/consts";
 import * as yup from "yup";
 import { blankToUndefined, bool, description, enumToYup, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";

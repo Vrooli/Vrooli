@@ -1,4 +1,4 @@
-import { MemberInvite, MemberInviteYou } from "@local/consts";
+import { MemberInvite, MemberInviteYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

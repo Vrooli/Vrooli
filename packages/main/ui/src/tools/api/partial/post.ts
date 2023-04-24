@@ -1,4 +1,4 @@
-import { Post, PostTranslation } from "@local/consts";
+import { Post, PostTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

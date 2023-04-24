@@ -1,7 +1,7 @@
-import { ProjectVersion, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { projectVersionTranslationValidation, projectVersionValidation } from "@local/validation";
+import { ProjectVersion, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { projectVersionTranslationValidation, projectVersionValidation } from ":local/validation";
 import { Stack, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";

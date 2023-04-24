@@ -1,4 +1,4 @@
-import { StatsSite, StatsSiteSearchInput, StatsSiteSortBy } from "@local/consts";
+import { StatsSite, StatsSiteSearchInput, StatsSiteSortBy } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";

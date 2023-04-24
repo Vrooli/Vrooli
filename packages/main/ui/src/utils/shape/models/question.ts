@@ -1,4 +1,4 @@
-import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput } from "@local/consts";
+import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeTag, TagShape } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

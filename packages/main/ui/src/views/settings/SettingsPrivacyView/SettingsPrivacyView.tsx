@@ -1,5 +1,5 @@
-import { ProfileUpdateInput, User } from "@local/consts";
-import { userValidation } from "@local/validation";
+import { ProfileUpdateInput, User } from ":local/consts";
+import { userValidation } from ":local/validation";
 import { Stack } from "@mui/material";
 import { Formik } from "formik";
 import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";

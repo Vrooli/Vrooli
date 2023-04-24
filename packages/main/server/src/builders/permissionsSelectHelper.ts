@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PermissionsMap } from "../models/types";

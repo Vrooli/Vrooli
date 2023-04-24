@@ -1,4 +1,4 @@
-import { Success } from "@local/consts";
+import { Success } from ":local/consts";
 import { assertRequestFrom } from "../auth/request";
 import { cudHelper } from "./cudHelper";
 import { DeleteOneHelperProps } from "./types";

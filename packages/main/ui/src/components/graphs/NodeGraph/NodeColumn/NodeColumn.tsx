@@ -1,7 +1,7 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/consts";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from ":local/consts";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { getTranslation } from "../../../../utils/display/translationTools";

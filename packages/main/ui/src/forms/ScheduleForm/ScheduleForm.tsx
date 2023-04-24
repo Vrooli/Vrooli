@@ -1,6 +1,6 @@
-import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType } from "@local/consts";
-import { AddIcon, CloseIcon, DeleteIcon } from "@local/icons";
-import { uuid } from "@local/uuid";
+import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType } from ":local/consts";
+import { AddIcon, CloseIcon, DeleteIcon } from ":local/icons";
+import { uuid } from ":local/uuid";
 import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { forwardRef } from "react";

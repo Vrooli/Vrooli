@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
-import { ResourceUsedFor } from "@local/consts";
-import { DeleteIcon, EditIcon, OpenInNewIcon } from "@local/icons";
-import { adaHandleRegex, urlRegex, walletAddressRegex } from "@local/validation";
+import { ResourceUsedFor } from ":local/consts";
+import { DeleteIcon, EditIcon, OpenInNewIcon } from ":local/icons";
+import { adaHandleRegex, urlRegex, walletAddressRegex } from ":local/validation";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { multiLineEllipsis } from "../../../../styles";

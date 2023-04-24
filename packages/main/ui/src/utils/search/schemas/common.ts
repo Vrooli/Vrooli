@@ -1,5 +1,5 @@
-import { InputType } from "@local/consts";
-import { CommonKey } from "@local/translations";
+import { InputType } from ":local/consts";
+import { CommonKey } from ":local/translations";
 import i18next from "i18next";
 import { FieldData, FormSchema, GridContainer } from "../../../forms/types";
 

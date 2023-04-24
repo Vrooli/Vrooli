@@ -1,4 +1,4 @@
-import { PushDevice, PushDeviceCreateInput } from "@local/consts";
+import { PushDevice, PushDeviceCreateInput } from ":local/consts";
 import { pushDeviceCreate } from "../api/generated/endpoints/pushDevice_create";
 import { documentNodeWrapper, errorToCode } from "../api/utils";
 import { requestNotificationPermission, subscribeUserToPush } from "../serviceWorkerRegistration";

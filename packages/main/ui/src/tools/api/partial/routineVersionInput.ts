@@ -1,4 +1,4 @@
-import { RoutineVersionInput, RoutineVersionInputTranslation } from "@local/consts";
+import { RoutineVersionInput, RoutineVersionInputTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,5 +1,5 @@
-import { RoutineVersion, VisibilityType } from "@local/consts";
-import { uuidValidate } from "@local/uuid";
+import { RoutineVersion, VisibilityType } from ":local/consts";
+import { uuidValidate } from ":local/uuid";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { OwnerShape } from "../../../utils/shape/models/types";

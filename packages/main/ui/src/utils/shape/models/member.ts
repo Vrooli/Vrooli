@@ -1,4 +1,4 @@
-import { Member, MemberUpdateInput } from "@local/consts";
+import { Member, MemberUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

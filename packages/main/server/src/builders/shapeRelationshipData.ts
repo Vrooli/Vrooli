@@ -1,4 +1,4 @@
-import { isObject } from "@local/utils";
+import { isObject } from ":local/utils";
 import { filterFields } from "./filterFields";
 
 /**

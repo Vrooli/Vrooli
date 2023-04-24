@@ -1,4 +1,4 @@
-import { DeleteIcon } from "@local/icons";
+import { DeleteIcon } from ":local/icons";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback } from "react";
 import { multiLineEllipsis } from "../../../../../styles";

@@ -1,4 +1,4 @@
-import { DotNotation } from "@local/consts";
+import { DotNotation } from ":local/consts";
 
 /**
  * Sets data in an object using dot notation (ex: 'parent.child.property')

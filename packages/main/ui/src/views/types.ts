@@ -1,4 +1,4 @@
-import { RoutineVersion } from "@local/consts";
+import { RoutineVersion } from ":local/consts";
 import React from "react";
 
 /**

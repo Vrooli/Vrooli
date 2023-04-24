@@ -1,7 +1,7 @@
-import { Reminder, Session } from "@local/consts";
-import { AddIcon, CloseIcon, DeleteIcon, DragIcon, ListNumberIcon } from "@local/icons";
-import { DUMMY_ID } from "@local/uuid";
-import { reminderValidation } from "@local/validation";
+import { Reminder, Session } from ":local/consts";
+import { AddIcon, CloseIcon, DeleteIcon, DragIcon, ListNumberIcon } from ":local/icons";
+import { DUMMY_ID } from ":local/uuid";
+import { reminderValidation } from ":local/validation";
 import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { forwardRef, useCallback } from "react";

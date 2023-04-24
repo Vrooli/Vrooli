@@ -1,5 +1,5 @@
-import { CommentFor, FindVersionInput, StandardVersion } from "@local/consts";
-import { EditIcon } from "@local/icons";
+import { CommentFor, FindVersionInput, StandardVersion } from ":local/consts";
+import { EditIcon } from ":local/icons";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { standardVersionFindOne } from "../../../api/generated/endpoints/standardVersion_findOne";

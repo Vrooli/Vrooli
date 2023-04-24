@@ -1,4 +1,4 @@
-import { InputType, ProjectOrOrganizationSortBy } from "@local/consts";
+import { InputType, ProjectOrOrganizationSortBy } from ":local/consts";
 import { projectOrOrganizationFindMany } from "../../../api/generated/endpoints/projectOrOrganization_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

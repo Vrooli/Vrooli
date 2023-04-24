@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, Session } from "@local/consts";
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from "@local/icons";
-import { CommonKey } from "@local/translations";
+import { LINKS, Session } from ":local/consts";
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from ":local/icons";
+import { CommonKey } from ":local/translations";
 import {
     Badge,
     BottomNavigationAction,

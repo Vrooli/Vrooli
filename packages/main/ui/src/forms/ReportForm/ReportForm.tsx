@@ -1,5 +1,5 @@
-import { Report, ReportFor, Session } from "@local/consts";
-import { DUMMY_ID } from "@local/uuid";
+import { Report, ReportFor, Session } from ":local/consts";
+import { DUMMY_ID } from ":local/uuid";
 import { TextField } from "@mui/material";
 import { Field, useField } from "formik";
 import { forwardRef, useCallback } from "react";

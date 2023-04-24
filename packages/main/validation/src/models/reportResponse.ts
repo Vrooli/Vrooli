@@ -1,4 +1,4 @@
-import { ReportSuggestedAction } from "@local/consts";
+import { ReportSuggestedAction } from ":local/consts";
 import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "../utils";
 
 const actionSuggested = enumToYup(ReportSuggestedAction);

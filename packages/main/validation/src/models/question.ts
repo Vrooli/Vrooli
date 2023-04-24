@@ -1,4 +1,4 @@
-import { QuestionForType } from "@local/consts";
+import { QuestionForType } from ":local/consts";
 import { bool, description, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
 
 const forObjectType = enumToYup(QuestionForType);

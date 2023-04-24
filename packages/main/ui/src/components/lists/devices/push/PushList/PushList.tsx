@@ -1,9 +1,9 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from "@local/consts";
-import { AddIcon } from "@local/icons";
-import { pushDeviceValidation } from "@local/validation";
+import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from ":local/consts";
+import { AddIcon } from ":local/icons";
+import { pushDeviceValidation } from ":local/validation";
 import { Button, Stack, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback } from "react";

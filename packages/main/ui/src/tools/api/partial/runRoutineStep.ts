@@ -1,4 +1,4 @@
-import { RunRoutineStep } from "@local/consts";
+import { RunRoutineStep } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

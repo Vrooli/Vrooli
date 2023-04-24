@@ -1,5 +1,5 @@
-import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy } from "@local/consts";
-import { exists, getReactionScore, removeModifiers } from "@local/utils";
+import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy } from ":local/consts";
+import { exists, getReactionScore, removeModifiers } from ":local/utils";
 import { Prisma, reaction_summary } from "@prisma/client";
 import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { onlyValidIds, selPad } from "../builders";

@@ -1,5 +1,5 @@
-import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from "@local/consts";
-import { exists, setDotNotationValue } from "@local/utils";
+import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from ":local/consts";
+import { exists, setDotNotationValue } from ":local/utils";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "../../types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "../actions/objectActions";

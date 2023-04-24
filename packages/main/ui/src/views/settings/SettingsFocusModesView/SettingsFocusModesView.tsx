@@ -1,5 +1,5 @@
-import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from "@local/consts";
-import { AddIcon, DeleteIcon, EditIcon } from "@local/icons";
+import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from ":local/consts";
+import { AddIcon, DeleteIcon, EditIcon } from ":local/icons";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

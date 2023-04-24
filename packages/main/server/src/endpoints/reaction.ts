@@ -1,4 +1,4 @@
-import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, Success } from "@local/consts";
+import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, Success } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { readManyHelper } from "../actions";
 import { assertRequestFrom } from "../auth/request";

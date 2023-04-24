@@ -1,5 +1,5 @@
-import { MaxObjects, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "@local/consts";
-import { runRoutineStepValidation } from "@local/validation";
+import { MaxObjects, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from ":local/consts";
+import { runRoutineStepValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

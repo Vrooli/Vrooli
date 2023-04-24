@@ -1,7 +1,7 @@
-import { NodeType, RoutineVersion, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID, uuid } from "@local/uuid";
-import { nodeTranslationValidation, nodeValidation } from "@local/validation";
+import { NodeType, RoutineVersion, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID, uuid } from ":local/uuid";
+import { nodeTranslationValidation, nodeValidation } from ":local/validation";
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";

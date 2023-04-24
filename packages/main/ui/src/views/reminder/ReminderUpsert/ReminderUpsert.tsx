@@ -1,5 +1,5 @@
-import { FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/consts";
-import { DeleteIcon } from "@local/icons";
+import { FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from ":local/consts";
+import { DeleteIcon } from ":local/icons";
 import { Box, Button } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";

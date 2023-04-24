@@ -1,4 +1,4 @@
-import { Node, ProjectVersion, RoutineVersion, RunRoutine } from "@local/consts";
+import { Node, ProjectVersion, RoutineVersion, RunRoutine } from ":local/consts";
 import { DecisionStep } from "../../types";
 import { BaseViewProps, ViewProps } from "../types";
 

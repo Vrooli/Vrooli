@@ -1,5 +1,5 @@
-import { ActiveFocusMode, COOKIE, FocusMode, ValueOf } from "@local/consts";
-import { exists } from "@local/utils";
+import { ActiveFocusMode, COOKIE, FocusMode, ValueOf } from ":local/consts";
+import { exists } from ":local/utils";
 import { getDeviceInfo } from "./display/device";
 
 /**

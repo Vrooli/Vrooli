@@ -1,4 +1,4 @@
-import { exists } from "@local/utils";
+import { exists } from ":local/utils";
 
 /**
  * Removes one or more properties from an object using dot notation (ex: 'parent.child.property'). 

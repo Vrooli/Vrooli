@@ -1,4 +1,4 @@
-import { MemberSortBy } from "@local/consts";
+import { MemberSortBy } from ":local/consts";
 import { memberFindMany } from "../../../api/generated/endpoints/member_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

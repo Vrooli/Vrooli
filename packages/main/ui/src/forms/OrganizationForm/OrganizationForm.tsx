@@ -1,7 +1,7 @@
-import { Organization, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { organizationTranslationValidation, organizationValidation } from "@local/validation";
+import { Organization, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { organizationTranslationValidation, organizationValidation } from ":local/validation";
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";

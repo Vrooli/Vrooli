@@ -1,6 +1,6 @@
-import { Session } from "@local/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@local/icons";
-import { getReactionScore } from "@local/utils";
+import { Session } from ":local/consts";
+import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from ":local/icons";
+import { getReactionScore } from ":local/utils";
 import { ListMenuItemData } from "../../components/dialogs/types";
 import { checkIfLoggedIn } from "../authentication/session";
 import { getYou, ListObjectType } from "../display/listTools";

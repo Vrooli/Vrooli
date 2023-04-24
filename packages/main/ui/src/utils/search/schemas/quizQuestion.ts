@@ -1,4 +1,4 @@
-import { QuizQuestionSortBy } from "@local/consts";
+import { QuizQuestionSortBy } from ":local/consts";
 import { quizQuestionFindMany } from "../../../api/generated/endpoints/quizQuestion_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

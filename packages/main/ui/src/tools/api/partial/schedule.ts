@@ -1,4 +1,4 @@
-import { Schedule } from "@local/consts";
+import { Schedule } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,7 +1,7 @@
-import { Question, Session } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { questionTranslationValidation, questionValidation } from "@local/validation";
+import { Question, Session } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { questionTranslationValidation, questionValidation } from ":local/validation";
 import { Stack, useTheme } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";

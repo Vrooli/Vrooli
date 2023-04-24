@@ -1,4 +1,4 @@
-import { Comment } from "@local/consts";
+import { Comment } from ":local/consts";
 import { Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { updateArray } from "../../../../utils/shape/general";

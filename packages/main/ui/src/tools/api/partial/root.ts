@@ -1,4 +1,4 @@
-import { VersionYou } from "@local/consts";
+import { VersionYou } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const versionYou: GqlPartial<VersionYou> = {

@@ -2,7 +2,7 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { AddIcon, DeleteIcon } from "@local/icons";
+import { AddIcon, DeleteIcon } from ":local/icons";
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback } from "react";

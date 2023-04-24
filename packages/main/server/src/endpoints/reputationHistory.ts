@@ -1,4 +1,4 @@
-import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput, ReputationHistorySortBy } from "@local/consts";
+import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput, ReputationHistorySortBy } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper } from "../actions";
 import { rateLimit } from "../middleware";

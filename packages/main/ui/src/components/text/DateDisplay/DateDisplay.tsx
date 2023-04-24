@@ -1,4 +1,4 @@
-import { ScheduleIcon } from "@local/icons";
+import { ScheduleIcon } from ":local/icons";
 import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { displayDate } from "../../../utils/display/stringTools";

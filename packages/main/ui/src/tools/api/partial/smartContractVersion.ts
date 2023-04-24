@@ -1,4 +1,4 @@
-import { SmartContractVersion, SmartContractVersionTranslation } from "@local/consts";
+import { SmartContractVersion, SmartContractVersionTranslation } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";

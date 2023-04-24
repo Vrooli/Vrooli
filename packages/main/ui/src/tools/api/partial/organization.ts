@@ -1,4 +1,4 @@
-import { Organization, OrganizationTranslation, OrganizationYou } from "@local/consts";
+import { Organization, OrganizationTranslation, OrganizationYou } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

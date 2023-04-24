@@ -4,7 +4,7 @@
  * field with a duplicate name has the name format, so as long as 
  * that format matches the fields below, there should be no errors.
  */
-import { ReportFor } from "@local/consts";
+import { ReportFor } from ":local/consts";
 import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { blankToUndefined } from "./builders/blankToUndefined";

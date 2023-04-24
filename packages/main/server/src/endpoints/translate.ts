@@ -1,4 +1,4 @@
-import { Translate, TranslateInput } from "@local/consts";
+import { Translate, TranslateInput } from ":local/consts";
 import { gql } from "apollo-server-express";
 import fetch from "node-fetch";
 import { CustomError } from "../events/error";

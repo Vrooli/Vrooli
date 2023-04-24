@@ -1,5 +1,5 @@
-import { BookmarkList, FindByIdInput } from "@local/consts";
-import { AddIcon, EditIcon } from "@local/icons";
+import { BookmarkList, FindByIdInput } from ":local/consts";
+import { AddIcon, EditIcon } from ":local/icons";
 import { Box, TextField, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { bookmarkListFindOne } from "../../../api/generated/endpoints/bookmarkList_findOne";

@@ -1,2 +1,2 @@
-declare module "@local/consts";
+declare module ":local/consts";
 export * from ".";

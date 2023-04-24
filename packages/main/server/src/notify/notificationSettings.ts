@@ -1,4 +1,4 @@
-import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/consts";
+import { NotificationSettings, NotificationSettingsUpdateInput } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import { logger } from "../events";
 import { PrismaType } from "../types";

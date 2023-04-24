@@ -1,4 +1,4 @@
-import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/consts";
+import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from ":local/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { standardVersionCreate } from "../../../api/generated/endpoints/standardVersion_create";

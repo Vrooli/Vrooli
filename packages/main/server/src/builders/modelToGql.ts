@@ -1,4 +1,4 @@
-import { isObject } from "@local/utils";
+import { isObject } from ":local/utils";
 import { ObjectMap } from "../models";
 import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";

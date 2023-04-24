@@ -1,6 +1,6 @@
-import { FindHandlesInput } from "@local/consts";
-import { RefreshIcon } from "@local/icons";
-import { userTranslationValidation } from "@local/validation";
+import { FindHandlesInput } from ":local/consts";
+import { RefreshIcon } from ":local/icons";
+import { userTranslationValidation } from ":local/validation";
 import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { useCallback, useContext, useEffect, useState } from "react";

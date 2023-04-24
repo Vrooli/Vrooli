@@ -1,5 +1,5 @@
-import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou } from "@local/consts";
-import { noteValidation } from "@local/validation";
+import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou } from ":local/consts";
+import { noteValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

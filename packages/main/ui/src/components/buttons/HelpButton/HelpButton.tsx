@@ -1,4 +1,4 @@
-import { HelpIcon } from "@local/icons";
+import { HelpIcon } from ":local/icons";
 import { Box, IconButton, Menu, Tooltip, useTheme } from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useState } from "react";

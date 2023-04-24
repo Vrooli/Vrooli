@@ -1,4 +1,4 @@
-import { BuildIcon } from "@local/icons";
+import { BuildIcon } from ":local/icons";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

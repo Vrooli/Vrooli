@@ -1,4 +1,4 @@
-import { StatsSmartContract } from "@local/consts";
+import { StatsSmartContract } from ":local/consts";
 import { GqlPartial } from "../types";
 
 export const statsSmartContract: GqlPartial<StatsSmartContract> = {

@@ -1,4 +1,4 @@
-import { TransferObjectType } from "@local/consts";
+import { TransferObjectType } from ":local/consts";
 import { enumToYup, id, message, opt, req, YupModel, yupObj } from "../utils";
 
 const transferObjectType = enumToYup(TransferObjectType);

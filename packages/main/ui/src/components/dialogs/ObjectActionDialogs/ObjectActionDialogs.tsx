@@ -1,4 +1,4 @@
-import { DeleteType, ReportFor } from "@local/consts";
+import { DeleteType, ReportFor } from ":local/consts";
 import { useContext } from "react";
 import { getDisplay } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";

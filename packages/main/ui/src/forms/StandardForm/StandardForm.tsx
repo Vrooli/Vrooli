@@ -1,7 +1,7 @@
-import { Session, StandardVersion } from "@local/consts";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID } from "@local/uuid";
-import { standardVersionTranslationValidation, standardVersionValidation } from "@local/validation";
+import { Session, StandardVersion } from ":local/consts";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID } from ":local/uuid";
+import { standardVersionTranslationValidation, standardVersionValidation } from ":local/validation";
 import { Stack } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";

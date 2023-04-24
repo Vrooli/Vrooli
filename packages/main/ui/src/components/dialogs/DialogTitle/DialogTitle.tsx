@@ -1,4 +1,4 @@
-import { CloseIcon } from "@local/icons";
+import { CloseIcon } from ":local/icons";
 import {
     Box,
     DialogTitle as MuiDialogTitle,

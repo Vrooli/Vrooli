@@ -1,5 +1,5 @@
-import { OrganizationIcon, UserIcon } from "@local/icons";
-import { exists } from "@local/utils";
+import { OrganizationIcon, UserIcon } from ":local/icons";
+import { exists } from ":local/utils";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";

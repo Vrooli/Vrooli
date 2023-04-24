@@ -1,4 +1,4 @@
-import { NotificationSubscription } from "@local/consts";
+import { NotificationSubscription } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

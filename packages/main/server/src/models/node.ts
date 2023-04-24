@@ -1,5 +1,5 @@
-import { MaxObjects, Node, NodeCreateInput, NodeUpdateInput } from "@local/consts";
-import { nodeValidation } from "@local/validation";
+import { MaxObjects, Node, NodeCreateInput, NodeUpdateInput } from ":local/consts";
+import { nodeValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

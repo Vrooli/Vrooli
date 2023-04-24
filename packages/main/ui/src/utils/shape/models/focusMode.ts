@@ -1,4 +1,4 @@
-import { FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from "@local/consts";
+import { FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { FocusModeFilterShape, shapeFocusModeFilter } from "./focusModeFilter";
 import { LabelShape, shapeLabel } from "./label";

@@ -1,4 +1,4 @@
-declare module "@local/icons";
+declare module ":local/icons";
 export * from ".";
 
 export interface SvgProps {

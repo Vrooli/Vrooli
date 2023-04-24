@@ -1,4 +1,4 @@
-import { SessionUser } from "@local/consts";
+import { SessionUser } from ":local/consts";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

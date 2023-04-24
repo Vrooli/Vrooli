@@ -1,4 +1,4 @@
-import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus, PaymentType } from "@local/consts";
+import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus, PaymentType } from ":local/consts";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper } from "../actions";
 import { rateLimit } from "../middleware";

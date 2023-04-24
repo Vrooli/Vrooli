@@ -1,8 +1,8 @@
-import { Node, NodeLink, RoutineVersion, Session } from "@local/consts";
-import { RoutineIcon } from "@local/icons";
-import { orDefault } from "@local/utils";
-import { DUMMY_ID, uuid } from "@local/uuid";
-import { routineVersionTranslationValidation, routineVersionValidation } from "@local/validation";
+import { Node, NodeLink, RoutineVersion, Session } from ":local/consts";
+import { RoutineIcon } from ":local/icons";
+import { orDefault } from ":local/utils";
+import { DUMMY_ID, uuid } from ":local/uuid";
+import { routineVersionTranslationValidation, routineVersionValidation } from ":local/validation";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";

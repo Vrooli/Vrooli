@@ -1,4 +1,4 @@
-import { RoutineVersion } from "@local/consts";
+import { RoutineVersion } from ":local/consts";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface RoutineUpsertProps extends UpsertProps<RoutineVersion> {

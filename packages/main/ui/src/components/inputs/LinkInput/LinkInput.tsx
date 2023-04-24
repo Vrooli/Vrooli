@@ -1,4 +1,4 @@
-import { SearchIcon } from "@local/icons";
+import { SearchIcon } from ":local/icons";
 import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";

@@ -1,4 +1,4 @@
-import { LINKS } from "@local/consts";
+import { LINKS } from ":local/consts";
 import { Box } from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";

@@ -1,5 +1,5 @@
-import { BookmarkFor, FindVersionInput, SmartContractVersion } from "@local/consts";
-import { EditIcon, EllipsisIcon, SmartContractIcon } from "@local/icons";
+import { BookmarkFor, FindVersionInput, SmartContractVersion } from ":local/consts";
+import { EditIcon, EllipsisIcon, SmartContractIcon } from ":local/icons";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { smartContractVersionFindOne } from "../../../api/generated/endpoints/smartContractVersion_findOne";

@@ -1,4 +1,4 @@
-import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@local/consts";
+import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";

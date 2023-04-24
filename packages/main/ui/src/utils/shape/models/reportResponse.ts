@@ -1,4 +1,4 @@
-import { ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput } from "@local/consts";
+import { ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput } from ":local/consts";
 import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 

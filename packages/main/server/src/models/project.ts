@@ -1,5 +1,5 @@
-import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou } from "@local/consts";
-import { projectValidation } from "@local/validation";
+import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou } from ":local/consts";
+import { projectValidation } from ":local/validation";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

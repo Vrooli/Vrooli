@@ -1,4 +1,4 @@
-import { ResourceList } from "@local/consts";
+import { ResourceList } from ":local/consts";
 import { useField } from "formik";
 import { useCallback } from "react";
 import { ResourceListHorizontal } from "../../lists/resource";

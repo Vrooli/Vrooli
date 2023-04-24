@@ -1,4 +1,4 @@
-import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from "@local/icons";
+import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from ":local/icons";
 import { Box, Button, IconButton, Palette, Typography, useTheme } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BasicSnackProps } from "../types";

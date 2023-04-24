@@ -1,4 +1,4 @@
-import { StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy } from "@local/consts";
+import { StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy } from ":local/consts";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";

@@ -1,6 +1,6 @@
-import { Bookmark, BookmarkFor } from "@local/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from "@local/icons";
-import { uuidValidate } from "@local/uuid";
+import { Bookmark, BookmarkFor } from ":local/consts";
+import { BookmarkFilledIcon, BookmarkOutlineIcon } from ":local/icons";
+import { uuidValidate } from ":local/uuid";
 import { Box, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "../../../utils/actions/objectActions";

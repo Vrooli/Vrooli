@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/consts";
+import { GqlModelType } from ":local/consts";
 import { getLogic } from ".";
 import { isRelationshipObject } from "../builders";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
