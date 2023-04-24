@@ -31,7 +31,7 @@ This is a high-level overview of the directory structure of the Vrooli codebase.
     ├── [components]({{ config.extra.repo_code }}/packages/ui/src/components) - Reusable React components  
     ├── [forms]({{ config.extra.repo_code }}/packages/ui/src/forms) - User input forms  
     ├── [graphql]({{ config.extra.repo_code }}/packages/ui/src/graphql)  
-    │   ├── [generated]({{ config.extra.repo_code }}/packages/ui/src/graphql/generated) - Code automatically generated from `yarn graphql-generate` script  
+    │   ├── [generated]({{ config.extra.repo_code }}/packages/ui/src/graphql/generated) - Code automatically generated from `npm run graphql-generate` script  
     │   ├── [endpoints]({{ config.extra.repo_code }}/packages/ui/src/graphql/endpoints) - GraphQL endpoints  
     │   ├── [partial]({{ config.extra.repo_code }}/packages/ui/src/graphql/partial) - Partial GraphQL selections  
     │   └── [utils]({{ config.extra.repo_code }}/packages/ui/src/graphql/utils) - GraphQL-specific utility functions  

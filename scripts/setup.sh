@@ -85,9 +85,6 @@ header "Installing Node (includes npm)"
 nvm install 16.16.0
 nvm alias default v16.16.0
 
-header "Installing Yarn"
-npm install -g yarn
-
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -118,21 +115,21 @@ fi
 # Less needs to be done for production environments
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
-    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.12.0 vite
+    npm install -g apollo@2.34.0 typescript ts-node nodemon prisma@4.12.0 vite
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
     if [ -z "${REINSTALL_MODULES}" ]; then
-        prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
+        prompt "Force install node_modules? This will delete all node_modules and the npm-shrinkwrap.json file. (y/N)"
         read -r REINSTALL_MODULES
     fi
     if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
         header "Deleting all node_modules directories"
         find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
-        header "Deleting yarn.lock"
-        rm "${HERE}/../yarn.lock"
+        header "Deleting npm-shrinkwrap.json"
+        rm "${HERE}/../npm-shrinkwrap.json"
     fi
     header "Installing local dependencies"
-    cd "${HERE}/.." && yarn cache clean && yarn
+    cd "${HERE}/.." && npm cache clean --force && npm install
 
     header "Generating type models for Prisma"
     cd "${HERE}/../packages/main/server" && prisma generate --schema ./src/db/schema.prisma

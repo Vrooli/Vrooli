@@ -91,8 +91,8 @@ if [ "${AUTO_DETECT_VERSION}" = false ]; then
         info "Updating package.json for ${dir}"
         # Go to directory
         cd ${dir}
-        # Patch with yarn
-        yarn version patch --new-version ${VERSION} --no-git-tag-version
+        # Update version number
+        npm version "${VERSION}" --no-git-tag-version
         # Go back to packages directory
         cd ${HERE}/../packages
     done
@@ -103,7 +103,7 @@ cd ${HERE}/../packages/server
 
 # Build server
 info "Building server..."
-yarn build
+npm run build
 if [ $? -ne 0 ]; then
     error "Failed to build server"
     exit 1
@@ -142,7 +142,7 @@ fi
 
 # Build React app
 info "Building React app..."
-yarn build
+npm run build
 if [ $? -ne 0 ]; then
     error "Failed to build React app"
     exit 1

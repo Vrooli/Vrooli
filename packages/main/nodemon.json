@@ -1,11 +1,17 @@
 {
-    "ignore": [".git", "node_modules", "*.test.ts"],
-    "watch": ["./src"],
+    "ignore": [
+        ".git",
+        "node_modules",
+        "*.test.ts"
+    ],
+    "watch": [
+        "./src"
+    ],
     "ext": "ts",
     "execMap": {
         "ts": "ts-node"
     },
     "events": {
-        "restart": "yarn build"
-      }
-  }
+        "restart": "npm run build"
+    }
+}
