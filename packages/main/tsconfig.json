@@ -7,6 +7,9 @@
             "ESNext"
         ],
         "paths": {
+            // "@local/*": [
+            //     "./*/src/*"
+            // ],
             "@local/consts": [
                 "./consts/src/*"
             ],
@@ -32,6 +35,16 @@
                 "./validation/src/*"
             ],
         },
+        // "rootDirs": [
+        //     "packages/main/consts/src",
+        //     "packages/main/icons/src",
+        //     "packages/main/server/src",
+        //     "packages/main/translations/src",
+        //     "packages/main/ui/src",
+        //     "packages/main/uuid/src",
+        //     "packages/main/utils/src",
+        //     "packages/main/validation/src"
+        // ],
         "typeRoots": [
             "./server/src/types",
         ],
@@ -72,6 +85,30 @@
     "references": [
         {
             "path": "./tsconfig.node.json"
+        },
+        {
+            "path": "./consts/tsconfig.json"
+        },
+        {
+            "path": "./icons/tsconfig.json"
+        },
+        {
+            "path": "./server/tsconfig.json"
+        },
+        {
+            "path": "./translations/tsconfig.json"
+        },
+        {
+            "path": "./ui/tsconfig.json"
+        },
+        {
+            "path": "./uuid/tsconfig.json"
+        },
+        {
+            "path": "./utils/tsconfig.json"
+        },
+        {
+            "path": "./validation/tsconfig.json"
         }
     ]
 }
