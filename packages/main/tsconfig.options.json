@@ -16,9 +16,6 @@
         "lib": [
             "ESNext"
         ],
-        "typeRoots": [
-            "./server/src/types"
-        ],
         "allowJs": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
