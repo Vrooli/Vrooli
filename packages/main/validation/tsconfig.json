@@ -1,10 +1,22 @@
 {
-    "extends": "../tsconfig.json",
+    "extends": "../tsconfig.options.json",
     "compilerOptions": {
         "rootDir": "./src",
-        "outDir": "./dist"
+        "outDir": "./dist",
+        "composite": true,
+        "baseUrl": ".",
+        "paths": {
+            "@local/consts": [
+                "../consts/src",
+            ],
+        }
     },
     "include": [
         "src/**/*"
+    ],
+    "references": [
+        {
+            "path": "../consts/src"
+        }
     ]
 }

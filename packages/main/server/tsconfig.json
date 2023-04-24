@@ -1,10 +1,52 @@
 {
-    "extends": "../tsconfig.json",
+    "extends": "../tsconfig.options.json",
     "compilerOptions": {
         "rootDir": "./src",
-        "outDir": "./dist"
+        "outDir": "./dist",
+        "composite": true,
+        "baseUrl": ".",
+        "paths": {
+            "@local/consts": [
+                "../consts/src",
+            ],
+            "@local/translations": [
+                "../translations/src",
+            ],
+            "@local/ui": [
+                "../ui/src",
+            ],
+            "@local/utils": [
+                "../utils/src",
+            ],
+            "@local/uuid": [
+                "../uuid/src",
+            ],
+            "@local/validation": [
+                "../validation/src",
+            ],
+        }
     },
     "include": [
         "src/**/*"
+    ],
+    "references": [
+        {
+            "path": "../consts/src"
+        },
+        {
+            "path": "../translations/src"
+        },
+        {
+            "path": "../ui/src"
+        },
+        {
+            "path": "../utils/src"
+        },
+        {
+            "path": "../uuid/src"
+        },
+        {
+            "path": "../validation/src"
+        }
     ]
 }

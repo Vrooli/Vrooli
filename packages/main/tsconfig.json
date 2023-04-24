@@ -1,114 +1,30 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "rootDir": "./src",
-        "outDir": "./dist",
-        "lib": [
-            "ESNext"
-        ],
-        "paths": {
-            // "@local/*": [
-            //     "./*/src/*"
-            // ],
-            "@local/consts": [
-                "./consts/src/*"
-            ],
-            "@local/icons": [
-                "./icons/src/*"
-            ],
-            "@local/server": [
-                "./server/src/*"
-            ],
-            "@local/translations": [
-                "./translations/src/*"
-            ],
-            "@local/ui": [
-                "./ui/src/*"
-            ],
-            "@local/uuid": [
-                "./uuid/src/*"
-            ],
-            "@local/utils": [
-                "./utils/src/*"
-            ],
-            "@local/validation": [
-                "./validation/src/*"
-            ],
-        },
-        // "rootDirs": [
-        //     "packages/main/consts/src",
-        //     "packages/main/icons/src",
-        //     "packages/main/server/src",
-        //     "packages/main/translations/src",
-        //     "packages/main/ui/src",
-        //     "packages/main/uuid/src",
-        //     "packages/main/utils/src",
-        //     "packages/main/validation/src"
-        // ],
-        "typeRoots": [
-            "./server/src/types",
-        ],
-        "allowJs": true,
-        "skipLibCheck": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "strict": true,
-        "forceConsistentCasingInFileNames": true,
-        "noFallthroughCasesInSwitch": true,
-        "moduleResolution": "node",
-        "module": "esnext",
-        "resolveJsonModule": true,
-        "isolatedModules": true,
-        "jsx": "react-jsx",
-        "noImplicitAny": false,
-        "noImplicitThis": true,
-        "sourceMap": true,
-        "strictNullChecks": true,
-        "removeComments": true,
-    },
-    "include": [
-        "consts/src/**/*",
-        "icons/src/**/*",
-        "server/src/**/*",
-        "translations/src/**/*",
-        "ui/public/**/*",
-        "ui/src/**/*",
-        "utils/src/**/*",
-        "uuid/src/**/*",
-        "validation/src/**/*",
-    ],
-    "exclude": [
-        "**/node_modules",
-        "**/.*/",
-        "server/src/auth/message_signing/rust/pkg/*",
-    ],
+    "extends": "./tsconfig.options.json",
+    "files": [],
     "references": [
         {
-            "path": "./tsconfig.node.json"
+            "path": "consts"
         },
         {
-            "path": "./consts/tsconfig.json"
+            "path": "icons"
         },
         {
-            "path": "./icons/tsconfig.json"
+            "path": "server"
         },
         {
-            "path": "./server/tsconfig.json"
+            "path": "translations"
         },
         {
-            "path": "./translations/tsconfig.json"
+            "path": "ui"
         },
         {
-            "path": "./ui/tsconfig.json"
+            "path": "utils"
         },
         {
-            "path": "./uuid/tsconfig.json"
+            "path": "uuid"
         },
         {
-            "path": "./utils/tsconfig.json"
-        },
-        {
-            "path": "./validation/tsconfig.json"
+            "path": "validation"
         }
-    ]
+    ],
 }
