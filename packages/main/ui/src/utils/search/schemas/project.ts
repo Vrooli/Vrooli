@@ -1,4 +1,4 @@
-import { ProjectSortBy } from "@local/shared;";
+import { ProjectSortBy } from "@local/shared";
 import { projectFindMany } from "../../../api/generated/endpoints/project_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

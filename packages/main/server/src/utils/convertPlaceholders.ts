@@ -1,5 +1,5 @@
 
-import { GqlModelType } from "@local/shared;";
+import { GqlModelType } from "@local/shared";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { IdsByAction, IdsByType } from "./types";

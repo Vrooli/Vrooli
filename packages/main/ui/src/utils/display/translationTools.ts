@@ -1,6 +1,4 @@
-import { Session } from ":local/consts";
-import { CommonKey, ErrorKey } from ":local/translations";
-import { uuid } from ":local/uuid";
+import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { ObjectSchema, ValidationError } from "yup";
@@ -464,7 +462,7 @@ export const loadLocale = async (locale: string): Promise<Locale> => {
  */
 export const getTranslation = <
     Translation extends { language: string },
->(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+>(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny = true): Partial<Translation> => {
     if (!obj || !obj.translations) return {};
     // Loop through translations
     for (const translation of obj.translations) {

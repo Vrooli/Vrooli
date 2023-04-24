@@ -1,7 +1,7 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { NodeLink } from "@local/shared;";
+import { NodeLink } from "@local/shared";
 import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { SessionContext } from "../../../../utils/SessionContext";

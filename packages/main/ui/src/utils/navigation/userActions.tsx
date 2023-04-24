@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, Session } from ":local/consts";
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from ":local/icons";
-import { CommonKey } from ":local/translations";
+import { CommonKey, CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, LINKS, NotificationsAllIcon, PremiumIcon, SearchIcon, Session, SvgComponent } from "@local/shared";
 import {
     Badge,
     BottomNavigationAction,
     Button,
-    IconButton
+    IconButton,
 } from "@mui/material";
 import i18next from "i18next";
 import { checkIfLoggedIn } from "../authentication/session";
-import { openLink, SetLocation } from "../route";
+import { SetLocation, openLink } from "../route";
 
 export enum ACTION_TAGS {
     Home = "Home",

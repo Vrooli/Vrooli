@@ -1,4 +1,4 @@
-import { FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared;";
+import { FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

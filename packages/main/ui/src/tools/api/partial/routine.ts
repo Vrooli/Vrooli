@@ -1,4 +1,4 @@
-import { Routine, RoutineYou } from "@local/shared;";
+import { Routine, RoutineYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

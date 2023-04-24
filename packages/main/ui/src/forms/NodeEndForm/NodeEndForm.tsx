@@ -1,16 +1,13 @@
-import { NodeType, RoutineVersion, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID, uuid } from ":local/uuid";
-import { nodeTranslationValidation, nodeValidation } from ":local/validation";
+import { DUMMY_ID, NodeType, RoutineVersion, Session, nodeTranslationValidation, nodeValidation, orDefault, uuid } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "../../components/containers/EditableTextCollapse/EditableTextCollapse";
+import { SessionContext } from "../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { shapeNode } from "../../utils/shape/models/node";
 import { BaseForm } from "../BaseForm/BaseForm";

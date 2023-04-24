@@ -1,5 +1,4 @@
-import { nodeLoopValidation } from "@local/shared";
-import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from "@local/shared;";
+import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, nodeLoopValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

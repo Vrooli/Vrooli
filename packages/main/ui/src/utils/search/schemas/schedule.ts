@@ -1,4 +1,4 @@
-import { ScheduleSortBy } from "@local/shared;";
+import { ScheduleSortBy } from "@local/shared";
 import { scheduleFindMany } from "../../../api/generated/endpoints/schedule_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

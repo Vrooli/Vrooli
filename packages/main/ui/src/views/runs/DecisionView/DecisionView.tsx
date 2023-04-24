@@ -1,11 +1,10 @@
-import { Node, NodeLink, NodeType } from ":local/consts";
-import { OpenInNewIcon } from ":local/icons";
+import { Node, NodeLink, NodeType, OpenInNewIcon } from "@local/shared";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { multiLineEllipsis } from "../../../styles";
-import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { SessionContext } from "../../../utils/SessionContext";
+import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { DecisionViewProps } from "../types";
 
 type Decision = {

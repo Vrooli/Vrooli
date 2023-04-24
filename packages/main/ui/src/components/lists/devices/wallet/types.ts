@@ -1,4 +1,4 @@
-import { Wallet } from ":local/consts";
+import { Wallet } from "@local/shared";
 
 export interface WalletListProps {
     handleUpdate: (wallets: Wallet[]) => void;

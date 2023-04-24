@@ -1,4 +1,4 @@
-import { StatsQuizSortBy } from "@local/shared;";
+import { StatsQuizSortBy } from "@local/shared";
 import { statsQuizFindMany } from "../../../api/generated/endpoints/statsQuiz_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

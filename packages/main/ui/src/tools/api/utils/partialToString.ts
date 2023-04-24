@@ -1,4 +1,4 @@
-import { exists } from "@local/shared;";
+import { exists } from "@local/shared";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";

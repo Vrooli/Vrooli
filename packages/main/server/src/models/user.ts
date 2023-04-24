@@ -1,5 +1,4 @@
-import { userValidation } from "@local/shared";
-import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, UserYou } from "@local/shared;";
+import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, UserYou, userValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

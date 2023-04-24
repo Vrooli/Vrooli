@@ -1,4 +1,4 @@
-import { CommentIcon } from "@local/shared;";
+import { CommentIcon } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "../../../styles";

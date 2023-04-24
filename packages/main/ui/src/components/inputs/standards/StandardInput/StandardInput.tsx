@@ -1,4 +1,4 @@
-import { BuildIcon, VisibleIcon } from "@local/shared;";
+import { BuildIcon, VisibleIcon } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useState } from "react";

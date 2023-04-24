@@ -1,4 +1,4 @@
-import { Quiz, QuizTranslation, QuizYou } from "@local/shared;";
+import { Quiz, QuizTranslation, QuizYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,4 +1,4 @@
-import { RoleSortBy } from "@local/shared;";
+import { RoleSortBy } from "@local/shared";
 import { roleFindMany } from "../../../api/generated/endpoints/role_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

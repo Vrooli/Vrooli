@@ -1,5 +1,4 @@
-import { omit } from "@local/shared";
-import { GqlModelType } from "@local/shared;";
+import { GqlModelType, omit } from "@local/shared";
 import pkg from "lodash";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";

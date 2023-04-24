@@ -1,4 +1,4 @@
-import { CloseIcon } from "@local/shared;";
+import { CloseIcon } from "@local/shared";
 import {
     Box,
     IconButton,

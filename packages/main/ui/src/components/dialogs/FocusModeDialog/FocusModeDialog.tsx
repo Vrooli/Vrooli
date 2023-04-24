@@ -1,5 +1,4 @@
-import { DUMMY_ID, focusModeValidation } from "@local/shared";
-import { FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from "@local/shared;";
+import { DUMMY_ID, FocusMode, FocusModeCreateInput, FocusModeUpdateInput, focusModeValidation } from "@local/shared";
 import { Formik } from "formik";
 import { useCallback, useRef } from "react";
 import { focusModeCreate } from "../../../api/generated/endpoints/focusMode_create";

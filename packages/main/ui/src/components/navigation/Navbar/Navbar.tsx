@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS } from "@local/shared;";
+import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { noSelect } from "../../../styles";

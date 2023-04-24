@@ -1,6 +1,4 @@
-import { ProfileUpdateInput, User } from ":local/consts";
-import { DUMMY_ID } from ":local/uuid";
-import { userValidation } from ":local/validation";
+import { DUMMY_ID, ProfileUpdateInput, User, userValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { Formik } from "formik";
 import { useContext } from "react";
@@ -10,10 +8,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
 import { SettingsProfileForm } from "../../../forms/settings";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getUserLanguages } from "../../../utils/display/translationTools";
 import { useProfileQuery } from "../../../utils/hooks/useProfileQuery";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { shapeProfile } from "../../../utils/shape/models/profile";
 import { SettingsProfileViewProps } from "../types";
 

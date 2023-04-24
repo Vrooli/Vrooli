@@ -1,5 +1,4 @@
-import { routineValidation } from "@local/shared";
-import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou } from "@local/shared;";
+import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou, routineValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

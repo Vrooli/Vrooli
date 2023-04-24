@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared;";
+import { GqlModelType } from "@local/shared";
 import pkg from "lodash";
 import { PrismaUpdate } from "../builders/types";
 import { getLogic } from "../getters";

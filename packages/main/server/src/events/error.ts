@@ -1,4 +1,4 @@
-import { ErrorKey } from "@local/shared;";
+import { ErrorKey } from "@local/shared";
 import { ApolloError } from "apollo-server-express";
 import i18next from "i18next";
 import { randomString } from "../auth";

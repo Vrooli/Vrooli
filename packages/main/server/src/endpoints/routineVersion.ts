@@ -1,4 +1,4 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from "@local/shared;";
+import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

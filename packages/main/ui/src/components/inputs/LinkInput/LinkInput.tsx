@@ -1,4 +1,4 @@
-import { SearchIcon } from "@local/shared;";
+import { SearchIcon } from "@local/shared";
 import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";

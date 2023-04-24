@@ -1,5 +1,4 @@
-import { uuidValidate } from "@local/shared";
-import { COOKIE } from "@local/shared;";
+import { COOKIE, uuidValidate } from "@local/shared";
 import { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import jwt from "jsonwebtoken";

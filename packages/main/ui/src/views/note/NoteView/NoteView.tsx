@@ -1,4 +1,4 @@
-import { FindVersionInput, NoteVersion } from ":local/consts";
+import { FindVersionInput, NoteVersion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { noteVersionFindOne } from "../../../api/generated/endpoints/noteVersion_findOne";
@@ -7,11 +7,11 @@ import { SideActionButtons } from "../../../components/buttons/SideActionButtons
 import { MarkdownInputBase } from "../../../components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "../../../utils/hooks/useObjectFromUrl";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { NoteViewProps } from "../types";
 
 export const NoteView = ({

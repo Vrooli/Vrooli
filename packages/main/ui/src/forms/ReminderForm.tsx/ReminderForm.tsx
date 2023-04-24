@@ -1,11 +1,8 @@
-import { Reminder, Session } from ":local/consts";
-import { AddIcon, CloseIcon, DeleteIcon, DragIcon, ListNumberIcon } from ":local/icons";
-import { DUMMY_ID } from ":local/uuid";
-import { reminderValidation } from ":local/validation";
+import { AddIcon, CloseIcon, DUMMY_ID, DeleteIcon, DragIcon, ListNumberIcon, Reminder, Session, reminderValidation } from "@local/shared";
 import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { forwardRef, useCallback } from "react";
-import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { Subheader } from "../../components/text/Subheader/Subheader";

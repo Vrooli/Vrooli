@@ -1,7 +1,7 @@
-import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from ":local/consts";
+import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { hasObjectChanged } from "../general";
-import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
+import { StandardVersionShape, shapeStandardVersion } from "./standardVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RoutineVersionInputTranslationShape = Pick<RoutineVersionInputTranslation, "id" | "language" | "description" | "helpText"> & {

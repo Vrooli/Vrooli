@@ -1,4 +1,4 @@
-import { Count, FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, NotificationSortBy, Success } from "@local/shared;";
+import { Count, FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, NotificationSortBy, Success } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper } from "../actions";
 import { assertRequestFrom } from "../auth";

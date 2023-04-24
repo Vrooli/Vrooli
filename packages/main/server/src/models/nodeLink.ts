@@ -1,5 +1,4 @@
-import { nodeLinkValidation } from "@local/shared";
-import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "@local/shared;";
+import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, nodeLinkValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

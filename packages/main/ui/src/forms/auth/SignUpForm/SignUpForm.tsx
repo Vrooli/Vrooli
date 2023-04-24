@@ -1,5 +1,4 @@
-import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from ":local/consts";
-import { emailSignUpFormValidation } from ":local/validation";
+import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session, emailSignUpFormValidation } from "@local/shared";
 import {
     Button,
     Checkbox,
@@ -7,7 +6,7 @@ import {
     Grid,
     Link, TextField,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { Field, Formik } from "formik";

@@ -1,9 +1,9 @@
-import { User } from ":local/consts";
+import { User } from "@local/shared";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useCustomLazyQuery } from "../../api";
 import { userProfile } from "../../api/generated/endpoints/user_profile";
-import { getCurrentUser } from "../authentication/session";
 import { SessionContext } from "../SessionContext";
+import { getCurrentUser } from "../authentication/session";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);

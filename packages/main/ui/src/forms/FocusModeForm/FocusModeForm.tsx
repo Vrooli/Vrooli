@@ -1,5 +1,4 @@
-import { Schedule } from ":local/consts";
-import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from ":local/icons";
+import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon, Schedule } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { forwardRef, useState } from "react";

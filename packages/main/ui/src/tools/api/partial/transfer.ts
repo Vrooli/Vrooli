@@ -1,4 +1,4 @@
-import { Transfer, TransferYou } from "@local/shared;";
+import { Transfer, TransferYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

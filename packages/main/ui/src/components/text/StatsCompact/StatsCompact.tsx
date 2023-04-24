@@ -1,4 +1,4 @@
-import { ReactionFor } from "@local/shared;";
+import { ReactionFor } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { getCounts, getYou } from "../../../utils/display/listTools";

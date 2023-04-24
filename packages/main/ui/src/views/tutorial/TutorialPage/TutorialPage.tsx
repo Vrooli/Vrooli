@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from ":local/icons";
+import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from "@local/shared";
 import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";

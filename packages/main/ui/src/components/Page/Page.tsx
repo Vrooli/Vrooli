@@ -1,4 +1,4 @@
-import { LINKS } from "@local/shared;";
+import { LINKS } from "@local/shared";
 import { useContext } from "react";
 import { SessionContext } from "../../utils/SessionContext";
 import { PubSub } from "../../utils/pubsub";

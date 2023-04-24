@@ -1,4 +1,4 @@
-import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from "@local/shared;";
+import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from "@local/shared";
 import { useContext } from "react";
 import { SessionContext } from "../../../../utils/SessionContext";
 import { getDisplay } from "../../../../utils/display/listTools";

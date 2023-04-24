@@ -1,5 +1,4 @@
-import { runRoutineInputValidation } from "@local/shared";
-import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from "@local/shared;";
+import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, runRoutineInputValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { RoutineVersionInputModel } from ".";
 import { selPad } from "../builders";

@@ -1,4 +1,4 @@
-import { DotNotation } from "@local/shared;";
+import { DotNotation } from "@local/shared";
 import { Displayer, ModelLogic, ModelLogicType } from "../models/types";
 
 /**

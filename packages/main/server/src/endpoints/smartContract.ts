@@ -1,4 +1,4 @@
-import { FindByIdInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "@local/shared;";
+import { FindByIdInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

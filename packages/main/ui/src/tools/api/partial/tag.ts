@@ -1,4 +1,4 @@
-import { Tag, TagTranslation, TagYou } from "@local/shared;";
+import { Tag, TagTranslation, TagYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

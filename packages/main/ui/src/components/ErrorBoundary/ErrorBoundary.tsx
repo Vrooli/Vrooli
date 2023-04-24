@@ -1,4 +1,4 @@
-import { HomeIcon, RefreshIcon } from "@local/shared;";
+import { HomeIcon, RefreshIcon } from "@local/shared";
 import { Button, Stack, Typography } from "@mui/material";
 import { Component } from "react";
 import { stringifySearchParams } from "../../utils/route";

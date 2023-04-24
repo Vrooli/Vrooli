@@ -1,19 +1,16 @@
-import { Session, SmartContractVersion } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { smartContractVersionTranslationValidation, smartContractVersionValidation } from ":local/validation";
+import { DUMMY_ID, Session, SmartContractVersion, orDefault, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
 import { VersionInput } from "../../components/inputs/VersionInput/VersionInput";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
-import { shapeSmartContractVersion, SmartContractVersionShape } from "../../utils/shape/models/smartContractVersion";
+import { SmartContractVersionShape, shapeSmartContractVersion } from "../../utils/shape/models/smartContractVersion";
 import { BaseForm } from "../BaseForm/BaseForm";
 import { SmartContractFormProps } from "../types";
 

@@ -1,4 +1,4 @@
-import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "@local/shared;";
+import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "@local/shared";
 import {
     Box,
     Stack,

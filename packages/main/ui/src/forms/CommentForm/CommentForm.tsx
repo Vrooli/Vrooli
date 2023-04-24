@@ -1,15 +1,12 @@
-import { Comment, CommentFor, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { commentTranslationValidation, commentValidation } from ":local/validation";
+import { Comment, CommentFor, DUMMY_ID, Session, commentTranslationValidation, commentValidation, orDefault } from "@local/shared";
 import { Stack } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { SessionContext } from "../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { CommentShape, shapeComment } from "../../utils/shape/models/comment";
 import { BaseForm } from "../BaseForm/BaseForm";

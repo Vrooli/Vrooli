@@ -1,5 +1,4 @@
-import { Award, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from "@local/shared";
-import { AwardKey } from "@local/shared;";
+import { Award, AwardKey, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";

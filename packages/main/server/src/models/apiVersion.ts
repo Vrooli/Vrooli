@@ -1,5 +1,4 @@
-import { apiVersionValidation } from "@local/shared";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, VersionYou } from "@local/shared;";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, VersionYou, apiVersionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

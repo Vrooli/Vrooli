@@ -1,5 +1,4 @@
-import { lowercaseFirstLetter } from "@local/shared";
-import { CopyInput, CopyResult, CopyType } from "@local/shared;";
+import { CopyInput, CopyResult, CopyType, lowercaseFirstLetter } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { copyHelper } from "../actions";
 import { rateLimit } from "../middleware";

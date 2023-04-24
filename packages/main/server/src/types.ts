@@ -1,4 +1,4 @@
-import { FocusModeStopCondition, GqlModelType, SessionUser } from "@local/shared;";
+import { FocusModeStopCondition, GqlModelType, SessionUser } from "@local/shared";
 import pkg from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { Context } from "./middleware";

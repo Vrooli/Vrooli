@@ -1,4 +1,4 @@
-import { ResourceList } from "@local/shared;";
+import { ResourceList } from "@local/shared";
 import { useField } from "formik";
 import { useCallback } from "react";
 import { ResourceListHorizontal } from "../../lists/resource";

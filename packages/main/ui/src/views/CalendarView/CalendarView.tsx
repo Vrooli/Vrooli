@@ -1,21 +1,19 @@
-import { Schedule, ScheduleSearchResult } from ":local/consts";
-import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from ":local/icons";
-import { CommonKey } from ":local/translations";
-import { calculateOccurrences } from ":local/utils";
+import { AddIcon, CommonKey, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, calculateOccurrences } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Calendar, dateFnsLocalizer, DateLocalizer } from "react-big-calendar";
+import { Calendar, DateLocalizer, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
+import { FullPageSpinner } from "../../components/FullPageSpinner/FullPageSpinner";
+import { PageTabs } from "../../components/PageTabs/PageTabs";
 import { ColorIconButton } from "../../components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "../../components/buttons/SideActionButtons/SideActionButtons";
 import { ScheduleDialog } from "../../components/dialogs/ScheduleDialog/ScheduleDialog";
-import { FullPageSpinner } from "../../components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
-import { PageTabs } from "../../components/PageTabs/PageTabs";
 import { PageTab } from "../../components/types";
 import { CalendarEvent } from "../../types";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { getDisplay } from "../../utils/display/listTools";
 import { getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools";
@@ -24,7 +22,6 @@ import { useFindMany } from "../../utils/hooks/useFindMany";
 import { useWindowSize } from "../../utils/hooks/useWindowSize";
 import { addSearchParams, parseSearchParams, useLocation } from "../../utils/route";
 import { CalendarPageTabOption } from "../../utils/search/objectToSearch";
-import { SessionContext } from "../../utils/SessionContext";
 import { CalendarViewProps } from "../types";
 
 // Tab data type

@@ -1,4 +1,4 @@
-import { NodeEnd } from ":local/consts";
+import { NodeEnd } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

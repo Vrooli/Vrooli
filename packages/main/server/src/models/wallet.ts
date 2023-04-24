@@ -1,5 +1,4 @@
-import { walletValidation } from "@local/shared";
-import { MaxObjects, Wallet, WalletUpdateInput } from "@local/shared;";
+import { MaxObjects, Wallet, WalletUpdateInput, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";

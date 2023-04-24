@@ -1,4 +1,4 @@
-import { Node, NodeEnd } from "@local/shared;";
+import { Node, NodeEnd } from "@local/shared";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { useCallback, useMemo, useState } from "react";

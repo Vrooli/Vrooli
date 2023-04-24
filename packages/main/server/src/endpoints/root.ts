@@ -3,7 +3,7 @@ import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from "graphql-upload";
 import { readFiles, saveFiles } from "../utils";
 // import ogs from 'open-graph-scraper';
-import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from "@local/shared;";
+import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from "@local/shared";
 import { CustomError } from "../events/error";
 import { rateLimit } from "../middleware";
 import { GQLEndpoint, UnionResolver } from "../types";

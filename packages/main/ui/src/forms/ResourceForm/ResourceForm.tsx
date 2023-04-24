@@ -1,8 +1,4 @@
-import { Resource, ResourceUsedFor, Session } from ":local/consts";
-import { CommonKey } from ":local/translations";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { resourceValidation, userTranslationValidation } from ":local/validation";
+import { CommonKey, DUMMY_ID, Resource, ResourceUsedFor, Session, orDefault, resourceValidation, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,10 +7,10 @@ import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInp
 import { LinkInput } from "../../components/inputs/LinkInput/LinkInput";
 import { Selector } from "../../components/inputs/Selector/Selector";
 import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { SessionContext } from "../../utils/SessionContext";
 import { getResourceIcon } from "../../utils/display/getResourceIcon";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { ResourceShape, shapeResource } from "../../utils/shape/models/resource";
 import { BaseForm } from "../BaseForm/BaseForm";

@@ -1,4 +1,4 @@
-import { User, UserTranslation, UserYou } from "@local/shared;";
+import { User, UserTranslation, UserYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

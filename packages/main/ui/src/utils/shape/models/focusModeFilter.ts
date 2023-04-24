@@ -1,6 +1,6 @@
-import { FocusModeFilter, FocusModeFilterCreateInput } from ":local/consts";
+import { FocusModeFilter, FocusModeFilterCreateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createPrims, createRel } from "./tools";
 
 export type FocusModeFilterShape = Pick<FocusModeFilter, "id" | "filterType"> & {

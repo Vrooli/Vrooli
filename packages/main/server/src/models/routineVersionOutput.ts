@@ -1,5 +1,4 @@
-import { routineVersionOutputValidation } from "@local/shared";
-import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from "@local/shared;";
+import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, routineVersionOutputValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

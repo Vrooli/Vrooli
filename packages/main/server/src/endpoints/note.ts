@@ -1,4 +1,4 @@
-import { FindByIdInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput } from "@local/shared;";
+import { FindByIdInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

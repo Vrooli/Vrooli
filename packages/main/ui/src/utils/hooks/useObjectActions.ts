@@ -1,13 +1,12 @@
-import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from ":local/consts";
-import { exists, setDotNotationValue } from ":local/utils";
+import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor, exists, setDotNotationValue } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "../../types";
-import { getAvailableActions, ObjectAction, ObjectActionComplete } from "../actions/objectActions";
-import { getDisplay, getYou, getYouDot, ListObjectType } from "../display/listTools";
+import { SessionContext } from "../SessionContext";
+import { ObjectAction, ObjectActionComplete, getAvailableActions } from "../actions/objectActions";
+import { ListObjectType, getDisplay, getYou, getYouDot } from "../display/listTools";
 import { openObject, openObjectEdit } from "../navigation/openObject";
 import { PubSub } from "../pubsub";
 import { SetLocation } from "../route";
-import { SessionContext } from "../SessionContext";
 import { useBookmarker } from "./useBookmarker";
 import { useCopier } from "./useCopier";
 import { useVoter } from "./useVoter";

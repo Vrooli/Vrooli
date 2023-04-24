@@ -1,8 +1,8 @@
-import { Api, ApiCreateInput, ApiUpdateInput } from ":local/consts";
+import { Api, ApiCreateInput, ApiUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { ApiVersionShape, shapeApiVersion } from "./apiVersion";
 import { LabelShape, shapeLabel } from "./label";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 

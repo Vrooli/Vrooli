@@ -1,4 +1,4 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon } from "@local/shared;";
+import { ArrowDropDownIcon, ArrowDropUpIcon } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";

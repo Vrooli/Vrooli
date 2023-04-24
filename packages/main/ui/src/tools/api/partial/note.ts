@@ -1,4 +1,4 @@
-import { Note, NoteYou } from "@local/shared;";
+import { Note, NoteYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,5 +1,4 @@
-import { apiKeyValidation, uuid } from "@local/shared";
-import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, MaxObjects } from "@local/shared;";
+import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, MaxObjects, apiKeyValidation, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { randomString } from "../auth";
 import { noNull } from "../builders";

@@ -1,4 +1,4 @@
-import { InputType } from "@local/shared;";
+import { InputType } from "@local/shared";
 import { FieldData, FieldDataBase } from "../../../forms/types";
 
 /**

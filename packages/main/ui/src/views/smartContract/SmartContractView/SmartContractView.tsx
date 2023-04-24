@@ -1,5 +1,4 @@
-import { BookmarkFor, FindVersionInput, SmartContractVersion } from ":local/consts";
-import { EditIcon, EllipsisIcon, SmartContractIcon } from ":local/icons";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, SmartContractIcon, SmartContractVersion } from "@local/shared";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { smartContractVersionFindOne } from "../../../api/generated/endpoints/smartContractVersion_findOne";
@@ -10,12 +9,12 @@ import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/O
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { DateDisplay } from "../../../components/text/DateDisplay/DateDisplay";
+import { SessionContext } from "../../../utils/SessionContext";
 import { placeholderColor } from "../../../utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "../../../utils/hooks/useObjectFromUrl";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
@@ -155,7 +154,7 @@ export const SmartContractView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? "No description set"}</Typography>
+                        <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? "No description set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

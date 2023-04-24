@@ -1,4 +1,4 @@
-import { DeleteType, ReportFor } from "@local/shared;";
+import { DeleteType, ReportFor } from "@local/shared";
 import { useContext } from "react";
 import { SessionContext } from "../../../utils/SessionContext";
 import { getDisplay } from "../../../utils/display/listTools";

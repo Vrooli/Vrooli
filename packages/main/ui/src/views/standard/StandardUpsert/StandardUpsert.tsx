@@ -1,4 +1,4 @@
-import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from ":local/consts";
+import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { standardVersionCreate } from "../../../api/generated/endpoints/standardVersion_create";
@@ -9,10 +9,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "../../../forms/StandardForm/StandardForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { StandardUpsertProps } from "../types";
 
 export const StandardUpsert = ({

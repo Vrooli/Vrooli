@@ -1,4 +1,4 @@
-import { View } from "@local/shared;";
+import { View } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

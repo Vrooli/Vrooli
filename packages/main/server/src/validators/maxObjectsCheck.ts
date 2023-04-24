@@ -11,7 +11,7 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared;";
+import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";

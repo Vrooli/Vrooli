@@ -1,4 +1,4 @@
-import { StatsStandardSearchInput, StatsStandardSearchResult } from "@local/shared;";
+import { StatsStandardSearchInput, StatsStandardSearchResult } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { readManyHelper } from "../actions";
 import { rateLimit } from "../middleware";

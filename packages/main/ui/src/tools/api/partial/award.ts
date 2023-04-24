@@ -1,4 +1,4 @@
-import { Award } from ":local/consts";
+import { Award } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const award: GqlPartial<Award> = {

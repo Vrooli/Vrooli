@@ -1,10 +1,10 @@
-import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from ":local/icons";
-import { CommonKey } from ":local/translations";
+import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from ":icons";
+import { CommonKey } from "@local/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { SearchList } from "../../../components/lists/SearchList/SearchList";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
-import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { PageTab } from "../../../components/types";
 import { addSearchParams, parseSearchParams, useLocation } from "../../../utils/route";
 import { HistoryPageTabOption, SearchType } from "../../../utils/search/objectToSearch";

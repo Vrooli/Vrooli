@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared;";
+import { GqlModelType } from "@local/shared";
 import { ApiModel } from "./api";
 import { ApiKeyModel } from "./apiKey";
 import { ApiVersionModel } from "./apiVersion";

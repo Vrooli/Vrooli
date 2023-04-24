@@ -1,5 +1,4 @@
-import { exists, organizationValidation, uuid } from "@local/shared";
-import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou } from "@local/shared;";
+import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, exists, organizationValidation, uuid } from "@local/shared";
 import { Prisma, role } from "@prisma/client";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

@@ -1,4 +1,4 @@
-import { FocusModeFilterType } from "@local/shared;";
+import { FocusModeFilterType } from "@local/shared";
 import { gql } from "apollo-server-express";
 
 export const typeDef = gql`

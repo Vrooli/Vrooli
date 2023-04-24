@@ -1,7 +1,4 @@
-import { Question, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { questionTranslationValidation, questionValidation } from ":local/validation";
+import { DUMMY_ID, Question, Session, orDefault, questionTranslationValidation, questionValidation } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,9 +7,9 @@ import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInp
 import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { SessionContext } from "../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { QuestionShape, shapeQuestion } from "../../utils/shape/models/question";
 import { BaseForm } from "../BaseForm/BaseForm";

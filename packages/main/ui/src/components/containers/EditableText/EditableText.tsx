@@ -1,4 +1,4 @@
-import { isOfType } from "@local/shared;";
+import { isOfType } from "@local/shared";
 import { TextField, Typography } from "@mui/material";
 import { Field, useField } from "formik";
 import Markdown from "markdown-to-jsx";

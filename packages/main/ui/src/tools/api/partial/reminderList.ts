@@ -1,4 +1,4 @@
-import { ReminderList } from "@local/shared;";
+import { ReminderList } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

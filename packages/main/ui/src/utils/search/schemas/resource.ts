@@ -1,4 +1,4 @@
-import { ResourceSortBy } from "@local/shared;";
+import { ResourceSortBy } from "@local/shared";
 import { resourceFindMany } from "../../../api/generated/endpoints/resource_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

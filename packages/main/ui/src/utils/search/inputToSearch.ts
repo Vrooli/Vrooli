@@ -1,4 +1,4 @@
-import { InputType, Tag } from "@local/shared;";
+import { InputType, Tag } from "@local/shared";
 import { FormSchema } from "../../forms/types";
 
 /**

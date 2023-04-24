@@ -1,4 +1,4 @@
-import { Count } from "@local/shared;";
+import { Count } from "@local/shared";
 import { assertRequestFrom } from "../auth/request";
 import { CustomError } from "../events";
 import { cudHelper } from "./cudHelper";

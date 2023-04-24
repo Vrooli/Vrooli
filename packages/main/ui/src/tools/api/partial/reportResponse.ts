@@ -1,4 +1,4 @@
-import { ReportResponse, ReportResponseYou } from "@local/shared;";
+import { ReportResponse, ReportResponseYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

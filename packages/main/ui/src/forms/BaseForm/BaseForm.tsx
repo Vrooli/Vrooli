@@ -1,4 +1,4 @@
-import { exists } from ":local/utils";
+import { exists } from "@local/shared";
 import { Form } from "formik";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
 import { usePromptBeforeUnload } from "../../utils/hooks/usePromptBeforeUnload";

@@ -2,8 +2,7 @@
 // 1. Wallet login
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
-import { emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from "@local/shared";
-import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared;";
+import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from "@local/shared";
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
 import { getUser, hashPassword, logIn, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, validateCode, validateVerificationCode } from "../auth";

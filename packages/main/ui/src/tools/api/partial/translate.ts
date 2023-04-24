@@ -1,4 +1,4 @@
-import { Translate } from ":local/consts";
+import { Translate } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const translate: GqlPartial<Translate> = {

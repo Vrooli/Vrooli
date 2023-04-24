@@ -1,8 +1,8 @@
-import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from ":local/consts";
+import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
-import { shapeSmartContractVersion, SmartContractVersionShape } from "./smartContractVersion";
-import { shapeTag, TagShape } from "./tag";
+import { SmartContractVersionShape, shapeSmartContractVersion } from "./smartContractVersion";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 

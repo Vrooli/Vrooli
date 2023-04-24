@@ -1,4 +1,4 @@
-import { NodeLinkWhen, NodeLinkWhenTranslation } from "@local/shared;";
+import { NodeLinkWhen, NodeLinkWhenTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

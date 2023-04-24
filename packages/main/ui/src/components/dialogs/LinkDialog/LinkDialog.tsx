@@ -1,8 +1,7 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { uuid } from "@local/shared";
-import { NodeType } from "@local/shared;";
+import { NodeType, uuid } from "@local/shared";
 import {
     Autocomplete,
     Box, DialogContent,

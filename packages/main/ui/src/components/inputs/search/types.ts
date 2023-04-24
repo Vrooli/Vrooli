@@ -1,4 +1,4 @@
-import { CommonKey } from "@local/shared;";
+import { CommonKey } from "@local/shared";
 import { InputProps } from "@mui/material";
 import { AutocompleteOption } from "../../../types";
 import { SearchItem } from "../../../utils/search/siteToSearch";

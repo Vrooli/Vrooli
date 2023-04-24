@@ -1,4 +1,4 @@
-import { ReportIcon } from "@local/shared;";
+import { ReportIcon } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { ReportDialog } from "../../dialogs/ReportDialog/ReportDialog";

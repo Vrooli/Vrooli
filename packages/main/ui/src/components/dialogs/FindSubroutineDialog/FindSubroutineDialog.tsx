@@ -1,5 +1,4 @@
-import { uuidValidate } from "@local/shared";
-import { RoutineVersion, VisibilityType } from "@local/shared;";
+import { RoutineVersion, VisibilityType, uuidValidate } from "@local/shared";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { OwnerShape } from "../../../utils/shape/models/types";

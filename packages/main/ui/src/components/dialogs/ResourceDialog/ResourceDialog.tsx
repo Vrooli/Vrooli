@@ -1,4 +1,4 @@
-import { Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared;";
+import { Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { resourceCreate } from "../../../api/generated/endpoints/resource_create";

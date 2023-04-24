@@ -1,4 +1,4 @@
-import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from ":local/consts";
+import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { noteVersionCreate } from "../../../api/generated/endpoints/noteVersion_create";
@@ -9,10 +9,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "../../../forms/NoteForm/NoteForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { NoteUpsertProps } from "../types";
 
 export const NoteUpsert = ({

@@ -1,4 +1,4 @@
-import { exists, uppercaseFirstLetter } from ":local/utils";
+import { exists, uppercaseFirstLetter } from "@local/shared";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { PopoverWithArrow } from "../../components/dialogs/PopoverWithArrow/PopoverWithArrow";

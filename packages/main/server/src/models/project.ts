@@ -1,5 +1,4 @@
-import { projectValidation } from "@local/shared";
-import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou } from "@local/shared;";
+import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou, projectValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

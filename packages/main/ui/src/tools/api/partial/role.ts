@@ -1,4 +1,4 @@
-import { Role, RoleTranslation } from "@local/shared;";
+import { Role, RoleTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

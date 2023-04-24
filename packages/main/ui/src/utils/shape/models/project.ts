@@ -1,8 +1,8 @@
-import { Project, ProjectCreateInput, ProjectUpdateInput } from ":local/consts";
+import { Project, ProjectCreateInput, ProjectUpdateInput } from "@local/shared";
 import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { ProjectVersionShape, shapeProjectVersion } from "./projectVersion";
-import { shapeTag, TagShape } from "./tag";
+import { TagShape, shapeTag } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 

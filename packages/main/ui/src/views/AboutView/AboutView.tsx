@@ -1,5 +1,5 @@
-import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from ":local/icons";
-import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
+import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@local/shared";
+import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { slideTitle, textPop } from "../../styles";
 import { openLink, useLocation } from "../../utils/route";

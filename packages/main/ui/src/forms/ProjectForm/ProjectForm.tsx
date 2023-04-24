@@ -1,7 +1,4 @@
-import { ProjectVersion, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { projectVersionTranslationValidation, projectVersionValidation } from ":local/validation";
+import { DUMMY_ID, ProjectVersion, Session, orDefault, projectVersionTranslationValidation, projectVersionValidation } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";
@@ -10,12 +7,12 @@ import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/Gr
 import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
 import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "../../components/inputs/VersionInput/VersionInput";
-import { DirectoryListHorizontal } from "../../components/lists/directory";
 import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
+import { DirectoryListHorizontal } from "../../components/lists/directory";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { ProjectVersionShape, shapeProjectVersion } from "../../utils/shape/models/projectVersion";
 import { BaseForm } from "../BaseForm/BaseForm";

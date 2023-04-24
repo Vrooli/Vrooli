@@ -1,9 +1,7 @@
-import { EmailResetPasswordInput, LINKS, Session } from ":local/consts";
-import { uuidValidate } from ":local/uuid";
-import { emailResetPasswordSchema } from ":local/validation";
+import { EmailResetPasswordInput, LINKS, Session, emailResetPasswordSchema, uuidValidate } from "@local/shared";
 import {
     Button,
-    Grid
+    Grid,
 } from "@mui/material";
 import { Formik } from "formik";
 import { useMemo } from "react";

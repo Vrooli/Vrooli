@@ -1,10 +1,9 @@
-import { EmailRequestPasswordChangeInput, LINKS, Success } from ":local/consts";
-import { emailRequestPasswordChangeSchema } from ":local/validation";
+import { EmailRequestPasswordChangeInput, LINKS, Success, emailRequestPasswordChangeSchema } from "@local/shared";
 import {
     Button,
     Grid,
     Link, TextField,
-    Typography
+    Typography,
 } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { Field, Formik } from "formik";

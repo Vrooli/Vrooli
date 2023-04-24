@@ -1,4 +1,4 @@
-import { exists } from "@local/shared;";
+import { exists } from "@local/shared";
 
 /**
  * Helper function for converting Prisma relationship counts to GraphQL count fields

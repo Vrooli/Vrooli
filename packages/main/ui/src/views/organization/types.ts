@@ -1,4 +1,4 @@
-import { Organization } from ":local/consts";
+import { Organization } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface OrganizationUpsertProps extends UpsertProps<Organization> { }

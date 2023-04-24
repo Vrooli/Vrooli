@@ -2,8 +2,8 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { WalletComplete } from ":local/consts";
 import { ApolloError } from "@apollo/client";
+import { WalletComplete } from "@local/shared";
 import { authWalletComplete } from "../../api/generated/endpoints/auth_walletComplete";
 import { authWalletInit } from "../../api/generated/endpoints/auth_walletInit";
 import { errorToCode, initializeApollo } from "../../api/utils";

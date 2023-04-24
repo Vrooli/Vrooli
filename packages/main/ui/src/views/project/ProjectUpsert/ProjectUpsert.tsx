@@ -1,4 +1,4 @@
-import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from ":local/consts";
+import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { projectVersionCreate } from "../../../api/generated/endpoints/projectVersion_create";
@@ -9,10 +9,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "../../../forms/ProjectForm/ProjectForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ProjectUpsertProps } from "../types";
 
 export const ProjectUpsert = ({

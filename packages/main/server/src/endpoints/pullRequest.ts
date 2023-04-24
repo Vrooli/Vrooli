@@ -1,5 +1,5 @@
 
-import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput } from "@local/shared;";
+import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

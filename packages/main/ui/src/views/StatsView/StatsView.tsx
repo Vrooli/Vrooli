@@ -1,15 +1,15 @@
-import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from ":local/consts";
+import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCustomLazyQuery } from "../../api";
 import { statsSiteFindMany } from "../../api/generated/endpoints/statsSite_findMany";
+import { PageTabs } from "../../components/PageTabs/PageTabs";
 import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "../../components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "../../components/lists/LineGraphCard/LineGraphCard";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
-import { PageTabs } from "../../components/PageTabs/PageTabs";
 import { PageTab } from "../../components/types";
 import { statsDisplay } from "../../utils/display/statsDisplay";
 import { displayDate } from "../../utils/display/stringTools";

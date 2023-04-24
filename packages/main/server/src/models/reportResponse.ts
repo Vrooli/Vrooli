@@ -1,7 +1,6 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
-import { reportResponseValidation } from "@local/shared";
-import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou } from "@local/shared;";
+import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, reportResponseValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";

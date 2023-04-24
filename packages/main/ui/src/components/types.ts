@@ -1,4 +1,4 @@
-import { SvgProps } from "@local/shared;";
+import { SvgProps } from "@local/shared";
 
 export interface DiagonalWaveLoaderProps {
     size?: number;

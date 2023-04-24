@@ -1,4 +1,4 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from "@local/shared;";
+import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

@@ -1,4 +1,4 @@
-import { NotificationSortBy } from "@local/shared;";
+import { NotificationSortBy } from "@local/shared";
 import { notificationFindMany } from "../../../api/generated/endpoints/notification_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

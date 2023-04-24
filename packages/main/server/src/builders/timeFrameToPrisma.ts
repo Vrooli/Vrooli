@@ -1,4 +1,4 @@
-import { TimeFrame } from "@local/shared;";
+import { TimeFrame } from "@local/shared";
 
 /**
  * Converts time frame to Prisma "where" query

@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, Reminder, Success } from "@local/shared;";
+import { DeleteOneInput, DeleteType, Reminder, Success } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared;";
+import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { PrismaType, RecursivePartial, SessionUserToken } from "../types";

@@ -1,7 +1,4 @@
-import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from ":local/consts";
-import { CloseIcon } from ":local/icons";
-import { exists, isEqual } from ":local/utils";
-import { uuid, uuidValidate } from ":local/uuid";
+import { CloseIcon, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, exists, isEqual, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildEditButtons } from "../../components/buttons/BuildEditButtons/BuildEditButtons";

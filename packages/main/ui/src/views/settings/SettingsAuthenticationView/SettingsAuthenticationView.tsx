@@ -1,6 +1,4 @@
-import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from ":local/consts";
-import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from ":local/icons";
-import { profileEmailUpdateValidation } from ":local/validation";
+import { DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet, WalletIcon, profileEmailUpdateValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useState } from "react";
@@ -10,16 +8,16 @@ import { userProfileEmailUpdate } from "../../../api/generated/endpoints/user_pr
 import { useCustomMutation } from "../../../api/hooks";
 import { mutationWrapper } from "../../../api/utils";
 import { DeleteAccountDialog } from "../../../components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { EmailList, WalletList } from "../../../components/lists/devices";
 import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
+import { EmailList, WalletList } from "../../../components/lists/devices";
 import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
 import { Subheader } from "../../../components/text/Subheader/Subheader";
 import { SettingsAuthenticationForm } from "../../../forms/settings";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getCurrentUser, guestSession } from "../../../utils/authentication/session";
 import { useProfileQuery } from "../../../utils/hooks/useProfileQuery";
 import { PubSub } from "../../../utils/pubsub";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({

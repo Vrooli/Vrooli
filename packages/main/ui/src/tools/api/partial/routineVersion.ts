@@ -1,4 +1,4 @@
-import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@local/shared;";
+import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

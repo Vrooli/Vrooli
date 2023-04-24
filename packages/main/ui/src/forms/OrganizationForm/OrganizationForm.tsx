@@ -1,7 +1,4 @@
-import { Organization, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { organizationTranslationValidation, organizationValidation } from ":local/validation";
+import { DUMMY_ID, Organization, Session, orDefault, organizationTranslationValidation, organizationValidation } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useContext } from "react";
@@ -12,9 +9,9 @@ import { ResourceListHorizontalInput } from "../../components/inputs/ResourceLis
 import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
 import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { OrganizationShape, shapeOrganization } from "../../utils/shape/models/organization";
 import { BaseForm } from "../BaseForm/BaseForm";

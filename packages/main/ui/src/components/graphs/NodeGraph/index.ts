@@ -1,4 +1,4 @@
-import { NodeType } from "@local/shared;";
+import { NodeType } from "@local/shared";
 
 export * from "./AddAfterLinkDialog/AddAfterLinkDialog";
 export * from "./AddBeforeLinkDialog/AddBeforeLinkDialog";

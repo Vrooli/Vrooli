@@ -1,4 +1,4 @@
-import { EllipsisIcon } from "@local/shared;";
+import { EllipsisIcon } from "@local/shared";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { SessionContext } from "../../../utils/SessionContext";

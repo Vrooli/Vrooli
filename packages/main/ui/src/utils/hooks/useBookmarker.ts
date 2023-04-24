@@ -1,15 +1,13 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, Success } from ":local/consts";
-import { exists } from ":local/utils";
-import { uuid } from ":local/uuid";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, Success, exists, uuid } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "../../api";
 import { bookmarkCreate } from "../../api/generated/endpoints/bookmark_create";
 import { bookmarkFindMany } from "../../api/generated/endpoints/bookmark_findMany";
 import { deleteOneOrManyDeleteOne } from "../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { SessionContext } from "../SessionContext";
 import { ObjectActionComplete } from "../actions/objectActions";
 import { getCurrentUser } from "../authentication/session";
 import { PubSub } from "../pubsub";
-import { SessionContext } from "../SessionContext";
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;

@@ -1,7 +1,4 @@
-import { NoteVersion, Session } from ":local/consts";
-import { orDefault } from ":local/utils";
-import { DUMMY_ID } from ":local/uuid";
-import { noteVersionTranslationValidation, noteVersionValidation } from ":local/validation";
+import { DUMMY_ID, NoteVersion, Session, noteVersionTranslationValidation, noteVersionValidation, orDefault } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,10 +7,10 @@ import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/Gr
 import { SideActionButtons } from "../../components/buttons/SideActionButtons/SideActionButtons";
 import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { NoteVersionShape, shapeNoteVersion } from "../../utils/shape/models/noteVersion";
 import { OwnerShape } from "../../utils/shape/models/types";

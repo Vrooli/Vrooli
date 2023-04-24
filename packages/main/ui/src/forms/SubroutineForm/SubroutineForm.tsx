@@ -1,8 +1,4 @@
-import { ResourceList, Session } from ":local/consts";
-import { CloseIcon, OpenInNewIcon } from ":local/icons";
-import { exists, orDefault } from ":local/utils";
-import { DUMMY_ID, uuid } from ":local/uuid";
-import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from ":local/validation";
+import { CloseIcon, DUMMY_ID, OpenInNewIcon, ResourceList, Session, exists, nodeRoutineListItemValidation, orDefault, routineVersionTranslationValidation, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { forwardRef, useCallback, useContext } from "react";
@@ -16,14 +12,14 @@ import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInp
 import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
 import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "../../components/inputs/VersionInput/VersionInput";
-import { InputOutputContainer } from "../../components/lists/inputOutput";
 import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "../../components/lists/resource";
 import { TagList } from "../../components/lists/TagList/TagList";
+import { InputOutputContainer } from "../../components/lists/inputOutput";
+import { ResourceListHorizontal } from "../../components/lists/resource";
 import { VersionDisplay } from "../../components/text/VersionDisplay/VersionDisplay";
+import { SessionContext } from "../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
 import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
-import { SessionContext } from "../../utils/SessionContext";
 import { validateAndGetYupErrors } from "../../utils/shape/general";
 import { NodeRoutineListShape } from "../../utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "../../utils/shape/models/nodeRoutineListItem";

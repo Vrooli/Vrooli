@@ -1,4 +1,4 @@
-import { QuizAttemptStatus } from "@local/shared;";
+import { QuizAttemptStatus } from "@local/shared";
 import pkg, { PeriodType } from "@prisma/client";
 import { logger } from "../../events";
 import { PrismaType } from "../../types";

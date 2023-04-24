@@ -1,14 +1,13 @@
-import { LINKS, WHITE_PAPER_URL } from ":local/consts";
-import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from ":local/icons";
+import { ArticleIcon, LINKS, LearnIcon, PlayIcon, ProfileIcon, WHITE_PAPER_URL } from "@local/shared";
 import { Box, Button, Link, Stack, Typography, useTheme } from "@mui/material";
 import { useContext, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { clickSize } from "../../styles";
+import { SessionContext } from "../../utils/SessionContext";
 import { checkIfLoggedIn } from "../../utils/authentication/session";
 import { PubSub } from "../../utils/pubsub";
 import { openLink, useLocation } from "../../utils/route";
-import { SessionContext } from "../../utils/SessionContext";
 import { WelcomeViewProps } from "../types";
 
 const buttonProps = {

@@ -1,5 +1,4 @@
-import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from ":local/consts";
-import { ApiIcon, EditIcon, EllipsisIcon } from ":local/icons";
+import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList } from "@local/shared";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiVersionFindOne } from "../../../api/generated/endpoints/apiVersion_findOne";
@@ -11,12 +10,12 @@ import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMe
 import { ResourceListVertical } from "../../../components/lists/resource";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { DateDisplay } from "../../../components/text/DateDisplay/DateDisplay";
+import { SessionContext } from "../../../utils/SessionContext";
 import { placeholderColor } from "../../../utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "../../../utils/hooks/useObjectFromUrl";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
@@ -178,7 +177,7 @@ export const ApiView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(summary) ? palette.background.textPrimary : palette.background.textSecondary }}>{summary ?? "No summary set"}</Typography>
+                        <Typography variant="body1" sx={{ color: summary ? palette.background.textPrimary : palette.background.textSecondary }}>{summary ?? "No summary set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

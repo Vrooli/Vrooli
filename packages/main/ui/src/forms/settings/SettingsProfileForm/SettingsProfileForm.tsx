@@ -1,6 +1,4 @@
-import { FindHandlesInput } from ":local/consts";
-import { RefreshIcon } from ":local/icons";
-import { userTranslationValidation } from ":local/validation";
+import { FindHandlesInput, RefreshIcon, userTranslationValidation } from "@local/shared";
 import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { Field, useField } from "formik";
 import { useCallback, useContext, useEffect, useState } from "react";
@@ -11,10 +9,10 @@ import { ColorIconButton } from "../../../components/buttons/ColorIconButton/Col
 import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput";
 import { TranslatedTextField } from "../../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { SessionContext } from "../../../utils/SessionContext";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools";
 import { useTranslatedFields } from "../../../utils/hooks/useTranslatedFields";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { BaseForm } from "../../BaseForm/BaseForm";
 import { SettingsProfileFormProps } from "../types";
 

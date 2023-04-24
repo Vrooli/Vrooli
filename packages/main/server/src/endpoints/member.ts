@@ -1,4 +1,4 @@
-import { FindByIdInput, Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "@local/shared;";
+import { FindByIdInput, Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

@@ -1,4 +1,4 @@
-import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from "@local/shared;";
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from "@local/shared";
 import { getTranslation } from "../../../../utils/display/translationTools";
 import { PubSub } from "../../../../utils/pubsub";
 import { ListMenu } from "../../../dialogs/ListMenu/ListMenu";

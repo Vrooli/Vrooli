@@ -4,13 +4,12 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { EmailLogInInput, LINKS, Session } from ":local/consts";
-import { EmailIcon, WalletIcon } from ":local/icons";
+import { EmailIcon, EmailLogInInput, LINKS, Session, WalletIcon } from "@local/shared";
 import {
     Box,
     Button, Stack,
     SxProps,
-    Typography
+    Typography,
 } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +22,7 @@ import { WalletInstallDialog } from "../../components/dialogs/WalletInstallDialo
 import { WalletSelectDialog } from "../../components/dialogs/WalletSelectDialog/WalletSelectDialog";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "../../forms/auth";
+import { SessionContext } from "../../utils/SessionContext";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { hasWalletExtension, validateWallet } from "../../utils/authentication/walletIntegration";
 import { Forms } from "../../utils/consts";
@@ -30,7 +30,6 @@ import { useReactSearch } from "../../utils/hooks/useReactSearch";
 import { PubSub } from "../../utils/pubsub";
 import { setupPush } from "../../utils/push";
 import { useLocation } from "../../utils/route";
-import { SessionContext } from "../../utils/SessionContext";
 import { StartViewProps } from "../types";
 
 const helpText =

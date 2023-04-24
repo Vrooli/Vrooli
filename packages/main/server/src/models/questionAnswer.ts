@@ -1,5 +1,4 @@
-import { questionAnswerValidation } from "@local/shared";
-import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from "@local/shared;";
+import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, questionAnswerValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

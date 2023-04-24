@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared;";
+import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PermissionsMap } from "../models/types";

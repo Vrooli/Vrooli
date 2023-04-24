@@ -1,4 +1,4 @@
-import { ProjectVersion } from ":local/consts";
+import { ProjectVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface ProjectUpsertProps extends UpsertProps<ProjectVersion> { }

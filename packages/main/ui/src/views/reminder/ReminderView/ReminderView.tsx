@@ -1,5 +1,4 @@
-import { FindByIdInput, Reminder } from ":local/consts";
-import { EllipsisIcon, HelpIcon } from ":local/icons";
+import { EllipsisIcon, FindByIdInput, HelpIcon, Reminder } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { reminderFindOne } from "../../../api/generated/endpoints/reminder_findOne";

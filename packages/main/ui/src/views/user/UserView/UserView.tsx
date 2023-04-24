@@ -1,24 +1,23 @@
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, ResourceList, User, VisibilityType } from ":local/consts";
-import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from ":local/icons";
-import { uuidValidate } from ":local/uuid";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, User, UserIcon, VisibilityType, uuidValidate } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCustomLazyQuery } from "../../../api";
 import { userFindOne } from "../../../api/generated/endpoints/user_findOne";
 import { userProfile } from "../../../api/generated/endpoints/user_profile";
+import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "../../../components/buttons/ShareButton/ShareButton";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceListVertical } from "../../../components/lists/resource";
 import { SearchList } from "../../../components/lists/SearchList/SearchList";
+import { ResourceListVertical } from "../../../components/lists/resource";
 import { SearchListGenerator } from "../../../components/lists/types";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
-import { PageTabs } from "../../../components/PageTabs/PageTabs";
 import { DateDisplay } from "../../../components/text/DateDisplay/DateDisplay";
 import { PageTab } from "../../../components/types";
+import { SessionContext } from "../../../utils/SessionContext";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "../../../utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { useDisplayApolloError } from "../../../utils/hooks/useDisplayApolloError";
@@ -26,7 +25,6 @@ import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import { PubSub } from "../../../utils/pubsub";
 import { getLastUrlPart, useLocation } from "../../../utils/route";
 import { SearchType } from "../../../utils/search/objectToSearch";
-import { SessionContext } from "../../../utils/SessionContext";
 import { UserViewProps } from "../types";
 
 enum TabOptions {
@@ -276,7 +274,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Typography>
+                        <Typography variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

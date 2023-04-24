@@ -1,5 +1,4 @@
-import { reportCreateForm, uuid } from "@local/shared";
-import { Report, ReportCreateInput } from "@local/shared;";
+import { Report, ReportCreateInput, reportCreateForm, uuid } from "@local/shared";
 import { DialogContent, Link, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { Formik } from "formik";

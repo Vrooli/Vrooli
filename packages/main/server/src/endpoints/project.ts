@@ -1,4 +1,4 @@
-import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput } from "@local/shared;";
+import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

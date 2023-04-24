@@ -1,5 +1,4 @@
-import { ActiveFocusMode, FocusMode, Session, SessionUser } from ":local/consts";
-import { uuidValidate } from ":local/uuid";
+import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
 import { getCookieActiveFocusMode, getCookieAllFocusModes, getCookieLanguage } from "../cookies";
 import { getUserLanguages } from "../display/translationTools";
 

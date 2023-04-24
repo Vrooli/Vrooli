@@ -1,7 +1,7 @@
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "@local/shared;";
+import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "@local/shared";
 import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";

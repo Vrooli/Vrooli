@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from ":local/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { mutationWrapper } from "../../../../api";
@@ -9,10 +9,10 @@ import { useCustomLazyQuery, useCustomMutation } from "../../../../api/hooks";
 import { TopBar } from "../../../../components/navigation/TopBar/TopBar";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "../../../../forms/ApiForm/ApiForm";
 import { BaseFormRef } from "../../../../forms/BaseForm/BaseForm";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { useUpsertActions } from "../../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../../utils/navigation/urlTools";
 import { PubSub } from "../../../../utils/pubsub";
-import { SessionContext } from "../../../../utils/SessionContext";
 import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({

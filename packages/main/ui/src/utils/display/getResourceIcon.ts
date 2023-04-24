@@ -1,5 +1,4 @@
-import { ResourceUsedFor } from ":local/consts";
-import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from ":local/icons";
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ResourceUsedFor, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from "@local/shared";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Community]: OrganizationIcon,

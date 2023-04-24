@@ -1,5 +1,4 @@
-import { commentValidation, lowercaseFirstLetter } from "@local/shared";
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from "@local/shared;";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects, commentValidation, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../auth";

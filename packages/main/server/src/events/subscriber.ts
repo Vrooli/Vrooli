@@ -1,4 +1,4 @@
-import { SubscribableObject } from "@local/shared;";
+import { SubscribableObject } from "@local/shared";
 import { getLogic } from "../getters";
 import { subscribableMapper } from "../models";
 import { PrismaType, SessionUserToken } from "../types";

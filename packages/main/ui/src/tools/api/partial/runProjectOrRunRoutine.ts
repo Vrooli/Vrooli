@@ -1,4 +1,4 @@
-import { RunProjectOrRunRoutine } from "@local/shared;";
+import { RunProjectOrRunRoutine } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

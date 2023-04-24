@@ -1,4 +1,4 @@
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from "@local/shared;";
+import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

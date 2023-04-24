@@ -1,4 +1,4 @@
-import { RunRoutineStepSortBy, RunRoutineStepStatus } from "@local/shared;";
+import { RunRoutineStepSortBy, RunRoutineStepStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
 
 export const typeDef = gql`

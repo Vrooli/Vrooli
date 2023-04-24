@@ -1,4 +1,4 @@
-import { LINKS } from "@local/shared;";
+import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import { lazily } from "react-lazily";
 import { FullPageSpinner } from "./components/FullPageSpinner/FullPageSpinner";

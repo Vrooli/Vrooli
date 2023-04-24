@@ -1,4 +1,4 @@
-import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdateInput } from ":local/consts";
+import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdateInput } from "@local/shared";
 import { FormikProps } from "formik";
 import { ViewDisplayType } from "../../views/types";
 

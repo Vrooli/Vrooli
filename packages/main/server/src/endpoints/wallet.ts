@@ -1,5 +1,5 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { FindHandlesInput, Wallet, WalletUpdateInput } from "@local/shared;";
+import { FindHandlesInput, Wallet, WalletUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { updateHelper } from "../actions";
 import { getUser } from "../auth";

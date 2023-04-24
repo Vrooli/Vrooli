@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, RoutineVersion } from "@local/shared;";
+import { Node, NodeEnd, NodeLink, RoutineVersion } from "@local/shared";
 import { BuildAction } from "../../../utils/consts";
 
 export interface NodeContextMenuProps {

@@ -1,9 +1,8 @@
-import { EmailLogInInput, LINKS, Session } from ":local/consts";
-import { emailLogInFormValidation } from ":local/validation";
+import { EmailLogInInput, LINKS, Session, emailLogInFormValidation } from "@local/shared";
 import {
     Button,
     Grid,
-    Link, TextField, Typography
+    Link, TextField, Typography,
 } from "@mui/material";
 import { Field, Formik } from "formik";
 import { CSSProperties, useMemo } from "react";

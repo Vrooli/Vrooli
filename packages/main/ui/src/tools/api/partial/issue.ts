@@ -1,4 +1,4 @@
-import { Issue, IssueTranslation, IssueYou } from "@local/shared;";
+import { Issue, IssueTranslation, IssueYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

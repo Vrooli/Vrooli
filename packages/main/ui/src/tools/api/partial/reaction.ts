@@ -1,4 +1,4 @@
-import { Reaction } from "@local/shared;";
+import { Reaction } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

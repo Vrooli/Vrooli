@@ -1,11 +1,11 @@
-import { EmailIcon, PhoneIcon } from ":local/icons";
+import { EmailIcon, PhoneIcon } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "../../../components/containers/ListContainer/ListContainer";
 import { IntegerInput } from "../../../components/inputs/IntegerInput/IntegerInput";
-import { PushList } from "../../../components/lists/devices";
 import { SettingsToggleListItem } from "../../../components/lists/SettingsToggleListItem/SettingsToggleListItem";
+import { PushList } from "../../../components/lists/devices";
 import { Subheader } from "../../../components/text/Subheader/Subheader";
 import { BaseForm } from "../../BaseForm/BaseForm";
 import { SettingsNotificationFormProps } from "../types";

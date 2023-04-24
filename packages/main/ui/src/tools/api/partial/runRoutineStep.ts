@@ -1,4 +1,4 @@
-import { RunRoutineStep } from "@local/shared;";
+import { RunRoutineStep } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

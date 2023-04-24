@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Notification, NotificationSearchInput, NotificationSearchResult } from ":local/consts";
+import { Notification, NotificationSearchInput, NotificationSearchResult } from "@local/shared";
 import { Box, List, ListItem, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

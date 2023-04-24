@@ -1,4 +1,4 @@
-import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from ":local/consts";
+import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { organizationCreate } from "../../../api/generated/endpoints/organization_create";
@@ -9,10 +9,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "../../../forms/OrganizationForm/OrganizationForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { OrganizationUpsertProps } from "../types";
 
 export const OrganizationUpsert = ({

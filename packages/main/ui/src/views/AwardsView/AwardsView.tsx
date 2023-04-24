@@ -1,6 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from ":local/consts";
-import { AwardKey } from ":local/translations";
+import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,16 +9,16 @@ import { AwardCard } from "../../components/lists/AwardCard/AwardCard";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { AwardDisplay, Wrap } from "../../types";
+import { SessionContext } from "../../utils/SessionContext";
 import { awardToDisplay } from "../../utils/display/awardsDisplay";
 import { getUserLanguages } from "../../utils/display/translationTools";
 import { useDisplayApolloError } from "../../utils/hooks/useDisplayApolloError";
-import { SessionContext } from "../../utils/SessionContext";
 import { AwardsViewProps } from "../types";
 
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
 
-//TODO store tiers in :local/consts, so we can show tier progress and stuff
+//TODO store tiers in @local/sharedwe can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 export const AwardsView = ({

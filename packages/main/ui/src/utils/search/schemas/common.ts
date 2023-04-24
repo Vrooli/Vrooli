@@ -1,5 +1,4 @@
-import { InputType } from "@local/shared";
-import { CommonKey } from "@local/shared;";
+import { CommonKey, InputType } from "@local/shared";
 import i18next from "i18next";
 import { FieldData, FormSchema, GridContainer } from "../../../forms/types";
 

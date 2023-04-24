@@ -1,4 +1,4 @@
-import { FindByIdInput, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptStatus, QuizAttemptUpdateInput, QuizSortBy } from "@local/shared;";
+import { FindByIdInput, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptStatus, QuizAttemptUpdateInput, QuizSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { rateLimit } from "../middleware";

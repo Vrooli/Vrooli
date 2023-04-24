@@ -1,4 +1,4 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from ":local/consts";
+import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { routineVersionCreate } from "../../../api/generated/endpoints/routineVersion_create";
@@ -9,10 +9,10 @@ import { mutationWrapper } from "../../../api/utils";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "../../../forms/RoutineForm/RoutineForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { RoutineUpsertProps } from "../types";
 
 export const RoutineUpsert = ({

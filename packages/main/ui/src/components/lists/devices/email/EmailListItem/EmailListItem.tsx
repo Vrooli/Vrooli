@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { CompleteIcon, DeleteIcon } from "@local/shared;";
+import { CompleteIcon, DeleteIcon } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback } from "react";
 import { multiLineEllipsis } from "../../../../../styles";

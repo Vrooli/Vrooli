@@ -1,4 +1,4 @@
-import { StatsRoutineSortBy } from "@local/shared;";
+import { StatsRoutineSortBy } from "@local/shared";
 import { statsRoutineFindMany } from "../../../api/generated/endpoints/statsRoutine_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

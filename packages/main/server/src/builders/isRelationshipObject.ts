@@ -1,4 +1,4 @@
-import { isObject } from "@local/shared;";
+import { isObject } from "@local/shared";
 
 /**
  * Determines if an object is a relationship object, and not an array of relationship objects.

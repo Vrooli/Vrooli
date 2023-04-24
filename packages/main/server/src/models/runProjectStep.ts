@@ -1,5 +1,4 @@
-import { runProjectStepValidation } from "@local/shared";
-import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from "@local/shared;";
+import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, runProjectStepValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

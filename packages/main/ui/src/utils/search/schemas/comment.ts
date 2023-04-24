@@ -1,4 +1,4 @@
-import { CommentSortBy } from "@local/shared;";
+import { CommentSortBy } from "@local/shared";
 import { commentFindMany } from "../../../api/generated/endpoints/comment_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

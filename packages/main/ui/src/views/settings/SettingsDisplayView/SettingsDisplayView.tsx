@@ -1,6 +1,4 @@
-import { ProfileUpdateInput, User } from ":local/consts";
-import { SearchIcon } from ":local/icons";
-import { userValidation } from ":local/validation";
+import { ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useContext } from "react";
@@ -10,11 +8,11 @@ import { userProfileUpdate } from "../../../api/generated/endpoints/user_profile
 import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
 import { SettingsDisplayForm } from "../../../forms/settings";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getSiteLanguage } from "../../../utils/authentication/session";
 import { useProfileQuery } from "../../../utils/hooks/useProfileQuery";
 import { PubSub } from "../../../utils/pubsub";
 import { clearSearchHistory } from "../../../utils/search/clearSearchHistory";
-import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({

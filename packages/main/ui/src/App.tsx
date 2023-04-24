@@ -1,5 +1,4 @@
-import { getActiveFocusMode } from "@local/shared";
-import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared;";
+import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput, getActiveFocusMode } from "@local/shared";
 import { Box, CssBaseline, StyledEngineProvider, Theme, ThemeProvider, createTheme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import i18next from "i18next";

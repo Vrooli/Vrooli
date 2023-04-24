@@ -1,5 +1,4 @@
-import { issueValidation } from "@local/shared";
-import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects } from "@local/shared;";
+import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects, issueValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

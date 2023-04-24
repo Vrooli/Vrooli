@@ -1,5 +1,4 @@
-import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from ":local/consts";
-import { AddIcon, DeleteIcon, EditIcon } from ":local/icons";
+import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -11,10 +10,10 @@ import { FocusModeDialog } from "../../../components/dialogs/FocusModeDialog/Foc
 import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
 import { multiLineEllipsis } from "../../../styles";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getCurrentUser } from "../../../utils/authentication/session";
 import { PubSub } from "../../../utils/pubsub";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({

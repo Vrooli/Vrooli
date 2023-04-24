@@ -1,5 +1,4 @@
-import { FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from ":local/consts";
-import { DeleteIcon } from ":local/icons";
+import { DeleteIcon, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
@@ -12,10 +11,10 @@ import { useCustomLazyQuery, useCustomMutation } from "../../../api/hooks";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "../../../forms/ReminderForm.tsx/ReminderForm";
+import { SessionContext } from "../../../utils/SessionContext";
 import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
 import { PubSub } from "../../../utils/pubsub";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ReminderUpsertProps } from "../types";
 
 export const ReminderUpsert = ({

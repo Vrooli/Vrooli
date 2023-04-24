@@ -1,4 +1,4 @@
-import { NodeRoutineList } from ":local/consts";
+import { NodeRoutineList } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

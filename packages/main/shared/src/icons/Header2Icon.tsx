@@ -1,5 +1,5 @@
+import { SvgProps } from "../types";
 import { SvgPath } from "./base";
-import { SvgProps } from "./types";
 
 export const Header2Icon = (props: SvgProps) => (
     <SvgPath

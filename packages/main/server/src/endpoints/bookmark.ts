@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from "@local/shared;";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth/request";

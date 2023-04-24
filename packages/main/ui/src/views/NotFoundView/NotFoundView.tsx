@@ -1,4 +1,4 @@
-import { LINKS } from ":local/consts";
+import { LINKS } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";

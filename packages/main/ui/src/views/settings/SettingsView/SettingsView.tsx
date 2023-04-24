@@ -1,5 +1,4 @@
-import { LINKS } from ":local/consts";
-import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from ":local/icons";
+import { HistoryIcon, LINKS, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from "@local/shared";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CardGrid } from "../../../components/lists/CardGrid/CardGrid";

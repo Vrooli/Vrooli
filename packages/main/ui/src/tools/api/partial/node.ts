@@ -1,4 +1,4 @@
-import { Node, NodeTranslation } from "@local/shared;";
+import { Node, NodeTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

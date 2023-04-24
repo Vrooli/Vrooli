@@ -1,5 +1,4 @@
-import { focusModeValidation } from "@local/shared";
-import { FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, MaxObjects } from "@local/shared;";
+import { FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, MaxObjects, focusModeValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";

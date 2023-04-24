@@ -1,5 +1,4 @@
-import { BookmarkFor, FindVersionInput, ProjectVersion } from ":local/consts";
-import { EditIcon, EllipsisIcon } from ":local/icons";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ProjectVersion } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +9,11 @@ import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/O
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { DateDisplay } from "../../../components/text/DateDisplay/DateDisplay";
+import { SessionContext } from "../../../utils/SessionContext";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
 import { useObjectActions } from "../../../utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "../../../utils/hooks/useObjectFromUrl";
 import { useLocation } from "../../../utils/route";
-import { SessionContext } from "../../../utils/SessionContext";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
@@ -167,7 +166,7 @@ export const ProjectView = ({
                     )
                 }
                 {
-                    !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
+                    !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
                     {/* <Tooltip title="Donate">

@@ -1,4 +1,4 @@
-import { Phone, PhoneCreateInput, SendVerificationTextInput, Success } from "@local/shared;";
+import { Phone, PhoneCreateInput, SendVerificationTextInput, Success } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper } from "../actions";
 import { setupVerificationCode } from "../auth";

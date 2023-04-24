@@ -1,4 +1,4 @@
-import { InputType, ProjectOrOrganizationSortBy } from "@local/shared;";
+import { InputType, ProjectOrOrganizationSortBy } from "@local/shared";
 import { projectOrOrganizationFindMany } from "../../../api/generated/endpoints/projectOrOrganization_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

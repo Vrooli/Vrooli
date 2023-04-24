@@ -1,4 +1,4 @@
-import { UserSortBy } from "@local/shared;";
+import { UserSortBy } from "@local/shared";
 import { userFindMany } from "../../../api/generated/endpoints/user_findMany";
 import { FormSchema } from "../../../forms/types";
 import { toParams } from "./base";

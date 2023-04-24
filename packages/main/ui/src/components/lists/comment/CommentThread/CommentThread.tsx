@@ -1,4 +1,4 @@
-import { Comment } from "@local/shared;";
+import { Comment } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { updateArray } from "../../../../utils/shape/general";

@@ -1,4 +1,4 @@
-import { uuid } from "@local/shared;";
+import { uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
