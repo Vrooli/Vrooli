@@ -135,7 +135,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     cd "${HERE}/.." && yarn cache clean && yarn
 
     header "Generating type models for Prisma"
-    cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
+    cd "${HERE}/../packages/main/server" && prisma generate --schema ./src/db/schema.prisma
 
 else
     info "Skipping global dependencies installation - production environment detected"
