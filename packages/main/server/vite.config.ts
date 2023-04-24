@@ -6,8 +6,8 @@ export default defineConfig({
     plugins: [ssr()],
     resolve: {
         alias: [
-            { find: '@local/shared', replacement: path.resolve(__dirname, './shared/src') },
-            { find: '@local/ui', replacement: path.resolve(__dirname, './ui/src') },
+            { find: '@local/shared', replacement: path.resolve(__dirname, '../shared/src') },
+            { find: '@local/ui', replacement: path.resolve(__dirname, '../ui/src') },
         ]
     },
     build: {

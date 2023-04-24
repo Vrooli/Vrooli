@@ -1,4 +1,4 @@
-import { AwardKey } from "@local/shareds";
+import { AwardKey } from "@local/shared";
 import { AwardCategory } from "./graphqlTypes";
 
 /**

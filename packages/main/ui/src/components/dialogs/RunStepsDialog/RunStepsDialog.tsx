@@ -2,20 +2,10 @@
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
 import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from "@local/shared";
-import { TreeItem, TreeView, treeItemClasses } from "@mui/lab";
-import {
-    Box,
-    Checkbox,
-    IconButton,
-    Palette,
-    SwipeableDrawer,
-    Typography,
-    alpha,
-    styled,
-    useTheme
-} from "@mui/material";
+import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
+import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import React, { useCallback, useMemo, useState } from "react";
-import { RoutineStep } from "../../../types";
+import { RoutineListStep, RoutineStep, SubroutineStep } from "../../../types";
 import { RoutineStepType } from "../../../utils/consts";
 import { addSearchParams, useLocation } from "../../../utils/route";
 import { locationArraysMatch, routineVersionHasSubroutines } from "../../../utils/runUtils";
@@ -144,12 +134,12 @@ export const RunStepsDialog = ({
         switch (step.type) {
             // If RoutineList, check all child steps
             case RoutineStepType.RoutineList:
-                return step.steps.every((childStep, index) => isComplete(childStep, [...location, index + 1]));
+                return (step as RoutineListStep).steps.every((childStep, index) => isComplete(childStep, [...location, index + 1]));
             // If Subroutine, check if subroutine is loaded
             case RoutineStepType.Subroutine:
                 // Not loaded if subroutine has its own subroutines (since it would be converted to a RoutineList
                 // if it was loaded)
-                if (routineVersionHasSubroutines(step.routineVersion)) {
+                if (routineVersionHasSubroutines((step as SubroutineStep).routineVersion)) {
                     // We can't know if it is complete until it is loaded
                     return false;
                 }
@@ -207,14 +197,14 @@ export const RunStepsDialog = ({
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If there are further steps, add a "Loading" node
-                if (routineVersionHasSubroutines(step.routineVersion)) {
+                if (routineVersionHasSubroutines((step as SubroutineStep).routineVersion)) {
                     return (
                         <StyledTreeItem
                             isComplete={completed}
                             isSelected={selected}
                             label={`${realLocationLabel}. ${step.name}`}
                             nodeId={locationLabel}
-                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id); }} // Load subroutine(s)
+                            onLoad={() => { handleLoadSubroutine((step as SubroutineStep).routineVersion.id); }} // Load subroutine(s)
                             onToStep={toLocation}
                             palette={palette}
                             type={step.type}
@@ -241,8 +231,8 @@ export const RunStepsDialog = ({
                 />;
 
             // A routine list always has children
-            case RoutineStepType.RoutineList:
-                const stepItems = step.steps;
+            case RoutineStepType.RoutineList: {
+                const stepItems = (step as RoutineListStep).steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]));
                 return (
@@ -252,11 +242,12 @@ export const RunStepsDialog = ({
                         label={`${realLocationLabel}. ${step.name}`}
                         nodeId={locationLabel}
                         palette={palette}
-                        type={step.type}
+                        type={(step as RoutineListStep).type}
                     >
                         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
                 );
+            }
         }
     }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, palette, handleLoadSubroutine]);
 
@@ -270,6 +261,7 @@ export const RunStepsDialog = ({
             <SwipeableDrawer
                 anchor="right"
                 open={isOpen}
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 onOpen={() => { }}
                 onClose={closeDialog}
                 sx={{

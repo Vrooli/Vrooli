@@ -1,12 +1,12 @@
-import { commentTranslationValidation } from "@local/shared;";
+import { commentTranslationValidation } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm";
-import { SessionContext } from "../../../utils/SessionContext";
 import { getDisplay } from "../../../utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools";
 import { useTranslatedFields } from "../../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../../utils/SessionContext";
 import { GridSubmitButtons } from "../../buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "../../inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TopBar } from "../../navigation/TopBar/TopBar";

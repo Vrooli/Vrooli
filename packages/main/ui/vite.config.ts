@@ -7,7 +7,7 @@ export default defineConfig({
     assetsInclude: ['**/*.md'],
     resolve: {
         alias: [
-            { find: '@local/shared', replacement: path.resolve(__dirname, './shared/src') },
+            { find: '@local/shared', replacement: path.resolve(__dirname, '../shared/src') },
         ]
     },
     build: {
