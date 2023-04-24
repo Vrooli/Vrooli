@@ -4,9 +4,16 @@
         "rootDir": "./src",
         "outDir": "./dist",
         "composite": true,
-        "declaration": true
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ],
     },
     "include": [
         "src/**/*"
     ],
+    "exclude": [
+        "vite.config.ts"
+    ]
 }

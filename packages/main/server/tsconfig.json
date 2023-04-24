@@ -1,11 +1,13 @@
 {
-    "extends": "../tsconfig.options.json",
+    "extends": "./tsconfig.main.json",
     "compilerOptions": {
-        "rootDir": "./src",
-        "outDir": "./dist",
-        "composite": true
+        "rootDir": ".",
+        "outDir": "./dist"
     },
     "include": [
-        "src/**/*"
+        "vite.config.ts"
     ],
+    "exclude": [
+        "src"
+    ]
 }
