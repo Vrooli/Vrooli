@@ -6,10 +6,10 @@ import { getUserLanguages } from "utils/display/translationTools";
  * Session object that indicates no user is logged in
  */
 export const guestSession: Session = {
-    __typename: 'Session',
+    __typename: "Session",
     isLoggedIn: false,
     users: [],
-}
+};
 
 /**
  * Parses session to find current user's data. 
@@ -18,13 +18,13 @@ export const guestSession: Session = {
  */
 export const getCurrentUser = (session: Session | null | undefined): Partial<SessionUser> => {
     if (!session || !session.isLoggedIn || !Array.isArray(session.users) || session.users.length === 0) {
-        return {}
+        return {};
     }
     const userData = session.users[0];
     // Make sure that user data is valid, by checking ID. 
     // Can add more checks in the future
-    return uuidValidate(userData.id) ? userData : {}
-}
+    return uuidValidate(userData.id) ? userData : {};
+};
 
 /**
  * Checks if there is a user logged in. Falls back to flag in local storage 
@@ -35,10 +35,10 @@ export const getCurrentUser = (session: Session | null | undefined): Partial<Ses
  */
 export const checkIfLoggedIn = (session: Session | null | undefined): boolean => {
     // If there is no session, check local storage
-    if (!session) return localStorage.getItem('isLoggedIn') === 'true';
+    if (!session) return localStorage.getItem("isLoggedIn") === "true";
     // Otherwise, check session
     return session.isLoggedIn;
-}
+};
 
 /**
  * Languages the site has translations for (2-letter codes).
@@ -46,7 +46,7 @@ export const checkIfLoggedIn = (session: Session | null | undefined): boolean =>
  * 
  * Missing a language you want to use? Consider contributing to the project!
  */
-export const siteLanguages = ['en'];
+export const siteLanguages = ["en"];
 
 /**
  * Finds which language the site should be displayed in.
@@ -65,7 +65,7 @@ export const getSiteLanguage = (session: Session | null | undefined): string => 
     if (cookieLanguages && siteLanguages.includes(cookieLanguages)) return cookieLanguages;
     // Otherwise, return default (first in array)
     return siteLanguages[0];
-}
+};
 
 /**
  * Finds which focus mode the site should be displayed in, as well as 
@@ -82,5 +82,5 @@ export const getFocusModeInfo = (session: Session | null | undefined): {
     return {
         active: activeFocusMode ?? getCookieActiveFocusMode() ?? null,
         all: focusModes ?? getCookieAllFocusModes() ?? [],
-    }
-}
+    };
+};

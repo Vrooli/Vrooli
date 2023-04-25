@@ -6,25 +6,25 @@ import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
 import { objectReputationEvent, Reputation } from "./reputation";
 
-export type ActionTrigger = 'AccountNew' |
-    'ObjectComplete' | // except runs
-    'ObjectCreate' |
-    'ObjectNewVersion' |
-    'ObjectDelete' |
-    'Fork' |
-    'ObjectBookmark' |
-    'ObjectReact' |
-    'OrganizationJoin' |
-    'PullRequestClose' |
-    'QuestionAnswer' |
-    'ReportClose' |
-    'ReportContribute' |
-    'RunComplete' |
-    'RunStart' |
-    'SessionValidate' | // for checking anniversary
-    'UserInvite'
+export type ActionTrigger = "AccountNew" |
+    "ObjectComplete" | // except runs
+    "ObjectCreate" |
+    "ObjectNewVersion" |
+    "ObjectDelete" |
+    "Fork" |
+    "ObjectBookmark" |
+    "ObjectReact" |
+    "OrganizationJoin" |
+    "PullRequestClose" |
+    "QuestionAnswer" |
+    "ReportClose" |
+    "ReportContribute" |
+    "RunComplete" |
+    "RunStart" |
+    "SessionValidate" | // for checking anniversary
+    "UserInvite"
 
-type Owner = { __typename: 'User' | 'Organization', id: string };
+type Owner = { __typename: "User" | "Organization", id: string };
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
@@ -40,7 +40,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send a welcome/verification email (if not created with wallet)
         if (emailAddress) await setupVerificationCode(emailAddress, prisma, languages);
         // Give the user an award
-        Award(prisma, userId, languages).update('AccountNew', 1);
+        Award(prisma, userId, languages).update("AccountNew", 1);
     },
     issueActivity: async ({
         issueCreatedById,
@@ -64,25 +64,25 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If issue has never been closed or rejected (to prevent users from reopning issues to get awards/reputation)
         if (!issueHasBeenClosedOrRejected) {
             // If creating, track award progress of issue creator. 
-            if (issueStatus === 'Open') {
-                await Award(prisma, issueCreatedById, languages).update('IssueCreate', 1);
+            if (issueStatus === "Open") {
+                await Award(prisma, issueCreatedById, languages).update("IssueCreate", 1);
             }
             // If issue marked as resolved, increase reputation of issue creator
-            else if (issueStatus === 'ClosedResolved') {
-                await Reputation().update('IssueCreatedWasAccepted', prisma, issueCreatedById);
+            else if (issueStatus === "ClosedResolved") {
+                await Reputation().update("IssueCreatedWasAccepted", prisma, issueCreatedById);
             }
             // If issue marked as rejected, decrease reputation of issue creator
-            else if (issueStatus === 'Rejected') {
-                await Reputation().update('IssueCreatedWasRejected', prisma, issueCreatedById);
+            else if (issueStatus === "Rejected") {
+                await Reputation().update("IssueCreatedWasRejected", prisma, issueCreatedById);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the issue
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
             const notification = Notify(prisma, languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
-            if (objectOwner.__typename === 'Organization') {
+            if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, userUpdatingIssueId);
-                notification.toSubscribers('Organization', objectOwner.id, userUpdatingIssueId)
+                notification.toSubscribers("Organization", objectOwner.id, userUpdatingIssueId);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingIssueId);
         }
@@ -135,27 +135,27 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Determine if the object is subscribable
         const isSubscribable = isObjectSubscribable(objectType);
         // If the object was added to an organization, send notification to organization members
-        if (isSubscribable && owner.__typename === 'Organization') {
+        if (isSubscribable && owner.__typename === "Organization") {
             const notification = Notify(prisma, languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
             // Send notification to admins, except the user who added it
             notification.toOrganization(owner.id, createdById);
             // Send notification to subscribers of the organization
-            notification.toSubscribers('Organization', owner.id, createdById);
+            notification.toSubscribers("Organization", owner.id, createdById);
         }
         // Step 4
         // If the object was added to a project, send notification to project members
         if (isSubscribable && projectId) {
             const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
             // Send notification to object owner
-            notification.toOwner(owner, createdById)
+            notification.toOwner(owner, createdById);
             // Send notification to subscribers of the project
-            notification.toSubscribers('Project', projectId, createdById);
+            notification.toSubscribers("Project", projectId, createdById);
         }
         // Step 5
         // If object is an email, phone, or wallet
-        if (['Email', 'Phone', 'Wallet'].includes(objectType)) {
+        if (["Email", "Phone", "Wallet"].includes(objectType)) {
             // Send notification to user warning them that a new sign in method was added
-            Notify(prisma, languages).pushNewDeviceSignIn().toUser(createdById)
+            Notify(prisma, languages).pushNewDeviceSignIn().toUser(createdById);
         }
     },
     /**
@@ -207,9 +207,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             if (isSubscribable) {
                 const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
                 // Send notification to object owner
-                notification.toOwner(owner, updatedById)
+                notification.toOwner(owner, updatedById);
                 // Send notification to subscribers of the project
-                notification.toSubscribers('Project', projectId, updatedById);
+                notification.toSubscribers("Project", projectId, updatedById);
             }
         }
     },
@@ -297,30 +297,30 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If pullRequest has never been closed or rejected (to prevent users from reopning pullRequests to get awards/reputation)
         if (!pullRequestHasBeenClosedOrRejected) {
             // If creating, track award progress of pullRequest creator. 
-            if (pullRequestStatus === 'Open') {
-                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestCreate', 1);
+            if (pullRequestStatus === "Open") {
+                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestCreate", 1);
             }
             // If canceling (by creator of pull request), undo award progress of pullRequest creator
-            else if (pullRequestStatus === 'Canceled') {
-                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestCreate', -1);
+            else if (pullRequestStatus === "Canceled") {
+                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestCreate", -1);
             }
             // If pullRequest marked as merged, track award and increase reputation of pullRequest creator
-            else if (pullRequestStatus === 'Merged') {
-                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestComplete', 1);
-                await Reputation().update('PullRequestWasAccepted', prisma, pullRequestCreatedById);
+            else if (pullRequestStatus === "Merged") {
+                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestComplete", 1);
+                await Reputation().update("PullRequestWasAccepted", prisma, pullRequestCreatedById);
             }
             // If pullRequest marked as rejected, decrease reputation of pullRequest creator
-            else if (pullRequestStatus === 'Rejected') {
-                await Reputation().update('PullRequestWasRejected', prisma, pullRequestCreatedById);
+            else if (pullRequestStatus === "Rejected") {
+                await Reputation().update("PullRequestWasRejected", prisma, pullRequestCreatedById);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the pullRequest
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
             const notification = Notify(prisma, languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
-            if (objectOwner.__typename === 'Organization') {
+            if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, userUpdatingPullRequestId);
-                notification.toSubscribers('Organization', objectOwner.id, userUpdatingPullRequestId)
+                notification.toSubscribers("Organization", objectOwner.id, userUpdatingPullRequestId);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingPullRequestId);
         }
@@ -375,31 +375,31 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     }) => {
         // If report was closed, track award progress and reputation of contributors 
         // (those who responded to the report)
-        if (reportStatus !== 'Open') {
+        if (reportStatus !== "Open") {
             // Make sure each contributor is only counted once (even though this should already be the case)
             const contributors = [...new Set(reportContributors)];
             for (const contributorId of contributors) {
                 // Track award progress
-                const award = await Award(prisma, contributorId, languages).update('ReportContribute', 1);
+                const award = await Award(prisma, contributorId, languages).update("ReportContribute", 1);
                 // Increase reputation
                 await Reputation().updateReportContribute(award.progress, prisma, contributorId);
             }
             // Increase reputation of report creator
         }
         // If report was successfull, track award progress and reputation of report creator
-        if (reportCreatedById && ['ClosedDeleted', 'ClosedResolved', 'ClosedSuspended'].includes(reportStatus)) {
-            await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
-            await Reputation().update('ReportWasAccepted', prisma, reportCreatedById);
+        if (reportCreatedById && ["ClosedDeleted", "ClosedResolved", "ClosedSuspended"].includes(reportStatus)) {
+            await Award(prisma, reportCreatedById, languages).update("ReportEnd", 1);
+            await Reputation().update("ReportWasAccepted", prisma, reportCreatedById);
         }
         // If report was not successfull, track award progress and reputation of report creator
-        if (reportCreatedById && ['ClosedFalseReport', 'ClosedNonIssue'].includes(reportStatus)) {
-            await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
-            await Reputation().update('ReportWasRejected', prisma, reportCreatedById);
+        if (reportCreatedById && ["ClosedFalseReport", "ClosedNonIssue"].includes(reportStatus)) {
+            await Award(prisma, reportCreatedById, languages).update("ReportEnd", 1);
+            await Reputation().update("ReportWasRejected", prisma, reportCreatedById);
         }
         // If object was deleted, decrease reputation of object owner(s)
-        if (reportStatus === 'ClosedDeleted') {
+        if (reportStatus === "ClosedDeleted") {
             // If owners are an organization, decrease reputation of all admins
-            if (objectOwner.__typename === 'Organization') {
+            if (objectOwner.__typename === "Organization") {
                 const admins = await prisma.organization.findUnique({
                     where: { id: objectOwner.id },
                     select: {
@@ -407,34 +407,34 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
                             select: {
                                 id: true,
                                 isAdmin: true,
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 });
                 const adminIds = admins?.members.filter(member => member.isAdmin).map(member => member.id) ?? [];
                 for (const adminId of adminIds) {
-                    await Reputation().update('ObjectDeletedFromReport', prisma, adminId);
+                    await Reputation().update("ObjectDeletedFromReport", prisma, adminId);
                 }
             }
             // Otherwise, decrease reputation of object owner
             else {
-                await Reputation().update('ObjectDeletedFromReport', prisma, objectOwner.id);
+                await Reputation().update("ObjectDeletedFromReport", prisma, objectOwner.id);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the report
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
             const notification = Notify(prisma, languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
-            if (objectOwner.__typename === 'Organization') {
+            if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, userUpdatingReportId);
-                notification.toSubscribers('Organization', objectOwner.id, userUpdatingReportId)
+                notification.toSubscribers("Organization", objectOwner.id, userUpdatingReportId);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingReportId);
         }
     },
     runProjectComplete: async (runTitle: string, runId: string, userId: string) => {
         // Track award progress
-        Award(prisma, userId, languages).update('RunProject', 1);
+        Award(prisma, userId, languages).update("RunProject", 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the project already has)
         //Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
@@ -442,7 +442,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If completed automatically, send notification to user
         if (wasAutomatic) Notify(prisma, languages).pushRunCompletedAutomatically(runId).toUser(userId);
         // Track award progress
-        Award(prisma, userId, languages).update('RunRoutine', 1);
+        Award(prisma, userId, languages).update("RunRoutine", 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the routine already has)
         //Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
@@ -458,6 +458,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send notification to referrer
         Notify(prisma, languages).pushUserInvite(joinedUsername).toUser(referrerId);
         // Track award progress
-        Award(prisma, referrerId, languages).update('UserInvite', 1);
+        Award(prisma, referrerId, languages).update("UserInvite", 1);
     },
 });

@@ -5,8 +5,8 @@ import { ScheduleExceptionShape, shapeScheduleException } from "./scheduleExcept
 import { ScheduleRecurrenceShape, shapeScheduleRecurrence } from "./scheduleRecurrence";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ScheduleShape = Pick<Schedule, 'id' | 'startTime' | 'endTime' | 'timezone'> & {
-    __typename?: 'Schedule';
+export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "timezone"> & {
+    __typename?: "Schedule";
     exceptions: ScheduleExceptionShape[];
     labels?: LabelShape[] | null;
     recurrences: ScheduleRecurrenceShape[];
@@ -14,27 +14,27 @@ export type ScheduleShape = Pick<Schedule, 'id' | 'startTime' | 'endTime' | 'tim
 
 export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, ScheduleUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'startTime', 'endTime', 'timezone'),
-        ...createRel(d, 'exceptions', ['Create'], 'many', shapeScheduleException, (e) => ({
+        ...createPrims(d, "id", "startTime", "endTime", "timezone"),
+        ...createRel(d, "exceptions", ["Create"], "many", shapeScheduleException, (e) => ({
             ...e,
-            schedule: { __typename: 'Schedule' as const, id: d.id }
+            schedule: { __typename: "Schedule" as const, id: d.id },
         })),
-        ...createRel(d, 'labels', ['Create', 'Connect'], 'many', shapeLabel),
-        ...createRel(d, 'recurrences', ['Create'], 'many', shapeScheduleRecurrence, (e) => ({
+        ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
+        ...createRel(d, "recurrences", ["Create"], "many", shapeScheduleRecurrence, (e) => ({
             ...e,
-            schedule: { __typename: 'Schedule' as const, id: d.id }
+            schedule: { __typename: "Schedule" as const, id: d.id },
         })),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'startTime', 'endTime', 'timezone'),
-        ...updateRel(o, u, 'exceptions', ['Create', 'Update', 'Delete'], 'many', shapeScheduleException, (e, i) => ({
+        ...updatePrims(o, u, "id", "startTime", "endTime", "timezone"),
+        ...updateRel(o, u, "exceptions", ["Create", "Update", "Delete"], "many", shapeScheduleException, (e, i) => ({
             ...e,
-            schedule: { __typename: 'Schedule' as const, id: i.id }
+            schedule: { __typename: "Schedule" as const, id: i.id },
         })),
-        ...updateRel(o, u, 'labels', ['Create', 'Connect', 'Disconnect'], 'many', shapeLabel),
-        ...updateRel(o, u, 'recurrences', ['Create', 'Update', 'Delete'], 'many', shapeScheduleRecurrence, (e, i) => ({
+        ...updateRel(o, u, "labels", ["Create", "Connect", "Disconnect"], "many", shapeLabel),
+        ...updateRel(o, u, "recurrences", ["Create", "Update", "Delete"], "many", shapeScheduleRecurrence, (e, i) => ({
             ...e,
-            schedule: { __typename: 'Schedule' as const, id: i.id }
+            schedule: { __typename: "Schedule" as const, id: i.id },
         })),
-    }, a)
-}
+    }, a),
+};

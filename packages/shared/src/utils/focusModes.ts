@@ -11,12 +11,12 @@ import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "@l
 export const calculateOccurrences = (
     schedule: Schedule,
     timeframeStart: Date,
-    timeframeEnd: Date
+    timeframeEnd: Date,
 ): Array<{ start: Date; end: Date }> => {
     // Make sure that the time frame is no longer than a year, so that we don't overload the server
     const timeframeDuration = timeframeEnd.getTime() - timeframeStart.getTime();
     if (timeframeDuration > 1000 * 60 * 60 * 24 * 365) {
-        console.error('calculateOccurrences time frame to large', { trace: '0432', timeframeStart, timeframeEnd });
+        console.error("calculateOccurrences time frame to large", { trace: "0432", timeframeStart, timeframeEnd });
         return [];
     }
     const occurrences: Array<{ start: Date; end: Date }> = [];
@@ -62,11 +62,11 @@ export const calculateOccurrences = (
             }
             // Move to the next occurrence
             switch (recurrence.recurrenceType) {
-                case 'Daily':
+                case "Daily":
                     // Daily recurrences are incremented by the interval in days
                     currentStartTime = new Date(currentStartTime.getTime() + recurrence.interval * 24 * 60 * 60 * 1000);
                     break;
-                case 'Weekly':
+                case "Weekly":
                     // If dayOfWeek is set, then the recurrence is only on that day of the week.
                     if (recurrence.dayOfWeek) {
                         const dayOfWeek = recurrence.dayOfWeek;
@@ -79,7 +79,7 @@ export const calculateOccurrences = (
                         currentStartTime = new Date(currentStartTime.getTime() + recurrence.interval * 7 * 24 * 60 * 60 * 1000);
                     }
                     break;
-                case 'Monthly':
+                case "Monthly":
                     // If dayOfMonth is set, then the recurrence is only on that day of the month.
                     if (recurrence.dayOfMonth) {
                         const dayOfMonth = recurrence.dayOfMonth;
@@ -99,7 +99,7 @@ export const calculateOccurrences = (
                         currentStartTime = new Date(currentStartTime.setMonth(newMonth));
                     }
                     break;
-                case 'Yearly':
+                case "Yearly":
                     // If month and dayOfMonth are set, then the recurrence is only on that day of the month in that month.
                     if (recurrence.month && recurrence.dayOfMonth) {
                         const nextOccurrence = new Date(currentStartTime);
@@ -130,7 +130,7 @@ export const calculateOccurrences = (
     }
     // Return occurrences
     return occurrences;
-}
+};
 
 /**
  * Finds which focus modes are active for a given time frame, based on the focus 
@@ -143,7 +143,7 @@ export const calculateOccurrences = (
 export const getFocusModesFromOccurrences = (
     focusModes: FocusMode[],
     startDate: Date,
-    endDate: Date
+    endDate: Date,
 ): FocusMode[] => {
     // Get the schedules associated with each focus mode
     const schedules = focusModes.map((focusMode) => focusMode.schedule);
@@ -152,7 +152,7 @@ export const getFocusModesFromOccurrences = (
     // Get the focus modes that have occurrences in the time frame
     const activeFocusModes = focusModes.filter((focusMode, index) => occurrences[index].length > 0);
     return activeFocusModes;
-}
+};
 
 /**
  * Finds the actual active focus mode
@@ -163,7 +163,7 @@ export const getFocusModesFromOccurrences = (
  */
 export const getActiveFocusMode = (
     currentlyActive: ActiveFocusMode | null | undefined,
-    focusModes: FocusMode[]
+    focusModes: FocusMode[],
 ): ActiveFocusMode | null => {
     // If there is an active focus mode
     if (currentlyActive) {
@@ -189,16 +189,16 @@ export const getActiveFocusMode = (
     // Otherwise, return null
     if (activeFocusModes.length > 0) {
         return {
-            __typename: 'ActiveFocusMode',
+            __typename: "ActiveFocusMode",
             mode: activeFocusModes[0],
             stopCondition: FocusModeStopCondition.Automatic,
-        }
+        };
     }
     // If there is at least one focus mode in the list, then return the first one.
     // Otherwise, return null
     return focusModes.length > 0 ? {
-        __typename: 'ActiveFocusMode',
+        __typename: "ActiveFocusMode",
         mode: focusModes[0],
         stopCondition: FocusModeStopCondition.Automatic,
     } : null;
-}
+};

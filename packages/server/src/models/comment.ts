@@ -13,9 +13,9 @@ import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
 
-const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canReact'>;
-const suppFields = ['you'] as const;
+const __typename = "Comment" as const;
+type Permissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
+const suppFields = ["you"] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -25,8 +25,8 @@ export const CommentModel: ModelLogic<{
     GqlPermission: Permissions,
     GqlSearch: CommentSearchInput,
     GqlSort: CommentSortBy,
-    PrismaCreate: Prisma.commentUpsertArgs['create'],
-    PrismaUpdate: Prisma.commentUpsertArgs['update'],
+    PrismaCreate: Prisma.commentUpsertArgs["create"],
+    PrismaUpdate: Prisma.commentUpsertArgs["update"],
     PrismaModel: Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>,
     PrismaSelect: Prisma.commentSelect,
     PrismaWhere: Prisma.commentWhereInput,
@@ -35,53 +35,53 @@ export const CommentModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.comment,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'text', languages),
+        label: (select, languages) => bestLabel(select.translations, "text", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
             owner: {
-                ownedByUser: 'User',
-                ownedByOrganization: 'Organization',
+                ownedByUser: "User",
+                ownedByOrganization: "Organization",
             },
             commentedOn: {
-                apiVersion: 'ApiVersion',
-                issue: 'Issue',
-                noteVersion: 'NoteVersion',
-                post: 'Post',
-                projectVersion: 'ProjectVersion',
-                pullRequest: 'PullRequest',
-                question: 'Question',
-                questionAnswer: 'QuestionAnswer',
-                routineVersion: 'RoutineVersion',
-                smartContractVersion: 'SmartContractVersion',
-                standardVersion: 'StandardVersion',
+                apiVersion: "ApiVersion",
+                issue: "Issue",
+                noteVersion: "NoteVersion",
+                post: "Post",
+                projectVersion: "ProjectVersion",
+                pullRequest: "PullRequest",
+                question: "Question",
+                questionAnswer: "QuestionAnswer",
+                routineVersion: "RoutineVersion",
+                smartContractVersion: "SmartContractVersion",
+                standardVersion: "StandardVersion",
             },
-            reports: 'Report',
-            bookmarkedBy: 'User',
+            reports: "Report",
+            bookmarkedBy: "User",
         },
         prismaRelMap: {
-            __typename: 'Comment',
-            ownedByUser: 'User',
-            ownedByOrganization: 'Organization',
-            apiVersion: 'ApiVersion',
-            issue: 'Issue',
-            noteVersion: 'NoteVersion',
-            parent: 'Comment',
-            post: 'Post',
-            projectVersion: 'ProjectVersion',
-            pullRequest: 'PullRequest',
-            question: 'Question',
-            questionAnswer: 'QuestionAnswer',
-            routineVersion: 'RoutineVersion',
-            smartContractVersion: 'SmartContractVersion',
-            standardVersion: 'StandardVersion',
-            reports: 'Report',
-            bookmarkedBy: 'User',
-            reactions: 'Reaction',
-            parents: 'Comment',
+            __typename: "Comment",
+            ownedByUser: "User",
+            ownedByOrganization: "Organization",
+            apiVersion: "ApiVersion",
+            issue: "Issue",
+            noteVersion: "NoteVersion",
+            parent: "Comment",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            pullRequest: "PullRequest",
+            question: "Question",
+            questionAnswer: "QuestionAnswer",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
+            reports: "Report",
+            bookmarkedBy: "User",
+            reactions: "Reaction",
+            parents: "Comment",
         },
-        joinMap: { bookmarkedBy: 'user' },
+        joinMap: { bookmarkedBy: "user" },
         countFields: {
             reportsCount: true,
             translationsCount: true,
@@ -94,8 +94,8 @@ export const CommentModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -105,19 +105,19 @@ export const CommentModel: ModelLogic<{
                 id: data.id,
                 ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-            })
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
                 await onCommonPlain({
                     ...params,
                     objectType: __typename,
-                    ownerOrganizationField: 'ownedByOrganization',
-                    ownerUserField: 'ownedByUser',
+                    ownerOrganizationField: "ownedByOrganization",
+                    ownerUserField: "ownedByUser",
                 });
             },
         },
@@ -132,24 +132,24 @@ export const CommentModel: ModelLogic<{
             userData: SessionUserToken | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
             info: GraphQLInfo | PartialGraphQLInfo,
-            nestLimit: number = 2,
+            nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            let partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, userData?.languages ?? ['en'], true);
+            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, userData?.languages ?? ["en"], true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
             // Determine sort order
             // Make sure sort field is valid
             const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
-            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined
+            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? 10,
-                ...selectHelper(partialInfo)
+                ...selectHelper(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return [];
@@ -162,7 +162,7 @@ export const CommentModel: ModelLogic<{
                     where: {
                         ...where,
                         parentId: result.id,
-                    }
+                    },
                 });
                 // Query for nested threads
                 const nestedThreads = nestLimit > 0 ? await prisma.comment.findMany({
@@ -171,7 +171,7 @@ export const CommentModel: ModelLogic<{
                         parentId: result.id,
                     },
                     take: input.take ?? 10,
-                    ...selectHelper(partialInfo)
+                    ...selectHelper(partialInfo),
                 }) : [];
                 // Find end cursor of nested threads
                 const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
@@ -179,11 +179,11 @@ export const CommentModel: ModelLogic<{
                 const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, userData, {
                     ids: nestedThreads.map(n => n.id),
                     take: input.take ?? 10,
-                    sortBy: input.sortBy
+                    sortBy: input.sortBy,
                 }, info, nestLimit - 1) : [];
                 // Add thread to result
                 threads.push({
-                    __typename: 'CommentThread' as const,
+                    __typename: "CommentThread" as const,
                     childThreads,
                     comment: result as any,
                     endCursor,
@@ -204,12 +204,12 @@ export const CommentModel: ModelLogic<{
             req: Request,
             input: CommentSearchInput,
             info: GraphQLInfo | PartialGraphQLInfo,
-            nestLimit: number = 2,
+            nestLimit = 2,
         ): Promise<CommentSearchResult> {
             // Partially convert info type
-            let partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.languages, true);
+            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.languages, true);
             // Determine text search query
-            const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
+            const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
@@ -223,7 +223,7 @@ export const CommentModel: ModelLogic<{
             // Determine sort order
             // Make sure sort field is valid
             const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
-            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined
+            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
@@ -232,19 +232,19 @@ export const CommentModel: ModelLogic<{
                 take: input.take ?? 10,
                 skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
                 cursor: input.after ? {
-                    id: input.after
+                    id: input.after,
                 } : undefined,
-                ...selectHelper(partialInfo)
+                ...selectHelper(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return {
-                __typename: 'CommentSearchResult' as const,
+                __typename: "CommentSearchResult" as const,
                 totalThreads: 0,
                 threads: [],
-            }
+            };
             // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
             const totalInThread = input.after ? undefined : await prisma.comment.count({
-                where: { ...where }
+                where: { ...where },
             });
             // Calculate end cursor
             const endCursor = searchResults[searchResults.length - 1].id;
@@ -262,7 +262,7 @@ export const CommentModel: ModelLogic<{
                     result.push(...flattenThreads(thread.childThreads));
                 }
                 return result;
-            }
+            };
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
@@ -278,7 +278,7 @@ export const CommentModel: ModelLogic<{
                     const children = shapeThreads(thread.childThreads);
                     // Add thread to result
                     result.push({
-                        __typename: 'CommentThread' as const,
+                        __typename: "CommentThread" as const,
                         comment,
                         childThreads: children,
                         endCursor: thread.endCursor,
@@ -286,16 +286,16 @@ export const CommentModel: ModelLogic<{
                     });
                 }
                 return result;
-            }
+            };
             const threads = shapeThreads(childThreads);
             // Return result
             return {
-                __typename: 'CommentSearchResult' as const,
+                __typename: "CommentSearchResult" as const,
                 totalThreads: totalInThread,
                 threads,
                 endCursor,
-            }
-        }
+            };
+        },
     },
     search: {
         defaultSort: CommentSortBy.ScoreDesc,
@@ -320,25 +320,25 @@ export const CommentModel: ModelLogic<{
             updatedTimeFrame: true,
         },
         sortBy: CommentSortBy,
-        searchStringQuery: () => ({ translations: 'transText' }),
+        searchStringQuery: () => ({ translations: "transText" }),
     },
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            apiVersion: 'Api',
-            issue: 'Issue',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            post: 'Post',
-            projectVersion: 'Project',
-            pullRequest: 'PullRequest',
-            question: 'Question',
-            questionAnswer: 'QuestionAnswer',
-            routineVersion: 'Routine',
-            smartContractVersion: 'SmartContract',
-            standardVersion: 'Standard',
+            apiVersion: "Api",
+            issue: "Issue",
+            ownedByOrganization: "Organization",
+            ownedByUser: "User",
+            post: "Post",
+            projectVersion: "Project",
+            pullRequest: "PullRequest",
+            question: "Question",
+            questionAnswer: "QuestionAnswer",
+            routineVersion: "Routine",
+            smartContractVersion: "SmartContract",
+            standardVersion: "Standard",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
@@ -350,21 +350,21 @@ export const CommentModel: ModelLogic<{
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
-            ['apiVersion', 'ApiVersion'],
-            ['issue', 'Issue'],
-            ['post', 'Post'],
-            ['projectVersion', 'ProjectVersion'],
-            ['pullRequest', 'PullRequest'],
-            ['question', 'Question'],
-            ['questionAnswer', 'QuestionAnswer'],
-            ['routineVersion', 'RoutineVersion'],
-            ['smartContractVersion', 'SmartContractVersion'],
-            ['standardVersion', 'StandardVersion'],
+            ["apiVersion", "ApiVersion"],
+            ["issue", "Issue"],
+            ["post", "Post"],
+            ["projectVersion", "ProjectVersion"],
+            ["pullRequest", "PullRequest"],
+            ["question", "Question"],
+            ["questionAnswer", "QuestionAnswer"],
+            ["routineVersion", "RoutineVersion"],
+            ["smartContractVersion", "SmartContractVersion"],
+            ["standardVersion", "StandardVersion"],
         ], languages),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({ ownedByUser: { id: userId } }),
-        }
+        },
     },
-})
+});

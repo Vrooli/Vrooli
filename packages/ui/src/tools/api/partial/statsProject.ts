@@ -2,7 +2,7 @@ import { StatsProject } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsProject: GqlPartial<StatsProject> = {
-    __typename: 'StatsProject',
+    __typename: "StatsProject",
     full: {
         id: true,
         periodStart: true,
@@ -21,4 +21,4 @@ export const statsProject: GqlPartial<StatsProject> = {
         runCompletionTimeAverage: true,
         runContextSwitchesAverage: true,
     },
-}
+};

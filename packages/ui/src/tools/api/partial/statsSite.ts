@@ -2,7 +2,7 @@ import { StatsSite } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsSite: GqlPartial<StatsSite> = {
-    __typename: 'StatsSite',
+    __typename: "StatsSite",
     full: {
         id: true,
         periodStart: true,
@@ -40,4 +40,4 @@ export const statsSite: GqlPartial<StatsSite> = {
         verifiedEmailsCreated: true,
         verifiedWalletsCreated: true,
     },
-}
+};

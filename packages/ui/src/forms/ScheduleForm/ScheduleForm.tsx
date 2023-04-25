@@ -27,27 +27,27 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [exceptionsField, exceptionsMeta, exceptionsHelpers] = useField<ScheduleException[]>('exceptions');
-    const [recurrencesField, recurrencesMeta, recurrencesHelpers] = useField<ScheduleRecurrence[]>('recurrences');
+    const [exceptionsField, exceptionsMeta, exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
+    const [recurrencesField, recurrencesMeta, recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
 
     const clearStartTime = () => {
-        props.setFieldValue('startTime', '');
+        props.setFieldValue("startTime", "");
     };
 
     const clearEndTime = () => {
-        props.setFieldValue('endTime', '');
+        props.setFieldValue("endTime", "");
     };
 
     const addNewRecurrence = () => {
         recurrencesHelpers.setValue([...recurrencesField.value, {
-            __typename: 'ScheduleRecurrence' as const,
+            __typename: "ScheduleRecurrence" as const,
             id: uuid(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             schedule: {
-                __typename: 'Schedule' as const,
+                __typename: "Schedule" as const,
                 id: values.id,
-            } as Schedule
+            } as Schedule,
         }]);
     };
 
@@ -68,12 +68,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
@@ -89,7 +89,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                             type="datetime-local"
                             InputProps={{
                                 endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                         <input type="hidden" />
                                         <IconButton edge="end" size="small" onClick={clearStartTime}>
                                             <CloseIcon fill={palette.background.textPrimary} />
@@ -109,7 +109,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                             type="datetime-local"
                             InputProps={{
                                 endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                         <input type="hidden" />
                                         <IconButton edge="end" size="small" onClick={clearEndTime}>
                                             <CloseIcon fill={palette.background.textPrimary} />
@@ -143,12 +143,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                     spacing={2}
                                     sx={{ boxShadow: 6 }}
                                 >
-                                    <Stack spacing={1} sx={{ width: '100%' }}>
+                                    <Stack spacing={1} sx={{ width: "100%" }}>
                                         <FormControl fullWidth>
                                             <InputLabel>{"Recurrence type"}</InputLabel>
                                             <Select
                                                 value={recurrence.recurrenceType}
-                                                onChange={(e) => handleRecurrenceChange(index, 'recurrenceType', e.target.value)}
+                                                onChange={(e) => handleRecurrenceChange(index, "recurrenceType", e.target.value)}
                                             >
                                                 <MenuItem value={ScheduleRecurrenceType.Daily}>{"Daily"}</MenuItem>
                                                 <MenuItem value={ScheduleRecurrenceType.Weekly}>{"Weekly"}</MenuItem>
@@ -161,7 +161,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                             label={"Interval"}
                                             type="number"
                                             value={recurrence.interval}
-                                            onChange={(e) => handleRecurrenceChange(index, 'interval', parseInt(e.target.value))}
+                                            onChange={(e) => handleRecurrenceChange(index, "interval", parseInt(e.target.value))}
                                         />
                                         {recurrence.recurrenceType === ScheduleRecurrenceType.Weekly && (
                                             <Selector
@@ -215,7 +215,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                             label={"End date"}
                                             type="date"
                                             value={recurrence.endDate ?? ""}
-                                            onChange={(e) => handleRecurrenceChange(index, 'endDate', e.target.value)}
+                                            onChange={(e) => handleRecurrenceChange(index, "endDate", e.target.value)}
                                             InputLabelProps={{ shrink: true }}
                                         />
                                     </Stack>
@@ -224,7 +224,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                             edge="end"
                                             size="small"
                                             onClick={() => removeRecurrence(index)}
-                                            sx={{ margin: 'auto' }}
+                                            sx={{ margin: "auto" }}
                                         >
                                             <DeleteIcon fill={palette.error.light} />
                                         </IconButton>
@@ -237,8 +237,8 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         onClick={addNewRecurrence}
                         startIcon={<AddIcon />}
                         sx={{
-                            display: 'flex',
-                            margin: 'auto',
+                            display: "flex",
+                            margin: "auto",
                         }}
                     >{"Add event"}</Button>
                     {/* Set up event exceptions */}
@@ -255,5 +255,5 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

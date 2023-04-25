@@ -53,12 +53,12 @@ const tabParams: BaseParams[] = [{
 // const sampleSchedules = [
 //     {
 //         id: uuid(),
-//         title: 'Meeting',
+//         title: "Meeting",
 //         startTime: new Date(),
 //         endTime: add(new Date(), { hours: 1 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Weekly,
 //                 interval: 1,
@@ -67,7 +67,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { weeks: 1 }),
 //                 newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
@@ -76,15 +76,15 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#4caf50',
-//                 label: 'Work',
+//                 color: "#4caf50",
+//                 label: "Work",
 //             },
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 label: 'Important',
+//                 label: "Important",
 //             },
 //         ],
 //         // Dummy data for reminders
@@ -92,12 +92,12 @@ const tabParams: BaseParams[] = [{
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Monthly Report',
+//         title: "Monthly Report",
 //         startTime: add(new Date(), { days: 5 }),
 //         endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Monthly,
 //                 interval: 1,
@@ -107,21 +107,21 @@ const tabParams: BaseParams[] = [{
 //         exceptions: [],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#2196f3',
-//                 label: 'Reports',
+//                 color: "#2196f3",
+//                 label: "Reports",
 //             },
 //         ],
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Bi-weekly Team Lunch',
+//         title: "Bi-weekly Team Lunch",
 //         startTime: add(new Date(), { days: 6 }),
 //         endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Weekly,
 //                 interval: 2,
@@ -130,7 +130,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { weeks: 2 }),
 //                 newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
@@ -139,21 +139,21 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#ff9800',
-//                 label: 'Social',
+//                 color: "#ff9800",
+//                 label: "Social",
 //             },
 //         ],
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Daily Stand-up',
+//         title: "Daily Stand-up",
 //         startTime: add(new Date(), { days: 1 }),
 //         endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Daily,
 //                 interval: 1,
@@ -162,7 +162,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { days: 2 }),
 //                 newStartTime: null,
@@ -171,11 +171,11 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#f44336',
-//                 label: 'Stand-up',
-//             }
+//                 color: "#f44336",
+//                 label: "Stand-up",
+//             },
 //         ],
 //     },
 // ];

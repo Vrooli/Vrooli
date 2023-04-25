@@ -12,33 +12,33 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { ReportShape } from "utils/shape/models/report";
 
 enum ReportOptions {
-    Inappropriate = 'Inappropriate',
-    PII = 'PII',
-    Scam = 'Scam',
-    Spam = 'Spam',
-    Other = 'Other',
+    Inappropriate = "Inappropriate",
+    PII = "PII",
+    Scam = "Scam",
+    Spam = "Spam",
+    Other = "Other",
 }
 
 const ReportReasons = {
-    [ReportOptions.Inappropriate]: 'Inappropriate Content',
-    [ReportOptions.PII]: 'Includes Personally Identifiable Information (PII)',
-    [ReportOptions.Scam]: 'Scam',
-    [ReportOptions.Spam]: 'Spam',
-    [ReportOptions.Other]: 'Other',
-}
+    [ReportOptions.Inappropriate]: "Inappropriate Content",
+    [ReportOptions.PII]: "Includes Personally Identifiable Information (PII)",
+    [ReportOptions.Scam]: "Scam",
+    [ReportOptions.Spam]: "Spam",
+    [ReportOptions.Other]: "Other",
+};
 
 export const reportInitialValues = (
     session: Session | undefined,
     createdFor: ReportFor,
     createdForId: string,
-    existing?: Report | null | undefined
+    existing?: Report | null | undefined,
 ): ReportShape => ({
-    __typename: 'Report' as const,
+    __typename: "Report" as const,
     id: DUMMY_ID,
     createdFor: { __typename: createdFor, id: createdForId },
-    reason: '',
-    otherReason: '',
-    details: '',
+    reason: "",
+    otherReason: "",
+    details: "",
     language: getUserLanguages(session)[0],
     ...existing,
 });
@@ -57,12 +57,12 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
 }, ref) => {
     const { t } = useTranslation();
 
-    const [languageField, , languageHelpers] = useField('language');
+    const [languageField, , languageHelpers] = useField("language");
     const setLanguage = useCallback((language: string) => {
         languageHelpers.setValue(language);
     }, [languageHelpers]);
 
-    const [reasonField] = useField('reason');
+    const [reasonField] = useField("reason");
 
     return (
         <>
@@ -71,12 +71,12 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(600px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(600px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <SelectLanguageMenu
@@ -92,13 +92,13 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                     getOptionLabel={(r) => ReportReasons[r]}
                     fullWidth
                     inputAriaLabel="select reason"
-                    label={t('Reason')}
+                    label={t("Reason")}
                 />
                 {reasonField.value === ReportOptions.Other && <Field
                     fullWidth
                     name="otherReason"
-                    label={t('ReasonCustom')}
-                    helperText={t('ReasonCustomHelp')}
+                    label={t("ReasonCustom")}
+                    helperText={t("ReasonCustomHelp")}
                     as={TextField}
                 />}
                 <Field
@@ -106,8 +106,8 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                     multiline
                     rows={4}
                     name="details"
-                    label={t('DetailsOptional')}
-                    helperText={t('ReportDetailsHelp')}
+                    label={t("DetailsOptional")}
+                    helperText={t("ReportDetailsHelp")}
                     as={TextField}
                 />
                 <GridSubmitButtons
@@ -121,5 +121,5 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

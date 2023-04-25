@@ -161,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<{
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
     //         const partial = toPartialGqlInfo(info, {
-    //             __typename: 'ProjectVersionContentsSearchResult',
+    //             __typename: "ProjectVersionContentsSearchResult",
     //             meetings: 'Meeting',
     //             notes: 'Note',
     //             reminders: 'Reminder',
@@ -199,7 +199,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         });
     //         // If there are no results
     //         if (searchResults.length === 0) return {
-    //             __typename: 'CommentSearchResult' as const,
+    //             __typename: "CommentSearchResult" as const,
     //             totalThreads: 0,
     //             threads: [],
     //         }
@@ -239,7 +239,7 @@ export const ProjectVersionModel: ModelLogic<{
     //                 const children = shapeThreads(thread.childThreads);
     //                 // Add thread to result
     //                 result.push({
-    //                     __typename: 'CommentThread' as const,
+    //                     __typename: "CommentThread" as const,
     //                     comment,
     //                     childThreads: children,
     //                     endCursor: thread.endCursor,
@@ -251,7 +251,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         const threads = shapeThreads(childThreads);
     //         // Return result
     //         return {
-    //             __typename: 'CommentSearchResult' as const,
+    //             __typename: "CommentSearchResult" as const,
     //             totalThreads: totalInThread,
     //             threads,
     //             endCursor,

@@ -16,16 +16,16 @@ import { shapeNode } from "utils/shape/models/node";
 export const nodeEndInitialValues = (
     session: Session | undefined,
     routineVersion: RoutineVersion,
-    existing?: NodeWithEndShape | null | undefined
+    existing?: NodeWithEndShape | null | undefined,
 ): NodeWithEndShape => {
     const id = uuid();
     return {
-        __typename: 'Node' as const,
+        __typename: "Node" as const,
         id,
         end: {
             id: DUMMY_ID,
-            __typename: 'NodeEnd' as const,
-            node: { __typename: 'Node' as const, id },
+            __typename: "NodeEnd" as const,
+            node: { __typename: "Node" as const, id },
             suggestedNextRoutineVersions: [],
             wasSuccessful: true,
         },
@@ -33,27 +33,27 @@ export const nodeEndInitialValues = (
         routineVersion,
         ...existing,
         translations: orDefault(existing?.translations, [{
-            __typename: 'NodeTranslation' as const,
+            __typename: "NodeTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
-            name: 'End',
-            description: '',
-        }])
-    }
+            name: "End",
+            description: "",
+        }]),
+    };
 };
 
 export const transformNodeEndValues = (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
     return existing === undefined
         ? shapeNode.create(values)
-        : shapeNode.update(existing, values)
-}
+        : shapeNode.update(existing, values);
+};
 
 export const validateNodeEndValues = async (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
     const transformedValues = transformNodeEndValues(values, existing);
-    const validationSchema = nodeValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = nodeValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
     display,
@@ -76,11 +76,11 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'name'],
-        validationSchema: nodeTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["description", "name"],
+        validationSchema: nodeTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    const [wasSuccessfulField] = useField<boolean>('end.wasSuccessful');
+    const [wasSuccessfulField] = useField<boolean>("end.wasSuccessful");
 
     return (
         <>
@@ -89,10 +89,10 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    minWidth: '400px',
-                    maxWidth: '700px',
-                    marginBottom: '64px',
+                    display: "block",
+                    minWidth: "400px",
+                    maxWidth: "700px",
+                    marginBottom: "64px",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -108,7 +108,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                             fullWidth: true,
                             multiline: true,
                         }}
-                        title={t('Label')}
+                        title={t("Label")}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -117,15 +117,15 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                         props={{
                             language,
                         }}
-                        title={t('Description')}
+                        title={t("Description")}
                     />
-                    <Tooltip placement={'top'} title={t('NodeWasSuccessfulHelp')}>
+                    <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
                         <FormControlLabel
                             disabled={!isEditing}
                             label='Success?'
                             control={
                                 <Checkbox
-                                    id={`end-node-was-successful`}
+                                    id={"end-node-was-successful"}
                                     size="medium"
                                     name='end.wasSuccessful'
                                     color='secondary'
@@ -147,5 +147,5 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

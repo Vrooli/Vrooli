@@ -16,51 +16,51 @@ import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shap
 
 export const smartContractInitialValues = (
     session: Session | undefined,
-    existing?: SmartContractVersion | undefined
+    existing?: SmartContractVersion | undefined,
 ): SmartContractVersionShape => ({
-    __typename: 'SmartContractVersion' as const,
+    __typename: "SmartContractVersion" as const,
     id: DUMMY_ID,
     directoryListings: [],
     isComplete: false,
     isPrivate: false,
-    content: '',
-    contractType: '',
+    content: "",
+    contractType: "",
     resourceList: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
     root: {
-        __typename: 'SmartContract' as const,
+        __typename: "SmartContract" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
     },
-    versionLabel: '1.0.0',
+    versionLabel: "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'SmartContractVersionTranslation' as const,
+        __typename: "SmartContractVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        jsonVariable: '',
-        name: '',
+        description: "",
+        jsonVariable: "",
+        name: "",
     }]),
 });
 
 export const transformSmartContractValues = (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
     return existing === undefined
         ? shapeSmartContractVersion.create(values)
-        : shapeSmartContractVersion.update(existing, values)
-}
+        : shapeSmartContractVersion.update(existing, values);
+};
 
 export const validateSmartContractValues = async (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
     const transformedValues = transformSmartContractValues(values, existing);
-    const validationSchema = smartContractVersionValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = smartContractVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
     display,
@@ -88,8 +88,8 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'jsonVariable', 'name'],
-        validationSchema: smartContractVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["description", "jsonVariable", "name"],
+        validationSchema: smartContractVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -99,12 +99,12 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={2} paddingTop={2}>
@@ -134,5 +134,5 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

@@ -34,7 +34,7 @@ export const CommentThread = ({
         if (index !== -1) {
             // Make comment first, so you can see it without having to scroll to the bottom
             setChildData(curr => [{
-                __typename: 'CommentThread',
+                __typename: "CommentThread",
                 comment: comment as any,
                 childThreads: [],
                 endCursor: null,
@@ -72,11 +72,11 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                parentType={data.comment.owner?.__typename ?? 'User'}
+                parentType={data.comment.owner?.__typename ?? "User"}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}
-            <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
+            <Stack direction="column" spacing={1} sx={{ width: "100%" }}>
                 {/* Comment */}
                 <CommentThreadItem
                     data={data.comment}
@@ -94,5 +94,5 @@ export const CommentThread = ({
                 {/* TODO */}
             </Stack>
         </Stack>
-    ) : null
-}
+    ) : null;
+};

@@ -19,39 +19,39 @@ import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 export const resourceInitialValues = (
     session: Session | undefined,
     listId: string | undefined,
-    existing?: Resource | null | undefined
+    existing?: Resource | null | undefined,
 ): ResourceShape => ({
-    __typename: 'Resource' as const,
+    __typename: "Resource" as const,
     id: DUMMY_ID,
     index: 0,
-    link: '',
+    link: "",
     list: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: listId ?? DUMMY_ID,
     },
     usedFor: ResourceUsedFor.Context,
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'ResourceTranslation' as const,
+        __typename: "ResourceTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        name: '',
+        description: "",
+        name: "",
     }]),
 });
 
 export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {
     return existing === undefined
         ? shapeResource.create(values)
-        : shapeResource.update(existing, values)
+        : shapeResource.update(existing, values);
 }
 
 export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
     const transformedValues = transformResourceValues(values, existing);
-    const validationSchema = resourceValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = resourceValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const ResourceForm = forwardRef<any, ResourceFormProps>(({
     display,
@@ -77,8 +77,8 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio'],
-        validationSchema: userTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["bio"],
+        validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -88,12 +88,12 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(500px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(500px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={2} padding={2}>
@@ -115,19 +115,19 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         getOptionIcon={(i) => getResourceIcon(i as ResourceUsedFor)}
                         getOptionLabel={(l) => t(l as CommonKey, { count: 2 })}
                         fullWidth
-                        label={t('Type')}
+                        label={t("Type")}
                     />
                     {/* Enter name */}
                     <TranslatedTextField
                         fullWidth
-                        label={t('NameOptional')}
+                        label={t("NameOptional")}
                         language={language}
                         name="name"
                     />
                     {/* Enter description */}
                     <TranslatedTextField
                         fullWidth
-                        label={t('DescriptionOptional')}
+                        label={t("DescriptionOptional")}
                         language={language}
                         multiline
                         maxRows={8}
@@ -145,5 +145,5 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

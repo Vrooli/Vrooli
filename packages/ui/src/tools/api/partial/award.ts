@@ -2,7 +2,7 @@ import { Award } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const award: GqlPartial<Award> = {
-    __typename: 'Award',
+    __typename: "Award",
     common: {
         id: true,
         created_at: true,
@@ -15,4 +15,4 @@ export const award: GqlPartial<Award> = {
     },
     full: {},
     list: {},
-}
+};

@@ -32,9 +32,9 @@ import { BuildView } from "views/BuildView/BuildView";
 
 export const routineInitialValues = (
     session: Session | undefined,
-    existing?: RoutineVersion | null | undefined
+    existing?: RoutineVersion | null | undefined,
 ): RoutineVersionShape => ({
-    __typename: 'RoutineVersion' as const,
+    __typename: "RoutineVersion" as const,
     id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
     inputs: [],
     isComplete: false,
@@ -44,45 +44,45 @@ export const routineInitialValues = (
     nodes: [],
     outputs: [],
     resourceList: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
     root: {
-        __typename: 'Routine' as const,
+        __typename: "Routine" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
     },
-    versionLabel: '1.0.0',
+    versionLabel: "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'RoutineVersionTranslation' as const,
+        __typename: "RoutineVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        instructions: '',
-        name: '',
+        description: "",
+        instructions: "",
+        name: "",
     }]),
 });
 
 export const transformRoutineValues = (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
     return existing === undefined
         ? shapeRoutineVersion.create(values)
-        : shapeRoutineVersion.update(existing, values)
-}
+        : shapeRoutineVersion.update(existing, values);
+};
 
 export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
     const transformedValues = transformRoutineValues(values, existing);
-    const validationSchema = routineVersionValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = routineVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 
-const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
+const helpTextSubroutines = "A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.";
 
 export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     display,
@@ -110,17 +110,17 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'instructions', 'name'],
-        validationSchema: routineVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["description", "instructions", "name"],
+        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    console.log('valuesssssss', values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)))
+    console.log("valuesssssss", values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)));
 
-    const [idField] = useField<string>('id');
-    const [nodesField, , nodesHelpers] = useField<NodeShape[]>('nodes');
-    const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>('nodeLinks');
-    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>('inputs');
-    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>('outputs');
+    const [idField] = useField<string>("id");
+    const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
+    const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");
+    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
+    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("outputs");
 
     const [isGraphOpen, setIsGraphOpen] = useState(false);
     const handleGraphOpen = useCallback(() => {
@@ -133,7 +133,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         setIsGraphOpen(true);
     }, [idField.value, language, nodeLinksField.value.length, nodeLinksHelpers, nodesField.value.length, nodesHelpers]);
     const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion['nodes'], nodeLinks: RoutineVersion['nodeLinks'] }) => {
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion["nodes"], nodeLinks: RoutineVersion["nodeLinks"] }) => {
         nodesHelpers.setValue(nodes);
         nodeLinksHelpers.setValue(nodeLinks);
         setIsGraphOpen(false);
@@ -148,27 +148,27 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         // If so, prompt the user to confirm (these will be lost).
         if (isMultiStep === false && (nodesField.value.length > 0 || nodeLinksField.value.length > 0)) {
             PubSub.get().publishAlertDialog({
-                messageKey: 'SubroutineGraphDeleteConfirm',
+                messageKey: "SubroutineGraphDeleteConfirm",
                 buttons: [{
-                    labelKey: 'Yes',
-                    onClick: () => { setIsMultiStep(false); handleGraphClose(); }
+                    labelKey: "Yes",
+                    onClick: () => { setIsMultiStep(false); handleGraphClose(); },
                 }, {
-                    labelKey: 'Cancel',
-                }]
-            })
+                    labelKey: "Cancel",
+                }],
+            });
         }
         // If settings from false to true, check if any inputs or outputs have been added.
         // If so, prompt the user to confirm (these will be lost).
         else if (isMultiStep === true && (inputsField.value.length > 0 || outputsField.value.length > 0)) {
             PubSub.get().publishAlertDialog({
-                messageKey: 'RoutineInputsDeleteConfirm',
+                messageKey: "RoutineInputsDeleteConfirm",
                 buttons: [{
-                    labelKey: 'Yes',
-                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); }
+                    labelKey: "Yes",
+                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); },
                 }, {
-                    labelKey: 'Cancel',
-                }]
-            })
+                    labelKey: "Cancel",
+                }],
+            });
         }
         // Otherwise, just set the value.
         else {
@@ -183,12 +183,12 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -197,7 +197,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 }}>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Routine'}
+                        objectType={"Routine"}
                         zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
@@ -215,13 +215,13 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Name')}
+                            label={t("Name")}
                             language={language}
                             name="name"
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Description')}
+                            label={t("Description")}
                             language={language}
                             multiline
                             minRows={2}
@@ -242,7 +242,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                     {/* Is internal checkbox */}
                     {isSubroutine && (
                         <Grid item xs={12}>
-                            <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
+                            <Tooltip placement={"top"} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
                                 <FormControlLabel
                                     label='Internal'
                                     control={
@@ -266,8 +266,8 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         />
                         {/* Yes/No buttons */}
                         <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? 'outlined' : 'contained'}>Yes</Button>
-                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? 'outlined' : 'contained'}>No</Button>
+                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>Yes</Button>
+                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>No</Button>
                         </Stack >
                     </Grid >
                     {/* Data displayed only by multi-step routines */}
@@ -281,7 +281,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     isOpen={isGraphOpen}
                                     titleId=""
                                     zIndex={zIndex + 1300}
-                                    sxs={{ paper: { display: 'contents' } }}
+                                    sxs={{ paper: { display: "contents" } }}
                                 >
                                     <BuildView
                                         handleCancel={handleGraphClose}
@@ -352,5 +352,5 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

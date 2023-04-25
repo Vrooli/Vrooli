@@ -2,7 +2,7 @@ import { StatsOrganization } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsOrganization: GqlPartial<StatsOrganization> = {
-    __typename: 'StatsOrganization',
+    __typename: "StatsOrganization",
     full: {
         id: true,
         periodStart: true,
@@ -16,4 +16,4 @@ export const statsOrganization: GqlPartial<StatsOrganization> = {
         smartContracts: true,
         standards: true,
     },
-}
+};

@@ -32,9 +32,9 @@ import { TagShape } from "utils/shape/models/tag";
 
 export const subroutineInitialValues = (
     session: Session | undefined,
-    existing?: NodeRoutineListItemShape | null | undefined
+    existing?: NodeRoutineListItemShape | null | undefined,
 ): NodeRoutineListItemShape => ({
-    __typename: 'NodeRoutineListItem' as const,
+    __typename: "NodeRoutineListItem" as const,
     id: uuid(),
     index: 0,
     isOptional: false,
@@ -42,26 +42,26 @@ export const subroutineInitialValues = (
     routineVersion: routineInitialValues(session, existing?.routineVersion as any),
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'NodeRoutineListItemTranslation' as const,
+        __typename: "NodeRoutineListItemTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        name: '',
+        description: "",
+        name: "",
     }]),
-})
+});
 
 export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
     return existing === undefined
         ? shapeNodeRoutineListItem.create(values)
-        : shapeNodeRoutineListItem.update(existing, values)
-}
+        : shapeNodeRoutineListItem.update(existing, values);
+};
 
 export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
     const transformedValues = transformSubroutineValues(values, existing);
-    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     canUpdate,
@@ -90,19 +90,19 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'instructions', 'name'],
-        validationSchema: routineVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["description", "instructions", "name"],
+        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    const [indexField] = useField<number>('index');
-    const [isInternalField] = useField<boolean>('routineVersion.root.isInternal');
-    const [listField] = useField<NodeRoutineListShape>('list');
-    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>('routineVersion.inputs');
-    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>('routineVersion.outputs');
-    const [resourceListField, , resourceListHelpers] = useField<ResourceList>('routineVersion.resourceList');
-    const [tagsField] = useField<TagShape[]>('routineVersion.root.tags');
-    const [versionlabelField] = useField<string>('routineVersion.versionLabel');
-    const [versionsField] = useField<{ versionLabel: string }[]>('routineVersion.root.versions');
+    const [indexField] = useField<number>("index");
+    const [isInternalField] = useField<boolean>("routineVersion.root.isInternal");
+    const [listField] = useField<NodeRoutineListShape>("list");
+    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("routineVersion.inputs");
+    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("routineVersion.outputs");
+    const [resourceListField, , resourceListHelpers] = useField<ResourceList>("routineVersion.resourceList");
+    const [tagsField] = useField<TagShape[]>("routineVersion.root.tags");
+    const [versionlabelField] = useField<string>("routineVersion.versionLabel");
+    const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
 
     /**
      * Navigate to the subroutine's build page
@@ -115,9 +115,9 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
         <>
             {/* Title bar with close icon */}
             <Box sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
                 background: palette.primary.dark,
                 color: palette.primary.contrastText,
                 padding: 1,
@@ -149,8 +149,8 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 <IconButton onClick={onCancel} sx={{
                     color: palette.primary.contrastText,
                     borderBottom: `1px solid ${palette.primary.dark}`,
-                    justifyContent: 'end',
-                    marginLeft: 'auto',
+                    justifyContent: "end",
+                    marginLeft: "auto",
                 }}>
                     <CloseIcon />
                 </IconButton>
@@ -160,12 +160,12 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 isLoading={false}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Grid container spacing={2}>
@@ -174,7 +174,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         <RelationshipList
                             isEditing={isEditing}
                             isFormDirty={dirty}
-                            objectType={'Routine'}
+                            objectType={"Routine"}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -199,10 +199,10 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                             canUpdate && <Box sx={{
                                 marginBottom: 2,
                             }}>
-                                <Typography variant="h6">{t('Order')}</Typography>
+                                <Typography variant="h6">{t("Order")}</Typography>
                                 <IntegerInput
                                     disabled={!canUpdate}
-                                    label={t('Order')}
+                                    label={t("Order")}
                                     min={1}
                                     max={listField.value?.items?.length ?? 1}
                                     name="index"
@@ -216,7 +216,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         canUpdate && <Grid item xs={12}>
                             <TranslatedTextField
                                 fullWidth
-                                label={t('Name')}
+                                label={t("Name")}
                                 language={language}
                                 name="name"
                             />
@@ -234,7 +234,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                 multiline: true,
                                 maxRows: 3,
                             }}
-                            title={t('Description')}
+                            title={t("Description")}
                         />
                     </Grid>
                     {/* Instructions */}
@@ -248,7 +248,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                 placeholder: "Instructions",
                                 minRows: 3,
                             }}
-                            title={t('Instructions')}
+                            title={t("Instructions")}
                         />
                     </Grid>
                     {
@@ -285,10 +285,10 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     {
                         (canUpdate || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
                             <ResourceListHorizontal
-                                title={'Resources'}
+                                title={"Resources"}
                                 list={resourceListField.value}
                                 canUpdate={canUpdate}
-                                handleUpdate={(newList) => { resourceListHelpers.setValue(newList) }}
+                                handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
                                 zIndex={zIndex}
                             />
@@ -297,7 +297,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     <Grid item xs={12} marginBottom={4}>
                         {
                             canUpdate ? <TagSelector name='routineVersion.root.tags' /> :
-                                <TagList parentId={''} tags={(tagsField.value ?? []) as any[]} />
+                                <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
                         }
                     </Grid>
                 </Grid>
@@ -312,5 +312,5 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 />}
             </BaseForm>
         </>
-    )
-})
+    );
+});
