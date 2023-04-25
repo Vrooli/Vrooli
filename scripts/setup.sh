@@ -114,8 +114,6 @@ fi
 
 # Less needs to be done for production environments
 if [ "${ENVIRONMENT}" = "dev" ]; then
-    header "Installing global dependencies"
-    npm install -g apollo@2.34.0 typescript ts-node nodemon prisma@4.12.0 vite
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
     if [ -z "${REINSTALL_MODULES}" ]; then
@@ -129,7 +127,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
         rm "${HERE}/../npm-shrinkwrap.json"
     fi
     header "Installing local dependencies"
-    cd "${HERE}/.." && npm cache clean --force && npm install
+    cd "${HERE}/.." && npm cache clean --force && npm install --force && npm shrinkwrap
 
     header "Generating type models for Prisma"
     cd "${HERE}/../packages/main/server" && prisma generate --schema ./src/db/schema.prisma

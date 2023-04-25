@@ -7,20 +7,15 @@ info 'Waiting for database and redis to start...'
 ${PROJECT_DIR}/scripts/wait-for.sh db:5432 -t 120 -- echo 'Database is up'
 ${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 60 -- echo 'Redis is up'
 
-# Install prisma dependency
-# TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
-npm install -g prisma@4.12.0
-npm bin -g
-
 cd ${PROJECT_DIR}/packages/main
 
 # Run pre-build script
-npm run pre-build-prisma
+npm run pre-build
 
 cd server
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'
-    /usr/local/bin/prisma db pull
+    npm run prisma-pull
     if [ $? -ne 0 ]; then
         error "Failed to generate schema.prisma file from database"
         exit 1
@@ -28,7 +23,9 @@ if [ "${DB_PULL}" = true ]; then
     success 'Schema.prisma file generated'
 else
     info 'Running migrations...'
-    /usr/local/bin/prisma migrate deploy
+    pwd
+    ls -la
+    npm run prisma-migrate
     if [ $? -ne 0 ]; then
         error "Failed to run migrations"
         exit 1
@@ -37,7 +34,7 @@ else
 fi
 
 info 'Generating Prisma schema...'
-/usr/local/bin/prisma generate
+npm run prisma-generate
 if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1

@@ -55,7 +55,7 @@
         "workbox-streams": "^6.3.0"
     },
     "scripts": {
-        "build:ui": "tsc && vite build && node workbox-build.js",
+        "build": "tsc && vite build && node workbox-build.js",
         "analyze": "source-map-explorer dist/assets/*",
         "graphql-generate": "graphql-codegen --config codegen.yml",
         "lint": "eslint src"

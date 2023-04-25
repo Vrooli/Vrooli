@@ -32,8 +32,9 @@ COPY --chown=node:node scripts/* scripts/
 COPY --chown=node:node jwt_pub.pem ./
 COPY --chown=node:node jwt_priv.pem ./
 
-# Assign working directory to node
+# Assign permissions to node
 RUN chown -R node:node .
+RUN chown -R node:node /root/.npm
 
 # Stage 1. Copy files from stage 0, and install npm packages
 FROM node:16-alpine3.16 as stage1
@@ -67,6 +68,9 @@ COPY --from=stage1 /usr/local/lib/node_modules /usr/local/lib/node_modules
 # Update and install unix packages
 RUN apk update && \
     apk add --no-cache netcat-openbsd
+
+# Set user to node
+USER node
 
 # Set port
 EXPOSE ${VIRTUAL_PORT} 9229
