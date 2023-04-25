@@ -10,5 +10,13 @@
         "@local/server": "*",
         "@local/shared": "*",
         "@local/ui": "*"
+    },
+    "scripts": {
+        "setup": "yarn workspace @local/server setup",
+        "pre-build": "yarn workspace @local/server pre-build",
+        "build": "yarn workspace @local/server build && yarn workspace @local/shared build && yarn workspace @local/ui build && yarn post-build",
+        "post-build": "yarn workspace @local/server post-build",
+        "start-development": "yarn build && yarn workspace @local/server start-development",
+        "start-production": "yarn build && yarn workspace @local/server start-production"
     }
 }

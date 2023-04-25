@@ -11,7 +11,7 @@
             ],
             "@local/ui": [
                 "ui/dist"
-            ],
+            ]
         },
         "lib": [
             "ESNext"

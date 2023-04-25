@@ -12,12 +12,13 @@ ${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 60 -- echo 'Redis is up'
 yarn global add prisma@4.12.0
 yarn global bin
 
-cd ${PROJECT_DIR}/packages/main/server
-yarn pre-build-prisma
+cd ${PROJECT_DIR}/packages/main
+yarn pre-build
 
+cd server
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'
-    /usr/local/bin/prisma db pull
+    yarn prisma-pull
     if [ $? -ne 0 ]; then
         error "Failed to generate schema.prisma file from database"
         exit 1
@@ -25,7 +26,7 @@ if [ "${DB_PULL}" = true ]; then
     success 'Schema.prisma file generated'
 else
     info 'Running migrations...'
-    /usr/local/bin/prisma migrate deploy
+    yarn prisma-migrate
     if [ $? -ne 0 ]; then
         error "Failed to run migrations"
         exit 1
@@ -34,13 +35,12 @@ else
 fi
 
 info 'Generating Prisma schema...'
-/usr/local/bin/prisma generate
+yarn prisma-generate
 if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
 fi
 
 info 'Starting server...'
-cd ${PROJECT_DIR}/packages/main/server
 yarn start-${NODE_ENV}
 success 'Server started'
