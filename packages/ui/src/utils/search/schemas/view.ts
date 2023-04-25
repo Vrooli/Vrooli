@@ -1,4 +1,4 @@
-import { ViewSortBy } from "@shared/consts";
+import { ViewSortBy } from "@local/shared";
 import { viewFindMany } from "api/generated/endpoints/view_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

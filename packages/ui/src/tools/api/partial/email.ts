@@ -1,4 +1,4 @@
-import { Email } from "@shared/consts";
+import { Email } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const email: GqlPartial<Email> = {

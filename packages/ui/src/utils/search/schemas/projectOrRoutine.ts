@@ -1,8 +1,8 @@
-import { InputType, ProjectOrRoutineSortBy } from "@shared/consts";
+import { InputType, ProjectOrRoutineSortBy } from "@local/shared";
 import { projectOrRoutineFindMany } from "api/generated/endpoints/projectOrRoutine_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { complexityContainer, complexityFields, searchFormLayout, simplicityContainer, simplicityFields, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, languagesVersionContainer, languagesVersionFields, hasCompleteVersionContainer, hasCompleteVersionFields } from "./common";
+import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectOrRoutineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchProjectOrRoutine'),

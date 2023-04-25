@@ -1,6 +1,4 @@
-import { LINKS } from "@shared/consts";
-import { SvgComponent } from "@shared/icons";
-import { CommonKey } from "@shared/translations";
+import { CommonKey, LINKS, SvgComponent } from "@local/shared";
 import { BaseViewProps } from "views/types";
 
 export type SettingsPageType = 'Profile' | 'Privacy' | 'Authentication' | 'Display' | 'Notification' | 'FocusMode';

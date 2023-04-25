@@ -1,8 +1,8 @@
-import { StatsRoutineSearchInput, StatsRoutineSearchResult } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint } from '../types';
+import { StatsRoutineSearchInput, StatsRoutineSearchResult } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum StatsRoutineSortBy {
@@ -42,9 +42,9 @@ export const typeDef = gql`
     type Query {
         statsRoutine(input: StatsRoutineSearchInput!): StatsRoutineSearchResult!
     }
- `
+ `;
 
-const objectType = 'StatsRoutine';
+const objectType = "StatsRoutine";
 export const resolvers: {
     Query: {
         statsRoutine: GQLEndpoint<StatsRoutineSearchInput, StatsRoutineSearchResult>;
@@ -56,4 +56,4 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
-}
+};

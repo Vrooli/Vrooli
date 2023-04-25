@@ -1,8 +1,8 @@
-import { StandardSortBy } from "@shared/consts";
+import { StandardSortBy } from "@local/shared";
 import { standardFindMany } from "api/generated/endpoints/standard_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields } from "./common";
+import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const standardSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchStandard'),

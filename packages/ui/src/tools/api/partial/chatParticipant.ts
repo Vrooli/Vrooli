@@ -1,15 +1,15 @@
-import { ChatParticipant } from "@shared/consts";
+import { ChatParticipant } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const chatParticipant: GqlPartial<ChatParticipant> = {
-    __typename: 'ChatParticipant',
+    __typename: "ChatParticipant",
     common: {
         id: true,
         created_at: true,
         updated_at: true,
     },
     list: {
-        user: async () => rel((await import('./user')).user, 'nav'),
+        user: async () => rel((await import("./user")).user, "nav"),
     },
-}
+};

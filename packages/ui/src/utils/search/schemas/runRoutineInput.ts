@@ -1,4 +1,4 @@
-import { RunRoutineInputSortBy } from "@shared/consts";
+import { RunRoutineInputSortBy } from "@local/shared";
 import { runRoutineInputFindMany } from "api/generated/endpoints/runRoutineInput_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

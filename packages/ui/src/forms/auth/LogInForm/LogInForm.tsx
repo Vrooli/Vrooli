@@ -1,29 +1,27 @@
+import { emailLogInFormValidation, EmailLogInInput, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
 import {
     Button,
     Grid,
     Link, TextField, Typography
-} from '@mui/material';
-import { EmailLogInInput, LINKS, Session } from '@shared/consts';
-import { parseSearchParams, useLocation } from '@shared/route';
-import { emailLogInFormValidation } from '@shared/validation';
-import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
-import { useCustomMutation } from 'api/hooks';
-import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
-import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { Field, Formik } from 'formik';
-import { BaseForm } from 'forms/BaseForm/BaseForm';
-import { CSSProperties, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { clickSize } from 'styles';
-import { Forms } from 'utils/consts';
-import { PubSub } from 'utils/pubsub';
-import { formNavLink, formPaper, formSubmit } from '../../styles';
-import { LogInFormProps } from '../../types';
+} from "@mui/material";
+import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
+import { useCustomMutation } from "api/hooks";
+import { errorToCode, hasErrorCode, mutationWrapper } from "api/utils";
+import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Field, Formik } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
+import { CSSProperties, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { clickSize } from "styles";
+import { Forms } from "utils/consts";
+import { PubSub } from "utils/pubsub";
+import { formNavLink, formPaper, formSubmit } from "../../styles";
+import { LogInFormProps } from "../../types";
 
 export const LogInForm = ({
     onClose,
-    onFormChange = () => { }
+    onFormChange = () => { },
 }: LogInFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -31,9 +29,9 @@ export const LogInForm = ({
     const { redirect, verificationCode } = useMemo(() => {
         const params = parseSearchParams();
         return {
-            redirect: typeof params.redirect === 'string' ? params.redirect : undefined,
-            verificationCode: typeof params.code === 'string' ? params.code : undefined,
-        }
+            redirect: typeof params.redirect === "string" ? params.redirect : undefined,
+            verificationCode: typeof params.code === "string" ? params.code : undefined,
+        };
     }, []);
 
     const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
@@ -47,13 +45,13 @@ export const LogInForm = ({
                 display="dialog"
                 onClose={onClose}
                 titleData={{
-                    titleKey: 'LogIn',
+                    titleKey: "LogIn",
                 }}
             />
             <Formik
                 initialValues={{
-                    email: '',
-                    password: ''
+                    email: "",
+                    password: "",
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Session, EmailLogInInput>({
@@ -61,35 +59,35 @@ export const LogInForm = ({
                         input: { ...values, verificationCode },
                         successCondition: (data) => data !== null,
                         onSuccess: (data) => {
-                            if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
+                            if (verificationCode) PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
                             PubSub.get().publishSession(data);
                             setLocation(redirect ?? LINKS.Home);
                         },
                         showDefaultErrorSnack: false,
                         onError: (response) => {
                             // Custom dialog for changing password
-                            if (hasErrorCode(response, 'MustResetPassword')) {
+                            if (hasErrorCode(response, "MustResetPassword")) {
                                 PubSub.get().publishAlertDialog({
-                                    messageKey: 'ChangePasswordBeforeLogin',
+                                    messageKey: "ChangePasswordBeforeLogin",
                                     buttons: [
-                                        { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? LINKS.Home) } },
-                                    ]
+                                        { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
+                                    ],
                                 });
                             }
                             // Custom snack for invalid email, that has sign up link
-                            else if (hasErrorCode(response, 'EmailNotFound')) {
+                            else if (hasErrorCode(response, "EmailNotFound")) {
                                 PubSub.get().publishSnack({
-                                    messageKey: 'EmailNotFound',
-                                    severity: 'Error',
-                                    buttonKey: 'SignUp',
-                                    buttonClicked: () => { toSignUp() }
+                                    messageKey: "EmailNotFound",
+                                    severity: "Error",
+                                    buttonKey: "SignUp",
+                                    buttonClicked: () => { toSignUp(); },
                                 });
                             } else {
-                                PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: 'Error', data: response });
+                                PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: "Error", data: response });
                             }
                             helpers.setSubmitting(false);
-                        }
-                    })
+                        },
+                    });
                 }}
                 validationSchema={emailLogInFormValidation}
             >
@@ -97,7 +95,7 @@ export const LogInForm = ({
                     dirty={formik.dirty}
                     isLoading={loading}
                     style={{
-                        display: 'block',
+                        display: "block",
                         ...formPaper,
                     }}
                 >
@@ -107,7 +105,7 @@ export const LogInForm = ({
                                 fullWidth
                                 autoComplete="email"
                                 name="email"
-                                label={t('Email', { count: 1 })}
+                                label={t("Email", { count: 1 })}
                                 as={TextField}
                             />
                         </Grid>
@@ -126,7 +124,7 @@ export const LogInForm = ({
                         color="secondary"
                         sx={{ ...formSubmit }}
                     >
-                        {t('LogIn')}
+                        {t("LogIn")}
                     </Button>
                     <Grid container spacing={2}>
                         <Grid item xs={6}>
@@ -137,7 +135,7 @@ export const LogInForm = ({
                                         ...formNavLink,
                                     } as CSSProperties}
                                 >
-                                    {t('ForgotPassword')}
+                                    {t("ForgotPassword")}
                                 </Typography>
                             </Link>
                         </Grid>
@@ -147,10 +145,10 @@ export const LogInForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                        flexDirection: 'row-reverse',
+                                        flexDirection: "row-reverse",
                                     } as CSSProperties}
                                 >
-                                    {t('DontHaveAccountSignUp')}
+                                    {t("DontHaveAccountSignUp")}
                                 </Typography>
                             </Link>
                         </Grid>
@@ -159,4 +157,4 @@ export const LogInForm = ({
             </Formik>
         </>
     );
-}
+};

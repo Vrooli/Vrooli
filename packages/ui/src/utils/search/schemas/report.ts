@@ -1,4 +1,4 @@
-import { ReportSortBy } from "@shared/consts";
+import { ReportSortBy } from "@local/shared";
 import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

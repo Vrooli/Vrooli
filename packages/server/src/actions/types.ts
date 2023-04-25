@@ -1,4 +1,4 @@
-import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from '@shared/consts';
+import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
@@ -47,7 +47,7 @@ export type DeleteManyHelperProps = {
 }
 
 export type DeleteOneHelperProps = {
-    input: Pick<DeleteOneInput, 'id'>;
+    input: Pick<DeleteOneInput, "id">;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;

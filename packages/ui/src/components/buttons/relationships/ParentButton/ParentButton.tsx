@@ -1,22 +1,20 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { ProjectIcon, RoutineIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
-import { exists } from '@shared/utils';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
-import { SelectOrCreateObjectType } from 'components/dialogs/types';
-import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from 'components/lists/types';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useField } from 'formik';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { firstString } from 'utils/display/stringTools';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { openObject } from 'utils/navigation/openObject';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
-import { ParentButtonProps } from '../types';
+import { exists, ProjectIcon, RoutineIcon, useLocation } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { SelectOrCreateObjectType } from "components/dialogs/types";
+import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from "components/lists/types";
+import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { useField } from "formik";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { firstString } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { openObject } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { ParentButtonProps } from "../types";
 
 export function ParentButton({
     isEditing,
@@ -28,10 +26,10 @@ export function ParentButton({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const languages = useMemo(() => getUserLanguages(session), [session])
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
-    const [versionField, , versionHelpers] = useField('parent');
-    const [rootField, , rootHelpers] = useField('root.parent');
+    const [versionField, , versionHelpers] = useField("parent");
+    const [rootField, , rootHelpers] = useField("root.parent");
 
     const isAvailable = false; // TODO add when copying/pull requests are implemented
 
@@ -55,11 +53,11 @@ export function ParentButton({
                 // If form is dirty, prompt to confirm (since data will be lost)
                 if (isFormDirty) {
                     PubSub.get().publishAlertDialog({
-                        messageKey: 'ParentOverrideConfirm',
+                        messageKey: "ParentOverrideConfirm",
                         buttons: [
-                            { labelKey: 'Yes', onClick: () => { setParentDialogOpen(true); } },
+                            { labelKey: "Yes", onClick: () => { setParentDialogOpen(true); } },
                             { labelKey: "No", onClick: () => { } },
-                        ]
+                        ],
                     });
                 }
                 // Otherwise, open parent select dialog
@@ -86,23 +84,23 @@ export function ParentButton({
         const parent = versionField?.value ?? rootField?.value;
         if (!parent) return {
             Icon: null,
-            tooltip: isEditing ? '' : 'Press to copy from a parent (will override entered data)'
+            tooltip: isEditing ? "" : "Press to copy from a parent (will override entered data)",
         };
         // If parent is project, use project icon
-        if (parent.__typename === 'ProjectVersion') {
+        if (parent.__typename === "ProjectVersion") {
             const Icon = ProjectIcon;
-            const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, 'project');
+            const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, "project");
             return {
                 Icon,
-                tooltip: `${t('Parent')}: ${parentName}`
+                tooltip: `${t("Parent")}: ${parentName}`,
             };
         }
         // If parent is routine, use routine icon
         const Icon = RoutineIcon;
-        const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, 'routine');
+        const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, "routine");
         return {
             Icon,
-            tooltip: `${t('Parent')}: ${parentName}`
+            tooltip: `${t("Parent")}: ${parentName}`,
         };
     }, [isEditing, languages, rootField?.value, t, versionField?.value]);
 
@@ -125,7 +123,7 @@ export function ParentButton({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="parent" sx={{ ...commonLabelProps() }}>{t('Parent')}</TextShrink>
+                <TextShrink id="parent" sx={{ ...commonLabelProps() }}>{t("Parent")}</TextShrink>
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}
@@ -137,5 +135,5 @@ export function ParentButton({
                 </Tooltip>
             </Stack>
         </>
-    )
+    );
 }

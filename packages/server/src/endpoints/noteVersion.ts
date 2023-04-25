@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { NoteVersion, NoteVersionSearchInput, NoteVersionCreateInput, NoteVersionUpdateInput, NoteVersionSortBy, FindVersionInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum NoteVersionSortBy {
@@ -129,9 +129,9 @@ export const typeDef = gql`
         noteVersionCreate(input: NoteVersionCreateInput!): NoteVersion!
         noteVersionUpdate(input: NoteVersionUpdateInput!): NoteVersion!
     }
-`
+`;
 
-const objectType = 'NoteVersion';
+const objectType = "NoteVersion";
 export const resolvers: {
     NoteVersionSortBy: typeof NoteVersionSortBy;
     Query: {
@@ -147,21 +147,21 @@ export const resolvers: {
     Query: {
         noteVersion: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         noteVersions: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         noteVersionCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         noteVersionUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

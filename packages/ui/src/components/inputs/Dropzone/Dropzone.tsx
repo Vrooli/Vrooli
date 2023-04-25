@@ -6,12 +6,12 @@
  * which can be removed.
  * //TODO do what this comment says
  */
-import { Button, Grid, Theme } from '@mui/material';
-import { makeStyles } from '@mui/styles';
-import { useEffect, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { PubSub } from 'utils/pubsub';
-import { DropzoneProps } from '../types';
+import { Button, Grid, Theme } from "@mui/material";
+import { makeStyles } from "@mui/styles";
+import { useEffect, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { PubSub } from "utils/pubsub";
+import { DropzoneProps } from "../types";
 
 const useStyles = makeStyles((theme: Theme) => ({
     gridPad: {
@@ -23,80 +23,80 @@ const useStyles = makeStyles((theme: Theme) => ({
         marginBottom: theme.spacing(1),
     },
     dropContainer: {
-        background: 'white',
-        color: 'black',
-        border: '3px dashed gray',
-        borderRadius: '5px'
+        background: "white",
+        color: "black",
+        border: "3px dashed gray",
+        borderRadius: "5px",
     },
     thumbsContainer: {
-        display: 'flex',
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginTop: 16
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        marginTop: 16,
     },
     thumb: {
-        display: 'inline-flex',
+        display: "inline-flex",
         borderRadius: 2,
-        border: '1px solid #eaeaea',
+        border: "1px solid #eaeaea",
         marginBottom: 8,
         marginRight: 8,
         width: 100,
         height: 100,
         padding: 4,
-        boxSizing: 'border-box'
+        boxSizing: "border-box",
     },
     thumbInner: {
-        display: 'flex',
+        display: "flex",
         minWidth: 0,
-        overflow: 'hidden'
+        overflow: "hidden",
     },
     img: {
-        display: 'block',
-        width: 'auto',
-        height: '100%'
+        display: "block",
+        width: "auto",
+        height: "100%",
     },
 }));
 
 export const Dropzone = ({
-    acceptedFileTypes = ['image/*', '.heic', '.heif'],
-    dropzoneText = 'Drag \'n\' drop files here or click',
+    acceptedFileTypes = ["image/*", ".heic", ".heif"],
+    dropzoneText = "Drag 'n' drop files here or click",
     onUpload,
     showThumbs = true,
     maxFiles = 100,
-    uploadText = 'Upload file(s)',
-    cancelText = 'Cancel upload',
-    disabled = false
+    uploadText = "Upload file(s)",
+    cancelText = "Cancel upload",
+    disabled = false,
 }: DropzoneProps) => {
     const classes = useStyles();
     const [files, setFiles] = useState<any[]>([]);
     const { getRootProps, getInputProps } = useDropzone({
         accept: acceptedFileTypes,
-        maxFiles: maxFiles,
+        maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.get().publishSnack({ messageKey: 'FilesNotAccepted', severity: 'Error' });
+                PubSub.get().publishSnack({ messageKey: "FilesNotAccepted", severity: "Error" });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file)
+                preview: URL.createObjectURL(file),
             })));
-        }
+        },
     });
 
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.get().publishSnack({ messageKey: 'NoFilesSelected', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "NoFilesSelected", severity: "Error" });
             return;
         }
         onUpload(files);
         setFiles([]);
-    }
+    };
 
     const cancel = (e) => {
         e.stopPropagation();
         setFiles([]);
-    }
+    };
 
     const thumbs = files.map(file => (
         <div className={classes.thumb} key={file.name}>
@@ -117,7 +117,7 @@ export const Dropzone = ({
 
     return (
         <section className={classes.dropContainer}>
-            <div style={{ textAlign: 'center' }} {...getRootProps({ className: 'dropzone' })}>
+            <div style={{ textAlign: "center" }} {...getRootProps({ className: "dropzone" })}>
                 <input {...getInputProps()} />
                 <p>{dropzoneText}</p>
                 {showThumbs &&
@@ -135,4 +135,4 @@ export const Dropzone = ({
             </div>
         </section>
     );
-}
+};

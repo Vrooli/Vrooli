@@ -1,4 +1,4 @@
-import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from '@shared/consts';
+import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
 
@@ -30,13 +30,13 @@ type LinkData = {
 export const calculateShortestLongestWeightedPath = (
     nodes: { [id: string]: WeightData },
     edges: LinkData[],
-    languages: string[]
+    languages: string[],
 ): [number, number] => {
     // First, check that all edges point to valid nodes. 
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
         if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError('0237', 'UnlinkedNodes', languages, { failedEdge: edge })
+            throw new CustomError("0237", "UnlinkedNodes", languages, { failedEdge: edge });
         }
     }
     // If no nodes or edges, return 1
@@ -62,8 +62,8 @@ export const calculateShortestLongestWeightedPath = (
         // If edges but all have been visited, must be a loop. Return -1
         if (fromEdges.every(edge => visitedEdges.some(visitedEdge => visitedEdge.fromId === edge.fromId && visitedEdge.toId === edge.toId))) return [-1, -1];
         // Otherwise, calculate the shortest and longest distance
-        let edgeShorts: number[] = [];
-        let edgeLongs: number[] = [];
+        const edgeShorts: number[] = [];
+        const edgeLongs: number[] = [];
         for (const edge of fromEdges) {
             // Find the weight of the edge from the node's complexity. Add one if there are multiple edges,
             // since the user has to make a decision
@@ -86,7 +86,7 @@ export const calculateShortestLongestWeightedPath = (
         const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
         const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
         return [shortest, longest];
-    }
+    };
     // Find all of the end nodes, by finding all nodes without any outgoing edges
     const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
     // Calculate the shortest and longest for each end node
@@ -94,9 +94,9 @@ export const calculateShortestLongestWeightedPath = (
     // Return shortest short and longest long
     return [
         Math.min(...distances.map(d => d[0])),
-        Math.max(...distances.map(d => d[1]))
-    ]
-}
+        Math.max(...distances.map(d => d[1])),
+    ];
+};
 
 /**
  * Select query for calculating the complexity of a routine version
@@ -120,24 +120,24 @@ const routineVersionSelect = ({
                                     simplicity: true,
                                     inputs: {
                                         select: {
-                                            isRequired: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                                            isRequired: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
                     },
-                }
+                },
             },
-        }
+        },
     },
     inputs: {
         select: {
             id: true,
-            isRequired: true
-        }
-    }
-})
+            isRequired: true,
+        },
+    },
+});
 
 type GroupRoutineVersionDataResult = {
     linkData: { [linkId: string]: LinkData },
@@ -161,7 +161,7 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
-    let data = await prisma.routine_version.findMany({
+    const data = await prisma.routine_version.findMany({
         where: { id: { in: ids } },
         select: routineVersionSelect,
     });
@@ -172,7 +172,7 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
             linkData[link.id] = {
                 fromId: link.fromId,
                 toId: link.toId,
-            }
+            };
         }
         // Nodes and subroutineItemData
         for (const node of routineVersion.nodes) {
@@ -186,13 +186,13 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
                             simplicity: item.routineVersion.simplicity,
                             allInputs: item.routineVersion.inputs.length,
                             optionalInputs: item.routineVersion.inputs.filter(input => !input.isRequired).length,
-                        }
-                    })
-                }
+                        };
+                    }),
+                };
             } else {
                 nodeData[node.id] = {
-                    subroutines: []
-                }
+                    subroutines: [],
+                };
             }
         }
     }
@@ -209,7 +209,7 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
         optionalRoutineVersionInputCounts,
         allRoutineVersionInputCounts,
     };
-}
+};
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
@@ -237,7 +237,7 @@ export const calculateWeightData = async (
     // Make sure inputs do not contain disallowed IDs
     const inputIds = inputs.map(i => i.id);
     if (inputIds.some(id => disallowIds.includes(id))) {
-        throw new CustomError('0370', 'InvalidArgs', languages);
+        throw new CustomError("0370", "InvalidArgs", languages);
     }
     // Initialize data used to calculate complexity/simplicity
     const linkData: { [id: string]: { routineVersionId: string, link: LinkData } } = {};
@@ -271,8 +271,8 @@ export const calculateWeightData = async (
                 link: {
                     fromId: link.fromConnect,
                     toId: link.toConnect,
-                }
-            }
+                },
+            };
         }
         // Updating links
         const linksUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
@@ -292,7 +292,7 @@ export const calculateWeightData = async (
                 const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => item.routineVersionConnect);
                 connectingSubroutineDataIds.push(...subroutineIds); // This will add the full data to nodeData later
             } else {
-                nodeData[node.id] = { routineVersionId: rVerCreateOrUpdate.id, subroutines: [] }
+                nodeData[node.id] = { routineVersionId: rVerCreateOrUpdate.id, subroutines: [] };
             }
         }
         // Updating nodes
@@ -349,7 +349,7 @@ export const calculateWeightData = async (
         } = await calculateWeightData(prisma, languages, updatingSubroutineData, [...disallowIds, ...inputIds]);
         updatingSubroutineIds.push(...recursedUpdatingSubroutineIds);
         for (let i = 0; i < recursedDataWeights.length; i++) {
-            let currWeight = recursedDataWeights[i];
+            const currWeight = recursedDataWeights[i];
             // Find nodes that contain the subroutine
             const currNodes = Object.values(nodeData).filter(node => node.subroutines.some(subroutine => subroutine.id === updatingSubroutineData[i].id));
             // Add or replace the weight data to each node's subroutines array
@@ -408,4 +408,4 @@ export const calculateWeightData = async (
         });
     }
     return { updatingSubroutineIds, dataWeights };
-}
+};

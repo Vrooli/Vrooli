@@ -1,14 +1,14 @@
-import { useQuery } from '@apollo/client';
-import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
-import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
-import { tagFindMany } from 'api/generated/endpoints/tag_findMany';
-import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Wrap } from 'types';
-import { PubSub } from 'utils/pubsub';
-import { TagShape } from 'utils/shape/models/tag';
-import { TagSelectorBaseProps } from '../types';
+import { useQuery } from "@apollo/client";
+import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { tagFindMany } from "api/generated/endpoints/tag_findMany";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Wrap } from "types";
+import { PubSub } from "utils/pubsub";
+import { TagShape } from "utils/shape/models/tag";
+import { TagSelectorBaseProps } from "../types";
 
 export const TagSelectorBase = ({
     disabled,
@@ -26,38 +26,38 @@ export const TagSelectorBase = ({
         handleTagsUpdate(tags.filter(t => t.tag !== tag.tag));
     }, [handleTagsUpdate, tags]);
 
-    const [inputValue, setInputValue] = useState<string>('');
-    const clearText = useCallback(() => { setInputValue(''); }, []);
+    const [inputValue, setInputValue] = useState<string>("");
+    const clearText = useCallback(() => { setInputValue(""); }, []);
     const onChange = useCallback((change: any) => {
         // Remove invalid characters (i.e. ',' or ';')
-        setInputValue(change.target.value.replace(/[,;]/g, ''))
+        setInputValue(change.target.value.replace(/[,;]/g, ""));
     }, []);
     const onKeyDown = useCallback((event: any) => {
         let tagLabel;
         // Check if the user pressed ',' or ';'
-        if (event.code === 'Comma' || event.code === 'Semicolon') {
+        if (event.code === "Comma" || event.code === "Semicolon") {
             tagLabel = inputValue;
         }
         // Check if the user pressed enter
-        else if (event.code === 'enter' && event.target.value) {
-            tagLabel = inputValue + event.key
+        else if (event.code === "enter" && event.target.value) {
+            tagLabel = inputValue + event.key;
         }
         else return;
         // Remove invalid characters (i.e. ',' or ';')
-        tagLabel = tagLabel.replace(/[,;]/g, '');
+        tagLabel = tagLabel.replace(/[,;]/g, "");
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooShort', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "TagTooShort", severity: "Error" });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooLong', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "TagTooLong", severity: "Error" });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "TagAlreadySelected", severity: "Error" });
             return;
         }
         // Add tag
@@ -67,7 +67,7 @@ export const TagSelectorBase = ({
     }, [clearText, handleTagAdd, inputValue, tags]);
 
     const onInputSelect = useCallback((tag: Tag) => {
-        setInputValue('');
+        setInputValue("");
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tag.tag);
         if (isSelected) handleTagRemove(tag);
@@ -88,7 +88,7 @@ export const TagSelectorBase = ({
         });
     }, [tags]);
 
-    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, 'tags'>, Wrap<TagSearchInput, 'input'>>(tagFindMany, {
+    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, "tags">, Wrap<TagSearchInput, "input">>(tagFindMany, {
         variables: {
             input: {
                 // Exclude tags that have already been fully queried, and match the search string
@@ -101,10 +101,10 @@ export const TagSelectorBase = ({
                 searchString: inputValue,
                 sortBy: TagSortBy.BookmarksDesc,
                 take: 25,
-            }
-        }
+            },
+        },
     });
-    useEffect(() => { refetchAutocomplete() }, [inputValue, refetchAutocomplete]);
+    useEffect(() => { refetchAutocomplete(); }, [inputValue, refetchAutocomplete]);
 
     /**
      * Store queried tags in the tag ref
@@ -145,9 +145,9 @@ export const TagSelectorBase = ({
             multiple
             freeSolo={true}
             options={autocompleteOptions}
-            getOptionLabel={(o: string | TagShape | Tag) => (typeof o === 'string' ? o : o.tag)}
+            getOptionLabel={(o: string | TagShape | Tag) => (typeof o === "string" ? o : o.tag)}
             inputValue={inputValue}
-            noOptionsText={t('NoSuggestions')}
+            noOptionsText={t("NoSuggestions")}
             limitTags={3}
             onClose={clearText}
             value={tags}
@@ -161,11 +161,11 @@ export const TagSelectorBase = ({
                         {...getTagProps({ index })}
                         onDelete={() => onChipDelete(option)}
                         sx={{
-                            backgroundColor: palette.mode === 'light' ? '#8148b0' : '#8148b0', //'#a068ce',
-                            color: 'white',
+                            backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
+                            color: "white",
                         }}
                     />
-                )
+                ),
                 )}
             renderOption={(props, option: TagShape | Tag) => (
                 <MenuItem
@@ -174,7 +174,7 @@ export const TagSelectorBase = ({
                 >
                     <ListItemText>{option.tag}</ListItemText>
                     <BookmarkButton
-                        objectId={(option as Tag).id ?? ''}
+                        objectId={(option as Tag).id ?? ""}
                         bookmarkFor={BookmarkFor.Tag}
                         isBookmarked={(option as Tag).you.isBookmarked}
                         bookmarks={(option as Tag).bookmarks}
@@ -186,14 +186,14 @@ export const TagSelectorBase = ({
                 <TextField
                     value={inputValue}
                     onChange={onChange}
-                    placeholder={placeholder ?? t('TagSelectorPlaceholder')}
+                    placeholder={placeholder ?? t("TagSelectorPlaceholder")}
                     InputProps={params.InputProps}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
                     fullWidth
-                    sx={{ paddingRight: 0, minWidth: '250px' }}
+                    sx={{ paddingRight: 0, minWidth: "250px" }}
                 />
             )}
         />
-    )
-}
+    );
+};

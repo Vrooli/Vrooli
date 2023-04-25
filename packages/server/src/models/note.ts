@@ -1,6 +1,5 @@
+import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, noteValidation, NoteYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou } from '@shared/consts';
-import { noteValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -14,9 +13,9 @@ import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 
-const __typename = 'Note' as const;
-type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
-const suppFields = ['you'] as const;
+const __typename = "Note" as const;
+type Permissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
+const suppFields = ["you"] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -26,8 +25,8 @@ export const NoteModel: ModelLogic<{
     GqlSearch: NoteSearchInput,
     GqlSort: NoteSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.noteUpsertArgs['create'],
-    PrismaUpdate: Prisma.noteUpsertArgs['update'],
+    PrismaCreate: Prisma.noteUpsertArgs["create"],
+    PrismaUpdate: Prisma.noteUpsertArgs["update"],
     PrismaModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
     PrismaSelect: Prisma.noteSelect,
     PrismaWhere: Prisma.noteWhereInput,
@@ -38,36 +37,36 @@ export const NoteModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            createdBy: 'User',
-            issues: 'Issue',
-            labels: 'Label',
+            createdBy: "User",
+            issues: "Issue",
+            labels: "Label",
             owner: {
-                ownedByUser: 'User',
-                ownedByOrganization: 'Organization',
+                ownedByUser: "User",
+                ownedByOrganization: "Organization",
             },
-            parent: 'Note',
-            pullRequests: 'PullRequest',
-            questions: 'Question',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
-            transfers: 'Transfer',
-            versions: 'NoteVersion',
+            parent: "Note",
+            pullRequests: "PullRequest",
+            questions: "Question",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            transfers: "Transfer",
+            versions: "NoteVersion",
         },
         prismaRelMap: {
             __typename,
-            parent: 'NoteVersion',
-            createdBy: 'User',
-            ownedByUser: 'User',
-            ownedByOrganization: 'Organization',
-            versions: 'NoteVersion',
-            pullRequests: 'PullRequest',
-            labels: 'Label',
-            issues: 'Issue',
-            tags: 'Tag',
-            bookmarkedBy: 'User',
-            questions: 'Question',
+            parent: "NoteVersion",
+            createdBy: "User",
+            ownedByUser: "User",
+            ownedByOrganization: "Organization",
+            versions: "NoteVersion",
+            pullRequests: "PullRequest",
+            labels: "Label",
+            issues: "Issue",
+            tags: "Tag",
+            bookmarkedBy: "User",
+            questions: "Question",
         },
-        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
+        joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
         countFields: {
             issuesCount: true,
             labelsCount: true,
@@ -85,8 +84,8 @@ export const NoteModel: ModelLogic<{
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -94,7 +93,7 @@ export const NoteModel: ModelLogic<{
         shape: {
             pre: async (params) => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
-                return { ...maps }
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -102,21 +101,21 @@ export const NoteModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, ...rest })),
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "labels", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'labels', data, ...rest })),
-            })
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "labels", data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
@@ -145,12 +144,12 @@ export const NoteModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'tagsWrapped',
-                'labelsWrapped',
-                { versions: { some: 'transDescriptionWrapped' } },
-                { versions: { some: 'transNameWrapped' } },
-            ]
-        })
+                "tagsWrapped",
+                "labelsWrapped",
+                { versions: { some: "transDescriptionWrapped" } },
+                { versions: { some: "transNameWrapped" } },
+            ],
+        }),
     },
     validate: {
         hasCompleteVersion: () => true,
@@ -169,10 +168,10 @@ export const NoteModel: ModelLogic<{
             isDeleted: true,
             isPrivate: true,
             permissions: true,
-            createdBy: 'User',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            versions: ['NoteVersion', ['root']],
+            createdBy: "User",
+            ownedByOrganization: "Organization",
+            ownedByUser: "User",
+            versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
             private: { isPrivate: true, isDeleted: false },
@@ -181,8 +180,8 @@ export const NoteModel: ModelLogic<{
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

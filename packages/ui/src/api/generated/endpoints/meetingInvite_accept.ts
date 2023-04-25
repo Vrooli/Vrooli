@@ -1,8 +1,8 @@
-import gql from 'graphql-tag';
-import { Label_full } from '../fragments/Label_full';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { Schedule_full } from '../fragments/Schedule_full';
-import { User_nav } from '../fragments/User_nav';
+import gql from "graphql-tag";
+import { Label_full } from "../fragments/Label_full";
+import { Organization_nav } from "../fragments/Organization_nav";
+import { Schedule_full } from "../fragments/Schedule_full";
+import { User_nav } from "../fragments/User_nav";
 
 export const meetingInviteAccept = gql`${Label_full}
 ${Organization_nav}

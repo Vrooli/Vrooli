@@ -1,4 +1,4 @@
-import { StatsOrganization } from "@shared/consts";
+import { StatsOrganization } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsOrganization: GqlPartial<StatsOrganization> = {

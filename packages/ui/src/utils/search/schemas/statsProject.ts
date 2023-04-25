@@ -1,4 +1,4 @@
-import { StatsProjectSortBy } from "@shared/consts";
+import { StatsProjectSortBy } from "@local/shared";
 import { statsProjectFindMany } from "api/generated/endpoints/statsProject_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

@@ -1,12 +1,11 @@
-import { ButtonProps, IconButtonProps } from '@mui/material';
-import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from '@shared/consts';
-import { SvgProps } from '@shared/icons';
-import { FormSchema } from 'forms/types';
-import React from 'react';
-import { NavigableObject } from 'types';
-import { Status } from 'utils/consts';
-import { SearchType } from 'utils/search/objectToSearch';
-import { ViewDisplayType } from 'views/types';
+import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine, SvgProps } from "@local/shared";
+import { ButtonProps, IconButtonProps } from "@mui/material";
+import { FormSchema } from "forms/types";
+import React from "react";
+import { NavigableObject } from "types";
+import { Status } from "utils/consts";
+import { SearchType } from "utils/search/objectToSearch";
+import { ViewDisplayType } from "views/types";
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
@@ -19,7 +18,7 @@ export interface AdvancedSearchButtonProps {
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    errors: GridSubmitButtonsProps['errors'];
+    errors: GridSubmitButtonsProps["errors"];
     handleCancel: () => void;
     handleSubmit: () => void;
     isAdding: boolean;
@@ -96,7 +95,7 @@ export type MicrophoneButtonProps = {
 export interface PopupMenuProps extends ButtonProps {
     text?: string;
     children: any
-};
+}
 
 export interface ReportButtonProps {
     forId: string;
@@ -188,7 +187,7 @@ export interface TimeButtonProps {
 }
 
 export interface VoteButtonProps {
-    direction?: 'row' | 'column';
+    direction?: "row" | "column";
     disabled?: boolean;
     score?: number; // Net score - can be negative
     emoji?: string | null; // If not passed, then there is neither an upvote nor a downvote

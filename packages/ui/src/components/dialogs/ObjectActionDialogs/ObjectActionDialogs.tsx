@@ -1,4 +1,4 @@
-import { DeleteType, ReportFor } from "@shared/consts";
+import { DeleteType, ReportFor } from "@local/shared";
 import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";

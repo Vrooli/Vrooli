@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 /**
  * Lazy-loaded confetti
@@ -8,7 +8,7 @@ export const AsyncConfetti = () => {
 
     useEffect(() => {
         const loadConfetti = async () => {
-            const { default: loadedConfetti } = await import('react-confetti');
+            const { default: loadedConfetti } = await import("react-confetti");
             setConfetti(() => loadedConfetti);
         };
 
@@ -27,7 +27,7 @@ export const AsyncConfetti = () => {
                 x: 0,
                 y: 40,
                 w: window.innerWidth,
-                h: 0
+                h: 0,
             }}
         />
     );

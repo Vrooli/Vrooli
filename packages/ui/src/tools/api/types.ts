@@ -11,11 +11,11 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Specifies the selection type
      */
-    __selectionType?: 'common' | 'full' | 'list' | 'nav';
+    __selectionType?: "common" | "full" | "list" | "nav";
     /**
      * Specifies the object type
      */
-    __typename?: T['__typename'];
+    __typename?: T["__typename"];
     /**
      * Fragments to include in the selection. Each fragment's key can be used to reference it in the selection.
      */
@@ -23,7 +23,7 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Creates a union of the specified types
      */
-    __union?: { [key in T['__typename']]?: (string | number | MaybeLazyAsync<DeepPartialBooleanWithFragments<T>>) };
+    __union?: { [key in T["__typename"]]?: (string | number | MaybeLazyAsync<DeepPartialBooleanWithFragments<T>>) };
     /**
      * Defines a fragment to include in the selection. The fragment can be referenced in the selection using the __use field.
      */
@@ -47,7 +47,7 @@ export type GqlPartial<
     /**
      * Must specify the typename, in case we need to use it in a fragment.
      */
-    __typename: T['__typename'];
+    __typename: T["__typename"];
     /**
      * Fields which are always included. This is is recursive partial of T
      */

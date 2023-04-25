@@ -1,5 +1,5 @@
-import { gql } from 'apollo-server-express';
-import { RunProjectStepStatus } from '@shared/consts';
+import { RunProjectStepStatus } from "@local/shared";
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     enum RunProjectStepStatus {
@@ -39,11 +39,11 @@ export const typeDef = gql`
         directory: ProjectVersionDirectory
     }
 
-`
+`;
 
-const objectType = 'RunProjectStep';
+const objectType = "RunProjectStep";
 export const resolvers: {
     RunProjectStepStatus: typeof RunProjectStepStatus;
 } = {
-    RunProjectStepStatus: RunProjectStepStatus,
-}
+    RunProjectStepStatus,
+};

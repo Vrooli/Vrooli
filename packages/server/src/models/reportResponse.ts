@@ -1,8 +1,7 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
+import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, reportResponseValidation, ReportResponseYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou} from "@shared/consts";
-import { reportResponseValidation } from "@shared/validation";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
@@ -39,11 +38,11 @@ export const ReportResponseModel: ModelLogic<{
         label: (select, languages) => i18next.t('common:ReportResponseLabel', { report: ReportModel.display.label(select.report as any, languages) }),
     },
     format: {
-        gqlRelMap: { 
+        gqlRelMap: {
             __typename,
             report: 'Report',
         },
-        prismaRelMap: { 
+        prismaRelMap: {
             __typename,
             report: 'Report',
         },

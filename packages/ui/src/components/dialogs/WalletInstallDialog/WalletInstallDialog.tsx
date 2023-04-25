@@ -1,14 +1,14 @@
-import { DialogContent, ListItem, ListItemText } from '@mui/material';
-import { walletDownloadUrls } from 'utils/authentication/walletIntegration';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { WalletInstallDialogProps } from '../types';
+import { DialogContent, ListItem, ListItemText } from "@mui/material";
+import { walletDownloadUrls } from "utils/authentication/walletIntegration";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { WalletInstallDialogProps } from "../types";
 
 const installExtension = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-}
+    window.open(url, "_blank", "noopener,noreferrer");
+};
 
-const titleId = 'wallet-install-dialog-title';
+const titleId = "wallet-install-dialog-title";
 
 export const WalletInstallDialog = ({
     onClose,
@@ -25,7 +25,7 @@ export const WalletInstallDialog = ({
         >
             <DialogTitle
                 id={titleId}
-                title={'Install Wallet Extension'}
+                title={"Install Wallet Extension"}
                 onClose={onClose}
             />
             <DialogContent>
@@ -36,5 +36,5 @@ export const WalletInstallDialog = ({
                 ))}
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

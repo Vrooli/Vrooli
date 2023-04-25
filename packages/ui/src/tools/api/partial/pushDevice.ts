@@ -1,4 +1,4 @@
-import { PushDevice } from "@shared/consts";
+import { PushDevice } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const pushDevice: GqlPartial<PushDevice> = {

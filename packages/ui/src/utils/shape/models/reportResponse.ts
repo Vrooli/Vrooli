@@ -1,4 +1,4 @@
-import { ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput } from "@shared/consts";
+import { ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

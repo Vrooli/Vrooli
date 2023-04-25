@@ -1,4 +1,4 @@
-import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from "@shared/consts";
+import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ApiVersionShape } from "./apiVersion";
 import { NoteVersionShape } from "./noteVersion";

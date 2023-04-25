@@ -1,6 +1,6 @@
-import { Tag, TagTranslation, TagYou } from "@shared/consts";
-import { rel } from "../utils";
+import { Tag, TagTranslation, TagYou } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const tagTranslation: GqlPartial<TagTranslation> = {
     __typename: 'TagTranslation',

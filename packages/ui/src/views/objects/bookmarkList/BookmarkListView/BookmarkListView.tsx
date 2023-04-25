@@ -1,7 +1,5 @@
+import { AddIcon, BookmarkList, EditIcon, FindByIdInput, useLocation } from "@local/shared";
 import { Box, TextField, useTheme } from "@mui/material";
-import { BookmarkList, FindByIdInput } from "@shared/consts";
-import { AddIcon, EditIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { bookmarkListFindOne } from "api/generated/endpoints/bookmarkList_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -13,7 +11,7 @@ import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: BookmarkListViewProps) => {
@@ -25,7 +23,7 @@ export const BookmarkListView = ({
         partialData,
     });
 
-    const { label } = useMemo(() => ({ label: existing?.label ?? '' }), [existing]);
+    const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
 
     useEffect(() => {
         document.title = `${label} | Vrooli`;
@@ -33,12 +31,12 @@ export const BookmarkListView = ({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: 'BookmarkList',
+        objectType: "BookmarkList",
         setLocation,
         setObject: setBookmarkList,
     });
 
-    const [searchString, setSearchString] = useState('');
+    const [searchString, setSearchString] = useState("");
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
     }, []);
@@ -49,7 +47,7 @@ export const BookmarkListView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'BookmarkList',
+                    titleKey: "BookmarkList",
                     titleVariables: { count: 1 },
                 }}
                 below={<TextField
@@ -62,7 +60,7 @@ export const BookmarkListView = ({
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>
                     {/* Edit button */}
-                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                     {/* Add button */}
@@ -72,9 +70,9 @@ export const BookmarkListView = ({
                 </SideActionButtons>
                 <Box
                     sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                     }}
                 >
                     {/* Bookmarks */}
@@ -82,5 +80,5 @@ export const BookmarkListView = ({
                 </Box>
             </>
         </>
-    )
-}
+    );
+};

@@ -1,4 +1,4 @@
-import { QuizQuestionResponseSortBy } from "@shared/consts";
+import { QuizQuestionResponseSortBy } from "@local/shared";
 import { quizQuestionResponseFindMany } from "api/generated/endpoints/quizQuestionResponse_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

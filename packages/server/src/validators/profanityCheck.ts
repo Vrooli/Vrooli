@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";

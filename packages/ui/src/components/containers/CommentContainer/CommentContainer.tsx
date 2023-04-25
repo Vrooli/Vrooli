@@ -1,19 +1,17 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Button, Stack, useTheme } from '@mui/material';
-import { Comment, CommentThread as ThreadType } from '@shared/consts';
-import { CreateIcon } from '@shared/icons';
-import { uuidValidate } from '@shared/uuid';
-import { SearchButtons } from 'components/buttons/SearchButtons/SearchButtons';
-import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
-import { CommentThread } from 'components/lists/comment';
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useFindMany } from 'utils/hooks/useFindMany';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
-import { CommentContainerProps } from '../types';
+import { Comment, CommentThread as ThreadType, CreateIcon, uuidValidate } from "@local/shared";
+import { Button, Stack, useTheme } from "@mui/material";
+import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
+import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
+import { CommentThread } from "components/lists/comment";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useFindMany } from "utils/hooks/useFindMany";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
+import { CommentContainerProps } from "../types";
 
 export function CommentContainer({
     forceAddCommentOpen,
@@ -41,7 +39,7 @@ export function CommentContainer({
         timeFrame,
     } = useFindMany<ThreadType>({
         canSearch: uuidValidate(objectId),
-        searchType: 'Comment',
+        searchType: "Comment",
         resolve: (result) => result.threads,
         where: {
             [`${objectType.toLowerCase()}Id`]: objectId,
@@ -54,7 +52,7 @@ export function CommentContainer({
     const onCommentAdd = useCallback((comment: Comment) => {
         // Make comment first, so you can see it without having to scroll to the bottom
         setAllData(curr => [{
-            __typename: 'CommentThread',
+            __typename: "CommentThread",
             comment: comment as any,
             childThreads: [],
             endCursor: null,
@@ -64,7 +62,7 @@ export function CommentContainer({
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
     // Show add comment input if on desktop. For mobile, we'll show a button
-    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)) }, [forceAddCommentOpen, isMobile]);
+    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
     const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
     const handleAddCommentClose = useCallback(() => {
         setIsAddCommentOpen(false);
@@ -76,9 +74,9 @@ export function CommentContainer({
     // then we should scroll and focus the add comment input
     useEffect(() => {
         if (!forceAddCommentOpen || isMobile) return;
-        const addCommentInput = document.getElementById('markdown-input-add-comment-root');
+        const addCommentInput = document.getElementById("markdown-input-add-comment-root");
         if (addCommentInput) {
-            addCommentInput.scrollIntoView({ behavior: 'smooth' });
+            addCommentInput.scrollIntoView({ behavior: "smooth" });
             addCommentInput.focus();
         }
     }, [forceAddCommentOpen, isMobile]);
@@ -129,7 +127,7 @@ export function CommentContainer({
                 startIcon={<CreateIcon />}
                 onClick={handleAddCommentOpen}
                 sx={{ marginTop: 2 }}
-            >{t(`AddComment`)}</Button> : null}
+            >{t("AddComment")}</Button> : null}
         </ContentCollapse>
     );
 }

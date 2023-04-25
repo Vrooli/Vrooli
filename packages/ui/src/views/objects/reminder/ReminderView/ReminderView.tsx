@@ -1,7 +1,5 @@
+import { EllipsisIcon, FindByIdInput, HelpIcon, Reminder, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { FindByIdInput, Reminder } from "@shared/consts";
-import { EllipsisIcon, HelpIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -12,7 +10,7 @@ import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: ReminderViewProps) => {
@@ -39,7 +37,7 @@ export const ReminderView = ({
 
     const actionData = useObjectActions({
         object: reminder,
-        objectType: 'Reminder',
+        objectType: "Reminder",
         setLocation,
         setObject: setReminder,
     });
@@ -55,14 +53,14 @@ export const ReminderView = ({
             mt={3}
             bgcolor={palette.background.paper}
             sx={{
-                borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: 12 },
-                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+                borderRadius: { xs: "0", sm: 2 },
+                boxShadow: { xs: "none", sm: 12 },
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
+                width={"min(100px, 25vw)"}
+                height={"min(100px, 25vw)"}
                 borderRadius='100%'
                 position='absolute'
                 display='flex'
@@ -71,9 +69,9 @@ export const ReminderView = ({
                 left='50%'
                 top="-55px"
                 sx={{
-                    border: `1px solid black`,
+                    border: "1px solid black",
                     backgroundColor: profileColors[0],
-                    transform: 'translateX(-50%)',
+                    transform: "translateX(-50%)",
                 }}
             >
                 <HelpIcon fill={profileColors[1]} width='80%' height='80%' />
@@ -84,8 +82,8 @@ export const ReminderView = ({
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
-                        display: 'block',
-                        marginLeft: 'auto',
+                        display: "block",
+                        marginLeft: "auto",
                         marginRight: 1,
                     }}
                 >
@@ -101,7 +99,7 @@ export const ReminderView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Reminder',
+                    titleKey: "Reminder",
                 }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -113,8 +111,8 @@ export const ReminderView = ({
                 zIndex={zIndex + 1}
             />
             <Box sx={{
-                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
-                display: 'flex',
+                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                display: "flex",
                 paddingTop: 5,
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
                 position: "relative",
@@ -123,5 +121,5 @@ export const ReminderView = ({
             </Box>
             {/* TODO */}
         </>
-    )
-}
+    );
+};

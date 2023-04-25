@@ -1,4 +1,4 @@
-import { ReputationHistory } from "@shared/consts";
+import { ReputationHistory } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const reputationHistory: GqlPartial<ReputationHistory> = {

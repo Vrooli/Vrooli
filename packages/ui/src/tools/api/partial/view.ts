@@ -1,6 +1,6 @@
-import { View } from "@shared/consts";
-import { rel } from "../utils";
+import { View } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const view: GqlPartial<View> = {
     __typename: 'View',

@@ -2,7 +2,7 @@
     "name": "server",
     "author": "Vrooli",
     "license": "GPL-3.0",
-    "version": "1.9.0",
+    "version": "1.9.1",
     "private": true,
     "main": "dist/index.js",
     "type": "module",
@@ -31,12 +31,8 @@
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
+        "@local/shared": "*",
         "@prisma/client": "^4.12.0",
-        "@shared/consts": "*",
-        "@shared/translations": "*",
-        "@shared/utils": "*",
-        "@shared/uuid": "*",
-        "@shared/validation": "*",
         "apollo-server-express": "^3.3.0",
         "bcrypt": "^5.0.1",
         "bull": "^4.10.4",
@@ -65,6 +61,7 @@
         "@graphql-codegen/cli": "^2.16.1",
         "@graphql-codegen/typescript": "^2.8.5",
         "@graphql-codegen/typescript-resolvers": "^2.7.10",
+        "@prisma/client": "^4.12.0",
         "@types/bcrypt": "^5.0.0",
         "@types/bull": "^3.15.5",
         "@types/cookie-parser": "^1.4.2",
@@ -74,7 +71,6 @@
         "@types/node": "^17.0.35",
         "@types/node-cron": "^3.0.1",
         "@types/nodemailer": "^6.4.4",
-        "@types/web-push": "^3.3.2",
-        "@prisma/client": "^4.12.0"
+        "@types/web-push": "^3.3.2"
     }
 }

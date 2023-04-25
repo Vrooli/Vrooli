@@ -1,8 +1,5 @@
+import { DUMMY_ID, orDefault, Question, questionTranslationValidation, questionValidation, Session } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
-import { Question, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { questionTranslationValidation, questionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";

@@ -1,4 +1,4 @@
-import { Post, PostCreateInput, PostUpdateInput } from "@shared/consts";
+import { Post, PostCreateInput, PostUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

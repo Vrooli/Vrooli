@@ -1,2 +1,3 @@
-export * from './PrivacyPolicyView/PrivacyPolicyView';
-export * from './TermsView/TermsView';
+export * from "./PrivacyPolicyView/PrivacyPolicyView";
+export * from "./TermsView/TermsView";
+

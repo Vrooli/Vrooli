@@ -1,13 +1,13 @@
-import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
-import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@shared/icons';
-import { TranscriptDialog } from 'components/dialogs/TranscriptDialog/TranscriptDialog';
-import { useCallback, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useSpeech } from 'utils/hooks/useSpeech';
-import { PubSub } from 'utils/pubsub';
-import { MicrophoneButtonProps } from '../types';
+import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "@local/shared";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { TranscriptDialog } from "components/dialogs/TranscriptDialog/TranscriptDialog";
+import { useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { useSpeech } from "utils/hooks/useSpeech";
+import { PubSub } from "utils/pubsub";
+import { MicrophoneButtonProps } from "../types";
 
-type MicrophoneStatus = 'On' | 'Off' | 'Disabled';
+type MicrophoneStatus = "On" | "Off" | "Disabled";
 
 /**
  * A microphone icon that can be used to trigger speech recognition
@@ -22,9 +22,9 @@ export const MicrophoneButton = ({
     const { transcript, isListening, isSpeechSupported, startListening, stopListening, resetTranscript } = useSpeech();
 
     const status = useMemo<MicrophoneStatus>(() => {
-        if (disabled || !isSpeechSupported) return 'Disabled';
-        if (isListening) return 'On';
-        return 'Off';
+        if (disabled || !isSpeechSupported) return "Disabled";
+        if (isListening) return "On";
+        return "Off";
     }, [disabled, isListening, isSpeechSupported]);
 
     useEffect(() => {
@@ -33,33 +33,33 @@ export const MicrophoneButton = ({
 
 
     const Icon = useMemo(() => {
-        if (status === 'On') return MicrophoneOnIcon;
-        if (status === 'Off') return MicrophoneOffIcon;
+        if (status === "On") return MicrophoneOnIcon;
+        if (status === "Off") return MicrophoneOffIcon;
         return MicrophoneDisabledIcon;
     }, [status]);
 
     const handleClick = useCallback(() => {
-        if (status === 'On') {
+        if (status === "On") {
             stopListening();
             onTranscriptChange(transcript);
-        } else if (status === 'Off') {
+        } else if (status === "Off") {
             startListening();
             transcript && resetTranscript();
         } else {
-            PubSub.get().publishSnack({ messageKey: 'SpeechNotAvailable', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "SpeechNotAvailable", severity: "Error" });
         }
-        return true
+        return true;
     }, [status, startListening, stopListening, transcript, onTranscriptChange, resetTranscript]);
 
     if (!isSpeechSupported) return null;
     return (
         <Box>
-            <Tooltip title={status !== 'Disabled' ? t(`SearchByVoice`) : ''}>
+            <Tooltip title={status !== "Disabled" ? t("SearchByVoice") : ""}>
                 <IconButton
                     onClick={handleClick}
                     sx={{
-                        width: '48px',
-                        height: '48px',
+                        width: "48px",
+                        height: "48px",
                     }} aria-label="main-search-icon"
                 >
                     <Icon fill={palette.background.textSecondary} />
@@ -68,9 +68,9 @@ export const MicrophoneButton = ({
             {/* When microphone is active, display current translation */}
             <TranscriptDialog
                 handleClose={() => stopListening()}
-                isListening={status === 'On'}
+                isListening={status === "On"}
                 transcript={transcript}
             />
         </Box>
-    )
-}
+    );
+};

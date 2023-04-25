@@ -1,6 +1,5 @@
+import { CommentFor, CommonKey } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
-import { CommentFor } from "@shared/consts";
-import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 
 export interface CommentContainerProps {

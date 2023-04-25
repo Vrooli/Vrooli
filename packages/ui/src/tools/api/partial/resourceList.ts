@@ -1,6 +1,6 @@
-import { ResourceList, ResourceListTranslation } from "@shared/consts";
-import { rel } from "../utils";
+import { ResourceList, ResourceListTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 import { resource } from "./resource";
 
 export const resourceListTranslation: GqlPartial<ResourceListTranslation> = {

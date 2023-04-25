@@ -1,8 +1,5 @@
+import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
-import { Session, SmartContractVersion } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { smartContractVersionTranslationValidation, smartContractVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";

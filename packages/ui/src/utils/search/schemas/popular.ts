@@ -1,4 +1,4 @@
-import { PopularSortBy } from "@shared/consts";
+import { PopularSortBy } from "@local/shared";
 import { feedPopular } from "api/generated/endpoints/feed_popular";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

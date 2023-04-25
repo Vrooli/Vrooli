@@ -1,6 +1,5 @@
+import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, reportValidation, ReportYou } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou } from '@shared/consts';
-import { reportValidation } from "@shared/validation";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
@@ -20,7 +19,7 @@ import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 import { UserModel } from "./user";
 
-const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {
+const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
     Comment: "comment",
     Issue: "issue",
@@ -32,11 +31,11 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
     StandardVersion: "standardVersion",
     Tag: "tag",
     User: "user",
-}
+};
 
-const __typename = 'Report' as const;
-type Permissions = Pick<ReportYou, 'canDelete' | 'canUpdate' | 'canRespond'>;
-const suppFields = ['you'] as const;
+const __typename = "Report" as const;
+type Permissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
+const suppFields = ["you"] as const;
 export const ReportModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -46,8 +45,8 @@ export const ReportModel: ModelLogic<{
     GqlSearch: ReportSearchInput,
     GqlSort: ReportSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.reportUpsertArgs['create'],
-    PrismaUpdate: Prisma.reportUpsertArgs['update'],
+    PrismaCreate: Prisma.reportUpsertArgs["create"],
+    PrismaUpdate: Prisma.reportUpsertArgs["update"],
     PrismaModel: Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
     PrismaSelect: Prisma.reportSelect,
     PrismaWhere: Prisma.reportWhereInput,
@@ -83,28 +82,28 @@ export const ReportModel: ModelLogic<{
             if (select.standardVersion) return StandardVersionModel.display.label(select.standardVersion as any, languages);
             if (select.tag) return TagModel.display.label(select.tag as any, languages);
             if (select.user) return UserModel.display.label(select.user as any, languages);
-            return '';
-        }
+            return "";
+        },
     },
     format: {
         gqlRelMap: {
             __typename,
-            responses: 'ReportResponse',
+            responses: "ReportResponse",
         },
         prismaRelMap: {
             __typename,
-            responses: 'ReportResponse',
+            responses: "ReportResponse",
         },
-        hiddenFields: ['createdById'], // Always hide report creator
+        hiddenFields: ["createdById"], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['createdById'],
+            dbFields: ["createdById"],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
         countFields: {
@@ -118,7 +117,7 @@ export const ReportModel: ModelLogic<{
                 if (createList.length) {
                     const existing = await prisma.report.findMany({
                         where: {
-                            status: 'Open',
+                            status: "Open",
                             user: { id: userData.id },
                             OR: createList.map((x) => ({
                                 [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
@@ -126,7 +125,7 @@ export const ReportModel: ModelLogic<{
                         },
                     });
                     if (existing.length > 0)
-                        throw new CustomError('0337', 'MaxReportsReached', userData.languages);
+                        throw new CustomError("0337", "MaxReportsReached", userData.languages);
                 }
             },
             create: async ({ data, userData }) => {
@@ -138,14 +137,14 @@ export const ReportModel: ModelLogic<{
                     status: ReportStatus.Open,
                     createdBy: { connect: { id: userData.id } },
                     [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
-                }
+                };
             },
             update: async ({ data }) => {
                 return {
                     reason: data.reason ?? undefined,
                     details: data.details,
-                }
-            }
+                };
+            },
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
@@ -179,9 +178,9 @@ export const ReportModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'detailsWrapped',
-                'reasonWrapped',
-            ]
+                "detailsWrapped",
+                "reasonWrapped",
+            ],
         }),
     },
     validate: {
@@ -189,26 +188,26 @@ export const ReportModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            createdBy: 'User',
+            createdBy: "User",
         }),
         permissionResolvers: ({ data, isAdmin, isLoggedIn }) => ({
-            canConnect: () => isLoggedIn && data.status !== 'Open',
+            canConnect: () => isLoggedIn && data.status !== "Open",
             canDisconnect: () => isLoggedIn,
-            canDelete: () => isLoggedIn && isAdmin && data.status !== 'Open',
+            canDelete: () => isLoggedIn && isAdmin && data.status !== "Open",
             canRead: () => true,
-            canRespond: () => isLoggedIn && data.status === 'Open',
-            canUpdate: () => isLoggedIn && isAdmin && data.status !== 'Open',
+            canRespond: () => isLoggedIn && data.status === "Open",
+            canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
         }),
         owner: (data) => ({
             User: data.createdBy,
         }),
         isDeleted: () => false,
         isPublic: () => true,
-        profanityFields: ['reason', 'details'],
+        profanityFields: ["reason", "details"],
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({ createdBy: { id: userId } }),
-        }
+        },
     },
-})
+});

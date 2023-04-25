@@ -1,7 +1,7 @@
 
-import { FormControlLabel, FormGroup, Switch } from '@mui/material';
-import { useField } from 'formik';
-import { SwitchStandardInputProps } from '../types';
+import { FormControlLabel, FormGroup, Switch } from "@mui/material";
+import { useField } from "formik";
+import { SwitchStandardInputProps } from "../types";
 
 /**
  * Input for entering (and viewing format of) Switch data that 
@@ -10,14 +10,14 @@ import { SwitchStandardInputProps } from '../types';
 export const SwitchStandardInput = ({
     isEditing,
 }: SwitchStandardInputProps) => {
-    const [defaultValueField, , defaulValueHelpers] = useField<boolean>('defaultValue');
+    const [defaultValueField, , defaulValueHelpers] = useField<boolean>("defaultValue");
 
     return (
         <FormGroup>
             <FormControlLabel control={(
                 <Switch
                     disabled={!isEditing}
-                    size={'medium'}
+                    size={"medium"}
                     color="secondary"
                     checked={defaultValueField.value}
                     onChange={(event) => {
@@ -27,4 +27,4 @@ export const SwitchStandardInput = ({
             )} label="Default checked" />
         </FormGroup>
     );
-}
+};

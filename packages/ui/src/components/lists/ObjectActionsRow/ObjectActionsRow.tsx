@@ -1,5 +1,5 @@
+import { EllipsisIcon } from "@local/shared";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { EllipsisIcon } from "@shared/icons";
 import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import React, { useCallback, useContext, useMemo, useState } from "react";

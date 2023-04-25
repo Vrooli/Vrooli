@@ -1,18 +1,18 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { InvisibleIcon, VisibleIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useField } from 'formik';
-import { useCallback, useMemo } from 'react';
-import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
-import { IsPrivateButtonProps } from '../types';
+import { InvisibleIcon, VisibleIcon } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { useField } from "formik";
+import { useCallback, useMemo } from "react";
+import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { IsPrivateButtonProps } from "../types";
 
 export function IsPrivateButton({
     isEditing,
 }: IsPrivateButtonProps) {
     const { palette } = useTheme();
 
-    const [field, , helpers] = useField('isPrivate');
+    const [field, , helpers] = useField("isPrivate");
 
     const isAvailable = true;
 
@@ -20,8 +20,8 @@ export function IsPrivateButton({
         const isPrivate = field?.value;
         return {
             Icon: isPrivate ? InvisibleIcon : VisibleIcon,
-            tooltip: isPrivate ? `Only you or your organization can see this${isEditing ? '' : '. Press to make public'}` : `Anyone can see this${isEditing ? '' : '. Press to make private'}`
-        }
+            tooltip: isPrivate ? `Only you or your organization can see this${isEditing ? "" : ". Press to make public"}` : `Anyone can see this${isEditing ? "" : ". Press to make private"}`,
+        };
     }, [field?.value, isEditing]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -49,5 +49,5 @@ export function IsPrivateButton({
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
+    );
 }

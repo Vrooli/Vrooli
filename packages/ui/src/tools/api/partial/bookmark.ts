@@ -1,4 +1,4 @@
-import { Bookmark } from "@shared/consts";
+import { Bookmark } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 

@@ -1,9 +1,9 @@
-import { Post, PostTranslation } from "@shared/consts";
-import { rel } from '../utils';
+import { Post, PostTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const postTranslation: GqlPartial<PostTranslation> = {
-    __typename: 'PostTranslation',
+    __typename: "PostTranslation",
     common: {
         id: true,
         language: true,
@@ -12,10 +12,10 @@ export const postTranslation: GqlPartial<PostTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const post: GqlPartial<Post> = {
-    __typename: 'Post',
+    __typename: "Post",
     common: {
         id: true,
         created_at: true,
@@ -23,19 +23,19 @@ export const post: GqlPartial<Post> = {
         commentsCount: true,
         repostsCount: true,
         score: true,
-        bookmarks: true, 
+        bookmarks: true,
         views: true,
     },
     full: {
-        resourceList: async () => rel((await import('./resourceList')).resourceList, 'full'),
-        translations: () => rel(postTranslation, 'full'),
+        resourceList: async () => rel((await import("./resourceList")).resourceList, "full"),
+        translations: () => rel(postTranslation, "full"),
     },
     list: {
-        resourceList: async () => rel((await import('./resourceList')).resourceList, 'list'),
-        translations: () => rel(postTranslation, 'list'),
+        resourceList: async () => rel((await import("./resourceList")).resourceList, "list"),
+        translations: () => rel(postTranslation, "list"),
     },
     nav: {
         id: true,
-        translations: () => rel(postTranslation, 'list'),
-    }
-}
+        translations: () => rel(postTranslation, "list"),
+    },
+};

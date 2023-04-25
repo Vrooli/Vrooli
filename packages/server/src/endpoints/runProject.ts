@@ -1,10 +1,10 @@
-import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { assertRequestFrom } from '../auth';
-import { rateLimit } from '../middleware';
-import { RunProjectModel } from '../models';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
+import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { assertRequestFrom } from "../auth";
+import { rateLimit } from "../middleware";
+import { RunProjectModel } from "../models";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum RunProjectSortBy {
@@ -125,9 +125,9 @@ export const typeDef = gql`
         runProjectComplete(input: RunProjectCompleteInput!): RunProject!
         runProjectCancel(input: RunProjectCancelInput!): RunProject!
     }
-`
+`;
 
-const objectType = 'RunProject';
+const objectType = "RunProject";
 export const resolvers: {
     RunProjectSortBy: typeof RunProjectSortBy;
     RunStatus: typeof RunStatus;
@@ -168,7 +168,7 @@ export const resolvers: {
         runProjectDeleteAll: async (_p, _d, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 25, req });
-            return (RunProjectModel as any).danger.deleteAll(prisma, { __typename: 'User', id: userData.id });
+            return (RunProjectModel as any).danger.deleteAll(prisma, { __typename: "User", id: userData.id });
         },
         runProjectComplete: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
@@ -180,5 +180,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return (RunProjectModel as any).run.cancel(prisma, userData, input, info);
         },
-    }
-}
+    },
+};

@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const resourceListUpdate = gql`
 mutation resourceListUpdate($input: ResourceListUpdateInput!) {

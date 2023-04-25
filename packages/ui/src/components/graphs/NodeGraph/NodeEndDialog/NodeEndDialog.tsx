@@ -1,13 +1,13 @@
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { Formik } from 'formik';
-import { BaseFormRef } from 'forms/BaseForm/BaseForm';
-import { NodeEndForm, nodeEndInitialValues, validateNodeEndValues } from 'forms/NodeEndForm/NodeEndForm';
-import { useContext, useMemo, useRef } from 'react';
-import { SessionContext } from 'utils/SessionContext';
-import { NodeEndDialogProps } from '../types';
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { NodeEndForm, nodeEndInitialValues, validateNodeEndValues } from "forms/NodeEndForm/NodeEndForm";
+import { useContext, useMemo, useRef } from "react";
+import { SessionContext } from "utils/SessionContext";
+import { NodeEndDialogProps } from "../types";
 
-const titleId = 'end-node-dialog-title';
+const titleId = "end-node-dialog-title";
 
 export const NodeEndDialog = ({
     handleClose,
@@ -33,13 +33,13 @@ export const NodeEndDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: isEditing ? 'NodeEndEdit' : 'NodeEndInfo' }}
+                titleData={{ titleId, titleKey: isEditing ? "NodeEndEdit" : "NodeEndInfo" }}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values) => {
-                    handleClose(values as any)
+                    handleClose(values as any);
                 }}
                 validate={async (values) => await validateNodeEndValues(values, node)}
             >
@@ -56,5 +56,5 @@ export const NodeEndDialog = ({
                 />}
             </Formik>
         </LargeDialog>
-    )
-}
+    );
+};

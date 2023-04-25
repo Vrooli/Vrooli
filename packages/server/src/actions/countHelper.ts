@@ -1,4 +1,4 @@
-import { VisibilityType } from '@shared/consts';
+import { VisibilityType } from "@local/shared";
 import { getUser } from "../auth";
 import { combineQueries, timeFrameToPrisma, visibilityBuilder } from "../builders";
 import { CountInputBase } from "../builders/types";
@@ -19,14 +19,14 @@ export async function countHelper<CountInput extends CountInputBase>({
 }: CountHelperProps<CountInput>): Promise<number> {
     const userData = getUser(req);
     // Create query for created metric
-    const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+    const createdQuery = timeFrameToPrisma("created_at", input.createdTimeFrame);
     // Create query for created metric
-    const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+    const updatedQuery = timeFrameToPrisma("updated_at", input.updatedTimeFrame);
     // Create query for visibility, if supported
     const visibilityQuery = visibilityBuilder({ objectType, userData, visibility });
     // Count objects that match queries
-    const { delegate } = getLogic(['delegate'], objectType, userData?.languages ?? ['en'], 'countHelper')
+    const { delegate } = getLogic(["delegate"], objectType, userData?.languages ?? ["en"], "countHelper");
     return await delegate(prisma).count({
-        where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery])
+        where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery]),
     });
 }

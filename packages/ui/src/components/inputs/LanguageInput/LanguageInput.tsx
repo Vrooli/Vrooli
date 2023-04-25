@@ -1,12 +1,12 @@
 /**
  * Handles the state management for adding/updating text in multiple languages.
  */
-import { Stack, Typography } from '@mui/material';
-import { SelectLanguageMenu } from 'components/dialogs/SelectLanguageMenu/SelectLanguageMenu';
-import { useCallback, useContext } from 'react';
-import { getLanguageSubtag, getUserLanguages } from 'utils/display/translationTools';
-import { SessionContext } from 'utils/SessionContext';
-import { LanguageInputProps } from '../types';
+import { Stack, Typography } from "@mui/material";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { useCallback, useContext } from "react";
+import { getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
+import { LanguageInputProps } from "../types";
 
 export const LanguageInput = ({
     currentLanguage,
@@ -42,8 +42,8 @@ export const LanguageInput = ({
                 handleCurrent(userLanguages[0]);
                 handleAdd(userLanguages[0]);
             } else {
-                handleCurrent('en');
-                handleAdd('en');
+                handleCurrent("en");
+                handleAdd("en");
             }
         }
         // Otherwise, select the first language in the list
@@ -70,13 +70,13 @@ export const LanguageInput = ({
             {
                 languages.length > 1 && (
                     <Typography variant="body1" sx={{
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: "flex",
+                        alignItems: "center",
                     }}>
                         +{languages.length - 1}
                     </Typography>
                 )
             }
         </Stack>
-    )
-}
+    );
+};

@@ -1,9 +1,8 @@
-import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, StandardVersion, Tag } from '@shared/consts';
-import { SvgComponent, SvgProps } from '@shared/icons';
-import { JSONVariable } from 'forms/types';
-import { TagShape } from 'utils/shape/models/tag';
-import { StringSchema } from 'yup';
+import { Comment, CommentFor, StandardVersion, SvgComponent, SvgProps, Tag } from "@local/shared";
+import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
+import { JSONVariable } from "forms/types";
+import { TagShape } from "utils/shape/models/tag";
+import { StringSchema } from "yup";
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
@@ -201,7 +200,7 @@ export interface MarkdownInputProps {
     tabIndex?: number;
 }
 
-export type MarkdownInputBaseProps = Omit<TextFieldProps, 'onChange'> & {
+export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     autoFocus?: boolean;
     disabled?: boolean;
     error?: boolean;
@@ -224,7 +223,7 @@ export type PasswordTextFieldProps = TextFieldProps & {
     name: string;
 }
 
-export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
+export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
     disabled?: boolean;
     isPreviewOn: boolean;
     onChange: (isPreviewOn: boolean) => void;
@@ -273,7 +272,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     tabIndex?: number;
 }
 
-export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, 'onChange'> {
+export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange"> {
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     onBlur?: (event: React.FocusEvent<any>) => void;
@@ -281,9 +280,9 @@ export interface SelectorBaseProps<T extends string | number | { [x: string]: an
     value: T | null;
 }
 
-export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
+export type StandardVersionSelectSwitchProps = Omit<SwitchProps, "onChange"> & {
     selected: {
-        translations: StandardVersion['translations'];
+        translations: StandardVersion["translations"];
     } | null;
     onChange: (value: StandardVersion | null) => any;
     disabled?: boolean;
@@ -303,7 +302,7 @@ export interface TagSelectorBaseProps {
     tags: (TagShape | Tag)[];
 }
 
-export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, 'getOptionLabel' | 'options'> { }
+export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
 export interface ToggleSwitchProps {
     checked: boolean;
@@ -337,7 +336,7 @@ export interface TranslatedTextFieldProps {
     placeholder?: string;
 }
 
-export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {
+export type VersionInputProps = Omit<TextFieldProps, "helperText" | "onBlur" | "onChange" | "value"> & {
     autoFocus?: boolean;
     fullWidth?: boolean;
     /**

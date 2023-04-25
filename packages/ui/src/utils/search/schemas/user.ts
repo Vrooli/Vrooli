@@ -1,8 +1,8 @@
-import { UserSortBy } from "@shared/consts";
+import { UserSortBy } from "@local/shared";
 import { userFindMany } from "api/generated/endpoints/user_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields } from "./common";
+import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
 
 export const userSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchUser'),

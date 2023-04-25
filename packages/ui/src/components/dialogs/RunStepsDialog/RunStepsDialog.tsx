@@ -1,7 +1,8 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
+import { addSearchParams, ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen, useLocation } from "@local/shared";
+import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import {
     alpha,
     Box,
@@ -12,15 +13,13 @@ import {
     SwipeableDrawer,
     Typography,
     useTheme
-} from '@mui/material';
-import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from '@shared/icons';
-import { addSearchParams, useLocation } from '@shared/route';
-import React, { useCallback, useMemo, useState } from 'react';
-import { RoutineStep } from 'types';
-import { RoutineStepType } from 'utils/consts';
-import { locationArraysMatch, routineVersionHasSubroutines } from 'utils/runUtils';
-import { MenuTitle } from '../MenuTitle/MenuTitle';
-import { RunStepsDialogProps } from '../types';
+} from "@mui/material";
+import React, { useCallback, useMemo, useState } from "react";
+import { RoutineStep } from "types";
+import { RoutineStepType } from "utils/consts";
+import { locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
+import { MenuTitle } from "../MenuTitle/MenuTitle";
+import { RunStepsDialogProps } from "../types";
 
 interface StyledTreeItemProps {
     children?: React.ReactNode;
@@ -31,7 +30,7 @@ interface StyledTreeItemProps {
     onLoad?: (ev: React.MouseEvent) => void;
     onToStep?: (ev: React.MouseEvent) => void;
     palette: Palette;
-    type: RoutineStepType | 'placeholder';
+    type: RoutineStepType | "placeholder";
 }
 
 const StyledTreeItem = styled((props: StyledTreeItemProps) => {
@@ -46,20 +45,20 @@ const StyledTreeItem = styled((props: StyledTreeItemProps) => {
         ...other
     } = props;
 
-    const canToStep = typeof onToStep === 'function' && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine)
+    const canToStep = typeof onToStep === "function" && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine);
 
     /**
      * Only trigger onToStep if the onToStep function is supplied, and the type is a decision or subroutine. 
      * Only trigger onLoad if the onLoad function is supplied.
      */
     const handleTreeItemClick = (ev: React.MouseEvent) => {
-        if (typeof onLoad === 'function') {
+        if (typeof onLoad === "function") {
             onLoad(ev);
         }
         if (canToStep) {
             onToStep(ev);
         }
-    }
+    };
 
     return (
         <TreeItem
@@ -67,14 +66,14 @@ const StyledTreeItem = styled((props: StyledTreeItemProps) => {
                 <Box
                     onClick={handleTreeItemClick}
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: "flex",
+                        alignItems: "center",
                         p: 0.5,
                         pr: 0,
                         color: palette.background.textPrimary,
                     }}
                 >
-                    <Typography variant="body2" sx={{ fontWeight: 'inherit', flexGrow: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: "inherit", flexGrow: 1 }}>
                         {label}
                     </Typography>
                     {/* Indicator for completeness */}
@@ -85,7 +84,7 @@ const StyledTreeItem = styled((props: StyledTreeItemProps) => {
                         checked={true}
                         disabled={true}
                         sx={{
-                            '& svg': {
+                            "& svg": {
                                 color: palette.secondary.main,
                             },
                         }}
@@ -98,10 +97,10 @@ const StyledTreeItem = styled((props: StyledTreeItemProps) => {
             }
             {...other}
         />
-    )
+    );
 })(({ theme }) => ({
     [`& .${treeItemClasses.iconContainer}`]: {
-        '& .close': {
+        "& .close": {
             opacity: 0.3,
         },
     },
@@ -111,11 +110,11 @@ const StyledTreeItem = styled((props: StyledTreeItemProps) => {
         borderLeft: `1px dashed ${alpha(theme.palette.text.primary, 0.4)}`,
     },
     [`& .${treeItemClasses.label}`]: {
-        fontSize: '1.2rem',
-        '& p': {
-            paddingTop: '12px',
-            paddingBottom: '12px',
-        }
+        fontSize: "1.2rem",
+        "& p": {
+            paddingTop: "12px",
+            paddingBottom: "12px",
+        },
     },
 }));
 
@@ -132,7 +131,7 @@ export const RunStepsDialog = ({
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
-    const closeDialog = () => { setIsOpen(false) };
+    const closeDialog = () => { setIsOpen(false); };
 
     /**
      * Checks if a routine is complete. If it is a subroutine,
@@ -162,13 +161,13 @@ export const RunStepsDialog = ({
     }, [history]);
 
     const isSelected = useCallback((location: number[]) => {
-        if (!currStep) return false
+        if (!currStep) return false;
         return locationArraysMatch(currStep, location);
     }, [currStep]);
 
     const selectedItem = useMemo<string | undefined>(() => {
         if (!currStep) return undefined;
-        return `1.${currStep.join('.')}`;
+        return `1.${currStep.join(".")}`;
     }, [currStep]);
 
     /**
@@ -180,8 +179,8 @@ export const RunStepsDialog = ({
         // Determine if step is completed/selected
         const completed = isComplete(step, realLocation);
         const selected = isSelected(realLocation);
-        const locationLabel = location.join('.');
-        const realLocationLabel = realLocation.join('.');
+        const locationLabel = location.join(".");
+        const realLocationLabel = realLocation.join(".");
         // Helper function for navigating to step
         const toLocation = () => {
             // Update URL
@@ -190,7 +189,7 @@ export const RunStepsDialog = ({
             handleCurrStepLocationUpdate(realLocation);
             // Close dialog
             closeDialog();
-        }
+        };
         // Item displayed differently depending on its type
         switch (step.type) {
             // A decision step never has children
@@ -203,7 +202,7 @@ export const RunStepsDialog = ({
                     onToStep={toLocation}
                     palette={palette}
                     type={step.type}
-                />
+                />;
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If there are further steps, add a "Loading" node
@@ -214,7 +213,7 @@ export const RunStepsDialog = ({
                             isSelected={selected}
                             label={`${realLocationLabel}. ${step.name}`}
                             nodeId={locationLabel}
-                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id) }} // Load subroutine(s)
+                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id); }} // Load subroutine(s)
                             onToStep={toLocation}
                             palette={palette}
                             type={step.type}
@@ -225,10 +224,10 @@ export const RunStepsDialog = ({
                                 label="Loading..."
                                 nodeId={`${locationLabel}-loading`}
                                 palette={palette}
-                                type={'placeholder'}
+                                type={"placeholder"}
                             />
                         </StyledTreeItem>
-                    )
+                    );
                 }
                 return <StyledTreeItem
                     isComplete={completed}
@@ -238,13 +237,13 @@ export const RunStepsDialog = ({
                     onToStep={toLocation}
                     palette={palette}
                     type={step.type}
-                />
+                />;
 
             // A routine list always has children
             case RoutineStepType.RoutineList:
-                let stepItems = step.steps;
+                const stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
-                if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))
+                if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]));
                 return (
                     <StyledTreeItem
                         isComplete={completed}
@@ -256,7 +255,7 @@ export const RunStepsDialog = ({
                     >
                         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
-                )
+                );
         }
     }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, palette, handleLoadSubroutine]);
 
@@ -274,12 +273,12 @@ export const RunStepsDialog = ({
                 onClose={closeDialog}
                 sx={{
                     zIndex,
-                    '& .MuiDrawer-paper': {
+                    "& .MuiDrawer-paper": {
                         background: palette.background.default,
-                        minHeight: '100vh',
-                        minWidth: '300px',
-                        overflowY: 'auto',
-                    }
+                        minHeight: "100vh",
+                        minWidth: "300px",
+                        overflowY: "auto",
+                    },
                 }}
             >
                 <MenuTitle
@@ -297,9 +296,9 @@ export const RunStepsDialog = ({
                         height: 240,
                         flexGrow: 1,
                         maxWidth: 400,
-                        overflowY: 'auto',
+                        overflowY: "auto",
                         // Add padding to bottom to account for iOS navbar (safe-area-inset-bottom not working for some reason)
-                        paddingBottom: '80px',
+                        paddingBottom: "80px",
                     }}
                 >
                     {stepList && getTreeItem(stepList)}
@@ -307,4 +306,4 @@ export const RunStepsDialog = ({
             </SwipeableDrawer>
         </>
     );
-}
+};

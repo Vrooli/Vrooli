@@ -1,9 +1,8 @@
-import { Session, SessionUser } from '@shared/consts';
-import { getActiveFocusMode } from '@shared/utils';
+import { getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
 import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
-import { getUser } from './request';
+import { getUser } from "./request";
 
 export const focusModeSelect = (startDate: Date, endDate: Date) => ({
     id: true,
@@ -17,9 +16,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                 select: {
                     id: true,
                     tag: true,
-                }
-            }
-        }
+                },
+            },
+        },
     },
     labels: {
         select: {
@@ -29,9 +28,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                     id: true,
                     color: true,
                     label: true,
-                }
-            }
-        }
+                },
+            },
+        },
     },
     reminderList: {
         select: {
@@ -58,11 +57,11 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                             dueDate: true,
                             index: true,
                             isComplete: true,
-                        }
-                    }
-                }
-            }
-        }
+                        },
+                    },
+                },
+            },
+        },
     },
     resourceList: {
         select: {
@@ -83,9 +82,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                             description: true,
                             language: true,
                             name: true,
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
             translations: {
                 select: {
@@ -93,9 +92,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                     description: true,
                     language: true,
                     name: true,
-                }
-            }
-        }
+                },
+            },
+        },
     },
     schedule: {
         select: {
@@ -112,7 +111,7 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                     originalStartTime: true,
                     newStartTime: true,
                     newEndTime: true,
-                }
+                },
             },
             recurrences: {
                 where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
@@ -124,11 +123,11 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
                     dayOfMonth: true,
                     month: true,
                     endDate: true,
-                }
-            }
-        }
-    }
-})
+                },
+            },
+        },
+    },
+});
 
 /**
  * Creates SessionUser object from user.
@@ -139,7 +138,7 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
  */
 export const toSessionUser = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> => {
     if (!user.id)
-        throw new CustomError('0064', 'NotFound', req.languages ?? ['en']);
+        throw new CustomError("0064", "NotFound", req.languages ?? ["en"]);
     // Create time frame to find schedule data for. 
     const now = new Date();
     const startDate = now;
@@ -164,9 +163,9 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                     _count: {
                         select: {
                             bookmarks: true,
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
             focusModes: { select: focusModeSelect(startDate, endDate) },
             _count: {
@@ -179,10 +178,10 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                     routines: true,
                     smartContracts: true,
                     standards: true,
-                }
-            }
-        }
-    })
+                },
+            },
+        },
+    });
     // Find active focus mode
     const currentActiveFocusMode = getUser(req)?.activeFocusMode;
     const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
@@ -191,7 +190,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             ...currentActiveFocusMode,
             mode: currentModeData,
         } as any : undefined,
-        (userData.focusModes as any) ?? []
+        (userData.focusModes as any) ?? [],
     );
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
@@ -200,7 +199,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     languages = [...new Set(languages)];
     // Return shaped SessionUser object
     const result = {
-        __typename: 'SessionUser' as const,
+        __typename: "SessionUser" as const,
         activeFocusMode,
         apisCount: userData._count?.apis ?? 0,
         bookmarkLists: userData.bookmakLists.map(({ _count, ...rest }) => ({
@@ -221,9 +220,9 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         smartContractsCount: userData._count?.smartContracts ?? 0,
         standardsCount: userData._count?.standards ?? 0,
         theme: userData.theme,
-    }
+    };
     return result;
-}
+};
 
 /**
  * Converts SessionUserToken object o SessionUser object, 
@@ -232,7 +231,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
  * @returns SessionUser object
  */
 export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => ({
-    __typename: 'SessionUser' as const,
+    __typename: "SessionUser" as const,
     apisCount: 0,
     bookmarkLists: [],
     focusModes: [],
@@ -245,13 +244,13 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
     standardsCount: 0,
     ...user,
     activeFocusMode: user.activeFocusMode ? {
-        __typename: 'ActiveFocusMode' as const,
+        __typename: "ActiveFocusMode" as const,
         ...user.activeFocusMode,
         mode: {
-            __typename: 'FocusMode' as const,
+            __typename: "FocusMode" as const,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            name: '',
+            name: "",
             description: undefined,
             filters: [],
             labels: [],
@@ -259,9 +258,9 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
             resourceList: undefined,
             schedule: undefined,
             ...user.activeFocusMode.mode,
-        }
+        },
     } : undefined,
-})
+});
 
 /**
  * Creates session object from user and existing session data
@@ -273,9 +272,9 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
 export const toSession = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> => {
     const sessionUser = await toSessionUser(user, prisma, req);
     return {
-        __typename: 'Session' as const,
+        __typename: "Session" as const,
         isLoggedIn: true,
         // Make sure users are unique by id
         users: [sessionUser, ...(req.users ?? []).filter((u: SessionUserToken) => u.id !== sessionUser.id).map(sessionUserTokenToUser)],
-    }
-}
+    };
+};

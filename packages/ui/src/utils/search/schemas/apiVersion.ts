@@ -1,8 +1,8 @@
-import { ApiVersionSortBy } from "@shared/consts";
+import { ApiVersionSortBy } from "@local/shared";
 import { apiVersionFindMany } from "api/generated/endpoints/apiVersion_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { isCompleteWithRootContainer, isCompleteWithRootFields, votesRootContainer, votesRootFields, bookmarksRootContainer, bookmarksRootFields, languagesContainer, languagesFields, tagsRootContainer, tagsRootFields, searchFormLayout, isLatestContainer, isLatestFields } from "./common";
+import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
 export const apiVersionSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchApiVersion'),

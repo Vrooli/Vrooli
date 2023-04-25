@@ -1,9 +1,5 @@
+import { DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
-import { Node, NodeLink, RoutineVersion, Session } from "@shared/consts";
-import { RoutineIcon } from "@shared/icons";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID, uuid } from "@shared/uuid";
-import { routineVersionTranslationValidation, routineVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";

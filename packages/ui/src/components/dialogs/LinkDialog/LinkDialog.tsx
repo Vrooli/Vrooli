@@ -1,6 +1,7 @@
 /**
  * Used to create/update a link between two routine nodes
  */
+import { NodeType, uuid } from "@local/shared";
 import {
     Autocomplete,
     Box, DialogContent,
@@ -9,21 +10,19 @@ import {
     TextField,
     Typography,
     useTheme
-} from '@mui/material';
-import { NodeType } from '@shared/consts';
-import { uuid } from '@shared/uuid';
-import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getTranslation } from 'utils/display/translationTools';
-import { PubSub } from 'utils/pubsub';
-import { NodeShape } from 'utils/shape/models/node';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { LinkDialogProps } from '../types';
+} from "@mui/material";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getTranslation } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
+import { NodeShape } from "utils/shape/models/node";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { LinkDialogProps } from "../types";
 
 const helpText =
-    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
+    "This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.";
 
 const titleId = "link-dialog-title";
 
@@ -57,17 +56,17 @@ export const LinkDialog = ({
     const errors = useMemo(() => {
         const errors: { [key: string]: string } = {};
         if (!fromNode) {
-            errors.fromNode = t(`NodeFromRequired`, { ns: 'error', defaultValue: 'NodeFromRequired' });
+            errors.fromNode = t("NodeFromRequired", { ns: "error", defaultValue: "NodeFromRequired" });
         }
         if (!toNode) {
-            errors.toNode = t(`NodeToRequired`, { ns: 'error', defaultValue: 'NodeToRequired' });
+            errors.toNode = t("NodeToRequired", { ns: "error", defaultValue: "NodeToRequired" });
         }
         return errors;
     }, [fromNode, t, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "SelectFromAndToNodes", severity: "Error" });
             return;
         }
         handleClose({
@@ -77,7 +76,7 @@ export const LinkDialog = ({
             routineVersion: { id: routineVersion.id },
             to: { id: toNode.id },
             whens: [], //TODO
-        })
+        });
         setFromNode(null);
         setToNode(null);
     }, [fromNode, toNode, handleClose, routineVersion.id]);
@@ -114,9 +113,9 @@ export const LinkDialog = ({
     const getNodeTitle = useCallback((node: NodeShape) => {
         const { name } = getTranslation(node, [language]);
         if (name) return name;
-        if (node.nodeType === NodeType.Start) return t(`Start`);
-        if (node.nodeType === NodeType.End) return t(`End`);
-        return t(`Untitled`);
+        if (node.nodeType === NodeType.Start) return t("Start");
+        if (node.nodeType === NodeType.End) return t("End");
+        return t("Untitled");
     }, [language, t]);
 
     /**
@@ -140,12 +139,12 @@ export const LinkDialog = ({
             />
             {/* Right arrow */}
             <Box sx={{
-                width: '3em',
-                height: '3em',
-                color: 'black',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: "3em",
+                height: "3em",
+                color: "black",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
             }}>
                 <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
@@ -161,7 +160,7 @@ export const LinkDialog = ({
                 value={toNode}
                 sx={{
                     minWidth: 200,
-                    maxWidth: 350
+                    maxWidth: 350,
                 }}
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
@@ -181,9 +180,9 @@ export const LinkDialog = ({
         <></>
     ) : null, [isAdd]);
 
-    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+    const handleCancel = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Don't close if data entered and clicked outside
-        if ((fromNode !== nodeFrom || toNode !== nodeTo) && reason === 'backdropClick') return;
+        if ((fromNode !== nodeFrom || toNode !== nodeTo) && reason === "backdropClick") return;
         // Otherwise, close
         setFromNode(null);
         setToNode(null);
@@ -200,7 +199,7 @@ export const LinkDialog = ({
         >
             <DialogTitle
                 id={titleId}
-                title={t(isAdd ? 'LinkAdd' : 'LinkEdit')}
+                title={t(isAdd ? "LinkAdd" : "LinkEdit")}
                 helpText={helpText}
                 onClose={handleCancel}
             />
@@ -220,5 +219,5 @@ export const LinkDialog = ({
                 </Grid>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

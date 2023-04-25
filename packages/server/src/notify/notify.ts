@@ -1,6 +1,6 @@
+import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/shared";
 import { ReportStatus } from "@prisma/client";
-import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from '@shared/consts';
-import i18next, { TFuncKey } from 'i18next';
+import i18next, { TFuncKey } from "i18next";
 import { selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
@@ -12,27 +12,27 @@ import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
 
-export type NotificationUrgency = 'low' | 'normal' | 'critical';
+export type NotificationUrgency = "low" | "normal" | "critical";
 
-export type NotificationCategory = 'AccountCreditsOrApi' |
-    'Award' |
-    'IssueStatus' |
-    'NewObjectInOrganization' |
-    'NewObjectInProject' |
-    'NewQuestionOrIssue' |
-    'ObjectActivity' |
-    'Promotion' |
-    'PullRequestStatus' |
-    'QuestionActivity' |
-    'ReportStatus' |
-    'Run' |
-    'Schedule' |
-    'Security' |
-    'Streak' |
-    'Transfer' |
-    'UserInvite';
+export type NotificationCategory = "AccountCreditsOrApi" |
+    "Award" |
+    "IssueStatus" |
+    "NewObjectInOrganization" |
+    "NewObjectInProject" |
+    "NewQuestionOrIssue" |
+    "ObjectActivity" |
+    "Promotion" |
+    "PullRequestStatus" |
+    "QuestionActivity" |
+    "ReportStatus" |
+    "Run" |
+    "Schedule" |
+    "Security" |
+    "Streak" |
+    "Transfer" |
+    "UserInvite";
 
-type TransKey = TFuncKey<'notify', undefined>
+type TransKey = TFuncKey<"notify", undefined>
 
 type PushToUser = {
     delays?: number[],
@@ -71,7 +71,7 @@ type NotifyResultParams = {
  */
 export const isObjectSubscribable = <T extends keyof typeof GqlModelType>(objectType: T): boolean => {
     return objectType in SubscribableObject;
-}
+};
 
 /**
  * Base function for pushing a notification to a list of users. If a user 
@@ -93,15 +93,15 @@ const push = async ({
     const userTitles: { [userId: string]: string } = {};
     const userBodies: { [userId: string]: string } = {};
     for (const user of users) {
-        const lng = user.languages.length > 0 ? user.languages[0] : 'en';
+        const lng = user.languages.length > 0 ? user.languages[0] : "en";
         const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
-        const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined
+        const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined;
         // At least one of title or body must be defined
-        if (!title && !body) throw new CustomError('0362', 'InternalError', user.languages);
+        if (!title && !body) throw new CustomError("0362", "InternalError", user.languages);
         userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body
         userBodies[user.userId] = body ?? title!;
     }
-    const icon = `https://vrooli.com/Logo.png`; // TODO location of logo
+    const icon = "https://vrooli.com/Logo.png"; // TODO location of logo
     // Try connecting to redis
     try {
         const client = await initializeRedis();
@@ -126,16 +126,16 @@ const push = async ({
                                     p256dh: device.p256dh,
                                     auth: device.auth,
                                 },
-                            }
+                            };
                             const payload = { body: currBody, icon, link, title: currTitle };
                             sendPush(subscription, payload, delay);
                         } catch (err) {
-                            logger.error('Error sending push notification', { trace: '0306' });
+                            logger.error("Error sending push notification", { trace: "0306" });
                         }
                     }
                     // Send the notification to each email (ignore if no title)
                     if (emails.length && currTitle) {
-                        sendMail(emails.map(e => e.emailAddress), currTitle, currBody, '', delay);
+                        sendMail(emails.map(e => e.emailAddress), currTitle, currBody, "", delay);
                     }
                     // Send the notification to each phone number
                     // for (const phoneNumber of phoneNumbers) {
@@ -153,14 +153,14 @@ const push = async ({
                 link,
                 imgLink: icon,
                 userId,
-            }))
+            })),
         });
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.error('Error occured while connecting or accessing redis server', { trace: '0305', error });
+        logger.error("Error occured while connecting or accessing redis server", { trace: "0305", error });
     }
-}
+};
 
 /**
  * Creates an appropriate label for a near-future event. 
@@ -170,18 +170,18 @@ const push = async ({
 const getEventStartLabel = (date: Date) => {
     const now = new Date();
     const diff = date.getTime() - now.getTime();
-    if (diff < 0) return 'now';
-    if (diff < 1000 * 60) return 'in a few seconds';
+    if (diff < 0) return "now";
+    if (diff < 1000 * 60) return "in a few seconds";
     if (diff < 1000 * 60 * 60) return `in ${Math.round(diff / (1000 * 60))} minutes`;
     if (diff < 1000 * 60 * 60 * 24) return `in ${Math.round(diff / (1000 * 60 * 60))} hours`;
     return `in ${Math.round(diff / (1000 * 60 * 60 * 24))} days`;
-}
+};
 
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string | null | undefined) => Promise<void>,
-    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
+    toOwner: (owner: { __typename: "User" | "Organization", id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string | null | undefined) => Promise<void>,
 }
 
@@ -201,7 +201,7 @@ const replaceLabels = async (
     silent: boolean | undefined,
     prisma: PrismaType,
     languages: string[],
-    users: Pick<PushToUser, 'languages' | 'userId' | 'delays'>[],
+    users: Pick<PushToUser, "languages" | "userId" | "delays">[],
 ): Promise<PushToUser[]> => {
     const labelRegex = /<Label\|([A-z]+):([0-9\-]+)>/;
     // Initialize the result
@@ -213,26 +213,26 @@ const replaceLabels = async (
     const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const { delegate, display } = getLogic(['delegate', 'display'], objectType, languages, 'replaceLabels');
+        const { delegate, display } = getLogic(["delegate", "display"], objectType, languages, "replaceLabels");
         const labels = await delegate(prisma).findUnique({
             where: { id: objectId },
             select: display.select(),
-        })
+        });
         labelTranslations = labels ?? {};
-    }
+    };
     // If any object in titleVariables contains <Label|objectType:id>
     if (titleVariables) {
         // Loop through each key
         for (const key of Object.keys(titleVariables)) {
             // If the value is a string
-            if (typeof titleVariables[key] === 'string') {
+            if (typeof titleVariables[key] === "string") {
                 // If the value contains <Label|objectType:id>
                 const match = (titleVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(['display'], match[1] as GqlModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }
@@ -245,14 +245,14 @@ const replaceLabels = async (
         // Loop through each key
         for (const key of Object.keys(bodyVariables)) {
             // If the value is a string
-            if (typeof bodyVariables[key] === 'string') {
+            if (typeof bodyVariables[key] === "string") {
                 // If the value contains <Label|objectType:id>
                 const match = (bodyVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
                     await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(['display'], match[1] as GqlModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }
@@ -261,7 +261,7 @@ const replaceLabels = async (
         }
     }
     return result;
-}
+};
 
 /**
  * Class returned by each notify function. Allows us to either
@@ -276,7 +276,7 @@ const NotifyResult = ({
     prisma,
     silent,
     titleKey,
-    titleVariables
+    titleVariables,
 }: NotifyResultParams): NotifyResultType => ({
     /**
      * Sends a notification to a user
@@ -302,8 +302,8 @@ const NotifyResult = ({
             languages,
             userIds.map(data => ({
                 languages,
-                userId: typeof data === 'string' ? data : data.userId,
-                delays: typeof data === 'string' ? undefined : data.delays,
+                userId: typeof data === "string" ? data : data.userId,
+                delays: typeof data === "string" ? undefined : data.delays,
             })));
         // Send the notification to each user
         await push({ bodyKey, category, link, prisma, titleKey, users });
@@ -331,9 +331,9 @@ const NotifyResult = ({
      * @param excludeUserId A user to exclude from the notification
      */
     toOwner: async (owner, excludeUserId) => {
-        if (owner.__typename === 'User') {
+        if (owner.__typename === "User") {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toUser(owner.id);
-        } else if (owner.__typename === 'Organization') {
+        } else if (owner.__typename === "Organization") {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludeUserId);
         }
     },
@@ -355,7 +355,7 @@ const NotifyResult = ({
                     AND: [
                         { [subscribableMapper[objectType]]: { id: objectId } },
                         { subscriberId: { not: excludeUserId ?? undefined } },
-                    ]
+                    ],
                 },
                 select: { subscriberId: true, silent: true },
                 skip,
@@ -373,7 +373,7 @@ const NotifyResult = ({
             await push({ bodyKey, category, link, prisma, titleKey, users });
         } while (currentBatchSize === batchSize);
     },
-})
+});
 
 /**
  * Handles sending and registering notifications for a user or organization. 
@@ -402,15 +402,15 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
             // Check if the device is already registered
             const device = await prisma.push_device.findUnique({
                 where: { endpoint },
-                select: { id: true }
-            })
+                select: { id: true },
+            });
             // If it is, update the auth and p256dh keys
             if (device) {
                 result = await prisma.push_device.update({
                     where: { id: device.id },
                     data: { auth, p256dh, expires },
                     select,
-                })
+                });
             }
             // If it isn't, create a new device
             else {
@@ -420,14 +420,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
                         auth,
                         p256dh,
                         expires,
-                        user: { connect: { id: userData.id } }
+                        user: { connect: { id: userData.id } },
                     },
                     select,
-                })
+                });
             }
             return result;
         } catch (error) {
-            throw new CustomError('0452', 'InternalError', userData.languages, { error, select, result });
+            throw new CustomError("0452", "InternalError", userData.languages, { error, select, result });
         }
     },
     /**
@@ -439,13 +439,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         // Check if the device is registered to the user
         const device = await prisma.push_device.findUnique({
             where: { id: deviceId },
-            select: { userId: true }
-        })
+            select: { userId: true },
+        });
         if (!device || device.userId !== userId)
-            throw new CustomError('0307', 'PushDeviceNotFound', languages);
+            throw new CustomError("0307", "PushDeviceNotFound", languages);
         // If it is, delete it  
-        const deletedDevice = await prisma.push_device.delete({ where: { id: deviceId } })
-        return { __typename: 'Success' as const, success: Boolean(deletedDevice) };
+        const deletedDevice = await prisma.push_device.delete({ where: { id: deviceId } });
+        return { __typename: "Success" as const, success: Boolean(deletedDevice) };
     },
     /**
      * Updates a user's notification settings
@@ -455,112 +455,112 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         await updateNotificationSettings(settings, prisma, userId);
     },
     pushApiOutOfCredits: (): NotifyResultType => NotifyResult({
-        bodyKey: 'ApiOutOfCreditsBody',
-        category: 'AccountCreditsOrApi',
+        bodyKey: "ApiOutOfCreditsBody",
+        category: "AccountCreditsOrApi",
         languages,
         prisma,
-        titleKey: 'ApiOutOfCreditsTitle',
+        titleKey: "ApiOutOfCreditsTitle",
     }),
     pushAward: (awardName: string, awardDescription: string): NotifyResultType => NotifyResult({
-        bodyKey: 'AwardEarnedBody',
+        bodyKey: "AwardEarnedBody",
         bodyVariables: { awardName, awardDescription },
-        category: 'Award',
+        category: "Award",
         languages,
-        link: '/awards',
+        link: "/awards",
         prisma,
-        titleKey: 'AwardEarnedTitle',
+        titleKey: "AwardEarnedTitle",
     }),
     pushIssueStatusChange: (
         issueId: string,
         objectId: string,
         objectType: GqlModelType | `${GqlModelType}`,
-        status: IssueStatus | `${IssueStatus}`
+        status: IssueStatus | `${IssueStatus}`,
     ): NotifyResultType => NotifyResult({
         bodyKey: `IssueStatus${status}Body`,
         bodyVariables: { issueName: `<Label|Issue:${issueId}>`, objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'IssueStatus',
+        category: "IssueStatus",
         languages,
         link: `/issues/${issueId}`,
         prisma,
         titleKey: `IssueStatus${status}Title`,
     }),
     pushNewDeviceSignIn: (): NotifyResultType => NotifyResult({
-        bodyKey: 'NewDeviceBody',
-        category: 'Security',
+        bodyKey: "NewDeviceBody",
+        category: "Security",
         languages,
         prisma,
-        titleKey: 'NewDeviceTitle',
+        titleKey: "NewDeviceTitle",
     }),
     pushNewEmailVerification: (): NotifyResultType => NotifyResult({
-        bodyKey: 'NewEmailVerificationBody',
-        category: 'Security',
+        bodyKey: "NewEmailVerificationBody",
+        category: "Security",
         languages,
         prisma,
-        titleKey: 'NewEmailVerificationTitle',
+        titleKey: "NewEmailVerificationTitle",
     }),
     pushNewQuestionOnObject: (objectType: `${GqlModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'NewQuestionOnObjectBody',
+        bodyKey: "NewQuestionOnObjectBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'NewQuestionOrIssue',
+        category: "NewQuestionOrIssue",
         languages,
         link: `/questions/${questionId}`,
         prisma,
-        titleKey: 'NewQuestionOnObjectTitle',
+        titleKey: "NewQuestionOnObjectTitle",
     }),
     pushNewObjectInOrganization: (objectType: `${GqlModelType}`, objectId: string, organizationId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'NewObjectInOrganizationBody',
+        bodyKey: "NewObjectInOrganizationBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, organizationName: `<Label|Organization:${organizationId}>` },
-        category: 'NewObjectInOrganization',
+        category: "NewObjectInOrganization",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'NewObjectInOrganizationTitle',
+        titleKey: "NewObjectInOrganizationTitle",
         titleVariables: { organizationName: `<Label|Organization:${organizationId}>` },
     }),
     pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'NewObjectInProjectBody',
+        bodyKey: "NewObjectInProjectBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
-        category: 'NewObjectInProject',
+        category: "NewObjectInProject",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'NewObjectInProjectTitle',
+        titleKey: "NewObjectInProjectTitle",
         titleVariables: { projectName: `<Label|Project:${projectId}>` },
     }),
     pushObjectReceivedBookmark: (objectType: `${GqlModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
-        bodyKey: 'ObjectReceivedBookmarkBody',
+        bodyKey: "ObjectReceivedBookmarkBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
-        category: 'ObjectActivity',
+        category: "ObjectActivity",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'ObjectReceivedBookmarkTitle',
+        titleKey: "ObjectReceivedBookmarkTitle",
     }),
     pushObjectReceivedComment: (objectType: `${GqlModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
-        bodyKey: 'ObjectReceivedCommentBody',
+        bodyKey: "ObjectReceivedCommentBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
-        category: 'ObjectActivity',
+        category: "ObjectActivity",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}?comments`,
         prisma,
-        titleKey: 'ObjectReceivedCommentTitle',
+        titleKey: "ObjectReceivedCommentTitle",
     }),
     pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        category: 'ObjectActivity',
+        category: "ObjectActivity",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'ObjectReceivedCopyTitle',
+        titleKey: "ObjectReceivedCopyTitle",
         titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
     }),
     pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
-        bodyKey: 'ObjectReceivedUpvoteBody',
+        bodyKey: "ObjectReceivedUpvoteBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
-        category: 'ObjectActivity',
+        category: "ObjectActivity",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'ObjectReceivedUpvoteTitle',
+        titleKey: "ObjectReceivedUpvoteTitle",
     }),
     /**
      * NOTE: If object is being deleted, this should be called before the object is deleted. 
@@ -570,11 +570,11 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         reportId: string,
         objectId: string,
         objectType: GqlModelType | `${GqlModelType}`,
-        status: ReportStatus | `${ReportStatus}`
+        status: ReportStatus | `${ReportStatus}`,
     ): NotifyResultType => NotifyResult({
         bodyKey: `ReportStatus${status}Body`,
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'ReportStatus',
+        category: "ReportStatus",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}/reports/${reportId}`,
         prisma,
@@ -584,114 +584,114 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         reportId: string,
         objectId: string,
         objectType: GqlModelType | `${GqlModelType}`,
-        status: PullRequestStatus | `${PullRequestStatus}`
+        status: PullRequestStatus | `${PullRequestStatus}`,
     ): NotifyResultType => NotifyResult({
         bodyKey: `PullRequestStatus${status}Body`,
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'PullRequestStatus',
+        category: "PullRequestStatus",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}/pulls/${reportId}`,
         prisma,
         titleKey: `PullRequestStatus${status}Title`,
     }),
     pushQuestionActivity: (questionId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'QuestionActivityBody',
+        bodyKey: "QuestionActivityBody",
         bodyVariables: { objectName: `<Label|Question:${questionId}>` },
-        category: 'QuestionActivity',
+        category: "QuestionActivity",
         languages,
         link: `/questions/${questionId}`,
         prisma,
-        titleKey: 'QuestionActivityTitle',
+        titleKey: "QuestionActivityTitle",
     }),
     pushRunStartedAutomatically: (runId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'RunStartedAutomaticallyBody',
+        bodyKey: "RunStartedAutomaticallyBody",
         bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
-        category: 'Run',
+        category: "Run",
         languages,
         link: `/runs/${runId}`,
         prisma,
-        titleKey: 'RunStartedAutomaticallyTitle',
+        titleKey: "RunStartedAutomaticallyTitle",
     }),
     pushRunCompletedAutomatically: (runId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'RunCompletedAutomaticallyBody',
+        bodyKey: "RunCompletedAutomaticallyBody",
         bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
-        category: 'Run',
+        category: "Run",
         languages,
         link: `/runs/${runId}`,
         prisma,
-        titleKey: 'RunCompletedAutomaticallyTitle',
+        titleKey: "RunCompletedAutomaticallyTitle",
     }),
     pushRunFailedAutomatically: (runId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'RunFailedAutomaticallyBody',
+        bodyKey: "RunFailedAutomaticallyBody",
         bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
-        category: 'Run',
+        category: "Run",
         languages,
         link: `/runs/${runId}`,
         prisma,
-        titleKey: 'RunFailedAutomaticallyTitle',
+        titleKey: "RunFailedAutomaticallyTitle",
     }),
     pushScheduleReminder: (scheduleForId: string, scheduleForType: GqlModelType, startTime: Date): NotifyResultType => NotifyResult({
-        bodyKey: 'ScheduleUserBody',
+        bodyKey: "ScheduleUserBody",
         bodyVariables: { title: `<Label|${scheduleForType}:${scheduleForId}>`, startLabel: getEventStartLabel(startTime) },
-        category: 'Schedule',
+        category: "Schedule",
         languages,
-        link: scheduleForType === 'Meeting' ? `/meeting/${scheduleForId}` : undefined,
+        link: scheduleForType === "Meeting" ? `/meeting/${scheduleForId}` : undefined,
         prisma,
     }),
     pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult({
-        bodyKey: 'StreakReminderBody',
+        bodyKey: "StreakReminderBody",
         bodyVariables: { endLabel: getEventStartLabel(timeToReset) },
-        category: 'Streak',
+        category: "Streak",
         languages,
         prisma,
     }),
     pushStreakBroken: (): NotifyResultType => NotifyResult({
-        bodyKey: 'StreakBrokenBody',
-        category: 'Streak',
+        bodyKey: "StreakBrokenBody",
+        category: "Streak",
         languages,
         prisma,
-        titleKey: 'StreakBrokenTitle',
+        titleKey: "StreakBrokenTitle",
     }),
     pushTransferRequestSend: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'TransferRequestSendBody',
+        bodyKey: "TransferRequestSendBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'Transfer',
+        category: "Transfer",
         languages,
         link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
         prisma,
-        titleKey: 'TransferRequestSendTitle',
+        titleKey: "TransferRequestSendTitle",
     }),
     pushTransferRequestReceive: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'TransferRequestReceiveBody',
+        bodyKey: "TransferRequestReceiveBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'Transfer',
+        category: "Transfer",
         languages,
         link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
         prisma,
-        titleKey: 'TransferRequestReceiveTitle',
+        titleKey: "TransferRequestReceiveTitle",
     }),
     pushTransferAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'TransferAcceptedTitle',
+        bodyKey: "TransferAcceptedTitle",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'Transfer',
+        category: "Transfer",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'TransferAcceptedTitle',
+        titleKey: "TransferAcceptedTitle",
     }),
     pushTransferRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'TransferRejectedTitle',
+        bodyKey: "TransferRejectedTitle",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'Transfer',
+        category: "Transfer",
         languages,
         link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'TransferRejectedTitle',
+        titleKey: "TransferRejectedTitle",
     }),
     pushUserInvite: (friendUsername: string): NotifyResultType => NotifyResult({
-        bodyKey: 'UserInviteBody',
+        bodyKey: "UserInviteBody",
         bodyVariables: { friendUsername },
-        category: 'UserInvite',
+        category: "UserInvite",
         languages,
         prisma,
     }),

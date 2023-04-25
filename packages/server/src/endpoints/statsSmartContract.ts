@@ -1,8 +1,8 @@
-import { StatsSmartContractSearchInput, StatsSmartContractSearchResult } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint } from '../types';
+import { StatsSmartContractSearchInput, StatsSmartContractSearchResult } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum StatsSmartContractSortBy {
@@ -40,9 +40,9 @@ export const typeDef = gql`
     type Query {
         statsSmartContract(input: StatsSmartContractSearchInput!): StatsSmartContractSearchResult!
     }
- `
+ `;
 
-const objectType = 'StatsSmartContract';
+const objectType = "StatsSmartContract";
 export const resolvers: {
     Query: {
         statsSmartContract: GQLEndpoint<StatsSmartContractSearchInput, StatsSmartContractSearchResult>;
@@ -54,4 +54,4 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
-}
+};

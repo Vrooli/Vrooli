@@ -1,6 +1,5 @@
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, apiVersionValidation, MaxObjects, VersionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, VersionYou } from '@shared/consts';
-import { apiVersionValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -9,9 +8,9 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../val
 import { ApiModel } from "./api";
 import { ModelLogic } from "./types";
 
-const __typename = 'ApiVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
-const suppFields = ['you'] as const;
+const __typename = "ApiVersion" as const;
+type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
+const suppFields = ["you"] as const;
 export const ApiVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -21,8 +20,8 @@ export const ApiVersionModel: ModelLogic<{
     GqlModel: ApiVersion,
     GqlSearch: ApiVersionSearchInput,
     GqlSort: ApiVersionSortBy,
-    PrismaCreate: Prisma.api_versionUpsertArgs['create'],
-    PrismaUpdate: Prisma.api_versionUpsertArgs['update'],
+    PrismaCreate: Prisma.api_versionUpsertArgs["create"],
+    PrismaUpdate: Prisma.api_versionUpsertArgs["update"],
     PrismaModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
     PrismaSelect: Prisma.api_versionSelect,
     PrismaWhere: Prisma.api_versionWhereInput,
@@ -33,33 +32,33 @@ export const ApiVersionModel: ModelLogic<{
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => {
             // Return name if exists, or callLink host
-            const name = bestLabel(select.translations, 'name', languages)
-            if (name.length > 0) return name
-            const url = new URL(select.callLink)
-            return url.host
+            const name = bestLabel(select.translations, "name", languages);
+            if (name.length > 0) return name;
+            const url = new URL(select.callLink);
+            return url.host;
         },
     },
     format: {
         gqlRelMap: {
             __typename,
-            comments: 'Comment',
-            directoryListings: 'ProjectVersionDirectory',
-            forks: 'ApiVersion',
-            pullRequest: 'PullRequest',
-            reports: 'Report',
-            resourceList: 'ResourceList',
-            root: 'Api',
+            comments: "Comment",
+            directoryListings: "ProjectVersionDirectory",
+            forks: "ApiVersion",
+            pullRequest: "PullRequest",
+            reports: "Report",
+            resourceList: "ResourceList",
+            root: "Api",
         },
         prismaRelMap: {
             __typename,
-            calledByRoutineVersions: 'RoutineVersion',
-            comments: 'Comment',
-            reports: 'Report',
-            root: 'Api',
-            forks: 'Api',
-            resourceList: 'ResourceList',
-            pullRequest: 'PullRequest',
-            directoryListings: 'ProjectVersionDirectory',
+            calledByRoutineVersions: "RoutineVersion",
+            comments: "Comment",
+            reports: "Report",
+            root: "Api",
+            forks: "Api",
+            resourceList: "ResourceList",
+            pullRequest: "PullRequest",
+            directoryListings: "ProjectVersionDirectory",
         },
         countFields: {
             commentsCount: true,
@@ -73,8 +72,8 @@ export const ApiVersionModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -90,7 +89,7 @@ export const ApiVersionModel: ModelLogic<{
                     userData,
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ['summary'], 'LineBreaksBio', userData.languages));
+                combined.forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -100,10 +99,10 @@ export const ApiVersionModel: ModelLogic<{
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 callLink: noNull(data.callLink),
@@ -112,14 +111,14 @@ export const ApiVersionModel: ModelLogic<{
                 isComplete: noNull(data.isComplete),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });
-            }
+            },
         },
         yup: apiVersionValidation,
     },
@@ -145,11 +144,11 @@ export const ApiVersionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transSummaryWrapped',
-                'transNameWrapped',
-                { root: 'tagsWrapped' },
-                { root: 'labelsWrapped' },
-            ]
+                "transSummaryWrapped",
+                "transNameWrapped",
+                { root: "tagsWrapped" },
+                { root: "labelsWrapped" },
+            ],
         }),
     },
     validate: {
@@ -164,7 +163,7 @@ export const ApiVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: ['Api', ['versions']],
+            root: ["Api", ["versions"]],
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
@@ -174,7 +173,7 @@ export const ApiVersionModel: ModelLogic<{
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
-                ]
+                ],
             },
             public: {
                 isDeleted: false,
@@ -182,11 +181,11 @@ export const ApiVersionModel: ModelLogic<{
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },
-                ]
+                ],
             },
             owner: (userId) => ({
                 root: ApiModel.validate!.visibility.owner(userId),
             }),
         },
     },
-})
+});

@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input NodeLoopWhileCreateInput {
@@ -38,7 +38,7 @@ export const typeDef = gql`
         description: String
         name: String!
     }
-`
+`;
 export const resolvers: {
 } = {
-}
+};

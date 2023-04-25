@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput, ApiVersionUpdateInput } from "@shared/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput, ApiVersionUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ApiShape, shapeApi } from "./api";
 import { ResourceListShape, shapeResourceList } from "./resourceList";

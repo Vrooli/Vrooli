@@ -1,8 +1,5 @@
+import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionValidation, orDefault, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { NoteVersion, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { noteVersionTranslationValidation, noteVersionValidation } from "@shared/validation";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";

@@ -1,13 +1,13 @@
-import { gql } from 'apollo-server-express';
-import { GQLEndpoint, UpdateOneResult } from '../types';
-import { FindHandlesInput, Wallet, WalletUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { CustomError } from '../events/error';
-import { serializedAddressToBech32 } from '../auth/wallet';
-import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import { getUser } from '../auth';
-import { onlyValidIds } from '../builders';
-import { updateHelper } from '../actions';
+import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
+import { FindHandlesInput, Wallet, WalletUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { updateHelper } from "../actions";
+import { getUser } from "../auth";
+import { serializedAddressToBech32 } from "../auth/wallet";
+import { onlyValidIds } from "../builders";
+import { CustomError } from "../events/error";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     input FindHandlesInput {
@@ -43,9 +43,9 @@ export const typeDef = gql`
     extend type Mutation {
         walletUpdate(input: WalletUpdateInput!): Wallet!
     }
-`
+`;
 
-const objectType = 'Wallet';
+const objectType = "Wallet";
 export const resolvers: {
     Query: {
         findHandles: GQLEndpoint<FindHandlesInput, string[]>;
@@ -61,7 +61,7 @@ export const resolvers: {
         findHandles: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 50, req });
             // const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'; // Fake policy ID for testing
-            const policyID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
+            const policyID = "f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a"; // Mainnet ADA Handle policy ID
             const walletFields = {
                 id: true,
                 stakingAddress: true,
@@ -69,31 +69,31 @@ export const resolvers: {
                 name: true,
                 verified: true,
                 handles: {
-                    select: { handle: true }
-                }
-            }
+                    select: { handle: true },
+                },
+            };
             // Find all wallets associated with user or organization
             let wallets;
             if (input.organizationId) {
                 wallets = await prisma.wallet.findMany({
                     where: { organizationId: input.organizationId },
-                    select: walletFields
-                })
+                    select: walletFields,
+                });
             }
             else {
                 const userId = getUser(req)?.id;
-                if (!userId) 
-                    throw new CustomError('0166', 'NotLoggedIn', req.languages);
+                if (!userId)
+                    throw new CustomError("0166", "NotLoggedIn", req.languages);
                 wallets = await prisma.wallet.findMany({
                     where: { userId },
-                    select: walletFields
-                })
+                    select: walletFields,
+                });
             }
             // Convert wallet staking addresses to Bech32
             const bech32Wallets = wallets.map((wallet) => serializedAddressToBech32(wallet.stakingAddress));
             // Initialize blockfrost client
             const Blockfrost = new BlockFrostAPI({
-                projectId: process.env.BLOCKFROST_API_KEY ?? '',
+                projectId: process.env.BLOCKFROST_API_KEY ?? "",
                 isTestnet: false,
                 version: 0,
             });
@@ -108,15 +108,15 @@ export const resolvers: {
                     handles = data
                         .filter(({ unit }: any) => unit.startsWith(policyID))
                         .map(({ unit }: any) => {
-                            const hexName = unit.replace(policyID, '');
-                            const utf8Name = Buffer.from(hexName, 'hex').toString('utf8');
+                            const hexName = unit.replace(policyID, "");
+                            const utf8Name = Buffer.from(hexName, "hex").toString("utf8");
                             return utf8Name;
                         });
                 } catch (err: any) {
                     // If code is 404, then resource does not exist. This means that the wallet has no transactions.
                     // In this case, we shouldn't throw an error
                     if (err.status_code !== 404) {
-                        throw new CustomError('0167', 'ExternalServiceError', req.languages);
+                        throw new CustomError("0167", "ExternalServiceError", req.languages);
                     }
                 } finally {
                     return handles;
@@ -137,27 +137,27 @@ export const resolvers: {
                                 id: true,
                                 userId: true,
                                 organizationId: true,
-                            }
-                        }
-                    }
-                })
+                            },
+                        },
+                    },
+                });
                 // If any of the existing handles are not associated with the current wallet, change that
                 const badLinks = existingHandles.filter(({ wallet }) => wallet !== null && wallet.id !== currWallet.id);
                 if (badLinks.length > 0) {
                     await prisma.handle.updateMany({
                         where: { id: { in: badLinks.map(({ id }) => id) } },
-                        data: { walletId: currWallet.id }
-                    })
+                        data: { walletId: currWallet.id },
+                    });
                     // Remove the handle from the user or organization linked to a wallet with one of the bad handles
                     const userIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.userId));
                     await prisma.user.updateMany({
                         where: { id: { in: userIds } },
-                        data: { handle: null }
+                        data: { handle: null },
                     });
                     const organizationIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.organizationId));
                     await prisma.organization.updateMany({
                         where: { id: { in: organizationIds } },
-                        data: { handle: null }
+                        data: { handle: null },
                     });
                 }
                 // If any handles did not exist in the database already, add them
@@ -166,9 +166,9 @@ export const resolvers: {
                     await prisma.handle.createMany({
                         data: newHandles.map(handle => ({
                             handle,
-                            walletId: currWallet.id
-                        }))
-                    })
+                            walletId: currWallet.id,
+                        })),
+                    });
                 }
             }
             // Flatten handles
@@ -179,7 +179,7 @@ export const resolvers: {
     Mutation: {
         walletUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma: prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

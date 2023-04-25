@@ -1,6 +1,5 @@
+import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, noteVersionValidation, VersionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionYou } from '@shared/consts';
-import { noteVersionValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -9,9 +8,9 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../val
 import { NoteModel } from "./note";
 import { ModelLogic } from "./types";
 
-const __typename = 'NoteVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
-const suppFields = ['you'] as const;
+const __typename = "NoteVersion" as const;
+type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
+const suppFields = ["you"] as const;
 export const NoteVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -21,8 +20,8 @@ export const NoteVersionModel: ModelLogic<{
     GqlSearch: NoteVersionSearchInput,
     GqlSort: NoteVersionSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.note_versionUpsertArgs['create'],
-    PrismaUpdate: Prisma.note_versionUpsertArgs['update'],
+    PrismaCreate: Prisma.note_versionUpsertArgs["create"],
+    PrismaUpdate: Prisma.note_versionUpsertArgs["update"],
     PrismaModel: Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>,
     PrismaSelect: Prisma.note_versionSelect,
     PrismaWhere: Prisma.note_versionWhereInput,
@@ -31,26 +30,26 @@ export const NoteVersionModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages)
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            comments: 'Comment',
-            directoryListings: 'ProjectVersionDirectory',
-            pullRequest: 'PullRequest',
-            forks: 'NoteVersion',
-            reports: 'Report',
-            root: 'Note',
+            comments: "Comment",
+            directoryListings: "ProjectVersionDirectory",
+            pullRequest: "PullRequest",
+            forks: "NoteVersion",
+            reports: "Report",
+            root: "Note",
         },
         prismaRelMap: {
             __typename,
-            root: 'Note',
-            forks: 'Note',
-            pullRequest: 'PullRequest',
-            comments: 'Comment',
-            reports: 'Report',
-            directoryListings: 'ProjectVersionDirectory',
+            root: "Note",
+            forks: "Note",
+            pullRequest: "PullRequest",
+            comments: "Comment",
+            reports: "Report",
+            directoryListings: "ProjectVersionDirectory",
         },
         countFields: {
             commentsCount: true,
@@ -64,8 +63,8 @@ export const NoteVersionModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -81,28 +80,28 @@ export const NoteVersionModel: ModelLogic<{
                     userData,
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
+                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childNoteVersions', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Note', parentRelationshipName: 'versions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Note', parentRelationshipName: 'versions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });
-            }
+            },
         },
         yup: noteVersionValidation,
     },
@@ -127,11 +126,11 @@ export const NoteVersionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'transNameWrapped',
-                { root: 'tagsWrapped' },
-                { root: 'labelsWrapped' },
-            ]
+                "transDescriptionWrapped",
+                "transNameWrapped",
+                { root: "tagsWrapped" },
+                { root: "labelsWrapped" },
+            ],
         }),
     },
     validate: {
@@ -145,7 +144,7 @@ export const NoteVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: ['Note', ['versions']],
+            root: ["Note", ["versions"]],
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
@@ -155,7 +154,7 @@ export const NoteVersionModel: ModelLogic<{
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
-                ]
+                ],
             },
             public: {
                 isDeleted: false,
@@ -163,11 +162,11 @@ export const NoteVersionModel: ModelLogic<{
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },
-                ]
+                ],
             },
             owner: (userId) => ({
                 root: NoteModel.validate!.visibility.owner(userId),
             }),
         },
     },
-})
+});

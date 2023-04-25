@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 /**
  * Hook to detect if the keyboard is open or not. Useful for hiding fixed elements when the keyboard is open.
  * @param minKeyboardHeight The minimum height of the keyboard to consider it open. Defaults to 300.
  * @returns Whether the keyboard is open or not.
  */
-export const useKeyboardOpen = (minKeyboardHeight: number = 300): boolean => {
+export const useKeyboardOpen = (minKeyboardHeight = 300): boolean => {
     const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
 
     useEffect(() => {
@@ -18,9 +18,9 @@ export const useKeyboardOpen = (minKeyboardHeight: number = 300): boolean => {
                 setIsKeyboardOpen(newState);
             }
         };
-        window.visualViewport?.addEventListener('resize', listener);
+        window.visualViewport?.addEventListener("resize", listener);
         return () => {
-            window.visualViewport?.removeEventListener('resize', listener);
+            window.visualViewport?.removeEventListener("resize", listener);
         };
     }, [isKeyboardOpen, minKeyboardHeight]);
 

@@ -1,2 +1,3 @@
-export * from './WalletList/WalletList';
-export * from './WalletListItem/WalletListItem';
+export * from "./WalletList/WalletList";
+export * from "./WalletListItem/WalletListItem";
+

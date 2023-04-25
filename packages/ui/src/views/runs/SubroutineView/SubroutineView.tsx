@@ -1,8 +1,5 @@
+import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, ResourceList, RoutineVersion, Tag } from "@shared/consts";
-import { SuccessIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
-import { exists } from "@shared/utils";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -36,14 +33,14 @@ const containerProps = (palette: Palette) => ({
     boxShadow: 1,
     background: palette.background.paper,
     borderRadius: 1,
-    overflow: 'overlay',
+    overflow: "overlay",
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const SubroutineView = ({
-    display = 'page',
+    display = "page",
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
@@ -76,25 +73,25 @@ export const SubroutineView = ({
             description,
             instructions,
             name,
-        }
+        };
     }, [internalRoutineVersion, session]);
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
-            messageKey: 'RunStopConfirm',
+            messageKey: "RunStopConfirm",
             buttons: [
                 {
-                    labelKey: 'Yes',
+                    labelKey: "Yes",
                     onClick: () => {
                         // Save progress
                         handleSaveProgress();
                         // Trigger callback
                         callback();
-                    }
+                    },
                 },
-                { labelKey: 'Cancel' },
-            ]
+                { labelKey: "Cancel" },
+            ],
         });
     }, [handleSaveProgress]);
 
@@ -110,7 +107,7 @@ export const SubroutineView = ({
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? '',
+                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
@@ -122,7 +119,7 @@ export const SubroutineView = ({
     }, [internalRoutineVersion, session]);
     const formik = useFormik({
         initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
-            acc[key] = value.props.defaultValue ?? '';
+            acc[key] = value.props.defaultValue ?? "";
             return acc;
         }, {}),
         enableReinitialize: true,
@@ -133,11 +130,11 @@ export const SubroutineView = ({
      * Update formik values with the current user inputs, if any
      */
     useEffect(() => {
-        console.log('useeffect1 calculating preview formik values', run)
+        console.log("useeffect1 calculating preview formik values", run);
         if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
-        console.log('useeffect 1calling runInputsToFormik', run.inputs)
+        console.log("useeffect 1calling runInputsToFormik", run.inputs);
         const updatedValues = runInputsToFormik(run.inputs);
-        console.log('useeffect1 updating formik, values', updatedValues)
+        console.log("useeffect1 updating formik, values", updatedValues);
         formik.setValues(updatedValues);
     },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,9 +157,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
+            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik.values]);
 
@@ -182,7 +179,7 @@ export const SubroutineView = ({
                     />
                 ))}
             </Box>
-        )
+        );
     }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs, zIndex]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -191,7 +188,7 @@ export const SubroutineView = ({
 
     const actionData = useObjectActions({
         object: internalRoutineVersion,
-        objectType: 'RoutineVersion',
+        objectType: "RoutineVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setInternalRoutineVersion,
@@ -208,9 +205,9 @@ export const SubroutineView = ({
                 onClose={() => { }}
             />
             <Box sx={{
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                width: 'min(100%, 700px)',
+                marginLeft: "auto",
+                marginRight: "auto",
+                width: "min(100%, 700px)",
                 padding: 2,
             }}>
                 <ObjectTitle
@@ -224,7 +221,7 @@ export const SubroutineView = ({
                 />
                 {/* Resources */}
                 {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                    title={'Resources'}
+                    title={"Resources"}
                     list={resourceList as ResourceList}
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
@@ -256,13 +253,13 @@ export const SubroutineView = ({
                         {/* Relationships */}
                         <RelationshipList
                             isEditing={false}
-                            objectType={'Routine'}
+                            objectType={"Routine"}
                             zIndex={zIndex}
                         />
                         {/* Tags */}
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
-                            parentId={internalRoutineVersion?.id ?? ''}
+                            parentId={internalRoutineVersion?.id ?? ""}
                             tags={tags as Tag[]}
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
@@ -294,7 +291,7 @@ export const SubroutineView = ({
                         forceAddCommentOpen={isAddCommentOpen}
                         isOpen={false}
                         language={language}
-                        objectId={internalRoutineVersion?.id ?? ''}
+                        objectId={internalRoutineVersion?.id ?? ""}
                         objectType={CommentFor.RoutineVersion}
                         onAddCommentClose={closeAddCommentDialog}
                         zIndex={zIndex}
@@ -302,5 +299,5 @@ export const SubroutineView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

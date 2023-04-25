@@ -1,5 +1,5 @@
+import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from "@shared/consts";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 import { onlyValidIds, selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

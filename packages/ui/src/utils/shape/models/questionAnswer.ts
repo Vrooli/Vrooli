@@ -1,4 +1,4 @@
-import { QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerUpdateInput } from "@shared/consts";
+import { QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

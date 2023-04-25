@@ -1,17 +1,13 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import {
-    Stack,
-    Tooltip,
-    useTheme
-} from '@mui/material';
-import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { UnlinkedNodesDialog } from 'components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog';
-import { useCallback, useMemo, useState } from 'react';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { GraphActionsProps } from '../types';
+import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { UnlinkedNodesDialog } from "components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog";
+import { useCallback, useMemo, useState } from "react";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { GraphActionsProps } from "../types";
 
 export const GraphActions = ({
     canRedo,
@@ -38,15 +34,15 @@ export const GraphActions = ({
     return (
         <Stack direction="row" spacing={1} sx={{
             zIndex: 2,
-            height: '48px',
-            background: 'transparent',
+            height: "48px",
+            background: "transparent",
             color: palette.primary.contrastText,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingTop: '8px',
+            justifyContent: "center",
+            alignItems: "center",
+            paddingTop: "8px",
         }}>
             {showAll && <>
-                <Tooltip title={canUndo ? 'Undo' : ''}>
+                <Tooltip title={canUndo ? "Undo" : ""}>
                     <ColorIconButton
                         id="undo-button"
                         disabled={!canUndo}
@@ -57,7 +53,7 @@ export const GraphActions = ({
                         <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
                     </ColorIconButton>
                 </Tooltip>
-                <Tooltip title={canRedo ? 'Redo' : ''}>
+                <Tooltip title={canRedo ? "Redo" : ""}>
                     <ColorIconButton
                         id="redo-button"
                         disabled={!canRedo}
@@ -98,5 +94,5 @@ export const GraphActions = ({
                 zIndex={zIndex + 3}
             />}
         </Stack>
-    )
-}
+    );
+};

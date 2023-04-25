@@ -1,6 +1,5 @@
-import { gql } from 'apollo-server-express';
-import { RunRoutineStepStatus } from '@shared/consts';
-import { RunRoutineStepSortBy } from '@shared/consts';
+import { RunRoutineStepSortBy, RunRoutineStepStatus } from "@local/shared";
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     enum RunRoutineStepSortBy {
@@ -53,13 +52,13 @@ export const typeDef = gql`
         subroutine: RoutineVersion
     }
 
-`
+`;
 
-const objectType = 'RunRoutineStep';
+const objectType = "RunRoutineStep";
 export const resolvers: {
     RunRoutineStepSortBy: typeof RunRoutineStepSortBy;
     RunRoutineStepStatus: typeof RunRoutineStepStatus;
 } = {
     RunRoutineStepSortBy,
-    RunRoutineStepStatus: RunRoutineStepStatus,
-}
+    RunRoutineStepStatus,
+};

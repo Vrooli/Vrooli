@@ -1,5 +1,5 @@
+import { StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy } from "@shared/consts";
 import i18next from "i18next";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

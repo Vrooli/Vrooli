@@ -1,6 +1,4 @@
-import { Session } from "@shared/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
-import { getReactionScore } from "@shared/utils";
+import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, getReactionScore, ReplyIcon, ReportIcon, SearchIcon, Session, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getYou, ListObjectType } from "utils/display/listTools";

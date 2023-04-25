@@ -1,6 +1,6 @@
-import { RunProjectOrRunRoutine } from "@shared/consts";
-import { rel } from "../utils";
+import { RunProjectOrRunRoutine } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const runProjectOrRunRoutine: GqlPartial<RunProjectOrRunRoutine> = {
     __typename: 'RunProjectOrRunRoutine' as any,

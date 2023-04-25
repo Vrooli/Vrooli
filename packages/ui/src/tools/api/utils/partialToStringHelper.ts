@@ -9,38 +9,38 @@ import { unionToString } from "./unionToString";
  */
 export const partialToStringHelper = async (
     partial: DeepPartialBooleanWithFragments<any>,
-    indent: number = 0,
+    indent = 0,
 ) => {
     // If indent is too high, throw an error.
     if (indent > 69) {
-        throw new Error('partialToStringHelper indent too high. Possible infinite loop.');
+        throw new Error("partialToStringHelper indent too high. Possible infinite loop.");
     }
     // Initialize the result string.
-    let result = '';
+    let result = "";
     // Loop through the partial object.
     for (const [key, value] of Object.entries(partial)) {
-        Array.isArray(value) && console.error('Array value in partialToStringHelper', key, value);
+        Array.isArray(value) && console.error("Array value in partialToStringHelper", key, value);
         // If key is __typename, __selectionType, or __define, skip it.
         // These are either not needed, or handled by other functions.
-        if (['__typename', '__selectionType', '__define'].includes(key)) continue;
+        if (["__typename", "__selectionType", "__define"].includes(key)) continue;
         // If key is __union, use unionToString to convert the union.
-        else if (key === '__union') {
-            result += await unionToString(value as Exclude<DeepPartialBooleanWithFragments<any>['__union'], undefined>, indent);
+        else if (key === "__union") {
+            result += await unionToString(value as Exclude<DeepPartialBooleanWithFragments<any>["__union"], undefined>, indent);
         }
         // If key is __use, use value as fragment name
-        else if (key === '__use') {
-            result += `${' '.repeat(indent)}...${value}\n`;
+        else if (key === "__use") {
+            result += `${" ".repeat(indent)}...${value}\n`;
         }
         // If value is a boolean, add the key.
-        else if (typeof value === 'boolean') {
-            result += `${' '.repeat(indent)}${key}\n`;
+        else if (typeof value === "boolean") {
+            result += `${" ".repeat(indent)}${key}\n`;
         }
         // Otherwise, value must be an (possibly lazy) object. So we can recurse.
         else {
-            result += `${' '.repeat(indent)}${key} {\n`;
-            result += await partialToStringHelper(typeof value === 'function' ? await value() : value as any, indent + 4);
-            result += `${' '.repeat(indent)}}\n`;
+            result += `${" ".repeat(indent)}${key} {\n`;
+            result += await partialToStringHelper(typeof value === "function" ? await value() : value as any, indent + 4);
+            result += `${" ".repeat(indent)}}\n`;
         }
     }
     return result;
-}
+};

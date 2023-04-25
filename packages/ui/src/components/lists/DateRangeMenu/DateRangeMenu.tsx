@@ -1,7 +1,7 @@
 import { Button, Grid, Popover, Stack, TextField } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fromDatetimeLocal, toDatetimeLocal } from "utils/shape/general";
 import { DateRangeMenuProps } from "../types";
 
@@ -12,7 +12,7 @@ export const DateRangeMenu = ({
     onClose,
     onSubmit,
     range,
-    strictIntervalRange
+    strictIntervalRange,
 }: DateRangeMenuProps) => {
     const { t } = useTranslation();
 
@@ -20,9 +20,9 @@ export const DateRangeMenu = ({
 
     // Internal state for range.after and range.before
     const [after, setAfter] = useState<Date | undefined>(range?.after ?? minDate);
-    const [before, setBefore] = useState<Date | undefined>(range?.before ?? maxDate)
-    const handleAfterChange = useCallback((date: Date | null) => { setAfter(date ?? minDate) }, [minDate]);
-    const handleBeforeChange = useCallback((date: Date | null) => { setBefore(date ?? maxDate) }, [maxDate]);
+    const [before, setBefore] = useState<Date | undefined>(range?.before ?? maxDate);
+    const handleAfterChange = useCallback((date: Date | null) => { setAfter(date ?? minDate); }, [minDate]);
+    const handleBeforeChange = useCallback((date: Date | null) => { setBefore(date ?? maxDate); }, [maxDate]);
 
     useEffect(() => {
         setAfter(range?.after ?? minDate);
@@ -76,7 +76,7 @@ export const DateRangeMenu = ({
                 display="dialog"
                 onClose={onClose}
                 titleData={{
-                    titleKey: 'SelectDateRange',
+                    titleKey: "SelectDateRange",
                 }}
             />
             <Stack direction="column" spacing={2} m={2}>
@@ -85,12 +85,12 @@ export const DateRangeMenu = ({
                         <TextField
                             fullWidth
                             name="start"
-                            label={t('Start')}
+                            label={t("Start")}
                             type="datetime-local"
                             InputLabelProps={{
                                 shrink: true,
                             }}
-                            value={after ? toDatetimeLocal(after) : ''}
+                            value={after ? toDatetimeLocal(after) : ""}
                             onChange={(e) => handleAfterChange(fromDatetimeLocal(e.target.value))}
                         />
                     </Grid>
@@ -98,12 +98,12 @@ export const DateRangeMenu = ({
                         <TextField
                             fullWidth
                             name="end"
-                            label={t('End')}
+                            label={t("End")}
                             type="datetime-local"
                             InputLabelProps={{
                                 shrink: true,
                             }}
-                            value={before ? toDatetimeLocal(before) : ''}
+                            value={before ? toDatetimeLocal(before) : ""}
                             onChange={(e) => handleBeforeChange(fromDatetimeLocal(e.target.value))}
                         />
                     </Grid>
@@ -111,9 +111,9 @@ export const DateRangeMenu = ({
                 <Button
                     type="submit"
                     fullWidth
-                    onClick={() => { onSubmit(after, before); onClose() }}
-                >{t(`Ok`)}</Button>
+                    onClick={() => { onSubmit(after, before); onClose(); }}
+                >{t("Ok")}</Button>
             </Stack>
         </Popover>
-    )
-}
+    );
+};

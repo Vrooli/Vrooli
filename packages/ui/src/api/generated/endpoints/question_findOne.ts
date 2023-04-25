@@ -1,13 +1,13 @@
-import gql from 'graphql-tag';
-import { Api_nav } from '../fragments/Api_nav';
-import { Note_nav } from '../fragments/Note_nav';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { Project_nav } from '../fragments/Project_nav';
-import { Routine_nav } from '../fragments/Routine_nav';
-import { SmartContract_nav } from '../fragments/SmartContract_nav';
-import { Standard_nav } from '../fragments/Standard_nav';
-import { Tag_list } from '../fragments/Tag_list';
-import { User_nav } from '../fragments/User_nav';
+import gql from "graphql-tag";
+import { Api_nav } from "../fragments/Api_nav";
+import { Note_nav } from "../fragments/Note_nav";
+import { Organization_nav } from "../fragments/Organization_nav";
+import { Project_nav } from "../fragments/Project_nav";
+import { Routine_nav } from "../fragments/Routine_nav";
+import { SmartContract_nav } from "../fragments/SmartContract_nav";
+import { Standard_nav } from "../fragments/Standard_nav";
+import { Tag_list } from "../fragments/Tag_list";
+import { User_nav } from "../fragments/User_nav";
 
 export const questionFindOne = gql`${Api_nav}
 ${Note_nav}

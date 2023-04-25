@@ -1,14 +1,13 @@
+import { MaxObjects, Wallet, WalletUpdateInput, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { walletValidation } from '@shared/validation';
+import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
-import { MaxObjects, Wallet, WalletUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
-import { SelectWrap } from "../builders/types";
 
-const __typename = 'Wallet' as const;
+const __typename = "Wallet" as const;
 const suppFields = [] as const;
 export const WalletModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +18,8 @@ export const WalletModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.walletUpsertArgs['create'],
-    PrismaUpdate: Prisma.walletUpsertArgs['update'],
+    PrismaCreate: Prisma.walletUpsertArgs["create"],
+    PrismaUpdate: Prisma.walletUpsertArgs["update"],
     PrismaModel: Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
     PrismaSelect: Prisma.walletSelect,
     PrismaWhere: Prisma.walletWhereInput,
@@ -29,20 +28,20 @@ export const WalletModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: {
         select: () => ({ id: true, name: true }),
-        label: (select) => select.name ?? '',
+        label: (select) => select.name ?? "",
     },
     format: {
         gqlRelMap: {
             __typename,
-            handles: 'Handle',
-            user: 'User',
-            organization: 'Organization',
+            handles: "Handle",
+            user: "User",
+            organization: "Organization",
         },
         prismaRelMap: {
             __typename,
-            handles: 'Handle',
-            user: 'User',
-            organization: 'Organization',
+            handles: "Handle",
+            user: "User",
+            organization: "Organization",
         },
         countFields: {},
     },
@@ -53,14 +52,14 @@ export const WalletModel: ModelLogic<{
                 if (deleteList.length) {
                     const allWallets = await prisma.wallet.findMany({
                         where: { user: { id: userData.id } },
-                        select: { id: true, verified: true }
+                        select: { id: true, verified: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteList.includes(x.id) && x.verified).length;
                     const verifiedEmailsCount = await prisma.email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
-                        throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
+                        throw new CustomError("0049", "MustLeaveVerificationMethod", userData.languages);
                 }
             },
             update: async ({ data }) => data,
@@ -72,8 +71,8 @@ export const WalletModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: (...params) => ({
             id: true,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
@@ -82,8 +81,8 @@ export const WalletModel: ModelLogic<{
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.walletSelect>(data, [
-            ['organization', 'Organization'],
-            ['user', 'User'],
+            ["organization", "Organization"],
+            ["user", "User"],
         ], languages),
         visibility: {
             private: {},
@@ -92,8 +91,8 @@ export const WalletModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

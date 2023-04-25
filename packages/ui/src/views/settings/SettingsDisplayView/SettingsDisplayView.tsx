@@ -1,12 +1,10 @@
+import { ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { ProfileUpdateInput, User } from "@shared/consts";
-import { SearchIcon } from "@shared/icons";
-import { userValidation } from "@shared/validation";
 import { mutationWrapper, useCustomMutation } from "api";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Formik } from 'formik';
+import { Formik } from "formik";
 import { SettingsDisplayForm } from "forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({
-    display = 'page',
+    display = "page",
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -33,24 +31,24 @@ export const SettingsDisplayView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Display',
-                    helpKey: 'DisplaySettingsDescription',
+                    titleKey: "Display",
+                    helpKey: "DisplaySettingsDescription",
                 }}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Stack direction="column" sx={{
-                    margin: 'auto',
-                    display: 'block',
+                    margin: "auto",
+                    display: "block",
                 }}>
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
-                            theme: palette.mode === 'dark' ? 'dark' : 'light'
+                            theme: palette.mode === "dark" ? "dark" : "light",
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             mutationWrapper<User, ProfileUpdateInput>({
@@ -59,9 +57,9 @@ export const SettingsDisplayView = ({
                                     ...values,
                                     languages: [getSiteLanguage(session)],
                                 },
-                                onSuccess: (data) => { onProfileUpdate(data) },
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onSuccess: (data) => { onProfileUpdate(data); },
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         }}
                         validationSchema={userValidation.update({})}
                     >
@@ -72,14 +70,14 @@ export const SettingsDisplayView = ({
                             {...formik}
                         />}
                     </Formik>
-                    <Box sx={{ marginTop: 5, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                        }}>{t('ClearSearchHistory')}</Button>
+                    <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session); }} sx={{
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                        }}>{t("ClearSearchHistory")}</Button>
                     </Box>
                 </Stack>
             </Stack>
         </>
-    )
-}
+    );
+};

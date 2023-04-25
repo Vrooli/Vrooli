@@ -1,9 +1,9 @@
-import { ChatMessage, ChatMessageTranslation, ChatMessageYou } from "@shared/consts";
+import { ChatMessage, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
-    __typename: 'ChatMessageTranslation',
+    __typename: "ChatMessageTranslation",
     common: {
         id: true,
         language: true,
@@ -11,10 +11,10 @@ export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chatMessageYou: GqlPartial<ChatMessageYou> = {
-    __typename: 'ChatMessageYou',
+    __typename: "ChatMessageYou",
     common: {
         canDelete: true,
         canReply: true,
@@ -25,24 +25,24 @@ export const chatMessageYou: GqlPartial<ChatMessageYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chatMessage: GqlPartial<ChatMessage> = {
-    __typename: 'ChatMessage',
+    __typename: "ChatMessage",
     common: {
         id: true,
         created_at: true,
         updated_at: true,
-        user: async () => rel((await import('./user')).user, 'nav'),
+        user: async () => rel((await import("./user")).user, "nav"),
         score: true,
         reportsCount: true,
-        you: () => rel(chatMessageYou, 'full'),
+        you: () => rel(chatMessageYou, "full"),
     },
     full: {
-        chat: async () => rel((await import('./chat')).chat, 'full', { omit: 'messages' }),
-        translations: () => rel(chatMessageTranslation, 'full'),
+        chat: async () => rel((await import("./chat")).chat, "full", { omit: "messages" }),
+        translations: () => rel(chatMessageTranslation, "full"),
     },
     list: {
-        translations: () => rel(chatMessageTranslation, 'list'),
-    }
-}
+        translations: () => rel(chatMessageTranslation, "list"),
+    },
+};

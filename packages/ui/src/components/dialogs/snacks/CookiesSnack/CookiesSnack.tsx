@@ -1,16 +1,16 @@
-import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from '@mui/material';
-import { CloseIcon, LargeCookieIcon } from '@shared/icons';
-import { CookieSettingsDialog } from 'components/dialogs/CookieSettingsDialog/CookieSettingsDialog';
-import { useState } from 'react';
-import { noSelect } from 'styles';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
-import { CookiesSnackProps } from '../types';
+import { CloseIcon, LargeCookieIcon } from "@local/shared";
+import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import { CookieSettingsDialog } from "components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { useState } from "react";
+import { noSelect } from "styles";
+import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { CookiesSnackProps } from "../types";
 
 /**
  * "This site uses cookies" consent dialog
  */
 export const CookiesSnack = ({
-    handleClose
+    handleClose,
 }: CookiesSnackProps) => {
     const { palette } = useTheme();
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -21,13 +21,13 @@ export const CookiesSnack = ({
             performance: true,
             functional: true,
             targeting: true,
-        }
+        };
         // Set preference in local storage
         setCookiePreferences(preferences);
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
-    }
+    };
 
     const handleCustomizeCookies = (preferences?: CookiePreferences) => {
         if (preferences) {
@@ -37,7 +37,7 @@ export const CookiesSnack = ({
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
-    }
+    };
 
     return (
         <>
@@ -45,14 +45,14 @@ export const CookiesSnack = ({
             <CookieSettingsDialog handleClose={handleCustomizeCookies} isOpen={isCustomizeOpen} />
             {/* Snack */}
             <Box sx={{
-                width: 'min(100%, 500px)',
+                width: "min(100%, 500px)",
                 zIndex: 20000,
                 background: palette.background.paper,
                 color: palette.background.textPrimary,
                 padding: 2,
                 borderRadius: 2,
                 boxShadow: 8,
-                pointerEvents: 'auto',
+                pointerEvents: "auto",
                 ...noSelect,
             }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -92,4 +92,4 @@ export const CookiesSnack = ({
             </Box>
         </>
     );
-}
+};

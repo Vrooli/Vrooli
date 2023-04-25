@@ -1,9 +1,9 @@
-import { ScheduleException } from "@shared/consts";
+import { ScheduleException } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const scheduleException: GqlPartial<ScheduleException> = {
-    __typename: 'ScheduleException',
+    __typename: "ScheduleException",
     common: {
         id: true,
         originalStartTime: true,
@@ -11,9 +11,9 @@ export const scheduleException: GqlPartial<ScheduleException> = {
         newEndTime: true,
     },
     full: {
-        schedule: async () => rel((await import('./schedule')).schedule, 'full', { omit: 'exceptions' }),
+        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "exceptions" }),
     },
     list: {
-        schedule: async () => rel((await import('./schedule')).schedule, 'list', { omit: 'exceptions' }),
-    }
-}
+        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "exceptions" }),
+    },
+};

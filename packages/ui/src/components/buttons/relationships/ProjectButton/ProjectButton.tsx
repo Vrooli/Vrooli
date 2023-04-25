@@ -1,20 +1,18 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { ProjectIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
-import { exists } from '@shared/utils';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
-import { SelectOrCreateObjectType } from 'components/dialogs/types';
-import { RelationshipItemProjectVersion } from 'components/lists/types';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useField } from 'formik';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { firstString } from 'utils/display/stringTools';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { openObject } from 'utils/navigation/openObject';
-import { SessionContext } from 'utils/SessionContext';
-import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
-import { ProjectButtonProps } from '../types';
+import { exists, ProjectIcon, useLocation } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { SelectOrCreateObjectType } from "components/dialogs/types";
+import { RelationshipItemProjectVersion } from "components/lists/types";
+import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { useField } from "formik";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { firstString } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { openObject } from "utils/navigation/openObject";
+import { SessionContext } from "utils/SessionContext";
+import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { ProjectButtonProps } from "../types";
 
 export function ProjectButton({
     isEditing,
@@ -24,12 +22,12 @@ export function ProjectButton({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const languages = useMemo(() => getUserLanguages(session), [session])
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
-    const [versionField, , versionHelpers] = useField('project');
-    const [rootField, , rootHelpers] = useField('root.project');
+    const [versionField, , versionHelpers] = useField("project");
+    const [rootField, , rootHelpers] = useField("root.project");
 
-    const isAvailable = useMemo(() => ['Project', 'Routine', 'Standard'].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Project", "Routine", "Standard"].includes(objectType), [objectType]);
 
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
@@ -62,7 +60,7 @@ export function ProjectButton({
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
-        if (isProjectDialogOpen) return ['ProjectVersion', handleProjectSelect, closeProjectDialog];
+        if (isProjectDialogOpen) return ["ProjectVersion", handleProjectSelect, closeProjectDialog];
         return [null, () => { }, () => { }];
     }, [isProjectDialogOpen, handleProjectSelect, closeProjectDialog]);
 
@@ -71,12 +69,12 @@ export function ProjectButton({
         // If no project data, marked as unset
         if (!project) return {
             Icon: null,
-            tooltip: isEditing ? '' : 'Press to assign to a project'
+            tooltip: isEditing ? "" : "Press to assign to a project",
         };
-        const projectName = firstString(getTranslation(project as RelationshipItemProjectVersion, languages, true).name, 'project');
+        const projectName = firstString(getTranslation(project as RelationshipItemProjectVersion, languages, true).name, "project");
         return {
             Icon: ProjectIcon,
-            tooltip: `Project: ${projectName}`
+            tooltip: `Project: ${projectName}`,
         };
     }, [isEditing, languages, rootField?.value, versionField?.value]);
 
@@ -111,5 +109,5 @@ export function ProjectButton({
                 </Tooltip>
             </Stack>
         </>
-    )
+    );
 }

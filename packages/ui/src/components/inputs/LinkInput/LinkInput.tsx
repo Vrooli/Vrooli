@@ -1,5 +1,5 @@
+import { SearchIcon } from "@local/shared";
 import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { SearchIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { Field, useField } from "formik";

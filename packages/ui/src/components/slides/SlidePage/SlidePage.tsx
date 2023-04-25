@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
-import { SlidePageProps } from '../types';
+import { Box } from "@mui/material";
+import { SlidePageProps } from "../types";
 
 export const SlidePage = ({
     children,
@@ -10,11 +10,11 @@ export const SlidePage = ({
         <Box
             id={id}
             sx={{
-                scrollBehavior: 'smooth',
+                scrollBehavior: "smooth",
                 ...(sx || {}),
             }}
         >
             {children}
         </Box>
     );
-}
+};

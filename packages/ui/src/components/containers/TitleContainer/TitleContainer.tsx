@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
-import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
-import { useTranslation } from 'react-i18next';
-import { clickSize } from 'styles';
-import { TitleContainerProps } from '../types';
+import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useTranslation } from "react-i18next";
+import { clickSize } from "styles";
+import { TitleContainerProps } from "../types";
 
 export function TitleContainer({
     id,
@@ -13,7 +13,7 @@ export function TitleContainer({
     titleVariables,
     onClick,
     loading = false,
-    tooltip = '',
+    tooltip = "",
     options = [],
     sx,
     children,
@@ -28,19 +28,19 @@ export function TitleContainer({
                     sx={{
                         boxShadow: 4,
                         borderRadius: { xs: 0, sm: 2 },
-                        overflow: 'overlay',
+                        overflow: "overlay",
                         background: palette.background.paper,
-                        width: 'min(100%, 700px)',
-                        cursor: onClick ? 'pointer' : 'default',
-                        '&:hover': {
+                        width: "min(100%, 700px)",
+                        cursor: onClick ? "pointer" : "default",
+                        "&:hover": {
                             filter: `brightness(onClick ? ${102} : ${100}%)`,
                         },
-                        ...sx
+                        ...sx,
                     }}
                 >
                     {/* Title container */}
                     <Box
-                        onClick={(e) => { onClick && onClick(e) }}
+                        onClick={(e) => { onClick && onClick(e); }}
                         sx={{
                             background: palette.primary.dark,
                             color: palette.primary.contrastText,
@@ -50,20 +50,20 @@ export function TitleContainer({
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
                             <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, { ...titleVariables, defaultValue: titleKey })}</Typography>
-                            {Boolean(helpKey) ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
+                            {helpKey ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
                         </Stack>
                     </Box>
                     {/* Main content */}
                     <Stack direction="column">
                         <Box sx={{
                             ...(loading ? {
-                                minHeight: 'min(300px, 25vh)',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
+                                minHeight: "min(300px, 25vh)",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
                             } : {
-                                display: 'block',
-                            })
+                                display: "block",
+                            }),
                         }}>
                             {loading ? <CircularProgress color="secondary" /> : children}
                         </Box>
@@ -72,19 +72,19 @@ export function TitleContainer({
                             options.length > 0 && (
                                 <Stack direction="row" sx={{
                                     ...clickSize,
-                                    justifyContent: 'end',
+                                    justifyContent: "end",
                                 }}
                                 >
                                     {options.map(([labelData, onClick], index) => (
                                         <Link key={index} onClick={onClick} sx={{
-                                            marginTop: 'auto',
-                                            marginBottom: 'auto',
+                                            marginTop: "auto",
+                                            marginBottom: "auto",
                                             marginRight: 2,
                                         }}>
                                             <Typography sx={{
-                                                color: palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light
+                                                color: palette.mode === "light" ? palette.secondary.dark : palette.secondary.light,
                                             }}
-                                            >{typeof labelData === 'string' ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
+                                            >{typeof labelData === "string" ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

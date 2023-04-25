@@ -1,4 +1,4 @@
-import { ResourceListSortBy } from "@shared/consts";
+import { ResourceListSortBy } from "@local/shared";
 import { resourceListFindMany } from "api/generated/endpoints/resourceList_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

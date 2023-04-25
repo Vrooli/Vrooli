@@ -1,5 +1,5 @@
+import { commentTranslationValidation } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { commentTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";

@@ -7,20 +7,20 @@ import { partialToStringHelper } from "./partialToStringHelper";
  * @returns a graphql-tag string for each fragment, along with its name. (Array<[name, tag]>)
  */
 export const fragmentsToString = async (
-    fragments: Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>,
+    fragments: Exclude<DeepPartialBooleanWithFragments<any>["__define"], undefined>,
 ) => {
-    console.log('fragmentsToString start', Object.keys(fragments), '\n\n')
+    console.log("fragmentsToString start", Object.keys(fragments), "\n\n");
     // Initialize result
     const result: [string, string][] = [];
     // Loop through fragments
     for (const [name, partial] of Object.entries(fragments)) {
-        const objectType = name.split('_')[0];
-        let fragmentString = '';
+        const objectType = name.split("_")[0];
+        let fragmentString = "";
         fragmentString += `fragment ${name} on ${objectType} {\n`;
-        fragmentString += await partialToStringHelper(partial as any)
-        fragmentString += `}`;
+        fragmentString += await partialToStringHelper(partial as any);
+        fragmentString += "}";
         result.push([name, fragmentString]);
     }
-    console.log('fragmentsToString result', result.map(([name, tag]) => name), '\n\n')
+    console.log("fragmentsToString result", result.map(([name, tag]) => name), "\n\n");
     return result;
-}
+};

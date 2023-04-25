@@ -1,7 +1,4 @@
-import { LINKS } from "@shared/consts";
-import { getLastUrlPart } from "@shared/route";
-import { uuidValidate } from "@shared/uuid";
-import { adaHandleRegex } from "@shared/validation";
+import { adaHandleRegex, getLastUrlPart, LINKS, uuidValidate } from "@local/shared";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -23,13 +20,13 @@ function toBigInt(value: string, radix: number) {
  */
 export const uuidToBase36 = (uuid: string): string => {
     try {
-        const base36 = toBigInt(uuid.replace(/-/g, ''), 16).toString(36);
-        return base36 === '0' ? '' : base36;
+        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
+        return base36 === "0" ? "" : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ messageKey: 'CouldNotConvertId', severity: 'Error', data: { uuid } });
-        return '';
+        PubSub.get().publishSnack({ messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
+        return "";
     }
-}
+};
 
 /**
  * Converts a base 36 string without dashes into a UUID.
@@ -41,13 +38,13 @@ export const base36ToUuid = (base36: string, showError = true): string => {
     try {
         // Convert to base 16. If the ID is less than 32 characters, pad start with 0s. 
         // Then, insert dashes
-        const uuid = toBigInt(base36, 36).toString(16).padStart(32, '0').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-        return uuid === '0' ? '' : uuid;
+        const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
+        return uuid === "0" ? "" : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error', data: { base36 } });
-        return '';
+        if (showError) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
+        return "";
     }
-}
+};
 
 export type SingleItemUrl = {
     handleRoot?: string,
@@ -86,14 +83,14 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     // root ID or handle defined. To check, we must see if any part of the url 
     // contains the name of a versioned object
     const objectsWithVersions = [
-        LINKS.Api, 
-        LINKS.Note, 
-        LINKS.Project, 
-        LINKS.Routine, 
-        LINKS.SmartContract, 
-        LINKS.Standard
-    ].map(link => link.split('/').pop());
-    const allUrlParts = window.location.pathname.split('/');
+        LINKS.Api,
+        LINKS.Note,
+        LINKS.Project,
+        LINKS.Routine,
+        LINKS.SmartContract,
+        LINKS.Standard,
+    ].map(link => link.split("/").pop());
+    const allUrlParts = window.location.pathname.split("/");
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
     // Now check the last part
     if (adaHandleRegex.test(lastPart)) {
@@ -103,7 +100,7 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
         if (isVersioned) returnObject.idRoot = base36ToUuid(lastPart, false);
         else returnObject.id = base36ToUuid(lastPart, false);
     }
-    console.log('parseSingleItemUrl RESULT', returnObject);
+    console.log("parseSingleItemUrl RESULT", returnObject);
     // Return the object
     return returnObject;
-}
+};

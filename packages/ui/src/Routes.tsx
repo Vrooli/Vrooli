@@ -1,13 +1,12 @@
-import { Box } from '@mui/material';
-import { LINKS } from '@shared/consts';
-import { Route, RouteProps, Switch } from '@shared/route';
-import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
-import { NavbarProps } from 'components/navigation/types';
-import { ScrollToTop } from 'components/ScrollToTop';
-import { ForgotPasswordForm, ResetPasswordForm } from 'forms/auth';
-import { lazily } from 'react-lazily';
-import { PageProps } from 'views/wrapper/types';
-import { Page } from './components/Page/Page';
+import { LINKS, Route, RouteProps, Switch } from "@local/shared";
+import { Box } from "@mui/material";
+import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
+import { NavbarProps } from "components/navigation/types";
+import { ScrollToTop } from "components/ScrollToTop";
+import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
+import { lazily } from "react-lazily";
+import { PageProps } from "views/wrapper/types";
+import { Page } from "./components/Page/Page";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -16,7 +15,7 @@ const {
     CreateView,
     MyStuffView,
     NotificationsView,
-} = lazily(() => import('./views/main'));
+} = lazily(() => import("./views/main"));
 const {
     SettingsView,
     SettingsAuthenticationView,
@@ -25,33 +24,33 @@ const {
     SettingsProfileView,
     SettingsPrivacyView,
     SettingsFocusModesView,
-} = lazily(() => import('./views/settings'));
+} = lazily(() => import("./views/settings"));
 const {
     PrivacyPolicyView,
-    TermsView
-} = lazily(() => import('./views/legal'));
-const { TutorialView } = lazily(() => import('./views/tutorial'));
-const { WelcomeView } = lazily(() => import('./views/WelcomeView/WelcomeView'));
-const { AboutView } = lazily(() => import('./views/AboutView/AboutView'));
-const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
-const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
-const { FormView } = lazily(() => import('./views/wrapper/FormView'));
-const { NotFoundView } = lazily(() => import('./views/NotFoundView/NotFoundView'));
-const { PremiumView } = lazily(() => import('./views/PremiumView/PremiumView'));
-const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
-const { StartView } = lazily(() => import('./views/StartView/StartView'));
-const { StatsView } = lazily(() => import('./views/StatsView/StatsView'));
-const { ApiUpsert, ApiView } = lazily(() => import('./views/objects/api'));
-const { BookmarkListView } = lazily(() => import('./views/objects/bookmarkList'));
-const { NoteUpsert, NoteView } = lazily(() => import('./views/objects/note'));
-const { OrganizationUpsert, OrganizationView } = lazily(() => import('./views/objects/organization'));
-const { ProjectUpsert, ProjectView } = lazily(() => import('./views/objects/project'));
-const { QuestionUpsert, QuestionView } = lazily(() => import('./views/objects/question'));
-const { ReminderUpsert, ReminderView } = lazily(() => import('./views/objects/reminder'));
-const { RoutineUpsert, RoutineView } = lazily(() => import('./views/objects/routine'));
-const { SmartContractUpsert, SmartContractView } = lazily(() => import('./views/objects/smartContract'));
-const { StandardUpsert, StandardView } = lazily(() => import('./views/objects/standard'));
-const { UserView } = lazily(() => import('./views/objects/user'));
+    TermsView,
+} = lazily(() => import("./views/legal"));
+const { TutorialView } = lazily(() => import("./views/tutorial"));
+const { WelcomeView } = lazily(() => import("./views/WelcomeView/WelcomeView"));
+const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
+const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
+const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
+const { FormView } = lazily(() => import("./views/wrapper/FormView"));
+const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
+const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
+const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
+const { StartView } = lazily(() => import("./views/StartView/StartView"));
+const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
+const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
+const { BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
+const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
+const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
+const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
+const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
+const { ReminderUpsert, ReminderView } = lazily(() => import("./views/objects/reminder"));
+const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
+const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
+const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
+const { UserView } = lazily(() => import("./views/objects/user"));
 
 /**
  * Fallback displayed while route is being loaded.
@@ -60,16 +59,16 @@ const Fallback = <Box>
     {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
     <Box sx={{
         background: (t) => t.palette.primary.dark,
-        height: '64px!important',
+        height: "64px!important",
         zIndex: 100,
-        position: 'fixed',
+        position: "fixed",
         top: 0,
         left: 0,
         right: 0,
     }} />
     {/* Loading spinner */}
     <FullPageSpinner />
-</Box>
+</Box>;
 
 /**
  * Wrapper to define Navbar within each route. This allows us to 
@@ -83,8 +82,8 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
                 {props.children}
             </Page>
         </Route>
-    )
-}
+    );
+};
 
 /**
  * Style for pages that don't use left/right padding
@@ -92,7 +91,7 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
 const noSidePadding = {
     paddingLeft: 0,
     paddingRight: 0,
-}
+};
 
 export const Routes = (props: { sessionChecked: boolean }) => {
     return (
@@ -358,4 +357,4 @@ export const Routes = (props: { sessionChecked: boolean }) => {
             </Switch>
         </>
     );
-}
+};

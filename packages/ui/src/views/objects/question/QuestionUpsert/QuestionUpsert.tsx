@@ -1,4 +1,4 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@shared/consts";
+import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
 import { mutationWrapper } from "api";
 import { questionCreate } from "api/generated/endpoints/question_create";
 import { questionFindOne } from "api/generated/endpoints/question_findOne";

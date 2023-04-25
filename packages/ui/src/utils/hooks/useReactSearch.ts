@@ -1,4 +1,4 @@
-import { parseSearchParams } from "@shared/route";
+import { parseSearchParams } from "@local/shared";
 import { useCallback, useEffect, useState } from "react";
 
 type Primitive = string | number | boolean;
@@ -25,6 +25,6 @@ export const useReactSearch = (pollInterval: number | null = 50) => {
             // Clean up interval when component unmounts
             return () => clearInterval(interval);
         }
-    }, [listenToSearch, pollInterval])
+    }, [listenToSearch, pollInterval]);
     return search;
 };

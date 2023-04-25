@@ -1,13 +1,11 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
-import { SvgComponent } from '@shared/icons';
-import { CommonKey } from '@shared/translations';
-import { LineGraphProps } from 'components/graphs/types';
-import { AwardDisplay, NavigableObject } from 'types';
-import { ObjectAction } from 'utils/actions/objectActions';
-import { ListObjectType } from 'utils/display/listTools';
-import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
-import { ObjectType } from 'utils/navigation/openObject';
-import { SearchType } from 'utils/search/objectToSearch';
+import { ApiVersion, CommonKey, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { LineGraphProps } from "components/graphs/types";
+import { AwardDisplay, NavigableObject } from "types";
+import { ObjectAction } from "utils/actions/objectActions";
+import { ListObjectType } from "utils/display/listTools";
+import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
+import { ObjectType } from "utils/navigation/openObject";
+import { SearchType } from "utils/search/objectToSearch";
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
@@ -65,25 +63,25 @@ export interface DateRangeMenuProps {
     strictIntervalRange?: number;
 }
 
-export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
+export type RelationshipItemOrganization = Pick<Organization, "handle" | "id"> &
 {
-    translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'Organization';
+    translations?: Pick<Organization["translations"][0], "name" | "id" | "language">[];
+    __typename: "Organization";
 };
-export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
-    __typename: 'User';
+export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
+    __typename: "User";
 }
-export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
+export type RelationshipItemProjectVersion = Pick<ProjectVersion, "id"> &
 {
-    root: Pick<Project, '__typename' | 'id' | 'handle' | 'owner'>;
-    translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'ProjectVersion';
+    root: Pick<Project, "__typename" | "id" | "handle" | "owner">;
+    translations?: Pick<ProjectVersion["translations"][0], "name" | "id" | "language">[];
+    __typename: "ProjectVersion";
 };
-export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
+export type RelationshipItemRoutineVersion = Pick<RoutineVersion, "id"> &
 {
-    root: Pick<Routine, '__typename' | 'id' | 'owner'>;
-    translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'RoutineVersion';
+    root: Pick<Routine, "__typename" | "id" | "owner">;
+    translations?: Pick<RoutineVersion["translations"][0], "name" | "id" | "language">[];
+    __typename: "RoutineVersion";
 };
 
 export interface RelationshipListProps {
@@ -171,7 +169,7 @@ export interface CardGridProps {
     sx?: { [x: string]: any };
 }
 
-export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
+export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
     title?: string;
     index: number;
 }

@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { Trigger } from "../events";
 import { TransferModel } from "../models";
 import { PrismaType, SessionUserToken } from "../types";

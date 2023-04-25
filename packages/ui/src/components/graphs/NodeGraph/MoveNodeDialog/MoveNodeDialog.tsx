@@ -9,15 +9,15 @@ import {
     TextField,
     Typography,
     useTheme
-} from '@mui/material';
-import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
-import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { MoveNodeMenuProps } from '../types';
+} from "@mui/material";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { MoveNodeMenuProps } from "../types";
 
-const titleId = 'move-node-dialog-title';
+const titleId = "move-node-dialog-title";
 
 export const MoveNodeMenu = ({
     handleClose,
@@ -92,7 +92,7 @@ export const MoveNodeMenu = ({
         if (toColumnIndex === fromColumnIndex && toRowIndex === fromRowIndex) {
             onClose();
         }
-        onClose({ columnIndex: toColumnIndex, rowIndex: toRowIndex })
+        onClose({ columnIndex: toColumnIndex, rowIndex: toRowIndex });
     }, [toColumnIndex, fromColumnIndex, toRowIndex, fromRowIndex, onClose]);
 
     const closeDialog = useCallback(() => { onClose(); }, [onClose]);
@@ -105,7 +105,7 @@ export const MoveNodeMenu = ({
             {/* "From" stack */}
             <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                 <Typography variant="h6">
-                    {t('From')}
+                    {t("From")}
                 </Typography>
                 {/* Column TextField (Disabled) */}
                 <TextField
@@ -126,12 +126,12 @@ export const MoveNodeMenu = ({
             </Stack>
             {/* Right arrow */}
             <Box sx={{
-                width: '3em',
-                height: '3em',
-                color: 'black',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: "3em",
+                height: "3em",
+                color: "black",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
             }}>
                 <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
@@ -140,14 +140,14 @@ export const MoveNodeMenu = ({
             {/* "To" stack */}
             <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                 <Typography variant="h6">
-                    {t('To')}
+                    {t("To")}
                 </Typography>
                 {/* Column selector */}
                 <Autocomplete
                     disablePortal
                     id="node-to-column"
                     options={availableColumns}
-                    getOptionLabel={(option: number) => (option + 1) + ''}
+                    getOptionLabel={(option: number) => (option + 1) + ""}
                     onChange={(_, value) => handleToColumnSelect(value)}
                     value={toColumnIndex}
                     sx={{
@@ -161,7 +161,7 @@ export const MoveNodeMenu = ({
                     disablePortal
                     id="node-to-row"
                     options={availableRows}
-                    getOptionLabel={(option: number) => (option + 1) + ''}
+                    getOptionLabel={(option: number) => (option + 1) + ""}
                     onChange={(_, value) => handleToRowSelect(value)}
                     value={toRowIndex}
                     sx={{
@@ -178,20 +178,20 @@ export const MoveNodeMenu = ({
         <LargeDialog
             id="move-node-dialog"
             isOpen={isOpen}
-            onClose={() => { handleClose() }}
+            onClose={() => { handleClose(); }}
             titleId={titleId}
             zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
-                helpText={t('NodeMoveDialogHelp')}
+                helpText={t("NodeMoveDialogHelp")}
                 onClose={onClose}
-                title={t('NodeMove')}
+                title={t("NodeMove")}
             />
             <DialogContent>
                 {formContent}
                 {/* Action buttons */}
-                <Grid container spacing={1} sx={{ padding: 0, paddingTop: '24px' }}>
+                <Grid container spacing={1} sx={{ padding: 0, paddingTop: "24px" }}>
                     <GridSubmitButtons
                         display="dialog"
                         isCreate={false}
@@ -201,5 +201,5 @@ export const MoveNodeMenu = ({
                 </Grid>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

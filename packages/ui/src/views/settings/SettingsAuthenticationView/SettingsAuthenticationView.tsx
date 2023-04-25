@@ -1,18 +1,15 @@
+import { DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
-import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
-import { profileEmailUpdateValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
 import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
+import { mutationWrapper } from "api/utils";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Subheader } from "components/text/Subheader/Subheader";
-import { Formik } from 'formik';
+import { Formik } from "formik";
 import { SettingsAuthenticationForm } from "forms/settings";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +20,7 @@ import { SessionContext } from "utils/SessionContext";
 import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({
-    display = 'page',
+    display = "page",
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -38,17 +35,17 @@ export const SettingsAuthenticationView = ({
         mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id },
-            onSuccess: (data) => { PubSub.get().publishSession(data) },
+            onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession) },
-        })
+            onError: () => { PubSub.get().publishSession(guestSession); },
+        });
         PubSub.get().publishSession(guestSession);
         setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, wallets: updatedList });
@@ -57,7 +54,7 @@ export const SettingsAuthenticationView = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, emails: updatedList });
@@ -83,43 +80,43 @@ export const SettingsAuthenticationView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Authentication',
+                    titleKey: "Authentication",
                 }}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Box>
                     <Subheader
-                        help={t('WalletListHelp')}
+                        help={t("WalletListHelp")}
                         Icon={WalletIcon}
-                        title={t('Wallet', { count: 2 })} />
+                        title={t("Wallet", { count: 2 })} />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
                     />
                     <Subheader
-                        help={t('EmailListHelp')}
+                        help={t("EmailListHelp")}
                         Icon={EmailIcon}
-                        title={t('Email', { count: 2 })} />
+                        title={t("Email", { count: 2 })} />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numVerifiedWallets={numVerifiedWallets}
                     />
                     <Subheader
-                        help={t('PasswordChangeHelp')}
-                        title={t('ChangePassword')} />
+                        help={t("PasswordChangeHelp")}
+                        title={t("ChangePassword")} />
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
-                            currentPassword: '',
-                            newPassword: '',
-                            newPasswordConfirmation: '',
+                            currentPassword: "",
+                            newPassword: "",
+                            newPasswordConfirmation: "",
                         } as ProfileEmailUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
                             mutationWrapper<User, ProfileEmailUpdateInput>({
@@ -128,9 +125,9 @@ export const SettingsAuthenticationView = ({
                                     currentPassword: values.currentPassword,
                                     newPassword: values.newPassword,
                                 },
-                                onSuccess: (data) => { onProfileUpdate(data) },
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onSuccess: (data) => { onProfileUpdate(data); },
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         }}
                         validationSchema={profileEmailUpdateValidation.update({})}
                     >
@@ -146,31 +143,31 @@ export const SettingsAuthenticationView = ({
                         onClick={onLogOut}
                         startIcon={<LogOutIcon />}
                         sx={{
-                            display: 'flex',
-                            width: 'min(100%, 400px)',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
+                            display: "flex",
+                            width: "min(100%, 400px)",
+                            marginLeft: "auto",
+                            marginRight: "auto",
                             marginTop: 5,
                             marginBottom: 2,
-                            whiteSpace: 'nowrap',
+                            whiteSpace: "nowrap",
                         }}
-                    >{t('LogOut')}</Button>
+                    >{t("LogOut")}</Button>
                     <Button
                         onClick={openDelete}
                         startIcon={<DeleteIcon />}
                         sx={{
                             background: palette.error.main,
                             color: palette.error.contrastText,
-                            display: 'flex',
-                            width: 'min(100%, 400px)',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
+                            display: "flex",
+                            width: "min(100%, 400px)",
+                            marginLeft: "auto",
+                            marginRight: "auto",
                             marginBottom: 2,
-                            whiteSpace: 'nowrap',
+                            whiteSpace: "nowrap",
                         }}
-                    >{t('DeleteAccount')}</Button>
+                    >{t("DeleteAccount")}</Button>
                 </Box>
             </Stack>
         </>
-    )
-}
+    );
+};

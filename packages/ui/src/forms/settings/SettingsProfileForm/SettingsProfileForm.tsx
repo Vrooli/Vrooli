@@ -1,7 +1,5 @@
+import { FindHandlesInput, RefreshIcon, userTranslationValidation } from "@local/shared";
 import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
-import { FindHandlesInput } from "@shared/consts";
-import { RefreshIcon } from "@shared/icons";
-import { userTranslationValidation } from "@shared/validation";
 import { useCustomLazyQuery } from "api";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 export const useMarkdown = (importedFile: string, shapingFunction?: (markdown: string) => string): string => {
-    const [markdown, setMarkdown] = useState<string>('');
+    const [markdown, setMarkdown] = useState<string>("");
 
     useEffect(() => {
         fetch(importedFile)
@@ -16,4 +16,4 @@ export const useMarkdown = (importedFile: string, shapingFunction?: (markdown: s
     }, [importedFile, shapingFunction]);
 
     return markdown;
-}
+};

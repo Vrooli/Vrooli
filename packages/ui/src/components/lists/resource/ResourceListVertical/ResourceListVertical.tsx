@@ -1,17 +1,16 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Box, Button } from '@mui/material';
-import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { AddIcon } from '@shared/icons';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { ResourceDialog } from 'components/dialogs/ResourceDialog/ResourceDialog';
-import { useCallback, useMemo, useState } from 'react';
-import { updateArray } from 'utils/shape/general';
-import { ResourceListItem } from '../ResourceListItem/ResourceListItem';
-import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/ResourceListItemContextMenu';
-import { ResourceListVerticalProps } from '../types';
+import { AddIcon, Count, DeleteManyInput, Resource } from "@local/shared";
+import { Box, Button } from "@mui/material";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { useCallback, useMemo, useState } from "react";
+import { updateArray } from "utils/shape/general";
+import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
+import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
+import { ResourceListVerticalProps } from "../types";
 
 export const ResourceListVertical = ({
     canUpdate = true,
@@ -49,7 +48,7 @@ export const ResourceListVertical = ({
         if (mutate && resource.id) {
             mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
-                input: { ids: [resource.id], objectType: 'Resource' as any },
+                input: { ids: [resource.id], objectType: "Resource" as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
@@ -58,7 +57,7 @@ export const ResourceListVertical = ({
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
@@ -86,11 +85,11 @@ export const ResourceListVertical = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { console.log('open dialog'); setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { console.log("open dialog"); setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const dialog = useMemo(() => (
@@ -128,11 +127,11 @@ export const ResourceListVertical = ({
             {dialog}
             {list?.resources && list.resources.length > 0 && <Box sx={{
                 boxShadow: 12,
-                overflow: 'overlay',
-                borderRadius: '8px',
-                maxWidth: '1000px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
+                overflow: "overlay",
+                borderRadius: "8px",
+                maxWidth: "1000px",
+                marginLeft: "auto",
+                marginRight: "auto",
             }}>
                 {/* Resource list */}
                 {list.resources.map((c: Resource, index) => (
@@ -150,12 +149,12 @@ export const ResourceListVertical = ({
             </Box>}
             {/* Add resource button */}
             {canUpdate && <Box sx={{
-                maxWidth: '400px',
-                margin: 'auto',
+                maxWidth: "400px",
+                margin: "auto",
                 paddingTop: 5,
             }}>
                 <Button fullWidth onClick={openDialog} startIcon={<AddIcon />}>Add Resource</Button>
             </Box>}
         </>
-    )
-}
+    );
+};

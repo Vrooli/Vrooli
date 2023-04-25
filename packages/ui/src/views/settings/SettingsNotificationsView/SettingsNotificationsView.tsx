@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
+import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
 import { Stack } from "@mui/material";
-import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { mutationWrapper } from "api";
 import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";

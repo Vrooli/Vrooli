@@ -1,6 +1,5 @@
+import { BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, bookmarkListValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, MaxObjects } from "@shared/consts";
-import { bookmarkListValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";

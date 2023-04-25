@@ -1,4 +1,4 @@
-import { isObject } from "@shared/utils";
+import { isObject } from "@local/shared";
 import { filterFields } from "./filterFields";
 
 /**

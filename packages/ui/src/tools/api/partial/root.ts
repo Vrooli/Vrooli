@@ -1,4 +1,4 @@
-import { VersionYou } from "@shared/consts";
+import { VersionYou } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const versionYou: GqlPartial<VersionYou> = {

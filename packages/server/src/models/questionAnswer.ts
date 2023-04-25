@@ -1,13 +1,12 @@
+import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, questionAnswerValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from '@shared/consts';
-import { questionAnswerValidation } from "@shared/validation";
 import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 
-const __typename = 'QuestionAnswer' as const;
+const __typename = "QuestionAnswer" as const;
 const suppFields = [] as const;
 export const QuestionAnswerModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +17,8 @@ export const QuestionAnswerModel: ModelLogic<{
     GqlSearch: QuestionAnswerSearchInput,
     GqlSort: QuestionAnswerSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.question_answerUpsertArgs['create'],
-    PrismaUpdate: Prisma.question_answerUpsertArgs['update'],
+    PrismaCreate: Prisma.question_answerUpsertArgs["create"],
+    PrismaUpdate: Prisma.question_answerUpsertArgs["update"],
     PrismaModel: Prisma.question_answerGetPayload<SelectWrap<Prisma.question_answerSelect>>,
     PrismaSelect: Prisma.question_answerSelect,
     PrismaWhere: Prisma.question_answerWhereInput,
@@ -28,40 +27,40 @@ export const QuestionAnswerModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.question_answer,
     display: {
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations as any, 'name', languages)
+        label: (select, languages) => bestLabel(select.translations as any, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            bookmarkedBy: 'User',
-            createdBy: 'User',
-            comments: 'Comment',
-            question: 'Question',
+            bookmarkedBy: "User",
+            createdBy: "User",
+            comments: "Comment",
+            question: "Question",
         },
         prismaRelMap: {
             __typename,
-            bookmarkedBy: 'User',
-            createdBy: 'User',
-            comments: 'Comment',
-            question: 'Question',
-            reactions: 'Reaction',
+            bookmarkedBy: "User",
+            createdBy: "User",
+            comments: "Comment",
+            question: "Question",
+            reactions: "Reaction",
         },
         countFields: {
             commentsCount: true,
         },
-        joinMap: { bookmarkedBy: 'user' },
+        joinMap: { bookmarkedBy: "user" },
     },
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'question', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Question', parentRelationshipName: 'answers', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "question", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Question", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-            })
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
         },
         yup: questionAnswerValidation,
     },
@@ -78,8 +77,8 @@ export const QuestionAnswerModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transTextWrapped',
-            ]
+                "transTextWrapped",
+            ],
         }),
     },
     validate: {
@@ -93,7 +92,7 @@ export const QuestionAnswerModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            createdBy: 'User',
+            createdBy: "User",
         }),
         visibility: {
             private: {},
@@ -103,4 +102,4 @@ export const QuestionAnswerModel: ModelLogic<{
             }),
         },
     },
-})
+});

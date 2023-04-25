@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import gql from "graphql-tag";
 
 export const quizQuestionResponseUpdate = gql`
 mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {

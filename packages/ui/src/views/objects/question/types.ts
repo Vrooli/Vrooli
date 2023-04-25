@@ -1,4 +1,4 @@
-import { Question } from "@shared/consts";
+import { Question } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface QuestionUpsertProps extends UpsertProps<Question> { }

@@ -1,4 +1,4 @@
-import { i18nConfig } from '@shared/translations';
+import { i18nConfig } from "@local/shared";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 

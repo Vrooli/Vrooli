@@ -1,13 +1,12 @@
-import { Email, EmailCreateInput, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { CustomError, Trigger } from "../events";
-import { ModelLogic } from "./types";
+import { Email, EmailCreateInput, emailValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions } from '../utils';
-import { emailValidation } from '@shared/validation';
+import { CustomError, Trigger } from "../events";
+import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { ModelLogic } from "./types";
 
-const __typename = 'Email' as const;
+const __typename = "Email" as const;
 const suppFields = [] as const;
 export const EmailModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +17,8 @@ export const EmailModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.emailUpsertArgs['create'],
-    PrismaUpdate: Prisma.emailUpsertArgs['update'],
+    PrismaCreate: Prisma.emailUpsertArgs["create"],
+    PrismaUpdate: Prisma.emailUpsertArgs["update"],
     PrismaModel: Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
     PrismaSelect: Prisma.emailSelect,
     PrismaWhere: Prisma.emailWhereInput,
@@ -36,7 +35,7 @@ export const EmailModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            user: 'User',
+            user: "User",
         },
         countFields: {},
     },
@@ -48,20 +47,20 @@ export const EmailModel: ModelLogic<{
                     const existingEmails = await prisma.email.findMany({
                         where: { emailAddress: { in: createList.map(x => x.emailAddress) } },
                     });
-                    if (existingEmails.length > 0) throw new CustomError('0044', 'EmailInUse', userData.languages)
+                    if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages);
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (deleteList.length) {
                     const allEmails = await prisma.email.findMany({
                         where: { user: { id: userData.id } },
-                        select: { id: true, verified: true }
+                        select: { id: true, verified: true },
                     });
                     const remainingVerifiedEmailsCount = allEmails.filter(x => !deleteList.includes(x.id) && x.verified).length;
                     const verifiedWalletsCount = await prisma.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
-                        throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
+                        throw new CustomError("0049", "MustLeaveVerificationMethod", userData.languages);
                 }
                 return {};
             },
@@ -77,10 +76,10 @@ export const EmailModel: ModelLogic<{
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
-                        owner: { id: userData.id, __typename: 'User' },
+                        owner: { id: userData.id, __typename: "User" },
                         objectId,
                         objectType: __typename,
-                    })
+                    });
                 }
             },
         },
@@ -91,7 +90,7 @@ export const EmailModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
@@ -99,11 +98,11 @@ export const EmailModel: ModelLogic<{
         }),
         isDeleted: () => false,
         isPublic: () => false,
-        profanityFields: ['emailAddress'],
+        profanityFields: ["emailAddress"],
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({ user: { id: userId } }),
-        }
+        },
     },
-})
+});

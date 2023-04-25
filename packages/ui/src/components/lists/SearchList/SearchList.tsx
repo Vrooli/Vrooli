@@ -1,9 +1,8 @@
 /**
  * Search list for a single object type
  */
+import { PlusIcon, useLocation } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { PlusIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
@@ -66,7 +65,7 @@ export function SearchList<DataType extends NavigableObject>({
         keyPrefix: `${searchType}-list-item`,
         loading,
         zIndex,
-    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex])
+    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -87,7 +86,7 @@ export function SearchList<DataType extends NavigableObject>({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: any) => { setSearchString(newString) }, [setSearchString]);
+    const handleSearch = useCallback((newString: any) => { setSearchString(newString); }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -104,11 +103,11 @@ export function SearchList<DataType extends NavigableObject>({
         <>
             <Box
                 sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
                     marginBottom: 1,
-                    ...(sxs?.search ?? {})
+                    ...(sxs?.search ?? {}),
                 }}
             >
                 <SiteSearchBar
@@ -119,7 +118,7 @@ export function SearchList<DataType extends NavigableObject>({
                     value={searchString}
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
-                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
+                    sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
             <SearchButtons
@@ -135,19 +134,19 @@ export function SearchList<DataType extends NavigableObject>({
                 zIndex={zIndex}
             />
             <ListContainer
-                emptyText={t(`NoResults`, { ns: 'error' })}
+                emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={listItems.length === 0}
             >
                 {listItems}
             </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{
-                maxWidth: '400px',
-                margin: 'auto',
+                maxWidth: "400px",
+                margin: "auto",
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`AddNew`)}</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t("AddNew")}</Button>
             </Box>}
         </>
-    )
+    );
 }

@@ -1,4 +1,4 @@
-import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@shared/consts";
+import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ResourceShape, shapeResource } from "./resource";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
@@ -26,7 +26,7 @@ export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreate
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id'),
-        ...updateRel(o, u, 'resources', ['Create', 'Update', 'Delete'], 'many', shapeResource, (r, i) => ({ list: { id: i.id} , ...r })),
+        ...updateRel(o, u, 'resources', ['Create', 'Update', 'Delete'], 'many', shapeResource, (r, i) => ({ list: { id: i.id }, ...r })),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceListTranslation),
     })
 }

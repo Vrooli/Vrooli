@@ -1,4 +1,4 @@
-import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput } from "@shared/consts";
+import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ResourceListShape } from "./resourceList";
 import { StandardShape } from "./standard";

@@ -1,6 +1,5 @@
+import { DUMMY_ID, Report, ReportFor, Session } from "@local/shared";
 import { TextField } from "@mui/material";
-import { Report, ReportFor, Session } from "@shared/consts";
-import { DUMMY_ID } from "@shared/uuid";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { Selector } from "components/inputs/Selector/Selector";

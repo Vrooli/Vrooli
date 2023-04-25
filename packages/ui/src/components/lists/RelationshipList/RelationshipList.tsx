@@ -1,10 +1,10 @@
-import { Stack, useTheme } from '@mui/material';
-import { Session } from '@shared/consts';
-import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from 'components/buttons/relationships';
-import { noSelect } from 'styles';
-import { getCurrentUser } from 'utils/authentication/session';
-import { OwnerShape } from 'utils/shape/models/types';
-import { RelationshipListProps } from '../types';
+import { Session } from "@local/shared";
+import { Stack, useTheme } from "@mui/material";
+import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from "components/buttons/relationships";
+import { noSelect } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
+import { OwnerShape } from "utils/shape/models/types";
+import { RelationshipListProps } from "../types";
 
 /**
  * Converts session to user object
@@ -12,11 +12,11 @@ import { RelationshipListProps } from '../types';
  * @returns User object
  */
 export const userFromSession = (session: Session): Exclude<OwnerShape, null> => ({
-    __typename: 'User',
+    __typename: "User",
     id: getCurrentUser(session).id as string,
     handle: null,
-    name: 'Self',
-})
+    name: "Self",
+});
 
 /**
  * Horizontal button list for assigning owner, project, and parent 
@@ -34,8 +34,8 @@ export function RelationshipList(props: RelationshipListProps) {
             p={1}
             sx={{
                 borderRadius: 2,
-                background: palette.mode === 'dark' ? palette.background.paper : palette.background.default,
-                overflowX: 'auto',
+                background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                overflowX: "auto",
                 zIndex: props.zIndex,
                 ...noSelect,
                 ...(props.sx ?? {}),
@@ -47,5 +47,5 @@ export function RelationshipList(props: RelationshipListProps) {
             <IsPrivateButton {...props} />
             <IsCompleteButton {...props} />
         </Stack>
-    )
+    );
 }

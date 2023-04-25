@@ -1,16 +1,16 @@
+import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { NotificationSettings, NotificationSettingsUpdateInput } from '@shared/consts';
 import { logger } from "../events";
 import { PrismaType } from "../types";
 import { NotificationCategory } from "./notify";
 
 type NotificationRecipients = {
-    pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, 'user'>>]: true } }>[],
-    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, 'user' | 'organization'>>]: true } }>[],
+    pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, "user">>]: true } }>[],
+    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, "user" | "organization">>]: true } }>[],
     phoneNumbers: any,
 }
 
-const defaultSettings: NotificationSettings = { __typename: 'NotificationSettings' as const, enabled: false };
+const defaultSettings: NotificationSettings = { __typename: "NotificationSettings" as const, enabled: false };
 
 /**
  * Parses a user's notification settings from the a stringified JSON object
@@ -22,11 +22,11 @@ export const parseNotificationSettings = (settingsJson: string | null): Notifica
         const settings = settingsJson ? JSON.parse(settingsJson) : defaultSettings;
         return settings;
     } catch (error) {
-        logger.error(`Failed to parse notification settings`, { trace: '0304' });
+        logger.error("Failed to parse notification settings", { trace: "0304" });
         // If there is an error parsing the JSON, return the default settings
-        return { __typename: 'NotificationSettings' as const, enabled: false }
+        return { __typename: "NotificationSettings" as const, enabled: false };
     }
-}
+};
 
 /**
  * Finds the current notification settings for a list of users
@@ -45,7 +45,7 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
             notificationSettings: true,
             pushDevices: true,
             emails: true,
-        }
+        },
     });
     // If no results, return default settings
     if (!usersData) return Array(userIds.length).fill({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
@@ -69,7 +69,7 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
         });
     }
     return results;
-}
+};
 
 /**
  * Updates the notification settings of one user
@@ -100,10 +100,10 @@ export const updateNotificationSettings = async (
     const updated = await prisma.user.update({
         where: { id: userId },
         data: { notificationSettings: JSON.stringify(newSettings) },
-        select: { notificationSettings: true }
+        select: { notificationSettings: true },
     });
     return parseNotificationSettings(updated.notificationSettings);
-}
+};
 
 /**
  * Finds out which devices, emails, and numbers to send a notification to. Also 
@@ -115,12 +115,12 @@ export const updateNotificationSettings = async (
 export const findRecipientsAndLimit = async (
     category: NotificationCategory,
     prisma: PrismaType,
-    userIds: string[]
+    userIds: string[],
 ): Promise<Array<NotificationRecipients & { dailyLimit?: number }>> => {
     // Initialize the return object
     const result: Array<NotificationRecipients & { dailyLimit?: number }> = [];
     // Get the current notification settings and recipients
-    let allData = await getNotificationSettingsAndRecipients(prisma, userIds);
+    const allData = await getNotificationSettingsAndRecipients(prisma, userIds);
     // For each user, find the recipients and daily limit
     for (let i = 0; i < userIds.length; i++) {
         // Initialize the return object for this user
@@ -166,4 +166,4 @@ export const findRecipientsAndLimit = async (
         result.push(userResult);
     }
     return result;
-}
+};

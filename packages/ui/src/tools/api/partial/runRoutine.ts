@@ -1,9 +1,9 @@
-import { RunRoutine, RunRoutineYou } from "@shared/consts";
+import { RunRoutine, RunRoutineYou } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const runRoutineYou: GqlPartial<RunRoutineYou> = {
-    __typename: 'RunRoutineYou',
+    __typename: "RunRoutineYou",
     common: {
         canDelete: true,
         canUpdate: true,
@@ -11,14 +11,14 @@ export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const runRoutine: GqlPartial<RunRoutine> = {
-    __typename: 'RunRoutine',
+    __typename: "RunRoutine",
     common: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'nav'),
-            1: async () => rel((await import('./user')).user, 'nav'),
+            0: async () => rel((await import("./organization")).organization, "nav"),
+            1: async () => rel((await import("./user")).user, "nav"),
         },
         id: true,
         isPrivate: true,
@@ -33,14 +33,14 @@ export const runRoutine: GqlPartial<RunRoutine> = {
         inputsCount: true,
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
-        routineVersion: async () => rel((await import('./routineVersion')).routineVersion, 'nav', { omit: 'you' }),
-        schedule: async () => rel((await import('./schedule')).schedule, 'full', { omit: 'runRoutine' }),
+        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav", { omit: "you" }),
+        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runRoutine" }),
         user: { __use: 1 },
-        you: () => rel(runRoutineYou, 'full'),
+        you: () => rel(runRoutineYou, "full"),
     },
     full: {
-        inputs: async () => rel((await import('./runRoutineInput')).runRoutineInput, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
-        steps: async () => rel((await import('./runRoutineStep')).runRoutineStep, 'list'),
+        inputs: async () => rel((await import("./runRoutineInput")).runRoutineInput, "list", { omit: ["runRoutine", "input.routineVersion"] }),
+        steps: async () => rel((await import("./runRoutineStep")).runRoutineStep, "list"),
     },
     list: {},
-}
+};

@@ -3,10 +3,10 @@
  * award
  */
 
+import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@local/shared";
+import i18next from "i18next";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
-import i18next from 'i18next';
-import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@shared/consts";
 
 /**
  * Given an ordered list of numbers, returns the closest lower number in the list
@@ -31,8 +31,8 @@ function closestLower(num: number, list: number[]): number | null {
  */
 const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, currentCount: number): boolean => {
     // Anniversary and new accounts are special cases
-    if (awardCategory === 'AccountAnniversary') return currentCount > previousCount;
-    if (awardCategory === 'AccountNew') return false;
+    if (awardCategory === "AccountAnniversary") return currentCount > previousCount;
+    if (awardCategory === "AccountNew") return false;
     // Get tiers
     const tiers = awardVariants[awardCategory];
     if (!tiers) return false;
@@ -41,7 +41,7 @@ const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, c
     const current = closestLower(currentCount, tiers);
     // Only award if moving to a new tier
     return current !== null && current > (previous ?? 0);
-}
+};
 
 /**
  * Checks if an object type is tracked by the award system
@@ -50,7 +50,7 @@ const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, c
  */
 export const objectAwardCategory = <T extends keyof typeof GqlModelType>(objectType: T): `${T}Create` | null => {
     return `${objectType}Create` in AwardCategory ? `${objectType}Create` : null;
-}
+};
 
 /**
  * Handles tracking awards for a user. If a new award is earned, a notification
@@ -78,7 +78,7 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
         const isNewTier = shouldAward(category, award.progress - newProgress, award.progress);
         if (isNewTier) {
             // Get translated award name and body
-            const lng = languages.length > 0 ? languages[0] : 'en';
+            const lng = languages.length > 0 ? languages[0] : "en";
             const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
             const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
             const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
@@ -94,4 +94,4 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
         }
         return award;
     },
-})
+});

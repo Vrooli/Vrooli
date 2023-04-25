@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Member, MemberSearchInput, MemberUpdateInput, MemberSortBy } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { FindByIdInput, Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum MemberSortBy {
@@ -61,9 +61,9 @@ export const typeDef = gql`
     extend type Mutation {
         memberUpdate(input: MemberUpdateInput!): Member!
     }
-`
+`;
 
-const objectType = 'Member';
+const objectType = "Member";
 export const resolvers: {
     MemberSortBy: typeof MemberSortBy;
     Query: {
@@ -78,17 +78,17 @@ export const resolvers: {
     Query: {
         member: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         members: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         memberUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

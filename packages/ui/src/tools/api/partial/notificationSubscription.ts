@@ -1,6 +1,6 @@
-import { NotificationSubscription } from "@shared/consts";
-import { rel } from "../utils";
+import { NotificationSubscription } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const notificationSubscription: GqlPartial<NotificationSubscription> = {
     __typename: 'NotificationSubscription',

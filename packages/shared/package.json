@@ -1,0 +1,31 @@
+{
+    "name": "@local/shared",
+    "author": "Vrooli",
+    "license": "GPL-3.0",
+    "version": "1.9.1",
+    "private": true,
+    "description": "Common code shared between server and ui",
+    "main": "dist/index.js",
+    "typings": "src/types.d.ts",
+    "sideEffects": false,
+    "type": "module",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "i18next": "^22.4.10",
+        "react": "^18.0.0",
+        "react-dom": "^18.0.0",
+        "uuid": "^9.0.0",
+        "xmlbuilder2": "^3.0.2",
+        "yup": "^0.32.9"
+    },
+    "devDependencies": {
+        "@types/node": "^18.14.1",
+        "@types/react": "^18.0.28",
+        "@types/react-dom": "^18.0.11",
+        "@types/uuid": "^9.0.1",
+        "@typescript-eslint/eslint-plugin": "^5.59.0",
+        "@typescript-eslint/parser": "^5.59.0"
+    }
+}

@@ -1,13 +1,13 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 import { GraphQLScalarType } from "graphql";
-import { GraphQLUpload } from 'graphql-upload';
-import { readFiles, saveFiles } from '../utils';
-// import ogs from 'open-graph-scraper';
-import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from '@shared/consts';
-import { CustomError } from '../events/error';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint, UnionResolver } from '../types';
-import { resolveUnion } from './resolvers';
+import { GraphQLUpload } from "graphql-upload";
+import { readFiles, saveFiles } from "../utils";
+// import ogs from "open-graph-scraper";
+import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from "@local/shared";
+import { CustomError } from "../events/error";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint, UnionResolver } from "../types";
+import { resolveUnion } from "./resolvers";
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -228,7 +228,7 @@ export const typeDef = gql`
         # _empty: String
         writeAssets(input: WriteAssetsInput!): Boolean
     }
-`
+`;
 
 export const resolvers: {
     RunStatus: typeof RunStatus;
@@ -246,7 +246,7 @@ export const resolvers: {
 } = {
     RunStatus,
     StatPeriodType,
-    VisibilityType: VisibilityType,
+    VisibilityType,
     Upload: GraphQLUpload,
     Date: new GraphQLScalarType({
         name: "Date",
@@ -260,9 +260,9 @@ export const resolvers: {
         },
         parseLiteral(ast: any) {
             return new Date(ast).toDateString(); // ast value is always in string format
-        }
+        },
     }),
-    Owner: { __resolveType(obj) { return resolveUnion(obj) } },
+    Owner: { __resolveType(obj) { return resolveUnion(obj); } },
     Query: {
         readAssets: async (_parent, { input }, { req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
@@ -272,10 +272,10 @@ export const resolvers: {
     Mutation: {
         writeAssets: async (_parent, { input }, { req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            throw new CustomError('0327', 'NotImplemented', req.languages); // TODO add safety checks before allowing uploads
+            throw new CustomError("0327", "NotImplemented", req.languages); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null
-            return !data.some(d => d === null)
+            return !data.some(d => d === null);
         },
-    }
-}
+    },
+};

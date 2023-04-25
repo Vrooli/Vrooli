@@ -1,4 +1,4 @@
-import { MemberInvite, MemberInviteCreateInput } from "@shared/consts";
+import { MemberInvite, MemberInviteCreateInput } from "@local/shared";
 import { ShapeModel } from "types";
 
 export type MemberInviteShape = Pick<MemberInvite, 'id'> & {

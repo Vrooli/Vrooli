@@ -1,17 +1,17 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { DialogContent, List, ListItem, ListItemText } from '@mui/material';
-import { NodeLink } from '@shared/consts';
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useCallback, useContext, useMemo } from 'react';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { SessionContext } from 'utils/SessionContext';
-import { AddAfterLinkDialogProps } from '../types';
+import { NodeLink } from "@local/shared";
+import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { ListMenuItemData } from "components/dialogs/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useCallback, useContext, useMemo } from "react";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
+import { AddAfterLinkDialogProps } from "../types";
 
-const titleId = 'add-after-link-dialog-title';
+const titleId = "add-after-link-dialog-title";
 
 export const AddAfterLinkDialog = ({
     isOpen,
@@ -53,7 +53,7 @@ export const AddAfterLinkDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: 'LinkSelect' }}
+                titleData={{ titleId, titleKey: "LinkSelect" }}
             />
             <DialogContent>
                 <List>
@@ -65,5 +65,5 @@ export const AddAfterLinkDialog = ({
                 </List>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

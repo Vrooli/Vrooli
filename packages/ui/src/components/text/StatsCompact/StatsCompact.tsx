@@ -1,5 +1,5 @@
+import { ReactionFor } from "@local/shared";
 import { Stack } from "@mui/material";
-import { ReactionFor } from "@shared/consts";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { useMemo } from "react";

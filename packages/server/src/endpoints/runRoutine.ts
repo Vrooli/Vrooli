@@ -1,10 +1,10 @@
-import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { assertRequestFrom } from '../auth/request';
-import { rateLimit } from '../middleware';
-import { RunRoutineModel } from '../models';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
+import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { assertRequestFrom } from "../auth/request";
+import { rateLimit } from "../middleware";
+import { RunRoutineModel } from "../models";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum RunRoutineSortBy {
@@ -136,9 +136,9 @@ export const typeDef = gql`
         runRoutineComplete(input: RunRoutineCompleteInput!): RunRoutine!
         runRoutineCancel(input: RunRoutineCancelInput!): RunRoutine!
     }
-`
+`;
 
-const objectType = 'RunRoutine';
+const objectType = "RunRoutine";
 export const resolvers: {
     RunRoutineSortBy: typeof RunRoutineSortBy;
     Query: {
@@ -177,7 +177,7 @@ export const resolvers: {
         runRoutineDeleteAll: async (_p, _d, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 25, req });
-            return RunRoutineModel.danger.deleteAll(prisma, { __typename: 'User', id: userData.id });
+            return RunRoutineModel.danger.deleteAll(prisma, { __typename: "User", id: userData.id });
         },
         runRoutineComplete: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
@@ -189,5 +189,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return RunRoutineModel.run.cancel(prisma, userData, input, info);
         },
-    }
-}
+    },
+};

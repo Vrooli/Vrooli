@@ -1,13 +1,13 @@
-import { Stack } from '@mui/material';
-import { uuid } from '@shared/uuid';
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getDeviceInfo } from 'utils/display/device';
-import { translateSnackMessage } from 'utils/display/translationTools';
-import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from 'utils/pubsub';
-import { BasicSnack, SnackSeverity } from '../BasicSnack/BasicSnack';
-import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
-import { BasicSnackProps } from '../types';
+import { uuid } from "@local/shared";
+import { Stack } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getDeviceInfo } from "utils/display/device";
+import { translateSnackMessage } from "utils/display/translationTools";
+import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from "utils/pubsub";
+import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack";
+import { CookiesSnack } from "../CookiesSnack/CookiesSnack";
+import { BasicSnackProps } from "../types";
 
 /**
  * Displays a stack of snack messages. 
@@ -30,7 +30,7 @@ export const SnackStack = () => {
     // Subscribe to snack events
     useEffect(() => {
         // Subscribe to basic snacks
-        let snackSub = PubSub.get().subscribeSnack((o) => {
+        const snackSub = PubSub.get().subscribeSnack((o) => {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
@@ -56,29 +56,29 @@ export const SnackStack = () => {
             });
         });
         // Subscribe to special snack events
-        let cookiesSub = PubSub.get().subscribeCookies(() => {
+        const cookiesSub = PubSub.get().subscribeCookies(() => {
             // Ignore if in standalone mode
             if (getDeviceInfo().isStandalone) return;
             setIsCookieSnackOpen(true);
         });
         return () => {
-            PubSub.get().unsubscribe(snackSub)
-            PubSub.get().unsubscribe(cookiesSub)
+            PubSub.get().unsubscribe(snackSub);
+            PubSub.get().unsubscribe(cookiesSub);
         };
-    }, [t])
+    }, [t]);
 
-    let visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
+    const visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 
     return (
         // Snacks displayed in bottom left corner
         <Stack direction="column" spacing={1} sx={{
-            display: visible ? 'flex' : 'none',
-            position: 'fixed',
+            display: visible ? "flex" : "none",
+            position: "fixed",
             // Displays above the bottom nav bar, accounting for PWA inset-bottom
-            bottom: { xs: 'calc(64px + env(safe-area-inset-bottom))', md: 'calc(8px + env(safe-area-inset-bottom))' },
-            left: 'calc(8px + env(safe-area-inset-left))',
+            bottom: { xs: "calc(64px + env(safe-area-inset-bottom))", md: "calc(8px + env(safe-area-inset-bottom))" },
+            left: "calc(8px + env(safe-area-inset-left))",
             zIndex: 20000,
-            pointerEvents: 'none',
+            pointerEvents: "none",
         }}>
             {/* Basic snacks on top */}
             {snacks.map((snack) => (
@@ -92,4 +92,4 @@ export const SnackStack = () => {
             {isCookieSnackOpen && <CookiesSnack handleClose={() => setIsCookieSnackOpen(false)} />}
         </Stack>
     );
-}
+};

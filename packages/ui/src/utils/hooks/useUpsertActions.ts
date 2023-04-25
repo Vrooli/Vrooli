@@ -1,5 +1,4 @@
-import { LINKS } from "@shared/consts";
-import { useLocation } from "@shared/route";
+import { LINKS, useLocation } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -22,31 +21,31 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
     const [, setLocation] = useLocation();
 
     // We can only use history.back()/replace if there is a previous page
-    const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem('lastPath')), []);
+    const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem("lastPath")), []);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
-        console.log('useUpsertActions.onAction', action, item)
+        console.log("useUpsertActions.onAction", action, item);
         // URL of view page for the object
         const viewUrl = item ? getObjectUrl(item as any) : undefined;
         switch (action) {
             case ObjectDialogAction.Add:
-                if (display === 'page') {
+                if (display === "page") {
                     setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
                     onCompleted!(item!);
                 }
                 if (isCreate) {
                     PubSub.get().publishSnack({
-                        message: `${item?.__typename ?? ''} created!`,
-                        severity: 'Success',
-                        buttonKey: 'CreateNew',
-                        buttonClicked: () => { setLocation(`add`); },
-                    })
+                        message: `${item?.__typename ?? ""} created!`,
+                        severity: "Success",
+                        buttonKey: "CreateNew",
+                        buttonClicked: () => { setLocation("add"); },
+                    });
                 }
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
-                if (display === 'page') {
+                if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
@@ -54,7 +53,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
                 }
                 break;
             case ObjectDialogAction.Save:
-                if (display === 'page') {
+                if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
@@ -64,7 +63,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
         }
     }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, onCancel]);
 
-    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
+    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const handleCompleted = useCallback((data: T) => {
         const action = isCreate ? ObjectDialogAction.Add : ObjectDialogAction.Save;
         onAction(action, data);

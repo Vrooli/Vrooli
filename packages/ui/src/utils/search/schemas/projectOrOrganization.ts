@@ -1,8 +1,8 @@
-import { InputType, ProjectOrOrganizationSortBy } from "@shared/consts";
+import { InputType, ProjectOrOrganizationSortBy } from "@local/shared";
 import { projectOrOrganizationFindMany } from "api/generated/endpoints/projectOrOrganization_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, languagesVersionContainer, languagesVersionFields } from "./common";
+import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
 
 export const projectOrOrganizationSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchProjectOrOrganization'),

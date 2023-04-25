@@ -1,4 +1,4 @@
-import { ApiVersion } from "@shared/consts";
+import { ApiVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface ApiUpsertProps extends UpsertProps<ApiVersion> { }

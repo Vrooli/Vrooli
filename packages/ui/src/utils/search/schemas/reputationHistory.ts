@@ -1,4 +1,4 @@
-import { ReputationHistorySortBy } from "@shared/consts";
+import { ReputationHistorySortBy } from "@local/shared";
 import { reputationHistoryFindMany } from "api/generated/endpoints/reputationHistory_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

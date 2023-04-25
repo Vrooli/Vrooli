@@ -1,9 +1,8 @@
-import { FilterOptionsState } from '@mui/material';
-import { Session } from "@shared/consts";
-import { CommonKey } from '@shared/translations';
-import i18next from 'i18next';
-import { getSiteLanguage } from 'utils/authentication/session';
-import { normalizeText, removeEmojis, removePunctuation } from 'utils/display/documentTools';
+import { CommonKey, Session } from "@local/shared";
+import { FilterOptionsState } from "@mui/material";
+import i18next from "i18next";
+import { getSiteLanguage } from "utils/authentication/session";
+import { normalizeText, removeEmojis, removePunctuation } from "utils/display/documentTools";
 
 /**
  * A search item before it is translated into the user's language.
@@ -58,8 +57,8 @@ export interface SearchItem {
  */
 export const shapeSearchText = (text: string) => {
     if (!text) {
-        console.warn('No text provided to shapeSearchText');
-        return '';
+        console.warn("No text provided to shapeSearchText");
+        return "";
     }
     // Remove extra whitespace
     let shaped = text.trim();
@@ -72,7 +71,7 @@ export const shapeSearchText = (text: string) => {
     // Lowercase
     shaped = shaped.toLowerCase();
     return shaped;
-}
+};
 
 /**
  * Converts a list of PreSearchItems into a list of SearchItems.
@@ -83,10 +82,10 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
     const lng = getSiteLanguage(session);
     return items.map(item => {
         const label = i18next.t(`common:${item.label}`, { ...(item.labelArgs ?? {}), lng });
-        let keywords = [shapeSearchText(label)];
-        let unshapedKeywords = [label];
+        const keywords = [shapeSearchText(label)];
+        const unshapedKeywords = [label];
         for (const keyword of item.keywords ?? []) {
-            if (typeof keyword === 'string') {
+            if (typeof keyword === "string") {
                 const keywordText = i18next.t(keyword);
                 keywords.push(shapeSearchText(keywordText));
                 unshapedKeywords.push(keywordText);
@@ -103,7 +102,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
             value: item.value,
         };
     });
-}
+};
 
 /**
  * Finds matches for the given search term in the given list of search items
@@ -112,7 +111,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
  * @returns A list of matches.
  */
 export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] => {
-    console.log('findSearchResults start', { ...items }, inputValue)
+    console.log("findSearchResults start", { ...items }, inputValue);
     // Shape the search term
     const shapedTerm = shapeSearchText(inputValue);
     // Filter out items which don't contain the shaped search term in their keywords
@@ -137,4 +136,4 @@ export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOpt
             }
         }
     });
-}
+};

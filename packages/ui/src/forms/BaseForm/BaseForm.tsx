@@ -1,4 +1,4 @@
-import { exists } from "@shared/utils"
+import { exists } from "@local/shared"
 import { Form } from "formik"
 import { BaseFormProps } from "forms/types"
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react"

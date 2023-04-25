@@ -1,3 +1,4 @@
+import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
 import {
     BottomNavigation,
     BottomNavigationAction,
@@ -5,16 +6,13 @@ import {
     Tooltip,
     Typography,
     useTheme
-} from '@mui/material';
-import { LINKS, SOCIALS } from '@shared/consts';
-import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
-import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { noSelect } from 'styles';
-import { ContactInfoProps } from '../types';
+} from "@mui/material";
+import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { noSelect } from "styles";
+import { ContactInfoProps } from "../types";
 
 type NavActionListData = [string, string, string, SvgComponent]
 
@@ -29,38 +27,38 @@ export const ContactInfo = ({
     const { additionalInfo, contactInfo } = useMemo(() => {
         return {
             additionalInfo: [
-                [t(`AboutUs`), 'About', LINKS.About, InfoIcon],
-                [t(`DocumentationShort`), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
-                [t(`StatisticsShort`), 'Stats', LINKS.Stats, StatsIcon],
+                [t("AboutUs"), "About", LINKS.About, InfoIcon],
+                [t("DocumentationShort"), "Docs", "https://docs.vrooli.com", ArticleIcon],
+                [t("StatisticsShort"), "Stats", LINKS.Stats, StatsIcon],
             ] as NavActionListData[],
             contactInfo: [
-                [t(`ContactHelpTwitter`), 'Twitter', SOCIALS.Twitter, TwitterIcon],
-                [t(`ContactHelpDiscord`), 'Discord', SOCIALS.Discord, DiscordIcon],
-                [t(`ContactHelpCode`), 'Code', SOCIALS.GitHub, GitHubIcon],
+                [t("ContactHelpTwitter"), "Twitter", SOCIALS.Twitter, TwitterIcon],
+                [t("ContactHelpDiscord"), "Discord", SOCIALS.Discord, DiscordIcon],
+                [t("ContactHelpCode"), "Code", SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
-        }
+        };
     }, [t]);
 
     const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
         openLink(setLocation, link);
-    }
+    };
 
     return (
         <Box sx={{
-            minWidth: 'fit-content',
-            height: 'fit-content',
+            minWidth: "fit-content",
+            height: "fit-content",
             background: palette.background.default,
             padding: 1,
-            ...(sx ?? {})
+            ...(sx ?? {}),
         }} {...props}>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t('FindUsOn')}</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("FindUsOn")}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
-                    alignItems: 'baseline',
-                    background: 'transparent',
-                    height: 'fit-content',
+                    alignItems: "baseline",
+                    background: "transparent",
+                    height: "fit-content",
                     padding: 1,
                     marginBottom: 2,
                 }}>
@@ -68,7 +66,7 @@ export const ContactInfo = ({
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
@@ -76,28 +74,28 @@ export const ContactInfo = ({
                                 </ColorIconButton>
                             }
                             sx={{
-                                alignItems: 'center',
+                                alignItems: "center",
                                 color: palette.background.textPrimary,
-                                overflowWrap: 'anywhere',
+                                overflowWrap: "anywhere",
                             }}
                         />
                     </Tooltip>
                 ))}
             </BottomNavigation>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t(`AdditionalResources`)}</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("AdditionalResources")}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
-                    alignItems: 'baseline',
-                    background: 'transparent',
-                    height: 'fit-content',
+                    alignItems: "baseline",
+                    background: "transparent",
+                    height: "fit-content",
                     padding: 1,
                 }}>
                 {additionalInfo.map(([tooltip, label, link, Icon], index: number) => (
                     <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
@@ -105,9 +103,9 @@ export const ContactInfo = ({
                                 </ColorIconButton>
                             }
                             sx={{
-                                alignItems: 'center',
+                                alignItems: "center",
                                 color: palette.background.textPrimary,
-                                overflowWrap: 'anywhere',
+                                overflowWrap: "anywhere",
                             }}
                         />
                     </Tooltip>
@@ -116,4 +114,4 @@ export const ContactInfo = ({
             <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>
     );
-}
+};

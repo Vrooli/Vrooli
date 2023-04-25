@@ -1,7 +1,8 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { QuizAttemptStatus } from '@shared/consts';
-import { logger } from '../../events';
-import { PrismaType } from '../../types';
+import { QuizAttemptStatus } from "@local/shared";
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 type BatchDirectoryAttemptCountsResult = Record<string, {
@@ -45,7 +46,7 @@ const batchAttemptCounts = async (
                 OR: [
                     { created_at: { gte: periodStart, lte: periodEnd } },
                     { updated_at: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
@@ -53,7 +54,7 @@ const batchAttemptCounts = async (
                 updated_at: true,
                 pointsEarned: true,
                 quiz: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 status: true,
                 timeTaken: true,
@@ -68,7 +69,7 @@ const batchAttemptCounts = async (
         // For each attempt, increment the counts for the quiz
         batch.forEach(run => {
             const quizId = run.quiz?.id;
-            if (!quizId || !result[quizId]) { return }
+            if (!quizId || !result[quizId]) { return; }
             // If created_at within period and status is not NotStarted, increment timesStarted
             if (run.created_at !== null && new Date(run.created_at) >= new Date(periodStart) && run.status !== QuizAttemptStatus.NotStarted) {
                 result[quizId].timesStarted += 1;
@@ -91,7 +92,7 @@ const batchAttemptCounts = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Creates periodic stats for all routines
@@ -116,8 +117,8 @@ export const logQuizStats = async (
             const batch = await prisma.quiz.findMany({
                 where: {
                     attempts: {
-                        some: {} // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
-                    }
+                        some: {}, // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
+                    },
                 },
                 select: {
                     id: true,
@@ -144,13 +145,13 @@ export const logQuizStats = async (
                     timesFailed: attemptCountsByQuiz[quiz.id].timesFailed,
                     scoreAverage: attemptCountsByQuiz[quiz.id].scoreAverage,
                     completionTimeAverage: attemptCountsByQuiz[quiz.id].completionTimeAverage,
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging quiz statistics', { trace: '0421', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging quiz statistics", { trace: "0421", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

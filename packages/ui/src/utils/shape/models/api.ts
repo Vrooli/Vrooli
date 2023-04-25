@@ -1,4 +1,4 @@
-import { Api, ApiCreateInput, ApiUpdateInput } from "@shared/consts";
+import { Api, ApiCreateInput, ApiUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ApiVersionShape, shapeApiVersion } from "./apiVersion";
 import { LabelShape, shapeLabel } from "./label";

@@ -1,6 +1,7 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { logger } from '../../events';
-import { PrismaType } from '../../types';
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 type BatchRunRoutinesResult = Record<string, {
@@ -42,12 +43,12 @@ const batchRunRoutines = async (
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
                 organization: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 completedAt: true,
                 contextSwitches: true,
@@ -64,7 +65,7 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const organizationId = run.organization?.id;
-            if (!organizationId || !result[organizationId]) { return }
+            if (!organizationId || !result[organizationId]) { return; }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[organizationId].runRoutinesStarted += 1;
@@ -86,7 +87,7 @@ const batchRunRoutines = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Creates periodic stats for all organizations
@@ -120,8 +121,8 @@ export const logOrganizationStats = async (
                             routines: true,
                             smartContracts: true,
                             standards: true,
-                        }
-                    }
+                        },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -141,13 +142,13 @@ export const logOrganizationStats = async (
                     periodType,
                     ...organization._count,
                     ...runRoutineStats[organization.id],
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging organization statistics', { trace: '0419', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging organization statistics", { trace: "0419", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

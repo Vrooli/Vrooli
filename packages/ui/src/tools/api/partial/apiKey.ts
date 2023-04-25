@@ -1,4 +1,4 @@
-import { ApiKey } from "@shared/consts";
+import { ApiKey } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const apiKey: GqlPartial<ApiKey> = {

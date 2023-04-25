@@ -1,4 +1,4 @@
-import { Reminder, ReminderCreateInput, ReminderUpdateInput } from "@shared/consts";
+import { Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ReminderItemShape, shapeReminderItem } from "./reminderItem";
 import { ReminderListShape, shapeReminderList } from "./reminderList";

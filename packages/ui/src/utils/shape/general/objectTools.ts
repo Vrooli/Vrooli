@@ -1,7 +1,7 @@
 /**
  * Functions for manipulating state objects
  */
-import { exists, isObject } from "@shared/utils";
+import { exists, isObject } from "@local/shared";
 
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')

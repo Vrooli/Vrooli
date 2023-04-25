@@ -1,9 +1,9 @@
-import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
+import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = {
-    __typename: 'RoutineVersionTranslation',
+    __typename: "RoutineVersionTranslation",
     common: {
         id: true,
         language: true,
@@ -13,10 +13,10 @@ export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = 
     },
     full: {},
     list: {},
-}
+};
 
 export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
-    __typename: 'RoutineVersionYou',
+    __typename: "RoutineVersionYou",
     common: {
         canComment: true,
         canCopy: true,
@@ -29,12 +29,12 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canReact: true,
     },
     full: {
-        runs: async () => rel((await import('./runRoutine')).runRoutine, 'full', { omit: 'routineVersion' }),
+        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "routineVersion" }),
     },
-}
+};
 
 export const routineVersion: GqlPartial<RoutineVersion> = {
-    __typename: 'RoutineVersion',
+    __typename: "RoutineVersion",
     common: {
         id: true,
         created_at: true,
@@ -61,20 +61,20 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         nodeLinksCount: true,
         outputsCount: true,
         reportsCount: true,
-        you: () => rel(routineVersionYou, 'full'),
+        you: () => rel(routineVersionYou, "full"),
     },
     full: {
         __define: {
-            0: async () => rel((await import('./apiVersion')).apiVersion, 'full'),
-            1: async () => rel((await import('./routineVersionInput')).routineVersionInput, 'full'),
-            2: async () => rel((await import('./node')).node, 'full', { omit: 'routineVersion' }),
-            3: async () => rel((await import('./nodeLink')).nodeLink, 'full'),
-            4: async () => rel((await import('./routineVersionOutput')).routineVersionOutput, 'full'),
-            5: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
-            6: async () => rel((await import('./resourceList')).resourceList, 'full'),
-            7: async () => rel((await import('./routine')).routine, 'full', { omit: 'versions' }),
-            8: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'full'),
-            9: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
+            0: async () => rel((await import("./apiVersion")).apiVersion, "full"),
+            1: async () => rel((await import("./routineVersionInput")).routineVersionInput, "full"),
+            2: async () => rel((await import("./node")).node, "full", { omit: "routineVersion" }),
+            3: async () => rel((await import("./nodeLink")).nodeLink, "full"),
+            4: async () => rel((await import("./routineVersionOutput")).routineVersionOutput, "full"),
+            5: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
+            6: async () => rel((await import("./resourceList")).resourceList, "full"),
+            7: async () => rel((await import("./routine")).routine, "full", { omit: "versions" }),
+            8: async () => rel((await import("./smartContractVersion")).smartContractVersion, "full"),
+            9: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
         },
         versionNotes: true,
         apiVersion: { __use: 0 },
@@ -87,10 +87,10 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         root: { __use: 7 },
         smartContractVersion: { __use: 8 },
         suggestedNextByRoutineVersion: { __use: 9 },
-        translations: () => rel(routineVersionTranslation, 'full'),
+        translations: () => rel(routineVersionTranslation, "full"),
     },
     list: {
-        translations: () => rel(routineVersionTranslation, 'list'),
+        translations: () => rel(routineVersionTranslation, "list"),
     },
     nav: {
         id: true,
@@ -99,9 +99,9 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        root: async () => rel((await import('./routine')).routine, 'nav'),
-        translations: () => rel(routineVersionTranslation, 'list'),
+        root: async () => rel((await import("./routine")).routine, "nav"),
+        translations: () => rel(routineVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,
-    }
-}
+    },
+};

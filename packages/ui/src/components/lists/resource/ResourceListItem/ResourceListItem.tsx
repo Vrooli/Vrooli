@@ -1,22 +1,19 @@
 // Used to display popular/search results of a particular object type
-import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { ResourceUsedFor } from '@shared/consts';
-import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
-import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
-import { TextLoading } from 'components/lists/TextLoading/TextLoading';
-import { useCallback, useContext, useMemo } from 'react';
-import { multiLineEllipsis } from 'styles';
-import { ResourceType } from 'utils/consts';
-import { getResourceIcon } from 'utils/display/getResourceIcon';
-import { getDisplay } from 'utils/display/listTools';
-import { firstString } from 'utils/display/stringTools';
-import { getUserLanguages } from 'utils/display/translationTools';
-import usePress from 'utils/hooks/usePress';
-import { getResourceUrl } from 'utils/navigation/openObject';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { ResourceListItemProps } from '../types';
+import { adaHandleRegex, DeleteIcon, EditIcon, OpenInNewIcon, openLink, ResourceUsedFor, urlRegex, useLocation, walletAddressRegex } from "@local/shared";
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { useCallback, useContext, useMemo } from "react";
+import { multiLineEllipsis } from "styles";
+import { ResourceType } from "utils/consts";
+import { getResourceIcon } from "utils/display/getResourceIcon";
+import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import usePress from "utils/hooks/usePress";
+import { getResourceUrl } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { ResourceListItemProps } from "../types";
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -28,7 +25,7 @@ const getResourceType = (link: string): ResourceType | null => {
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (adaHandleRegex.test(link)) return ResourceType.Handle;
     return null;
-}
+};
 
 export function ResourceListItem({
     canUpdate,
@@ -49,11 +46,11 @@ export function ResourceListItem({
     const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback((target: EventTarget) => {
         // Ignore if clicked edit or delete button
-        if (target.id && ['delete-icon-button', 'edit-icon-button'].includes(target.id)) return;
+        if (target.id && ["delete-icon-button", "edit-icon-button"].includes(target.id)) return;
         // If no resource type or link, show error
         const resourceType = getResourceType(data.link);
         if (!resourceType || !href) {
-            PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CannotOpenLink", severity: "Error" });
             return;
         }
         // Open link
@@ -69,9 +66,9 @@ export function ResourceListItem({
     }, [handleDelete, index]);
 
     const pressEvents = usePress({
-        onLongPress: (target) => { handleContextMenu(target, index) },
+        onLongPress: (target) => { handleContextMenu(target, index); },
         onClick: handleClick,
-        onRightClick: (target) => { handleContextMenu(target, index) },
+        onRightClick: (target) => { handleContextMenu(target, index); },
     });
 
     return (
@@ -83,12 +80,12 @@ export function ResourceListItem({
                 component="a"
                 href={href}
                 sx={{
-                    display: 'flex',
+                    display: "flex",
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
                     borderBottom: `1px solid ${palette.divider}`,
                     padding: 1,
-                    cursor: 'pointer',
+                    cursor: "pointer",
                 }}
             >
                 <IconButton sx={{
@@ -97,7 +94,7 @@ export function ResourceListItem({
                 }}>
                     <Icon fill={palette.background.textPrimary} width="80%" height="80%" />
                 </IconButton>
-                <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                <Stack direction="column" spacing={1} pl={2} sx={{ width: "-webkit-fill-available" }}>
                     {/* Name/Title */}
                     {loading ? <TextLoading /> : <ListItemText
                         primary={firstString(title, data.link)}
@@ -124,5 +121,5 @@ export function ResourceListItem({
                 </IconButton>
             </ListItem>
         </Tooltip>
-    )
+    );
 }

@@ -1,14 +1,14 @@
-import { generateSitemap, generateSitemapIndex, SitemapEntryContent } from '@shared/utils';
-import fs from 'fs';
-import zlib from 'zlib';
-import pkg from '@prisma/client';
-import { LINKS } from '@shared/consts';
-import { PrismaType } from '../../types';
-import { getLogic } from '../../getters';
-import { logger } from '../../events';
+import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
+import pkg from "@prisma/client";
+import fs from "fs";
+import zlib from "zlib";
+import { logger } from "../../events";
+import { getLogic } from "../../getters";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
-const sitemapObjectTypes = ['ApiVersion', 'NoteVersion', 'Organization', 'ProjectVersion', 'Question', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion', 'User'] as const;
+const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
 
 /**
  * Maps object types to their url base
@@ -23,14 +23,14 @@ const Links: Record<typeof sitemapObjectTypes[number], string> = {
     SmartContractVersion: LINKS.SmartContract,
     StandardVersion: LINKS.Standard,
     User: LINKS.User,
-}
+};
 
 // Where to save the sitemap index and files
-const sitemapIndexDir = '../../packages/ui/public';
-const sitemapDir =  `${sitemapIndexDir}/sitemaps`;
+const sitemapIndexDir = "../../packages/ui/public";
+const sitemapDir = `${sitemapIndexDir}/sitemaps`;
 
 // Name of website
-const siteName = 'https://vrooli.com';
+const siteName = "https://vrooli.com";
 
 /**
  * Generates and saves one or more sitemap files for an object
@@ -45,11 +45,11 @@ const genSitemapForObject = async (
     // Initialize return value
     const sitemapFileNames: string[] = [];
     // For objects that support handles, we prioritize those urls over the id urls
-    const supportsHandles = ['Organization', 'ProjectVersion', 'User'].includes(objectType);
+    const supportsHandles = ["Organization", "ProjectVersion", "User"].includes(objectType);
     // For versioned objects, we also need to collect the root Id/handle
-    const isVersioned = objectType.endsWith('Version');
+    const isVersioned = objectType.endsWith("Version");
     // If object can be private (in which case we don't want to include it in the sitemap)
-    const canBePrivate = !['Question'].includes(objectType);
+    const canBePrivate = !["Question"].includes(objectType);
     // Create do-while loop which breaks when the objects returned are less than the batch size
     const batchSize = 100;
     let skip = 0;
@@ -57,11 +57,11 @@ const genSitemapForObject = async (
     do {
         // Create another do-while loop which breaks when the collected entries are reaching the limit 
         // of a sitemap file (50,000 entries or 50MB)
-        let collectedEntries: SitemapEntryContent[] = [];
+        const collectedEntries: SitemapEntryContent[] = [];
         let estimatedFileSize = 0;
         do {
             // Find all public objects
-            const { delegate, validate } = getLogic(['delegate', 'validate'], objectType, ['en'], 'batchCollectEntries')
+            const { delegate, validate } = getLogic(["delegate", "validate"], objectType, ["en"], "batchCollectEntries");
             const batch = await delegate(prisma).findMany({
                 where: {
                     ...validate!.visibility.public,
@@ -77,14 +77,14 @@ const genSitemapForObject = async (
                                 id: true,
                                 ...(canBePrivate && { isPrivate: true }),
                                 ...(supportsHandles && { handle: true }),
-                            }
-                        }
+                            },
+                        },
                     }),
                     translations: {
                         select: {
                             language: true,
-                        }
-                    }
+                        },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -93,7 +93,7 @@ const genSitemapForObject = async (
             skip += batchSize;
             // Update current batch size
             currentBatchSize = batch.length;
-            const baseUrlSize = siteName.length + LINKS[objectType.replace('Version', '')].length;
+            const baseUrlSize = siteName.length + LINKS[objectType.replace("Version", "")].length;
             for (const entry of batch) {
                 // Convert batch to SiteMapEntryContent
                 const entryContent: SitemapEntryContent = {
@@ -103,7 +103,7 @@ const genSitemapForObject = async (
                     objectLink: Links[objectType],
                     rootHandle: entry.root?.handle,
                     rootId: entry.root?.id,
-                }
+                };
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);
                 // Estimate bytes for entry, based on how many languages it has
@@ -127,7 +127,7 @@ const genSitemapForObject = async (
     } while (currentBatchSize === batchSize);
     // Return sitemap file names
     return sitemapFileNames;
-}
+};
 
 /**
  * Generates sitemap index file and calls genSitemapForObject for each object type
@@ -138,9 +138,9 @@ export const genSitemap = async (): Promise<void> => {
         fs.mkdirSync(sitemapDir);
     }
     // Check if sitemap file for main route exists
-    const routeSitemapFileName = 'sitemap-routes.xml';
+    const routeSitemapFileName = "sitemap-routes.xml";
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
-        logger.warning('Sitemap file for main routes does not exist');
+        logger.warning("Sitemap file for main routes does not exist");
     }
     // Initialize the Prisma client
     const prisma = new PrismaClient();
@@ -157,8 +157,8 @@ export const genSitemap = async (): Promise<void> => {
     fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
     // Close the Prisma client
     await prisma.$disconnect();
-    console.info('✅ Sitemap generated successfully')
-}
+    console.info("✅ Sitemap generated successfully");
+};
 
 /**
  * Calls genSitemap if no sitemap.xml file exists
@@ -167,4 +167,4 @@ export const genSitemapIfNotExists = async (): Promise<void> => {
     if (!fs.existsSync(`${sitemapIndexDir}/sitemap.xml`)) {
         await genSitemap();
     }
-}
+};

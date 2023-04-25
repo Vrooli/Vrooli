@@ -1,19 +1,19 @@
-import { IconButton, Tooltip, Typography } from '@mui/material';
-import { RedirectIcon } from '@shared/icons';
-import { CSSProperties, useCallback, useMemo, useState } from 'react';
-import { noSelect } from 'styles';
-import usePress from 'utils/hooks/usePress';
-import { calculateNodeSize, DraggableNode } from '../';
-import { NodeWidth } from '../..';
-import { nodeLabel } from '../styles';
-import { RedirectNodeProps } from '../types';
+import { RedirectIcon } from "@local/shared";
+import { IconButton, Tooltip, Typography } from "@mui/material";
+import { CSSProperties, useCallback, useMemo, useState } from "react";
+import { noSelect } from "styles";
+import usePress from "utils/hooks/usePress";
+import { calculateNodeSize, DraggableNode } from "../";
+import { NodeWidth } from "../..";
+import { nodeLabel } from "../styles";
+import { RedirectNodeProps } from "../types";
 
 export const RedirectNode = ({
     canDrag,
     isLinked = true,
     node,
     scale = 1,
-    label = 'Redirect',
+    label = "Redirect",
     labelVisible = true,
 }: RedirectNodeProps) => {
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
@@ -22,7 +22,7 @@ export const RedirectNode = ({
             sx={{
                 ...noSelect,
                 ...nodeLabel,
-                pointerEvents: 'none',
+                pointerEvents: "none",
             } as CSSProperties}
         >
             {label}
@@ -39,53 +39,53 @@ export const RedirectNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const pressEvents = usePress({ 
+    const pressEvents = usePress({
         onLongPress: openContext,
         onRightClick: openContext,
     });
 
     return (
         <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
-            <Tooltip placement={'top'} title='Redirect'>
+            <Tooltip placement={"top"} title='Redirect'>
                 <IconButton
-                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
+                    id={`${isLinked ? "" : "unlinked-"}node-${node.id}`}
                     className="handle"
                     aria-owns={contextOpen ? contextId : undefined}
                     {...pressEvents}
                     sx={{
                         width: nodeSize,
                         height: nodeSize,
-                        fontSize: fontSize,
-                        position: 'relative',
-                        display: 'block',
-                        backgroundColor: '#6daf72',
-                        color: 'white',
-                        boxShadow: '0px 0px 12px gray',
-                        '&:hover': {
-                            backgroundColor: '#6daf72',
-                            filter: `brightness(120%)`,
-                            transition: 'filter 0.2s',
+                        fontSize,
+                        position: "relative",
+                        display: "block",
+                        backgroundColor: "#6daf72",
+                        color: "white",
+                        boxShadow: "0px 0px 12px gray",
+                        "&:hover": {
+                            backgroundColor: "#6daf72",
+                            filter: "brightness(120%)",
+                            transition: "filter 0.2s",
                         },
                     }}
                 >
                     <RedirectIcon
-                        id={`${isLinked ? '' : 'unlinked-'}node-redirect-icon-${node.id}`}
-                        // sx={{
-                        //     width: '100%',
-                        //     height: '100%',
-                        //     color: '#00000044',
-                        //     '&:hover': {
-                        //         transform: 'scale(1.2)',
-                        //         transition: 'scale .2s ease-in-out',
-                        //     }
-                        // }}
+                        id={`${isLinked ? "" : "unlinked-"}node-redirect-icon-${node.id}`}
+                    // sx={{
+                    //     width: '100%',
+                    //     height: '100%',
+                    //     color: '#00000044',
+                    //     '&:hover': {
+                    //         transform: 'scale(1.2)',
+                    //         transition: 'scale .2s ease-in-out',
+                    //     }
+                    // }}
                     />
                     {labelObject}
                 </IconButton>
             </Tooltip>
         </DraggableNode>
-    )
-}
+    );
+};

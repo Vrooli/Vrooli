@@ -1,8 +1,8 @@
-import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
-import { forwardRef } from 'react';
-import { getTranslatedTitleAndHelp } from 'utils/display/translationTools';
-import { Navbar } from '../Navbar/Navbar';
-import { TopBarProps } from '../types';
+import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
+import { forwardRef } from "react";
+import { getTranslatedTitleAndHelp } from "utils/display/translationTools";
+import { Navbar } from "../Navbar/Navbar";
+import { TopBarProps } from "../types";
 
 /**
  * Generates an app bar for both pages and dialogs
@@ -16,7 +16,7 @@ export const TopBar = forwardRef(({
     const title = getTranslatedTitleAndHelp(titleData)?.title;
     const help = getTranslatedTitleAndHelp(titleData)?.help;
 
-    if (display === 'dialog') return (
+    if (display === "dialog") return (
         <DialogTitle
             ref={ref}
             below={below}
@@ -24,7 +24,7 @@ export const TopBar = forwardRef(({
             title={title}
             onClose={onClose}
         />
-    )
+    );
     return (
         <Navbar
             ref={ref}
@@ -33,5 +33,5 @@ export const TopBar = forwardRef(({
             shouldHideTitle={titleData?.hideOnDesktop}
             title={title}
         />
-    )
-})
+    );
+});

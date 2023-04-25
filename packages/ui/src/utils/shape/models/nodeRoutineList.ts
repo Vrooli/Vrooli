@@ -1,4 +1,4 @@
-import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "@shared/consts";
+import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "./nodeRoutineListItem";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

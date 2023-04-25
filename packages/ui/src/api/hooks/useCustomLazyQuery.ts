@@ -1,5 +1,5 @@
-import { DocumentNode, LazyQueryHookOptions, OperationVariables, TypedDocumentNode, useLazyQuery } from '@apollo/client';
-import { useMemo } from 'react';
+import { DocumentNode, LazyQueryHookOptions, OperationVariables, TypedDocumentNode, useLazyQuery } from "@apollo/client";
+import { useMemo } from "react";
 
 type TDataDefined = object | boolean | number | string;
 
@@ -17,24 +17,26 @@ export function useCustomLazyQuery<
     TVariables extends OperationVariables | undefined
 >(
     query: DocumentNode | TypedDocumentNode<TData, TVariables> | undefined,
-    options?: (TData extends TDataDefined ?  
-    TVariables extends OperationVariables ?
-    LazyQueryHookOptions<TData, TVariables> :
-    TData extends TDataDefined ?
-    LazyQueryHookOptions<TData, {}> :
-    Record<string, any> :
-    Record<string, any>),
+    options?: (TData extends TDataDefined ?
+        TVariables extends OperationVariables ?
+        LazyQueryHookOptions<TData, TVariables> :
+        TData extends TDataDefined ?
+        LazyQueryHookOptions<TData, {}> :
+        Record<string, any> :
+        Record<string, any>),
 ) {
     // Create useLazyQuery hook with blank query (if none defined) and modified options
     const [execute, { data, error, loading, refetch }] = useLazyQuery(
-        query ?? ({ kind: 'Document', definitions: [{
-            kind: 'OperationDefinition',
-            operation: 'query',
-            name: { kind: 'Name', value: 'EmptyQuery' },
-            variableDefinitions: [],
-            directives: [],
-            selectionSet: { kind: 'SelectionSet', selections: [] },
-        }] } as DocumentNode),
+        query ?? ({
+            kind: "Document", definitions: [{
+                kind: "OperationDefinition",
+                operation: "query",
+                name: { kind: "Name", value: "EmptyQuery" },
+                variableDefinitions: [],
+                directives: [],
+                selectionSet: { kind: "SelectionSet", selections: [] },
+            }]
+        } as DocumentNode),
         {
             ...options,
             variables: options?.variables ? { input: options.variables } : undefined,
@@ -49,7 +51,7 @@ export function useCustomLazyQuery<
                 return execute({ ...props, variables: { input: props.variables } });
             }
             return execute(props);
-        }
+        };
     }, [execute]);
     // Return the modified execute function and modified data
     return [executeWithVariables, { data: modifiedData, error, loading, refetch }] as const;

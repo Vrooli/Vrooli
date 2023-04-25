@@ -1,13 +1,12 @@
+import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, roleValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
-import { roleValidation } from "@shared/validation";
-import { noNull, shapeHelper } from "../builders";
 
-const __typename = 'Role' as const;
+const __typename = "Role" as const;
 const suppFields = [] as const;
 export const RoleModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +17,8 @@ export const RoleModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: RoleSearchInput,
     GqlSort: RoleSortBy,
-    PrismaCreate: Prisma.roleUpsertArgs['create'],
-    PrismaUpdate: Prisma.roleUpsertArgs['update'],
+    PrismaCreate: Prisma.roleUpsertArgs["create"],
+    PrismaUpdate: Prisma.roleUpsertArgs["update"],
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
     PrismaSelect: Prisma.roleSelect,
     PrismaWhere: Prisma.roleWhereInput,
@@ -30,11 +29,11 @@ export const RoleModel: ModelLogic<{
         select: () => ({
             id: true,
             name: true,
-            translations: { select: { language: true, name: true } }
+            translations: { select: { language: true, name: true } },
         }),
         label: (select, languages) => {
             // Prefer translated name over default name
-            const translated = bestLabel(select.translations, 'name', languages)
+            const translated = bestLabel(select.translations, "name", languages);
             if (translated.length > 0) return translated;
             return select.name;
         },
@@ -42,14 +41,14 @@ export const RoleModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            members: 'Member',
-            organization: 'Organization',
+            members: "Member",
+            organization: "Organization",
         },
         prismaRelMap: {
             __typename,
-            members: 'Member',
-            meetings: 'Meeting',
-            organization: 'Organization',
+            members: "Member",
+            meetings: "Meeting",
+            organization: "Organization",
         },
         countFields: {
             membersCount: true,
@@ -61,15 +60,15 @@ export const RoleModel: ModelLogic<{
                 id: data.id,
                 name: data.name,
                 permissions: data.permissions,
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
-                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'roles', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "members", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "roles", data, ...rest })),
+                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Organization", parentRelationshipName: "roles", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 name: noNull(data.name),
                 permissions: noNull(data.permissions),
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "members", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "roles", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
         },
         yup: roleValidation,
@@ -86,11 +85,11 @@ export const RoleModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'nameWrapped',
-                'transDescriptionWrapped',
-                'transNameWrapped',
-            ]
+                "nameWrapped",
+                "transDescriptionWrapped",
+                "transNameWrapped",
+            ],
         }),
     },
     validate: {} as any,
-})
+});

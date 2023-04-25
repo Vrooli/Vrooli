@@ -1,5 +1,6 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { logger } from '../../events';
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+
 const { PrismaClient } = pkg;
 
 /**
@@ -25,7 +26,7 @@ export const logSmartContractStats = async (
             const batch = await prisma.smart_contract_version.findMany({
                 where: {
                     calledByRoutineVersions: {
-                        some: {} // This is empty on purpose - we don't care about the routine version, just that at least one exists
+                        some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
                     },
                     isDeleted: false,
                     isLatest: true,
@@ -34,11 +35,11 @@ export const logSmartContractStats = async (
                 select: {
                     id: true,
                     root: {
-                        select: { id: true }
+                        select: { id: true },
                     },
                     _count: {
-                        select: { calledByRoutineVersions: true }
-                    }
+                        select: { calledByRoutineVersions: true },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -56,13 +57,13 @@ export const logSmartContractStats = async (
                     periodType,
                     calls: 0, //TODO no way to track calls yet
                     routineVersions: smartContractVersion._count.calledByRoutineVersions,
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging smart contract statistics', { trace: '0424', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging smart contract statistics", { trace: "0424", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

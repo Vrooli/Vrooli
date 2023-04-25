@@ -2,18 +2,18 @@
 // 1. Wallet login
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
-import pkg from '@prisma/client';
-import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@shared/consts";
-import { emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from '@shared/validation';
-import { gql } from 'apollo-server-express';
-import { getUser, hashPassword, logIn, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, validateCode, validateVerificationCode } from '../auth';
-import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
-import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
-import { Award, Trigger } from '../events';
-import { CustomError } from '../events/error';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint, RecursivePartial } from '../types';
-import { hasProfanity } from '../utils/censor';
+import { COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, emailSignUpFormValidation, EmailSignUpInput, LogOutInput, password as passwordValidation, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import pkg from "@prisma/client";
+import { gql } from "apollo-server-express";
+import { getUser, hashPassword, logIn, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, validateCode, validateVerificationCode } from "../auth";
+import { generateSessionJwt, updateSessionTimeZone } from "../auth/request.js";
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from "../auth/wallet";
+import { Award, Trigger } from "../events";
+import { CustomError } from "../events/error";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint, RecursivePartial } from "../types";
+import { hasProfanity } from "../utils/censor";
+
 const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -117,7 +117,7 @@ export const typeDef = gql`
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): WalletComplete!
     }
-`
+`;
 
 export const resolvers: {
     AccountStatus: typeof AccountStatus;
@@ -146,58 +146,58 @@ export const resolvers: {
             if (!input.email) {
                 const userId = getUser(req)?.id;
                 if (!userId)
-                    throw new CustomError('0128', 'BadCredentials', req.languages);
+                    throw new CustomError("0128", "BadCredentials", req.languages);
                 // Find user by id
                 user = await prisma.user.findUnique({
                     where: { id: userId },
-                    select: { id: true }
+                    select: { id: true },
                 });
                 if (!user)
-                    throw new CustomError('0129', 'NoUser', req.languages);
+                    throw new CustomError("0129", "NoUser", req.languages);
                 // Validate verification code
                 if (input.verificationCode) {
-                    if (!input.verificationCode.includes(':'))
-                        throw new CustomError('0130', 'CannotVerifyEmailCode', req.languages);
-                    const [, verificationCode] = input.verificationCode.split(':');
+                    if (!input.verificationCode.includes(":"))
+                        throw new CustomError("0130", "CannotVerifyEmailCode", req.languages);
+                    const [, verificationCode] = input.verificationCode.split(":");
                     // Find all emails for user
                     const emails = await prisma.email.findMany({
                         where: {
                             AND: [
                                 { userId: user.id },
                                 { verificationCode },
-                            ]
-                        }
+                            ],
+                        },
                     });
                     if (emails.length === 0)
-                        throw new CustomError('0131', 'EmailOrCodeInvalid', req.languages);
+                        throw new CustomError("0131", "EmailOrCodeInvalid", req.languages);
                     const verified = await validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.languages);
                     if (!verified)
-                        throw new CustomError('0132', 'CannotVerifyEmailCode', req.languages);
+                        throw new CustomError("0132", "CannotVerifyEmailCode", req.languages);
                 }
                 return await toSession(user, prisma, req);
             }
             // If email supplied, validate
             else {
-                const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+                const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
                 if (!email)
-                    throw new CustomError('0133', 'EmailNotFound', req.languages);
+                    throw new CustomError("0133", "EmailNotFound", req.languages);
                 // Find user
-                user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
+                user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
                 if (!user)
-                    throw new CustomError('0134', 'NoUser', req.languages);
+                    throw new CustomError("0134", "NoUser", req.languages);
                 // Check for password in database, if doesn't exist, send a password reset link
-                if (!Boolean(user.password)) {
+                if (!user.password) {
                     await setupPasswordReset(user, prisma);
-                    throw new CustomError('0135', 'MustResetPassword', req.languages);
+                    throw new CustomError("0135", "MustResetPassword", req.languages);
                 }
                 // Validate verification code, if supplied
                 if (input.verificationCode) {
-                    if (!input.verificationCode.includes(':'))
-                        throw new CustomError('0136', 'CannotVerifyEmailCode', req.languages);
-                    const [, verificationCode] = input.verificationCode.split(':');
+                    if (!input.verificationCode.includes(":"))
+                        throw new CustomError("0136", "CannotVerifyEmailCode", req.languages);
+                    const [, verificationCode] = input.verificationCode.split(":");
                     const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.languages);
                     if (!verified)
-                        throw new CustomError('0137', 'CannotVerifyEmailCode', req.languages);
+                        throw new CustomError("0137", "CannotVerifyEmailCode", req.languages);
                 }
                 // Create new session
                 const session = await logIn(input?.password as string, user, prisma, req);
@@ -206,7 +206,7 @@ export const resolvers: {
                     await generateSessionJwt(res, session as any);
                     return session;
                 } else {
-                    throw new CustomError('0138', 'BadCredentials', req.languages);
+                    throw new CustomError("0138", "BadCredentials", req.languages);
                 }
             }
         },
@@ -216,10 +216,10 @@ export const resolvers: {
             emailSignUpFormValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
-                throw new CustomError('0140', 'BannedWord', req.languages);
+                throw new CustomError("0140", "BannedWord", req.languages);
             // Check if email exists
-            const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            if (existingEmail) throw new CustomError('0141', 'EmailInUse', req.languages);
+            const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
+            if (existingEmail) throw new CustomError("0141", "EmailInUse", req.languages);
             // Create user object
             const user = await prisma.user.create({
                 data: {
@@ -230,27 +230,27 @@ export const resolvers: {
                     emails: {
                         create: [
                             { emailAddress: input.email },
-                        ]
+                        ],
                     },
                     focusModes: {
                         create: [{
-                            name: 'Work',
-                            description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                            name: "Work",
+                            description: "This is an auto-generated focus mode. You can edit or delete it.",
                             reminderList: { create: {} },
                             resourceList: { create: {} },
                         }, {
-                            name: 'Study',
-                            description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                            name: "Study",
+                            description: "This is an auto-generated focus mode. You can edit or delete it.",
                             reminderList: { create: {} },
                             resourceList: { create: {} },
-                        }]
-                    }
-                }
+                        }],
+                    },
+                },
             });
             if (!user)
-                throw new CustomError('0142', 'FailedToCreate', req.languages);
+                throw new CustomError("0142", "FailedToCreate", req.languages);
             // Give user award for signing up
-            await Award(prisma, user.id, req.languages).update('AccountNew', 1);
+            await Award(prisma, user.id, req.languages).update("AccountNew", 1);
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
@@ -265,38 +265,38 @@ export const resolvers: {
             // Validate input format
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
-            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
             if (!email)
-                throw new CustomError('0143', 'EmailNotFound', req.languages);
+                throw new CustomError("0143", "EmailNotFound", req.languages);
             // Find user
-            let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
+            const user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
             if (!user)
-                throw new CustomError('0144', 'NoUser', req.languages);
+                throw new CustomError("0144", "NoUser", req.languages);
             // Generate and send password reset code
             const success = await setupPasswordReset(user, prisma);
-            return { __typename: 'Success', success };
+            return { __typename: "Success", success };
         },
         emailResetPassword: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             passwordValidation.validateSync(input.newPassword, { abortEarly: false });
             // Find user
-            let user = await prisma.user.findUnique({
+            const user = await prisma.user.findUnique({
                 where: { id: input.id },
                 select: {
                     id: true,
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
-                }
+                },
             });
             if (!user)
-                throw new CustomError('0145', 'NoUser', req.languages);
+                throw new CustomError("0145", "NoUser", req.languages);
             // If code is invalid
-            if (!validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
+            if (!validateCode(input.code, user.resetPasswordCode ?? "", user.lastResetPasswordReqestAttempt as Date)) {
                 // Generate and send new code
                 await setupPasswordReset(user, prisma);
                 // Return error
-                throw new CustomError('0156', 'InvalidResetCode', req.languages);
+                throw new CustomError("0156", "InvalidResetCode", req.languages);
             }
             // Remove request data from user, and set new password
             await prisma.user.update({
@@ -304,9 +304,9 @@ export const resolvers: {
                 data: {
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null,
-                    password: hashPassword(input.newPassword)
-                }
-            })
+                    password: hashPassword(input.newPassword),
+                },
+            });
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
@@ -317,10 +317,10 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 500, req });
             // Create session
             const session = {
-                __typename: 'Session' as const,
+                __typename: "Session" as const,
                 isLoggedIn: false,
-                users: []
-            }
+                users: [],
+            };
             // Set up session token
             await generateSessionJwt(res, session);
             return session;
@@ -331,14 +331,14 @@ export const resolvers: {
                 res.clearCookie(COOKIE.Jwt);
                 // Return guest session
                 await generateSessionJwt(res, { isLoggedIn: false });
-                return { __typename: 'Session' as const, isLoggedIn: false };
+                return { __typename: "Session" as const, isLoggedIn: false };
             }
             // Otherwise, remove the specified user from the session
             else {
                 const session = {
-                    __typename: 'Session' as const,
+                    __typename: "Session" as const,
                     isLoggedIn: true,
-                    users: req.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser)
+                    users: req.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser),
                 };
                 await generateSessionJwt(res, session);
                 return session as any;
@@ -350,7 +350,7 @@ export const resolvers: {
             // If session is expired
             if (!userId || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);
-                throw new CustomError('0315', 'SessionExpired', req.languages);
+                throw new CustomError("0315", "SessionExpired", req.languages);
             }
             // If time zone is updated, update session
             updateSessionTimeZone(req, res, input.timeZone);
@@ -360,23 +360,23 @@ export const resolvers: {
                 res.clearCookie(COOKIE.Jwt);
                 return {
                     isLoggedIn: false,
-                }
+                };
             }
             // Otherwise, check if session can be verified from userId
             const userData = await prisma.user.findUnique({
                 where: { id: userId },
-                select: { id: true }
+                select: { id: true },
             });
             if (userData) return await toSession(userData, prisma, req);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
-            throw new CustomError('0148', 'NotVerified', req.languages);
+            throw new CustomError("0148", "NotVerified", req.languages);
         },
         switchCurrentAccount: async (_, { input }, { prisma, req, res }) => {
             // Find index of user in session
             const index = req.users?.findIndex(u => u.id === input.id) ?? -1;
             // If user not found, throw error
-            if (!req.users || index === -1) throw new CustomError('0272', 'NoUser', req.languages);
+            if (!req.users || index === -1) throw new CustomError("0272", "NoUser", req.languages);
             // Filter out user from session, then place at front
             const otherUsers = (req.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
             const currentUser = await toSessionUser(req.users[index], prisma, req);
@@ -393,8 +393,8 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 100, req });
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
-            if (!deserializedStakingAddress.startsWith('stake1'))
-                throw new CustomError('0149', 'MustUseMainnet', req.languages);
+            if (!deserializedStakingAddress.startsWith("stake1"))
+                throw new CustomError("0149", "MustUseMainnet", req.languages);
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
@@ -406,32 +406,32 @@ export const resolvers: {
                     id: true,
                     verified: true,
                     userId: true,
-                }
+                },
             });
             // If wallet exists, update with new nonce
             if (walletData) {
                 await prisma.wallet.update({
                     where: { id: walletData.id },
                     data: {
-                        nonce: nonce,
+                        nonce,
                         nonceCreationTime: new Date().toISOString(),
-                    }
-                })
+                    },
+                });
             }
             // If wallet data doesn't exist, create
             if (!walletData) {
                 walletData = await prisma.wallet.create({
                     data: {
                         stakingAddress: input.stakingAddress,
-                        nonce: nonce,
+                        nonce,
                         nonceCreationTime: new Date().toISOString(),
                     },
                     select: {
                         id: true,
                         verified: true,
                         userId: true,
-                    }
-                })
+                    },
+                });
             }
             return nonce;
         },
@@ -446,28 +446,28 @@ export const resolvers: {
                     nonce: true,
                     nonceCreationTime: true,
                     user: {
-                        select: { id: true }
+                        select: { id: true },
                     },
                     verified: true,
-                }
+                },
             });
             // If wallet doesn't exist, throw error
             if (!walletData)
-                throw new CustomError('0150', 'WalletNotFound', req.languages);
+                throw new CustomError("0150", "WalletNotFound", req.languages);
             // If nonce expired, throw error
             if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION)
-                throw new CustomError('0314', 'NonceExpired', req.languages)
+                throw new CustomError("0314", "NonceExpired", req.languages);
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified)
-                throw new CustomError('0151', 'CannotVerifyWallet', req.languages);
+                throw new CustomError("0151", "CannotVerifyWallet", req.languages);
             let userId: string | undefined = walletData.user?.id;
-            let firstLogIn: boolean = false;
+            let firstLogIn = false;
             // If you are not signed in
             if (!req.isLoggedIn) {
                 // Wallet must be verified
                 if (!walletData.verified) {
-                    throw new CustomError('0152', 'NotYourWallet', req.languages);
+                    throw new CustomError("0152", "NotYourWallet", req.languages);
                 }
                 firstLogIn = true;
                 // Create new user
@@ -475,27 +475,27 @@ export const resolvers: {
                     data: {
                         name: `user${randomString(8)}`,
                         wallets: {
-                            connect: { id: walletData.id }
+                            connect: { id: walletData.id },
                         },
                         focusModes: {
                             create: [{
-                                name: 'Work',
-                                description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                                name: "Work",
+                                description: "This is an auto-generated focus mode. You can edit or delete it.",
                                 reminderList: { create: {} },
                                 resourceList: { create: {} },
                             }, {
-                                name: 'Study',
-                                description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                                name: "Study",
+                                description: "This is an auto-generated focus mode. You can edit or delete it.",
                                 reminderList: { create: {} },
                                 resourceList: { create: {} },
-                            }]
-                        }
+                            }],
+                        },
                     },
-                    select: { id: true }
+                    select: { id: true },
                 });
                 userId = userData.id;
                 // Give user award for signing up
-                await Award(prisma, userId, req.languages).update('AccountNew', 1);
+                await Award(prisma, userId, req.languages).update("AccountNew", 1);
             }
             // If you are signed in
             else {
@@ -505,9 +505,9 @@ export const resolvers: {
                         where: { id: req.users?.[0].id as string },
                         data: {
                             wallets: {
-                                connect: { id: walletData.id }
-                            }
-                        }
+                                connect: { id: walletData.id },
+                            },
+                        },
                     });
                 }
             }
@@ -527,15 +527,15 @@ export const resolvers: {
                         select: {
                             id: true,
                             handle: true,
-                        }
+                        },
                     },
                     publicAddress: true,
                     stakingAddress: true,
                     verified: true,
-                }
-            })
+                },
+            });
             // Create session token
-            const session = await toSession({ id: userId as string }, prisma, req)
+            const session = await toSession({ id: userId as string }, prisma, req);
             // Add session token to return payload
             await generateSessionJwt(res, session as any);
             return {
@@ -544,5 +544,5 @@ export const resolvers: {
                 wallet,
             } as WalletComplete;
         },
-    }
-}
+    },
+};

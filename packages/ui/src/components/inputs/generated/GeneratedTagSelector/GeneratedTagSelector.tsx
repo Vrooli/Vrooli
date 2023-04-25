@@ -1,4 +1,4 @@
-import { Tag } from "@shared/consts";
+import { Tag } from "@local/shared";
 import { TagSelectorBase } from "components/inputs/TagSelectorBase/TagSelectorBase";
 import { useField } from "formik";
 import { TagShape } from "utils/shape/models/tag";

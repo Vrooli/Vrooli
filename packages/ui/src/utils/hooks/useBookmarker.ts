@@ -1,6 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, Success } from "@shared/consts";
-import { exists } from "@shared/utils";
-import { uuid } from "@shared/uuid";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, exists, Success, uuid } from "@local/shared";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
 import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";

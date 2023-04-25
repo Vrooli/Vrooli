@@ -1,9 +1,5 @@
+import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { Resource, ResourceUsedFor, Session } from "@shared/consts";
-import { CommonKey } from "@shared/translations";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { resourceValidation, userTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";

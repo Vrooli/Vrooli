@@ -1,5 +1,4 @@
-import { CopyInput, CopyResult, CopyType } from "@shared/consts";
-import { exists } from "@shared/utils";
+import { CopyInput, CopyResult, CopyType, exists } from "@local/shared";
 import { mutationWrapper, useCustomMutation } from "api";
 import { copyCopy } from "api/generated/endpoints/copy_copy";
 import { useCallback } from "react";

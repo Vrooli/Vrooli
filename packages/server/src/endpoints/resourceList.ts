@@ -1,8 +1,8 @@
-import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum ResourceListSortBy {
@@ -109,9 +109,9 @@ export const typeDef = gql`
         resourceListCreate(input: ResourceListCreateInput!): ResourceList!
         resourceListUpdate(input: ResourceListUpdateInput!): ResourceList!
     }
-`
+`;
 
-const objectType = 'ResourceList';
+const objectType = "ResourceList";
 export const resolvers: {
     ResourceListSortBy: typeof ResourceListSortBy;
     Query: {
@@ -123,7 +123,7 @@ export const resolvers: {
         resourceListUpdate: GQLEndpoint<ResourceListUpdateInput, UpdateOneResult<ResourceList>>;
     }
 } = {
-    ResourceListSortBy: ResourceListSortBy,
+    ResourceListSortBy,
     Query: {
         resourceList: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
@@ -143,5 +143,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

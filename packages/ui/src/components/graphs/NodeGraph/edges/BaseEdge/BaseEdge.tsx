@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BaseEdgeProps, EdgePositions, Point } from '../types';
-import { Box, Popover, Tooltip } from '@mui/material';
+import { Box, Popover, Tooltip } from "@mui/material";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BaseEdgeProps, EdgePositions, Point } from "../types";
 
 /**
  * Finds the coordinate of a point on a bezier curve
@@ -16,9 +16,9 @@ const getBezierPoint = (t: number, sp: Point, cp1: Point, cp2: Point, ep: Point)
         x: Math.pow(1 - t, 3) * sp.x + 3 * t * Math.pow(1 - t, 2) * cp1.x
             + 3 * t * t * (1 - t) * cp2.x + t * t * t * ep.x,
         y: Math.pow(1 - t, 3) * sp.y + 3 * t * Math.pow(1 - t, 2) * cp1.y
-            + 3 * t * t * (1 - t) * cp2.y + t * t * t * ep.y
+            + 3 * t * t * (1 - t) * cp2.y + t * t * t * ep.y,
     };
-}
+};
 
 /**
  * Creates a bezier curve between two points
@@ -32,13 +32,13 @@ const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
     const mid1 = {
         x: midX,
         y: p1.y,
-    }
+    };
     const mid2 = {
         x: midX,
         y: p2.y,
-    }
+    };
     return [p1, mid1, mid2, p2];
-}
+};
 
 /**
  * Calculates absolute position of one point of an edge.
@@ -53,7 +53,7 @@ const getPoint = (containerId: string, nodeId: string): { x: number, y: number, 
     const graph = document.getElementById(containerId);
     const node = document.getElementById(nodeId);
     if (!graph || !node) {
-        console.error('Could not find node to connect to edge', nodeId);
+        console.error("Could not find node to connect to edge", nodeId);
         return null;
     }
     const nodeRect = node.getBoundingClientRect();
@@ -63,8 +63,8 @@ const getPoint = (containerId: string, nodeId: string): { x: number, y: number, 
         y: graph.scrollTop + nodeRect.top + (nodeRect.height / 2) - graphRect.top,
         startX: graph.scrollLeft + nodeRect.left - graphRect.left,
         endX: graph.scrollLeft + nodeRect.left + nodeRect.width - graphRect.left,
-    }
-}
+    };
+};
 
 /**
  * Displays a bezier line between any two UX components (probably have to be in the same DOM stack, but I never checked).
@@ -91,10 +91,10 @@ export const BaseEdge = ({
     // Handle opening/closing of the edit popover menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const toggleEdit = useCallback((event: any) => {
-        if (Boolean(anchorEl)) setAnchorEl(null);
+        if (anchorEl) setAnchorEl(null);
         else setAnchorEl(event.currentTarget);
     }, [anchorEl]);
-    const closeEdit = () => { setAnchorEl(null) };
+    const closeEdit = () => { setAnchorEl(null); };
     const isEditOpen = Boolean(anchorEl);
 
     /**
@@ -112,14 +112,14 @@ export const BaseEdge = ({
             const from = {
                 x: toPoint.x > fromPoint.x ? padding : width - padding,
                 y: toPoint.y > fromPoint.y ? padding : height - padding,
-            }
+            };
             const to = {
                 x: toPoint.x > fromPoint.x ? width - padding : padding,
                 y: toPoint.y > fromPoint.y ? height - padding : padding,
-            }
+            };
             const fromEnd = (fromPoint?.endX ?? 0) - padding;
             const toStart = (toPoint?.startX ?? 0) + padding;
-            let bezier = createBezier(from, to);
+            const bezier = createBezier(from, to);
             setDims({ top, left, width, height, fromEnd, toStart, bezier });
         }
         else setDims(null);
@@ -134,7 +134,7 @@ export const BaseEdge = ({
         calculateDims();
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
-        }
+        };
     }, [calculateDims, timeBetweenDraws]);
 
     /**
@@ -166,8 +166,8 @@ export const BaseEdge = ({
                     strokeWidth={thiccness / 10}
                 />
             </svg>
-        )
-    }, [dims, thiccness])
+        );
+    }, [dims, thiccness]);
 
     /**
      * If isEditable, displays a clickable button for displaying a popover menu
@@ -177,27 +177,27 @@ export const BaseEdge = ({
         // If from and to are both routine lists (or both NOT routine lists), then use bezier midpoint.
         // If one is a routine list and the other is not, use a point further from the routine list
         const bezierPoint = getBezierPoint(popoverT ?? 0.5, ...dims.bezier);
-        const diameter: number = isEditOpen ? thiccness : thiccness * 5 / 6
+        const diameter: number = isEditOpen ? thiccness : thiccness * 5 / 6;
         return (
             <>
-                <Tooltip title={isEditOpen ? '' : "Edit edge or insert node"}>
+                <Tooltip title={isEditOpen ? "" : "Edit edge or insert node"}>
                     <Box onClick={toggleEdit} sx={{
                         position: "absolute",
                         top: dims.top + bezierPoint.y - (diameter / 2),
                         left: dims.left + bezierPoint.x - (diameter / 2),
                         height: `${diameter}px`,
                         width: `${diameter}px`,
-                        borderRadius: '100%',
-                        border: isEditOpen ? `2px solid #9e3984` : `none`,
-                        cursor: 'pointer',
+                        borderRadius: "100%",
+                        border: isEditOpen ? "2px solid #9e3984" : "none",
+                        cursor: "pointer",
                         zIndex: 2,
-                        background: isEditOpen ? 'transparent' : '#9e3984',
-                        '&:hover': {
+                        background: isEditOpen ? "transparent" : "#9e3984",
+                        "&:hover": {
                             height: `${thiccness}px`,
                             width: `${thiccness}px`,
                             top: dims.top + bezierPoint.y - (thiccness / 2),
                             left: dims.left + bezierPoint.x - (thiccness / 2),
-                        }
+                        },
                     }} />
                 </Tooltip >
                 <Popover
@@ -206,20 +206,20 @@ export const BaseEdge = ({
                     onClose={closeEdit}
                     onClick={closeEdit}
                     anchorOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
+                        vertical: "top",
+                        horizontal: "center",
                     }}
                     transformOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
+                        vertical: "bottom",
+                        horizontal: "center",
                     }}
                     sx={{
-                        '& .MuiPopover-paper': {
-                            background: 'transparent',
-                            boxShadow: 'none',
-                            border: 'none',
+                        "& .MuiPopover-paper": {
+                            background: "transparent",
+                            boxShadow: "none",
+                            border: "none",
                             paddingBottom: 1,
-                        }
+                        },
                     }}
                 >
                     {popoverComponent}
@@ -233,5 +233,5 @@ export const BaseEdge = ({
             {edge}
             {Boolean(popoverComponent) && popoverButton}
         </>
-    )
-}
+    );
+};

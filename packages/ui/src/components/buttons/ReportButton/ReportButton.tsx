@@ -1,8 +1,8 @@
-import { IconButton, Tooltip, useTheme } from '@mui/material';
-import { ReportIcon } from '@shared/icons';
-import { ReportDialog } from 'components/dialogs/ReportDialog/ReportDialog';
-import { useCallback, useState } from 'react';
-import { ReportButtonProps } from '../types';
+import { ReportIcon } from "@local/shared";
+import { IconButton, Tooltip, useTheme } from "@mui/material";
+import { ReportDialog } from "components/dialogs/ReportDialog/ReportDialog";
+import { useCallback, useState } from "react";
+import { ReportButtonProps } from "../types";
 
 export const ReportButton = ({
     forId,
@@ -30,5 +30,5 @@ export const ReportButton = ({
                 </IconButton>
             </Tooltip>
         </>
-    )
-}
+    );
+};

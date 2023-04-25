@@ -1,60 +1,59 @@
-import { PrismaClient } from '@prisma/client';
-import { PaymentType } from '@shared/consts';
-import { i18nConfig } from '@shared/translations';
-import { ApolloServer } from 'apollo-server-express';
-import cookieParser from 'cookie-parser';
+import { i18nConfig, PaymentType } from "@local/shared";
+import { PrismaClient } from "@prisma/client";
+import { ApolloServer } from "apollo-server-express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
-import express from 'express';
-import fs from 'fs';
-import { graphqlUploadExpress } from 'graphql-upload';
-import i18next from 'i18next';
-import Stripe from 'stripe';
-import * as auth from './auth/request';
-import { schema } from './endpoints';
-import { logger } from './events/logger';
-import { context, depthLimit } from './middleware';
-import { initializeRedis } from './redisConn';
-import { initSitemapCronJob } from './schedules';
-import { initCountsCronJobs } from './schedules/counts';
-import { initEventsCronJobs } from './schedules/events';
-import { initModerationCronJobs } from './schedules/moderate';
-import { initExpirePremiumCronJob } from './schedules/premium/base';
-import { initStatsCronJobs } from './schedules/stats';
-import { setupDatabase } from './utils/setupDatabase';
+import express from "express";
+import fs from "fs";
+import { graphqlUploadExpress } from "graphql-upload";
+import i18next from "i18next";
+import Stripe from "stripe";
+import * as auth from "./auth/request";
+import { schema } from "./endpoints";
+import { logger } from "./events/logger";
+import { context, depthLimit } from "./middleware";
+import { initializeRedis } from "./redisConn";
+import { initSitemapCronJob } from "./schedules";
+import { initCountsCronJobs } from "./schedules/counts";
+import { initEventsCronJobs } from "./schedules/events";
+import { initModerationCronJobs } from "./schedules/moderate";
+import { initExpirePremiumCronJob } from "./schedules/premium/base";
+import { initStatsCronJobs } from "./schedules/stats";
+import { setupDatabase } from "./utils/setupDatabase";
 
-const debug = process.env.NODE_ENV === 'development';
+const debug = process.env.NODE_ENV === "development";
 
-const SERVER_URL = process.env.VITE_SERVER_LOCATION === 'local' ?
-    `http://localhost:5329/api` :
-    Boolean(process.env.SERVER_URL) ?
+const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
+    "http://localhost:5329/api" :
+    process.env.SERVER_URL ?
         process.env.SERVER_URL :
         `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
-    logger.info('Starting server...');
+    logger.info("Starting server...");
 
     // Check for required .env variables
-    const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
+    const requiredEnvs = ["PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
     for (const env of requiredEnvs) {
-        console.log('checking env', env, process.env[env])
+        console.log("checking env", env, process.env[env]);
         if (!process.env[env]) {
-            console.log('oh nooooo', env, process.env);
-            logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: '0007' });
+            console.log("oh nooooo", env, process.env);
+            logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: "0007" });
             process.exit(1);
         }
     }
 
     // Check for JWT public/private key files
-    const requiredKeyFiles = ['jwt_priv.pem', 'jwt_pub.pem'];
+    const requiredKeyFiles = ["jwt_priv.pem", "jwt_pub.pem"];
     for (const keyFile of requiredKeyFiles) {
         try {
             const key = fs.readFileSync(`${process.env.PROJECT_DIR}/${keyFile}`);
             if (!key) {
-                logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: '0448' });
+                logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: "0448" });
                 process.exit(1);
             }
         } catch (error) {
-            logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: '0449', error });
+            logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: "0449", error });
             process.exit(1);
         }
     }
@@ -68,9 +67,9 @@ const main = async () => {
     // Redis 
     try {
         await initializeRedis();
-        logger.info('✅ Connected to Redis');
+        logger.info("✅ Connected to Redis");
     } catch (error) {
-        logger.error('🚨 Failed to connect to Redis', { trace: '0207', error });
+        logger.error("🚨 Failed to connect to Redis", { trace: "0207", error });
     }
 
     const app = express();
@@ -89,64 +88,64 @@ const main = async () => {
     app.use(cors({
         credentials: true,
         origin: true, //safeOrigins(),
-    }))
+    }));
 
     // For parsing application/json. 
     app.use((req, res, next) => {
         // Exclude on stripe webhook endpoint
-        if (req.originalUrl === '/webhook/stripe') {
+        if (req.originalUrl === "/webhook/stripe") {
             next();
         } else {
-            express.json({ limit: '20mb' })(req, res, next);
+            express.json({ limit: "20mb" })(req, res, next);
         }
     });
 
     // Set up Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-        apiVersion: '2022-11-15',
+        apiVersion: "2022-11-15",
         typescript: true,
         appInfo: {
-            name: 'Vrooli',
-            url: 'https://vrooli.com',
-            version: '2.0.0',
+            name: "Vrooli",
+            url: "https://vrooli.com",
+            version: "2.0.0",
         },
     });
     // Create endpoint for buying a premium subscription or donating
-    app.post('/api/create-checkout-session', async (req, res) => {
+    app.post("/api/create-checkout-session", async (req, res) => {
         // Get userId and variant from request body
         const userId: string = req.body.userId;
-        const variant: 'yearly' | 'monthly' | 'donation' = req.body.variant;
+        const variant: "yearly" | "monthly" | "donation" = req.body.variant;
         // Determine price API ID based on variant. Select a product in the Stripe dashboard 
         // to find this information
         let price: string;
         let paymentType: PaymentType;
-        if (variant === 'yearly') {
-            price = 'price_1MrUzeJq1sLW02CVEFdKKQNu';
+        if (variant === "yearly") {
+            price = "price_1MrUzeJq1sLW02CVEFdKKQNu";
             paymentType = PaymentType.PremiumYearly;
-        } else if (variant === 'monthly') {
-            price = 'price_1MrTMEJq1sLW02CVHdm1U247';
+        } else if (variant === "monthly") {
+            price = "price_1MrTMEJq1sLW02CVHdm1U247";
             paymentType = PaymentType.PremiumMonthly;
-        } else if (variant === 'donation') {
-            price = 'price_1MrTMlJq1sLW02CVK3ILOa6w';
+        } else if (variant === "donation") {
+            price = "price_1MrTMlJq1sLW02CVK3ILOa6w";
             paymentType = PaymentType.Donation;
         } else {
-            logger.error('Invalid variant', { trace: '0436', userId, variant })
-            res.status(400).json({ error: 'Invalid variant' });
+            logger.error("Invalid variant", { trace: "0436", userId, variant });
+            res.status(400).json({ error: "Invalid variant" });
             return;
         }
         // Create checkout session
         try {
             const session = await stripe.checkout.sessions.create({
-                success_url: 'https://vrooli.com/premium?status=success',
-                cancel_url: 'https://vrooli.com/premium?status=canceled',
-                payment_method_types: ['card'],
+                success_url: "https://vrooli.com/premium?status=success",
+                cancel_url: "https://vrooli.com/premium?status=canceled",
+                payment_method_types: ["card"],
                 line_items: [
                     {
                         price,
                         quantity: 1,
                     },
                 ],
-                mode: variant === 'donation' ? 'payment' : 'subscription',
+                mode: variant === "donation" ? "payment" : "subscription",
                 metadata: { userId },
             });
             // Create open payment in database, so we can track it
@@ -154,30 +153,30 @@ const main = async () => {
             const prisma = new PrismaClient();
             await prisma.payment.create({
                 data: {
-                    amount: (variant === 'donation' ? session.amount_total : session.amount_subtotal) ?? 0,
+                    amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
                     checkoutId: session.id,
-                    currency: session.currency ?? 'usd',
-                    description: variant === 'donation' ? 'Donation' : 'Premium subscription - ' + variant,
-                    paymentMethod: 'Stripe',
+                    currency: session.currency ?? "usd",
+                    description: variant === "donation" ? "Donation" : "Premium subscription - " + variant,
+                    paymentMethod: "Stripe",
                     paymentType,
-                    status: 'Pending',
+                    status: "Pending",
                     user: { connect: { id: userId } },
-                }
+                },
             });
             await prisma.$disconnect();
             // Send session ID as response
             res.json(session);
             return;
         } catch (error) {
-            logger.error('Error creating checkout session', { trace: '0437', userId, variant, error })
+            logger.error("Error creating checkout session", { trace: "0437", userId, variant, error });
             res.status(500).json({ error });
             return;
         }
     });
     // Create webhook endpoint for Stripe
     const endpointSecret = "whsec_590a2c3d0442e852131c914226f2642b24724674ffbccc518ca9607e865da233";
-    app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (request, response) => {
-        const sig: string | string[] = request.headers['stripe-signature'] || '';
+    app.post("/webhook/stripe", express.raw({ type: "application/json" }), async (request, response) => {
+        const sig: string | string[] = request.headers["stripe-signature"] || "";
         let event;
         try {
             // Parse event
@@ -190,7 +189,7 @@ const main = async () => {
             // Handle the event
             switch (event.type) {
                 // Donation completed or subscription created
-                case 'checkout.session.completed':
+                case "checkout.session.completed":
                     // Find payment in database
                     session = event.data.object;
                     checkoutId = session.id;
@@ -199,30 +198,30 @@ const main = async () => {
                     payments = await prisma.payment.findMany({
                         where: {
                             checkoutId,
-                            paymentMethod: 'Stripe',
+                            paymentMethod: "Stripe",
                             user: { id: userId },
-                        }
-                    })
+                        },
+                    });
                     // If not found, log error
                     if (payments.length === 0) {
-                        logger.error('Payment not found. Someone is gonna be mad', { trace: '0439', checkoutId, userId });
+                        logger.error("Payment not found. Someone is gonna be mad", { trace: "0439", checkoutId, userId });
                         break;
                     }
                     // Update payment in database to indicate it was paid
                     await prisma.payment.update({
                         where: { id: payments[0].id },
                         data: {
-                            status: 'Paid',
-                        }
-                    })
+                            status: "Paid",
+                        },
+                    });
                     // If subscription, upsert premium status
                     if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
                         const enabledAt = new Date().toISOString();
                         const expiresAt = new Date(Date.now() + (payments[0].paymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString();
                         const isActive = true;
                         const premiums = await prisma.premium.findMany({
-                            where: { user: { id: userId } }
-                        })
+                            where: { user: { id: userId } },
+                        });
                         if (premiums.length === 0) {
                             await prisma.premium.create({
                                 data: {
@@ -230,8 +229,8 @@ const main = async () => {
                                     expiresAt,
                                     isActive,
                                     user: { connect: { id: userId } },
-                                }
-                            })
+                                },
+                            });
                         } else {
                             await prisma.premium.update({
                                 where: { id: premiums[0].id },
@@ -239,13 +238,13 @@ const main = async () => {
                                     enabledAt: premiums[0].enabledAt ?? enabledAt,
                                     expiresAt,
                                     isActive,
-                                }
-                            })
+                                },
+                            });
                         }
                     }
                     break;
                 // Session expired before payment
-                case 'checkout.session.expired':
+                case "checkout.session.expired":
                     // Find payment in database
                     session = event.data.object;
                     checkoutId = session.id;
@@ -254,22 +253,22 @@ const main = async () => {
                     payments = await prisma.payment.findMany({
                         where: {
                             checkoutId,
-                            paymentMethod: 'Stripe',
-                            status: 'Pending',
+                            paymentMethod: "Stripe",
+                            status: "Pending",
                             user: { id: userId },
-                        }
-                    })
+                        },
+                    });
                     // If not found, ignore
                     if (payments.length === 0) {
                         break;
                     }
                     // Delete payment in database
                     await prisma.payment.delete({
-                        where: { id: payments[0].id }
-                    })
+                        where: { id: payments[0].id },
+                    });
                     break;
                 // Payment failed
-                case 'invoice.payment_failed':
+                case "invoice.payment_failed":
                     const invoice = event.data.object;
                     const subscriptionId = invoice.subscription;
                     userId = invoice.metadata.userId;
@@ -278,37 +277,37 @@ const main = async () => {
                     payments = await prisma.payment.findMany({
                         where: {
                             user: { id: userId },
-                            paymentMethod: 'Stripe',
+                            paymentMethod: "Stripe",
                         },
                     });
                     // If not found, log an error and return
                     if (payments.length === 0) {
-                        logger.error('Payment not found on invoice.payment_failed', { trace: '0443', userId });
-                        response.status(400).send('Payment not found');
+                        logger.error("Payment not found on invoice.payment_failed", { trace: "0443", userId });
+                        response.status(400).send("Payment not found");
                         return;
                     }
                     // Update the payment status to "Failed" in the database
                     await prisma.payment.update({
                         where: { id: payments[0].id },
                         data: {
-                            status: 'Failed',
+                            status: "Failed",
                         },
                     });
                     // Disconnect the Prisma client
                     await prisma.$disconnect();
                     // Log the error and return a response
-                    logger.error('Payment failed', { trace: '0444', userId, subscriptionId });
-                    response.status(400).send('Payment failed');
+                    logger.error("Payment failed", { trace: "0444", userId, subscriptionId });
+                    response.status(400).send("Payment failed");
                     break;
                 // Subscription changed (monthly -> yearly, yearly -> monthly)
-                case 'customer.subscription.updated':
+                case "customer.subscription.updated":
                     const subscription = event.data.object;
                     userId = subscription.metadata.userId;
-                    const newPaymentType = subscription.plan.interval === 'month' ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
+                    const newPaymentType = subscription.plan.interval === "month" ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
 
                     prisma = new PrismaClient();
                     const premiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } }
+                        where: { user: { id: userId } },
                     });
 
                     if (premiumRecord) {
@@ -323,12 +322,12 @@ const main = async () => {
                     break;
 
                 // Subscription canceled
-                case 'customer.subscription.deleted':
+                case "customer.subscription.deleted":
                     userId = event.data.object.metadata.userId;
 
                     prisma = new PrismaClient();
                     const canceledPremiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } }
+                        where: { user: { id: userId } },
                     });
 
                     if (canceledPremiumRecord) {
@@ -343,14 +342,14 @@ const main = async () => {
                     break;
 
                 // Subscription renewed
-                case 'invoice.payment_succeeded':
+                case "invoice.payment_succeeded":
                     const renewedInvoice = event.data.object;
                     const renewedSubscriptionId = renewedInvoice.subscription;
                     userId = renewedInvoice.metadata.userId;
 
                     prisma = new PrismaClient();
                     const renewedPremiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } }
+                        where: { user: { id: userId } },
                     });
 
                     if (renewedPremiumRecord) {
@@ -367,7 +366,7 @@ const main = async () => {
                     break;
                 // If this default is reached, the webhook specified in Stripe is too broad
                 default:
-                    logger.warning('Unhandled Stripe event', { trace: '0438', event: event.type });
+                    logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
                     break;
             }
         } catch (error: any) {
@@ -382,23 +381,23 @@ const main = async () => {
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
     // Set up image uploading
-    app.use(`/api/v2`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
+    app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({
-        cache: 'bounded' as any,
+        cache: "bounded" as any,
         introspection: debug,
-        schema: schema,
+        schema,
         context: (c) => context(c), // Allows request and response to be included in the context
-        validationRules: [depthLimit(13)] // Prevents DoS attack from arbitrarily-nested query
+        validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
     });
     // Start server
     await apollo_options_latest.start();
     // Configure server with ExpressJS settings and path
     apollo_options_latest.applyMiddleware({
         app,
-        path: `/api/v2`,
-        cors: false
+        path: "/api/v2",
+        cors: false,
     });
     // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
     // to be compatible with the latest version.
@@ -429,6 +428,6 @@ const main = async () => {
     initExpirePremiumCronJob();
 
     logger.info(`🚀 Server running at ${SERVER_URL}`);
-}
+};
 
 main();

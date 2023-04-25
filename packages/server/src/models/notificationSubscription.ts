@@ -1,6 +1,5 @@
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, notificationSubscriptionValidation, SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from '@shared/consts';
-import { notificationSubscriptionValidation } from "@shared/validation";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -22,25 +21,25 @@ import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
 
-export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs['create'] } = {
-    Api: 'api',
-    Comment: 'comment',
-    Issue: 'issue',
-    Meeting: 'meeting',
-    Note: 'note',
-    Organization: 'organization',
-    Project: 'project',
-    PullRequest: 'pullRequest',
-    Question: 'question',
-    Quiz: 'quiz',
-    Report: 'report',
-    Routine: 'routine',
-    Schedule: 'schedule',
-    SmartContract: 'smartContract',
-    Standard: 'standard',
-}
+export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
+    Api: "api",
+    Comment: "comment",
+    Issue: "issue",
+    Meeting: "meeting",
+    Note: "note",
+    Organization: "organization",
+    Project: "project",
+    PullRequest: "pullRequest",
+    Question: "question",
+    Quiz: "quiz",
+    Report: "report",
+    Routine: "routine",
+    Schedule: "schedule",
+    SmartContract: "smartContract",
+    Standard: "standard",
+};
 
-const __typename = 'NotificationSubscription' as const;
+const __typename = "NotificationSubscription" as const;
 const suppFields = [] as const;
 export const NotificationSubscriptionModel: ModelLogic<{
     IsTransferable: false,
@@ -51,8 +50,8 @@ export const NotificationSubscriptionModel: ModelLogic<{
     GqlSearch: NotificationSubscriptionSearchInput,
     GqlSort: NotificationSubscriptionSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.notification_subscriptionUpsertArgs['create'],
-    PrismaUpdate: Prisma.notification_subscriptionUpsertArgs['update'],
+    PrismaCreate: Prisma.notification_subscriptionUpsertArgs["create"],
+    PrismaUpdate: Prisma.notification_subscriptionUpsertArgs["update"],
     PrismaModel: Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>,
     PrismaSelect: Prisma.notification_subscriptionSelect,
     PrismaWhere: Prisma.notification_subscriptionWhereInput,
@@ -80,63 +79,63 @@ export const NotificationSubscriptionModel: ModelLogic<{
         }),
         // Label is first relation that is not null
         label: (select, languages) => {
-            if (select.api) return ApiModel.display.label(select.api as any, languages)
-            if (select.comment) return CommentModel.display.label(select.comment as any, languages)
-            if (select.issue) return IssueModel.display.label(select.issue as any, languages)
-            if (select.meeting) return MeetingModel.display.label(select.meeting as any, languages)
-            if (select.note) return NoteModel.display.label(select.note as any, languages)
-            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages)
-            if (select.project) return ProjectModel.display.label(select.project as any, languages)
-            if (select.pullRequest) return PullRequestModel.display.label(select.pullRequest as any, languages)
-            if (select.question) return QuestionModel.display.label(select.question as any, languages)
-            if (select.quiz) return QuizModel.display.label(select.quiz as any, languages)
-            if (select.report) return ReportModel.display.label(select.report as any, languages)
-            if (select.routine) return RoutineModel.display.label(select.routine as any, languages)
-            if (select.schedule) return ScheduleModel.display.label(select.schedule as any, languages)
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages)
-            if (select.standard) return SmartContractModel.display.label(select.standard as any, languages)
-            return '';
+            if (select.api) return ApiModel.display.label(select.api as any, languages);
+            if (select.comment) return CommentModel.display.label(select.comment as any, languages);
+            if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+            if (select.meeting) return MeetingModel.display.label(select.meeting as any, languages);
+            if (select.note) return NoteModel.display.label(select.note as any, languages);
+            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+            if (select.project) return ProjectModel.display.label(select.project as any, languages);
+            if (select.pullRequest) return PullRequestModel.display.label(select.pullRequest as any, languages);
+            if (select.question) return QuestionModel.display.label(select.question as any, languages);
+            if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
+            if (select.report) return ReportModel.display.label(select.report as any, languages);
+            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
+            if (select.schedule) return ScheduleModel.display.label(select.schedule as any, languages);
+            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+            if (select.standard) return SmartContractModel.display.label(select.standard as any, languages);
+            return "";
         },
     },
     format: {
         gqlRelMap: {
             __typename,
             object: {
-                api: 'Api',
-                comment: 'Comment',
-                issue: 'Issue',
-                meeting: 'Meeting',
-                note: 'Note',
-                organization: 'Organization',
-                project: 'Project',
-                pullRequest: 'PullRequest',
-                question: 'Question',
-                quiz: 'Quiz',
-                report: 'Report',
-                routine: 'Routine',
-                schedule: 'Schedule',
-                smartContract: 'SmartContract',
-                standard: 'Standard',
+                api: "Api",
+                comment: "Comment",
+                issue: "Issue",
+                meeting: "Meeting",
+                note: "Note",
+                organization: "Organization",
+                project: "Project",
+                pullRequest: "PullRequest",
+                question: "Question",
+                quiz: "Quiz",
+                report: "Report",
+                routine: "Routine",
+                schedule: "Schedule",
+                smartContract: "SmartContract",
+                standard: "Standard",
             },
         },
         prismaRelMap: {
             __typename,
-            api: 'Api',
-            comment: 'Comment',
-            issue: 'Issue',
-            meeting: 'Meeting',
-            note: 'Note',
-            organization: 'Organization',
-            project: 'Project',
-            pullRequest: 'PullRequest',
-            question: 'Question',
-            quiz: 'Quiz',
-            report: 'Report',
-            routine: 'Routine',
-            schedule: 'Schedule',
-            smartContract: 'SmartContract',
-            standard: 'Standard',
-            subscriber: 'User',
+            api: "Api",
+            comment: "Comment",
+            issue: "Issue",
+            meeting: "Meeting",
+            note: "Note",
+            organization: "Organization",
+            project: "Project",
+            pullRequest: "PullRequest",
+            question: "Question",
+            quiz: "Quiz",
+            report: "Report",
+            routine: "Routine",
+            schedule: "Schedule",
+            smartContract: "SmartContract",
+            standard: "Standard",
+            subscriber: "User",
         },
         countFields: {},
     },
@@ -167,8 +166,8 @@ export const NotificationSubscriptionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-                'titleWrapped',
+                "descriptionWrapped",
+                "titleWrapped",
                 { api: ApiModel.search!.searchStringQuery() },
                 { comment: CommentModel.search!.searchStringQuery() },
                 { issue: IssueModel.search!.searchStringQuery() },
@@ -184,7 +183,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
                 { schedule: ScheduleModel.search!.searchStringQuery() },
                 { smartContract: SmartContractModel.search!.searchStringQuery() },
                 { standard: StandardModel.search!.searchStringQuery() },
-            ]
+            ],
         }),
         /**
          * Extra protection to ensure only you can see your own subscriptions
@@ -202,14 +201,14 @@ export const NotificationSubscriptionModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            subscriber: 'User',
+            subscriber: "User",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                subscriber: { id: userId }
+                subscriber: { id: userId },
             }),
         },
     },
-})
+});

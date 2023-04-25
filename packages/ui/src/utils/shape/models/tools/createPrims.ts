@@ -1,4 +1,4 @@
-import { DUMMY_ID, uuid } from "@shared/uuid";
+import { DUMMY_ID, uuid } from "@local/shared";
 
 /**
  * Helper function for setting a list of primitive fields of a create 

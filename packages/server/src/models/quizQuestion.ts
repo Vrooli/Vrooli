@@ -1,6 +1,5 @@
+import { MaxObjects, QuizQuestion, QuizQuestionCreateInput, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, quizQuestionValidation, QuizQuestionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, QuizQuestion, QuizQuestionCreateInput, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou } from '@shared/consts';
-import { quizQuestionValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -9,9 +8,9 @@ import { getSingleTypePermissions } from "../validators";
 import { QuizModel } from "./quiz";
 import { ModelLogic } from "./types";
 
-const __typename = 'QuizQuestion' as const;
-type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you'] as const;
+const __typename = "QuizQuestion" as const;
+type Permissions = Pick<QuizQuestionYou, "canDelete" | "canUpdate">;
+const suppFields = ["you"] as const;
 export const QuizQuestionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -21,8 +20,8 @@ export const QuizQuestionModel: ModelLogic<{
     GqlSearch: QuizQuestionSearchInput,
     GqlSort: QuizQuestionSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.quiz_questionUpsertArgs['create'],
-    PrismaUpdate: Prisma.quiz_questionUpsertArgs['update'],
+    PrismaCreate: Prisma.quiz_questionUpsertArgs["create"],
+    PrismaUpdate: Prisma.quiz_questionUpsertArgs["update"],
     PrismaModel: Prisma.quiz_questionGetPayload<SelectWrap<Prisma.quiz_questionSelect>>,
     PrismaSelect: Prisma.quiz_questionSelect,
     PrismaWhere: Prisma.quiz_questionWhereInput,
@@ -31,20 +30,20 @@ export const QuizQuestionModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.quiz_question,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'questionText', languages),
+        label: (select, languages) => bestLabel(select.translations, "questionText", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            quiz: 'Quiz',
-            responses: 'QuizQuestionResponse',
-            standardVersion: 'StandardVersion',
+            quiz: "Quiz",
+            responses: "QuizQuestionResponse",
+            standardVersion: "StandardVersion",
         },
         prismaRelMap: {
             __typename,
-            quiz: 'Quiz',
-            responses: 'QuizQuestionResponse',
-            standardVersion: 'StandardVersion',
+            quiz: "Quiz",
+            responses: "QuizQuestionResponse",
+            standardVersion: "StandardVersion",
         },
         countFields: {
             responsesCount: true,
@@ -55,8 +54,8 @@ export const QuizQuestionModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -66,16 +65,16 @@ export const QuizQuestionModel: ModelLogic<{
                 id: data.id,
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'StandardVersion', parentRelationshipName: 'quizQuestions', data, ...rest })),
-                ...(await shapeHelper({ relation: 'quiz', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Quiz', parentRelationshipName: 'quizQuestions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Quiz", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'quizQuestions', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Update"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
         },
         yup: quizQuestionValidation,
     },
@@ -94,8 +93,8 @@ export const QuizQuestionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transQuestionTextWrapped',
-            ]
+                "transQuestionTextWrapped",
+            ],
         }),
     },
     validate: {
@@ -107,14 +106,14 @@ export const QuizQuestionModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            quiz: 'Quiz',
+            quiz: "Quiz",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 quiz: QuizModel.validate!.visibility.owner(userId),
-            })
-        }
+            }),
+        },
     },
-})
+});

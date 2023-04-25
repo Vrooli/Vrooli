@@ -1,8 +1,5 @@
+import { exists, MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, organizationValidation, OrganizationYou, uuid } from "@local/shared";
 import { Prisma, role } from "@prisma/client";
-import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou } from '@shared/consts';
-import { exists } from "@shared/utils";
-import { uuid } from "@shared/uuid";
-import { organizationValidation } from "@shared/validation";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -13,9 +10,9 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 
-const __typename = 'Organization' as const;
-type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
-const suppFields = ['you', 'translatedName'] as const;
+const __typename = "Organization" as const;
+type Permissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
+const suppFields = ["you", "translatedName"] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -25,8 +22,8 @@ export const OrganizationModel: ModelLogic<{
     GqlSearch: OrganizationSearchInput,
     GqlSort: OrganizationSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.organizationUpsertArgs['create'],
-    PrismaUpdate: Prisma.organizationUpsertArgs['update'],
+    PrismaCreate: Prisma.organizationUpsertArgs["create"],
+    PrismaUpdate: Prisma.organizationUpsertArgs["update"],
     PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
     PrismaSelect: Prisma.organizationSelect,
     PrismaWhere: Prisma.organizationWhereInput,
@@ -35,69 +32,69 @@ export const OrganizationModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.organization,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            apis: 'Api',
-            comments: 'Comment',
-            directoryListings: 'ProjectVersionDirectory',
-            forks: 'Organization',
-            issues: 'Issue',
-            labels: 'Label',
-            meetings: 'Meeting',
-            members: 'Member',
-            notes: 'Note',
-            parent: 'Organization',
-            paymentHistory: 'Payment',
-            posts: 'Post',
-            premium: 'Premium',
-            projects: 'Project',
-            questions: 'Question',
-            reports: 'Report',
-            resourceList: 'ResourceList',
-            roles: 'Role',
-            routines: 'Routine',
-            smartContracts: 'SmartContract',
-            standards: 'Standard',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
-            transfersIncoming: 'Transfer',
-            transfersOutgoing: 'Transfer',
-            wallets: 'Wallet',
+            apis: "Api",
+            comments: "Comment",
+            directoryListings: "ProjectVersionDirectory",
+            forks: "Organization",
+            issues: "Issue",
+            labels: "Label",
+            meetings: "Meeting",
+            members: "Member",
+            notes: "Note",
+            parent: "Organization",
+            paymentHistory: "Payment",
+            posts: "Post",
+            premium: "Premium",
+            projects: "Project",
+            questions: "Question",
+            reports: "Report",
+            resourceList: "ResourceList",
+            roles: "Role",
+            routines: "Routine",
+            smartContracts: "SmartContract",
+            standards: "Standard",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            transfersIncoming: "Transfer",
+            transfersOutgoing: "Transfer",
+            wallets: "Wallet",
         },
         prismaRelMap: {
             __typename,
-            createdBy: 'User',
-            directoryListings: 'ProjectVersionDirectory',
-            issues: 'Issue',
-            labels: 'Label',
-            notes: 'Note',
-            apis: 'Api',
-            comments: 'Comment',
-            forks: 'Organization',
-            meetings: 'Meeting',
-            parent: 'Organization',
-            posts: 'Post',
-            smartContracts: 'SmartContract',
-            tags: 'Tag',
-            members: 'Member',
-            memberInvites: 'MemberInvite',
-            projects: 'Project',
-            questions: 'Question',
-            reports: 'Report',
-            resourceList: 'ResourceList',
-            roles: 'Role',
-            routines: 'Routine',
-            runRoutines: 'RunRoutine',
-            standards: 'Standard',
-            bookmarkedBy: 'User',
-            transfersIncoming: 'Transfer',
-            transfersOutgoing: 'Transfer',
-            wallets: 'Wallet',
+            createdBy: "User",
+            directoryListings: "ProjectVersionDirectory",
+            issues: "Issue",
+            labels: "Label",
+            notes: "Note",
+            apis: "Api",
+            comments: "Comment",
+            forks: "Organization",
+            meetings: "Meeting",
+            parent: "Organization",
+            posts: "Post",
+            smartContracts: "SmartContract",
+            tags: "Tag",
+            members: "Member",
+            memberInvites: "MemberInvite",
+            projects: "Project",
+            questions: "Question",
+            reports: "Report",
+            resourceList: "ResourceList",
+            roles: "Role",
+            routines: "Routine",
+            runRoutines: "RunRoutine",
+            standards: "Standard",
+            bookmarkedBy: "User",
+            transfersIncoming: "Transfer",
+            transfersOutgoing: "Transfer",
+            wallets: "Wallet",
         },
-        joinMap: { bookmarkedBy: 'user', tags: 'tag' },
+        joinMap: { bookmarkedBy: "user", tags: "tag" },
         countFields: {
             apisCount: true,
             commentsCount: true,
@@ -125,8 +122,8 @@ export const OrganizationModel: ModelLogic<{
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),
-                }
+                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "organization.translatedName"),
+                };
             },
         },
     },
@@ -134,10 +131,10 @@ export const OrganizationModel: ModelLogic<{
         shape: {
             pre: async ({ createList, updateList, prisma, userData }) => {
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', userData.languages));
+                combined.forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
                 // Validate AdaHandles
-                let handleData = updateList.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
-                await handlesCheck(prisma, 'Organization', handleData, userData.languages);
+                const handleData = updateList.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
+                await handlesCheck(prisma, "Organization", handleData, userData.languages);
             },
             create: async ({ data, ...rest }) => {
                 return {
@@ -152,27 +149,27 @@ export const OrganizationModel: ModelLogic<{
                             isAdmin: true,
                             permissions: JSON.stringify({}), //TODO
                             user: { connect: { id: rest.userData.id } },
-                        }
+                        },
                     },
-                    ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
-                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
-                    ...(await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
-                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
-                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, ...rest })),
-                }
+                    ...(await shapeHelper({ relation: "memberInvites", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
+                    ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest })),
+                    ...(await shapeHelper({ relation: "roles", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                    ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Organization", relation: "tags", data, ...rest })),
+                };
             },
             update: async ({ data, ...rest }) => ({
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
                 permissions: JSON.stringify({}), //TODO
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
-                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
-                ...(await shapeHelper({ relation: 'roles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
+                ...(await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest })),
+                ...(await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Organization", relation: "tags", data, ...rest })),
+            }),
         },
         trigger: {
             onCreated: async ({ created, prisma, userData }) => {
@@ -181,23 +178,23 @@ export const OrganizationModel: ModelLogic<{
                     await prisma.role.create({
                         data: {
                             id: uuid(),
-                            name: 'Admin',
+                            name: "Admin",
                             permissions: JSON.stringify({}), //TODO
                             members: {
                                 connect: {
                                     member_organizationid_userid_unique: {
                                         userId: userData.id,
-                                        organizationId
-                                    }
-                                }
+                                        organizationId,
+                                    },
+                                },
                             },
                             organizationId,
-                        }
+                        },
                     });
                     // Handle trigger
                     // Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
                 }
-            }
+            },
         },
         yup: organizationValidation,
     },
@@ -223,12 +220,12 @@ export const OrganizationModel: ModelLogic<{
         sortBy: OrganizationSortBy,
         searchStringQuery: () => ({
             OR: [
-                'labelsOwnerWrapped',
-                'tagsWrapped',
-                'transNameWrapped',
-                'transBioWrapped'
-            ]
-        })
+                "labelsOwnerWrapped",
+                "tagsWrapped",
+                "transNameWrapped",
+                "transBioWrapped",
+            ],
+        }),
     },
     query: {
         /**
@@ -253,7 +250,7 @@ export const OrganizationModel: ModelLogic<{
          * @param name The name of the role
          * @returns Array in the same order as the ids, with either admin/owner role data or undefined
          */
-        async hasRole(prisma: PrismaType, userId: string | null | undefined, organizationIds: (string | null | undefined)[], name: string = 'Admin'): Promise<Array<role | undefined>> {
+        async hasRole(prisma: PrismaType, userId: string | null | undefined, organizationIds: (string | null | undefined)[], name = "Admin"): Promise<Array<role | undefined>> {
             if (organizationIds.length === 0) return [];
             if (!exists(userId)) return organizationIds.map(() => undefined);
             // Take out nulls
@@ -263,8 +260,8 @@ export const OrganizationModel: ModelLogic<{
                 where: {
                     name,
                     organization: { id: { in: idsToQuery } },
-                    members: { some: { user: { id: userId } } }
-                }
+                    members: { some: { user: { id: userId } } },
+                },
             });
             // Create an array of the same length as the input, with the role data or undefined
             return organizationIds.map(id => roles.find(({ organizationId }) => organizationId === id));
@@ -283,17 +280,17 @@ export const OrganizationModel: ModelLogic<{
                         { organizationId },
                         { isAdmin: true },
                         { userId: { not: excludeUserId ?? undefined } },
-                    ]
+                    ],
                 },
                 select: {
                     user: {
                         select: {
                             id: true,
-                            languages: { select: { language: true } }
+                            languages: { select: { language: true } },
                         },
-                    }
-                }
-            })
+                    },
+                },
+            });
             const result: { id: string, languages: string[] }[] = [];
             admins.forEach(({ user }) => {
                 result.push({
@@ -327,9 +324,9 @@ export const OrganizationModel: ModelLogic<{
                     where: {
                         members: {
                             some: {
-                                userId
+                                userId,
                             },
-                        }
+                        },
                     },
                     select: {
                         id: true,
@@ -346,7 +343,7 @@ export const OrganizationModel: ModelLogic<{
                         permissions: true,
                         userId: true,
                     },
-                }
+                },
             } : {}),
         }),
         visibility: {
@@ -355,4 +352,4 @@ export const OrganizationModel: ModelLogic<{
             owner: (userId) => OrganizationModel.query.hasRoleQuery(userId),
         },
     },
-})
+});

@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { FindByIdInput, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum TagSortBy {
@@ -102,9 +102,9 @@ export const typeDef = gql`
         tagCreate(input: TagCreateInput!): Tag!
         tagUpdate(input: TagUpdateInput!): Tag!
     }
-`
+`;
 
-const objectType = 'Tag';
+const objectType = "Tag";
 export const resolvers: {
     TagSortBy: typeof TagSortBy;
     Query: {
@@ -120,21 +120,21 @@ export const resolvers: {
     Query: {
         tag: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         tags: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         tagCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         tagUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

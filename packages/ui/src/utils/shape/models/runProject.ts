@@ -1,4 +1,4 @@
-import { RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@shared/consts";
+import { RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

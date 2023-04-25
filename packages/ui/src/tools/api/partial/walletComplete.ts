@@ -1,6 +1,6 @@
-import { WalletComplete } from "@shared/consts";
-import { rel } from "../utils";
+import { WalletComplete } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const walletComplete: GqlPartial<WalletComplete> = {
     __typename: 'WalletComplete',

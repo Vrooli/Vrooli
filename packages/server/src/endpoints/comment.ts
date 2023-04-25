@@ -1,10 +1,10 @@
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CommentModel } from '../models';
-import { CreateOneResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { resolveUnion } from './resolvers';
+import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CommentModel } from "../models";
+import { CreateOneResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum CommentFor {
@@ -138,9 +138,9 @@ export const typeDef = gql`
         commentCreate(input: CommentCreateInput!): Comment!
         commentUpdate(input: CommentUpdateInput!): Comment!
     }
-`
+`;
 
-const objectType = 'Comment';
+const objectType = "Comment";
 export const resolvers: {
     CommentFor: typeof CommentFor;
     CommentSortBy: typeof CommentSortBy;
@@ -156,11 +156,11 @@ export const resolvers: {
 } = {
     CommentFor,
     CommentSortBy,
-    CommentedOn: { __resolveType(obj) { return resolveUnion(obj) } },
+    CommentedOn: { __resolveType(obj) { return resolveUnion(obj); } },
     Query: {
         comment: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         comments: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
@@ -170,11 +170,11 @@ export const resolvers: {
     Mutation: {
         commentCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         commentUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

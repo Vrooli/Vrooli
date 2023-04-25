@@ -1,7 +1,7 @@
-import { FormSchema, YupSchema, YupType } from "../types";
-import { buildYup } from 'schema-to-yup';
+import { InputType } from "@local/shared";
 import { FormikConfig } from "formik";
-import { InputType } from "@shared/consts";
+import { buildYup } from "schema-to-yup";
+import { FormSchema, YupSchema, YupType } from "../types";
 
 /**
  * Maps input types to their yup types. 
@@ -10,14 +10,14 @@ import { InputType } from "@shared/consts";
  */
 export const InputToYupType: { [key in InputType]?: YupType } = {
     // [InputType.Checkbox]: 'array', //TODO
-    [InputType.JSON]: 'string',
-    [InputType.IntegerInput]: 'number',
-    [InputType.Markdown]: 'string',
-    [InputType.Radio]: 'string',
-    [InputType.Selector]: 'string',
-    [InputType.Slider]: 'number',
-    [InputType.Switch]: 'boolean',
-    [InputType.TextField]: 'string',
+    [InputType.JSON]: "string",
+    [InputType.IntegerInput]: "number",
+    [InputType.Markdown]: "string",
+    [InputType.Radio]: "string",
+    [InputType.Selector]: "string",
+    [InputType.Slider]: "number",
+    [InputType.Switch]: "boolean",
+    [InputType.TextField]: "string",
 };
 
 /**
@@ -26,31 +26,31 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): FormikConfig<any>['validationSchema'] => {
+export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): FormikConfig<any>["validationSchema"] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
-        title: 'validationSchema',
-        type: 'object',
+        title: "validationSchema",
+        type: "object",
         required: [], // Name of every field that is required
-        properties: {}
-    }
+        properties: {},
+    };
     // Create config object for yup builder. Currently only used for error messages
-    const config = { errMessages: {} }
+    const config = { errMessages: {} };
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
         const name = field.fieldName;
         // Field will only be validated if it has a yup schema, and it is a valid input type
         if (field.yup && InputToYupType[field.type]) {
             // Add field to properties
-            shape.properties[name] = { type: InputToYupType[field.type] }
+            shape.properties[name] = { type: InputToYupType[field.type] };
             // Set up required and error messages
-            config.errMessages[name] = {}
+            config.errMessages[name] = {};
             if (field.yup.required) {
                 shape.properties[name].required = true;
                 shape.required.push(name);
-                config.errMessages[name].required = `${field.label} is required`
-                config.errMessages[name].string = `${field.label} is required`
+                config.errMessages[name].required = `${field.label} is required`;
+                config.errMessages[name].string = `${field.label} is required`;
             }
             else {
                 shape.properties[name].required = false;
@@ -59,12 +59,12 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): Formi
             // Add additional validation checks
             if (Array.isArray(field.yup.checks)) {
                 field.yup.checks.forEach(check => {
-                    shape.properties[name][check.key] = check.value
-                    if (check.error) { config.errMessages[name][check.key] = check.error }
-                })
+                    shape.properties[name][check.key] = check.value;
+                    if (check.error) { config.errMessages[name][check.key] = check.error; }
+                });
             }
         }
-    })
+    });
     // Build yup using newly-created shape and config
     const yup = buildYup(shape, config);
     return yup;
@@ -113,4 +113,4 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): Formi
     //         },
     //     },
     // })
-}
+};

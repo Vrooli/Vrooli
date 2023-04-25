@@ -1,9 +1,9 @@
-import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@shared/consts";
+import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { standardVersionUpdate } from "api/generated/endpoints/standardVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
+import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { StandardUpsertProps } from "../types";
 
 export const StandardUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -27,7 +27,7 @@ export const StandardUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<StandardVersion, FindVersionInput>(standardVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
@@ -42,7 +42,7 @@ export const StandardUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateStandard' : 'UpdateStandard',
+                    titleKey: isCreate ? "CreateStandard" : "UpdateStandard",
                 }}
             />
             <Formik
@@ -50,15 +50,15 @@ export const StandardUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
                         mutation,
                         input: transformStandardValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateStandardValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const StandardUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

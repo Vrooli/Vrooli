@@ -1,11 +1,11 @@
-import { Box, keyframes } from '@mui/material';
-import Blob1 from 'assets/img/blob1.svg';
-import Blob2 from 'assets/img/blob2.svg';
+import { Box, keyframes } from "@mui/material";
+import Blob1 from "assets/img/blob1.svg";
+import Blob2 from "assets/img/blob2.svg";
 import Particles from "react-tsparticles";
-import { SlideContainer } from '../SlideContainer/SlideContainer';
-import { SlideContainerNeonProps } from '../types';
+import { SlideContainer } from "../SlideContainer/SlideContainer";
+import { SlideContainerNeonProps } from "../types";
 
-const blackRadial = 'radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)'
+const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";
 
 // Animation for blob1
 // Moves up and grows, then moves down to the right and shrinks.
@@ -64,18 +64,18 @@ export const SlideContainerNeon = ({
             sx={{
                 // Set background and color
                 background: blackRadial,
-                backgroundAttachment: 'fixed',
-                color: 'white',
-                scrollSnapAlign: 'start',
-                ...sx
+                backgroundAttachment: "fixed",
+                color: "white",
+                scrollSnapAlign: "start",
+                ...sx,
             }}
         >
             {/* Constellation */}
             <Box sx={{
-                position: 'fixed',
-                pointerEvents: 'none',
+                position: "fixed",
+                pointerEvents: "none",
                 opacity: show === false ? 0 : 0.5,
-                transition: 'opacity 1s ease-in-out',
+                transition: "opacity 1s ease-in-out",
                 zIndex: 1,
             }}
             >
@@ -160,46 +160,46 @@ export const SlideContainerNeon = ({
             </Box>
             {/* Blob 1 */}
             <Box sx={{
-                position: 'fixed',
-                pointerEvents: 'none',
+                position: "fixed",
+                pointerEvents: "none",
                 bottom: -300,
                 left: -175,
-                width: '100%',
-                height: '100%',
+                width: "100%",
+                height: "100%",
                 zIndex: 2,
                 opacity: show === false ? 0 : 0.5,
-                transition: 'opacity 1s ease-in-out',
+                transition: "opacity 1s ease-in-out",
             }}>
                 <Box
                     component="img"
                     src={Blob1}
                     alt="Blob 1"
                     sx={{
-                        width: '100%',
-                        height: '100%',
+                        width: "100%",
+                        height: "100%",
                         animation: `${blob1Animation} 20s linear infinite`,
                     }}
                 />
             </Box>
             {/* Blob 2 */}
             <Box sx={{
-                position: 'fixed',
-                pointerEvents: 'none',
+                position: "fixed",
+                pointerEvents: "none",
                 top: -154,
                 right: -175,
-                width: '100%',
-                height: '100%',
+                width: "100%",
+                height: "100%",
                 zIndex: 2,
                 opacity: show === false ? 0 : 0.5,
-                transition: 'opacity 1s ease-in-out',
+                transition: "opacity 1s ease-in-out",
             }}>
                 <Box
                     component="img"
                     src={Blob2}
                     alt="Blob 2"
                     sx={{
-                        width: '100%',
-                        height: '100%',
+                        width: "100%",
+                        height: "100%",
                         animation: `${blob2Animation} 20s linear infinite`,
                     }}
                 />
@@ -207,4 +207,4 @@ export const SlideContainerNeon = ({
             {children}
         </SlideContainer>
     );
-}
+};

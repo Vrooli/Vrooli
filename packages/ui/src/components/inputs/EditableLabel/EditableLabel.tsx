@@ -2,18 +2,18 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
-import { EditIcon } from '@shared/icons';
-import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useFormik } from 'formik';
-import { useCallback, useEffect, useState } from 'react';
-import * as yup from 'yup';
-import { EditableLabelProps } from '../types';
+import { EditIcon } from "@local/shared";
+import { DialogContent, DialogContentText, IconButton, Stack, TextField } from "@mui/material";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useFormik } from "formik";
+import { useCallback, useEffect, useState } from "react";
+import * as yup from "yup";
+import { EditableLabelProps } from "../types";
 
-const titleId = 'editable-label-dialog-title';
-const descriptionAria = 'editable-label-dialog-description';
+const titleId = "editable-label-dialog-title";
+const descriptionAria = "editable-label-dialog-description";
 
 export const EditableLabel = ({
     canUpdate,
@@ -50,19 +50,19 @@ export const EditableLabel = ({
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
     useEffect(() => {
-        if (typeof onDialogOpen === 'function') {
+        if (typeof onDialogOpen === "function") {
             onDialogOpen(active);
         }
     }, [active, onDialogOpen]);
 
     const toggleActive = useCallback((event: any) => {
         if (!canUpdate) return;
-        setActive(!active)
+        setActive(!active);
     }, [active, canUpdate]);
 
-    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+    const handleCancel = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Don't close if formik is dirty and clicked outside
-        if (formik.dirty && reason === 'backdropClick') return;
+        if (formik.dirty && reason === "backdropClick") return;
         // Otherwise, close
         setActive(false);
         formik.resetForm();
@@ -81,9 +81,9 @@ export const EditableLabel = ({
                 <TopBar
                     display="dialog"
                     onClose={handleCancel}
-                    titleData={{ titleId, titleKey: 'EditLabel' }}
+                    titleData={{ titleId, titleKey: "EditLabel" }}
                 />
-                <DialogContent sx={{ paddingBottom: '80px' }}>
+                <DialogContent sx={{ paddingBottom: "80px" }}>
                     <DialogContentText id={descriptionAria}>
                         <TextField
                             autoFocus
@@ -112,19 +112,19 @@ export const EditableLabel = ({
             {/* Non-popup elements */}
             <Stack direction="row" spacing={0} alignItems="center" sx={{ ...(sxs?.stack ?? {}) }}>
                 {/* Label */}
-                {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
+                {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ""))}
                 {/* Edit icon */}
                 {canUpdate && (
                     <IconButton
                         id={`edit-label-icon-button-${id}`}
                         onClick={toggleActive}
                         onTouchStart={toggleActive}
-                        sx={{ color: 'inherit' }}
+                        sx={{ color: "inherit" }}
                     >
                         <EditIcon id={`edit-label-icon-${id}`} />
                     </IconButton>
                 )}
             </Stack>
         </>
-    )
+    );
 };

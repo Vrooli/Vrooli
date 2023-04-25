@@ -1,4 +1,4 @@
-import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "@shared/consts";
+import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

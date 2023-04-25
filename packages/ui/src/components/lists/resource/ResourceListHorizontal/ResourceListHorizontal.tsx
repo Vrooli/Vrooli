@@ -1,19 +1,18 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { LinkIcon } from '@shared/icons';
-import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { ResourceDialog } from 'components/dialogs/ResourceDialog/ResourceDialog';
-import { cardRoot } from 'components/lists/styles';
-import { useCallback, useMemo, useState } from 'react';
-import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
-import { updateArray } from 'utils/shape/general';
-import { ResourceCard } from '../ResourceCard/ResourceCard';
-import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/ResourceListItemContextMenu';
-import { ResourceListHorizontalProps } from '../types';
+import { Count, DeleteManyInput, LinkIcon, Resource } from "@local/shared";
+import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { deleteOneOrManyDeleteMany } from "api/generated/endpoints/deleteOneOrMany_deleteMany";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { cardRoot } from "components/lists/styles";
+import { useCallback, useMemo, useState } from "react";
+import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { updateArray } from "utils/shape/general";
+import { ResourceCard } from "../ResourceCard/ResourceCard";
+import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
+import { ResourceListHorizontalProps } from "../types";
 
 export const ResourceListHorizontal = ({
     title,
@@ -66,7 +65,7 @@ export const ResourceListHorizontal = ({
         if (mutate && resource.id) {
             mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
-                input: { ids: [resource.id], objectType: 'Resource' as any },
+                input: { ids: [resource.id], objectType: "Resource" as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
@@ -75,7 +74,7 @@ export const ResourceListHorizontal = ({
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
@@ -103,11 +102,11 @@ export const ResourceListHorizontal = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const dialog = useMemo(() => (
@@ -169,20 +168,20 @@ export const ResourceListHorizontal = ({
                             spacing={2}
                             p={1}
                             sx={{
-                                width: '100%',
-                                maxWidth: '700px',
-                                marginLeft: 'auto',
-                                marginRight: 'auto',
+                                width: "100%",
+                                maxWidth: "700px",
+                                marginLeft: "auto",
+                                marginRight: "auto",
                                 // Custom scrollbar styling
-                                overflowX: 'auto',
+                                overflowX: "auto",
                                 "&::-webkit-scrollbar": {
                                     width: 5,
                                 },
                                 "&::-webkit-scrollbar-track": {
-                                    backgroundColor: 'transparent',
+                                    backgroundColor: "transparent",
                                 },
                                 "&::-webkit-scrollbar-thumb": {
-                                    borderRadius: '100px',
+                                    borderRadius: "100px",
                                     backgroundColor: "#409590",
                                 },
                             }}>
@@ -201,7 +200,7 @@ export const ResourceListHorizontal = ({
                                             onContextMenu={openContext}
                                             onEdit={openUpdateDialog}
                                             onDelete={onDelete}
-                                            aria-owns={Boolean(selectedIndex) ? contextId : undefined}
+                                            aria-owns={selectedIndex ? contextId : undefined}
                                         />
                                     )}
                                 </Draggable>
@@ -209,11 +208,11 @@ export const ResourceListHorizontal = ({
                             {
                                 loading && (
                                     <CircularProgress sx={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        color: palette.mode === "light" ? palette.secondary.light : "white",
                                     }} />
                                 )
                             }
@@ -225,13 +224,13 @@ export const ResourceListHorizontal = ({
                                     sx={{
                                         ...cardRoot,
                                         background: palette.primary.light,
-                                        width: '120px',
-                                        minWidth: '120px',
-                                        height: '120px',
-                                        minHeight: '120px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
+                                        width: "120px",
+                                        minWidth: "120px",
+                                        height: "120px",
+                                        minHeight: "120px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
                                     }}
                                 >
                                     <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
@@ -243,5 +242,5 @@ export const ResourceListHorizontal = ({
                 </Droppable>
             </DragDropContext>
         </>
-    )
-}
+    );
+};

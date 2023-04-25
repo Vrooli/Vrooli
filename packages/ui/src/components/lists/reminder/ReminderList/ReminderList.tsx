@@ -1,17 +1,17 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { useTheme } from '@mui/material';
-import { DeleteOneInput, DeleteType, Reminder, Success } from '@shared/consts';
-import { mutationWrapper, useCustomMutation } from 'api';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
-import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ReminderUpsert } from 'views/objects/reminder';
-import { ReminderListItem } from '../ReminderListItem/ReminderListItem';
-import { ReminderListProps } from '../types';
+import { DeleteOneInput, DeleteType, Reminder, Success } from "@local/shared";
+import { useTheme } from "@mui/material";
+import { mutationWrapper, useCustomMutation } from "api";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ReminderUpsert } from "views/objects/reminder";
+import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
+import { ReminderListProps } from "../types";
 
 export const ReminderList = ({
     handleUpdate,
@@ -32,11 +32,11 @@ export const ReminderList = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const handleCreated = useCallback((reminder: Reminder) => {
@@ -66,7 +66,7 @@ export const ReminderList = ({
             mutation: deleteMutation,
             input: { id: reminder.id, objectType: DeleteType.Reminder },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName: reminder.name } }),
+            successMessage: () => ({ key: "ObjectDeleted", variables: { objectName: reminder.name } }),
             onSuccess: () => {
                 const newList = [...allReminders];
                 newList.splice(index, 1);
@@ -74,8 +74,8 @@ export const ReminderList = ({
                 handleUpdate && handleUpdate(newList);
                 closeDialog();
             },
-            errorMessage: () => ({ key: 'FailedToDelete' }),
-        })
+            errorMessage: () => ({ key: "FailedToDelete" }),
+        });
     }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
 
     return (
@@ -85,7 +85,7 @@ export const ReminderList = ({
                 id="reminder-dialog"
                 onClose={closeDialog}
                 isOpen={isDialogOpen}
-                titleId={''}
+                titleId={""}
                 zIndex={zIndex + 1}
             >
                 <ReminderUpsert
@@ -102,7 +102,7 @@ export const ReminderList = ({
             {/* List */}
             <TitleContainer
                 titleKey="ToDo"
-                options={[['Create', openDialog]]}
+                options={[["Create", openDialog]]}
             >
                 {/* Existing reminders */}
                 {reminders.map((reminder, index) => (
@@ -117,5 +117,5 @@ export const ReminderList = ({
                 ))}
             </TitleContainer>
         </>
-    )
-}
+    );
+};

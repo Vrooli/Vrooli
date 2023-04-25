@@ -1,4 +1,4 @@
-import { Email } from "@shared/consts";
+import { Email } from "@local/shared";
 
 export interface EmailListProps {
     handleUpdate: (emails: Email[]) => void;

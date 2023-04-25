@@ -1,4 +1,4 @@
-import { Note, NoteCreateInput, NoteUpdateInput } from "@shared/consts";
+import { Note, NoteCreateInput, NoteUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { NoteVersionShape, shapeNoteVersion } from "./noteVersion";

@@ -1,9 +1,5 @@
+import { CloseIcon, DUMMY_ID, exists, nodeRoutineListItemValidation, OpenInNewIcon, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { ResourceList, Session } from "@shared/consts";
-import { CloseIcon, OpenInNewIcon } from "@shared/icons";
-import { exists, orDefault } from "@shared/utils";
-import { DUMMY_ID, uuid } from "@shared/uuid";
-import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableText } from "components/containers/EditableText/EditableText";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";

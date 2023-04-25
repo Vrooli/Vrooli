@@ -1,6 +1,5 @@
+import { MaxObjects, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, tagValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput } from "@shared/consts";
-import { tagValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, translationShapeHelper } from "../utils";

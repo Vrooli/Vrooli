@@ -1,8 +1,5 @@
+import { DUMMY_ID, nodeTranslationValidation, NodeType, nodeValidation, orDefault, RoutineVersion, Session, uuid } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
-import { NodeType, RoutineVersion, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID, uuid } from "@shared/uuid";
-import { nodeTranslationValidation, nodeValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";

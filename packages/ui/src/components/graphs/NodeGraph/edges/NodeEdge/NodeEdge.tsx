@@ -1,10 +1,10 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useMemo } from 'react';
-import { calculateNodeSize } from '../../nodes';
-import { BaseEdge } from '../BaseEdge/BaseEdge';
-import { NodeEdgeProps } from '../types';
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useCallback, useMemo } from "react";
+import { calculateNodeSize } from "../../nodes";
+import { BaseEdge } from "../BaseEdge/BaseEdge";
+import { NodeEdgeProps } from "../types";
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -58,10 +58,10 @@ export const NodeEdge = ({
                         id="insert-node-on-edge-button"
                         background={palette.secondary.main}
                         size="small"
-                        onClick={() => { handleAdd(link) }}
+                        onClick={() => { handleAdd(link); }}
                         aria-label='Insert node on edge'
                     >
-                        <AddIcon id="insert-node-on-edge-button-icon" fill={'white'} />
+                        <AddIcon id="insert-node-on-edge-button-icon" fill={"white"} />
                     </ColorIconButton>
                 </Tooltip>
                 {/* Insert Branch */}
@@ -70,7 +70,7 @@ export const NodeEdge = ({
                         id="insert-branch-on-edge-button"
                         background="#248791"
                         size="small"
-                        onClick={() => { handleBranch(link) }}
+                        onClick={() => { handleBranch(link); }}
                         aria-label='Insert branch on edge'
                     >
                         <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
@@ -85,7 +85,7 @@ export const NodeEdge = ({
                         onClick={handleEditClick}
                         aria-label='Edit link'
                     >
-                        <EditIcon id="insert-node-on-edge-button-icon" fill={'white'} />
+                        <EditIcon id="insert-node-on-edge-button-icon" fill={"white"} />
                     </ColorIconButton>
                 </Tooltip>
                 {/* Delete link */}
@@ -94,7 +94,7 @@ export const NodeEdge = ({
                         id="delete-link-on-edge-button"
                         background={palette.error.main}
                         size="small"
-                        onClick={() => { handleDelete(link) }}
+                        onClick={() => { handleDelete(link); }}
                         aria-label='Delete link button'
                     >
                         <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
@@ -113,5 +113,5 @@ export const NodeEdge = ({
         thiccness={thiccness}
         timeBetweenDraws={fastUpdate ? 15 : 1000}
         toId={`node-${link.to.id}`}
-    />
-}
+    />;
+};

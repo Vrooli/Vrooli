@@ -1,5 +1,5 @@
+import { ScheduleIcon } from "@local/shared";
 import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
-import { ScheduleIcon } from "@shared/icons";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
@@ -60,7 +60,7 @@ export const DateDisplay = ({
                     cursor: 'pointer',
                 }}
             >
-                {showIcon && <ScheduleIcon fill={palette.background.textPrimary}/>}
+                {showIcon && <ScheduleIcon fill={palette.background.textPrimary} />}
                 {`${textBeforeDate} ${displayDate(timestamp, false)}`}
             </Box>
         </>

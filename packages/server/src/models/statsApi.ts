@@ -1,5 +1,5 @@
+import { StatsApi, StatsApiSearchInput, StatsApiSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { StatsApi, StatsApiSearchInput, StatsApiSortBy } from "@shared/consts";
 import i18next from "i18next";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

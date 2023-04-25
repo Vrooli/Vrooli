@@ -1,8 +1,8 @@
-import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus, PaymentType } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper, readOneHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
+import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus, PaymentType } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { FindManyResult, FindOneResult, GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum PaymentSortBy {
@@ -73,9 +73,9 @@ export const typeDef = gql`
         payment(input: FindByIdInput!): Payment
         payments(input: PaymentSearchInput!): PaymentSearchResult!
     }
-`
+`;
 
-const objectType = 'Payment';
+const objectType = "Payment";
 export const resolvers: {
     PaymentSortBy: typeof PaymentSortBy;
     PaymentStatus: typeof PaymentStatus;
@@ -91,11 +91,11 @@ export const resolvers: {
     Query: {
         payment: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         payments: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
-}
+};

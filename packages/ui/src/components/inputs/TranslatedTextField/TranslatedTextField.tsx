@@ -1,14 +1,14 @@
-import { TextField } from '@mui/material';
-import { useField } from 'formik';
-import { getTranslationData, handleTranslationChange } from 'utils/display/translationTools';
-import { TranslatedTextFieldProps } from '../types';
+import { TextField } from "@mui/material";
+import { useField } from "formik";
+import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
+import { TranslatedTextFieldProps } from "../types";
 
 export const TranslatedTextField = ({
     language,
     name,
     ...props
 }: TranslatedTextFieldProps) => {
-    const [field, meta, helpers] = useField('translations');
+    const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
     const handleBlur = (event) => {
@@ -24,7 +24,7 @@ export const TranslatedTextField = ({
             {...props}
             id={name}
             name={name}
-            value={value?.[name] || ''}
+            value={value?.[name] || ""}
             error={touched?.[name] && Boolean(error?.[name])}
             helperText={touched?.[name] && error?.[name]}
             onBlur={handleBlur}

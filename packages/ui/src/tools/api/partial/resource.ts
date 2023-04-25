@@ -1,6 +1,6 @@
-import { Resource, ResourceTranslation } from "@shared/consts";
-import { rel } from "../utils";
+import { Resource, ResourceTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const resourceTranslation: GqlPartial<ResourceTranslation> = {
     __typename: 'ResourceTranslation',

@@ -1,3 +1,4 @@
+import { CloseIcon, name as nameValidation, reqErr, Routine } from "@local/shared";
 import {
     Box,
     Checkbox,
@@ -8,22 +9,19 @@ import {
     Tooltip,
     Typography,
     useTheme
-} from '@mui/material';
-import { Routine } from '@shared/consts';
-import { CloseIcon } from '@shared/icons';
-import { name as nameValidation, reqErr } from '@shared/validation';
-import { EditableLabel } from 'components/inputs/EditableLabel/EditableLabel';
-import { CSSProperties, useCallback, useMemo, useState } from 'react';
-import { multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction } from 'utils/consts';
-import { getDisplay } from 'utils/display/listTools';
-import { firstString } from 'utils/display/stringTools';
-import { updateTranslationFields } from 'utils/display/translationTools';
-import usePress from 'utils/hooks/usePress';
-import { calculateNodeSize } from '..';
-import { NodeContextMenu } from '../../NodeContextMenu/NodeContextMenu';
-import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from '../styles';
-import { SubroutineNodeProps } from '../types';
+} from "@mui/material";
+import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
+import { CSSProperties, useCallback, useMemo, useState } from "react";
+import { multiLineEllipsis, noSelect, textShadow } from "styles";
+import { BuildAction } from "utils/consts";
+import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
+import { updateTranslationFields } from "utils/display/translationTools";
+import usePress from "utils/hooks/usePress";
+import { calculateNodeSize } from "..";
+import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
+import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from "../styles";
+import { SubroutineNodeProps } from "../types";
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -31,8 +29,8 @@ import { SubroutineNodeProps } from '../types';
  */
 const shouldOpen = (id: string | null | undefined): boolean => {
     // Only collapse if clicked on name bar or name
-    return Boolean(id && (id.startsWith('subroutine-name-')));
-}
+    return Boolean(id && (id.startsWith("subroutine-name-")));
+};
 
 export const SubroutineNode = ({
     data,
@@ -62,9 +60,9 @@ export const SubroutineNode = ({
     }, [data.id, handleAction]);
     const openSubroutine = useCallback((target: EventTarget) => {
         if (!shouldOpen(target.id)) return;
-        onAction(null, BuildAction.OpenSubroutine)
+        onAction(null, BuildAction.OpenSubroutine);
     }, [onAction]);
-    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
+    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
@@ -94,24 +92,24 @@ export const SubroutineNode = ({
                             ...noSelect,
                             ...textShadow,
                             ...multiLineEllipsis(1),
-                            textAlign: 'center',
-                            width: '100%',
-                            lineBreak: 'anywhere' as any,
-                            whiteSpace: 'pre' as any,
+                            textAlign: "center",
+                            width: "100%",
+                            lineBreak: "anywhere" as any,
+                            whiteSpace: "pre" as any,
                         } as CSSProperties}
-                    >{firstString(t, 'Untitled')}</Typography>
+                    >{firstString(t, "Untitled")}</Typography>
                 )}
                 sxs={{
                     stack: {
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                    },
                 }}
                 text={title}
                 validationSchema={nameValidation.required(reqErr)}
                 zIndex={zIndex}
             />
-        )
+        );
     }, [labelVisible, isEditing, handleLabelUpdate, title, zIndex, data.id]);
 
     // Right click context menu
@@ -121,9 +119,9 @@ export const SubroutineNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not editing
         if (!isEditing) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [isEditing]);
-    const closeContext = useCallback(() => { setContextAnchor(null) }, []);
+    const closeContext = useCallback(() => { setContextAnchor(null); }, []);
     const pressEvents = usePress({
         onLongPress: openContext,
         onClick: openSubroutine,
@@ -141,19 +139,19 @@ export const SubroutineNode = ({
                         [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
                 }
                 handleClose={closeContext}
-                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine) }}
+                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }}
                 zIndex={zIndex + 1}
             />
             <Box
                 sx={{
                     boxShadow: 12,
                     minWidth: nodeSize,
-                    fontSize: fontSize,
-                    position: 'relative',
-                    display: 'block',
-                    marginBottom: '8px',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
+                    fontSize,
+                    position: "relative",
+                    display: "block",
+                    marginBottom: "8px",
+                    borderRadius: "12px",
+                    overflow: "hidden",
                     backgroundColor: palette.background.paper,
                     color: palette.background.textPrimary,
                 }}
@@ -163,18 +161,18 @@ export const SubroutineNode = ({
                     {...pressEvents}
                     aria-owns={contextOpen ? contextId : undefined}
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: "flex",
+                        alignItems: "center",
                         backgroundColor: canUpdate ?
-                            (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) :
-                            '#667899',
-                        color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
-                        padding: '0.1em',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        '&:hover': {
-                            filter: `brightness(120%)`,
-                            transition: 'filter 0.2s',
+                            (palette.mode === "light" ? palette.primary.dark : palette.secondary.dark) :
+                            "#667899",
+                        color: palette.mode === "light" ? palette.primary.contrastText : palette.secondary.contrastText,
+                        padding: "0.1em",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        "&:hover": {
+                            filter: "brightness(120%)",
+                            transition: "filter 0.2s",
                         },
                     }}
                 >
@@ -191,7 +189,7 @@ export const SubroutineNode = ({
                     )}
                 </Container>
                 <Stack direction="row" justifyContent="space-between" borderRadius={0} sx={{ ...noSelect }}>
-                    <Tooltip placement={'top'} title='Routine can be skipped'>
+                    <Tooltip placement={"top"} title='Routine can be skipped'>
                         <FormControlLabel
                             disabled={!isEditing}
                             label='Optional'
@@ -202,8 +200,8 @@ export const SubroutineNode = ({
                                     name='isOptionalCheckbox'
                                     color='secondary'
                                     checked={data?.isOptional}
-                                    onChange={(_e, checked) => { onOptionalChange(checked) }}
-                                    onTouchStart={() => { onOptionalChange(!data?.isOptional) }}
+                                    onChange={(_e, checked) => { onOptionalChange(checked); }}
+                                    onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
                                     sx={{ ...routineNodeCheckboxOption }}
                                 />
                             }
@@ -214,5 +212,5 @@ export const SubroutineNode = ({
                 </Stack>
             </Box>
         </>
-    )
-}
+    );
+};

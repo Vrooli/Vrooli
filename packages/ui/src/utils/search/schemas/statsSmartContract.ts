@@ -1,4 +1,4 @@
-import { StatsSmartContractSortBy } from "@shared/consts";
+import { StatsSmartContractSortBy } from "@local/shared";
 import { statsSmartContractFindMany } from "api/generated/endpoints/statsSmartContract_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

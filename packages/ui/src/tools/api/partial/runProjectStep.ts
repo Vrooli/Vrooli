@@ -1,9 +1,9 @@
-import { RunProjectStep } from "@shared/consts";
-import { rel } from '../utils';
+import { RunProjectStep } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const runProjectStep: GqlPartial<RunProjectStep> = {
-    __typename: 'RunProjectStep',
+    __typename: "RunProjectStep",
     common: {
         id: true,
         order: true,
@@ -14,8 +14,8 @@ export const runProjectStep: GqlPartial<RunProjectStep> = {
         name: true,
         status: true,
         step: true,
-        directory: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'nav')
+        directory: async () => rel((await import("./projectVersionDirectory")).projectVersionDirectory, "nav"),
     },
     full: {},
     list: {},
-}
+};

@@ -1,4 +1,4 @@
-import { GqlModelType } from '@shared/consts';
+import { GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
@@ -37,7 +37,7 @@ import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
  * and if that membership explicitly excludes you from updating projects. Then we check if the project itself allows you to update it (is not deleted, not locked, etc). 
  * It's a lot of checks, but it's necessary to ensure that permissions are enforced correctly.
  */
-export type PermissionType = 'Create' | 'Read' | 'Update' | 'Delete' | 'Fork' | 'Report' | 'Run';
+export type PermissionType = "Create" | "Read" | "Update" | "Delete" | "Fork" | "Report" | "Run";
 
 /**
  * Permissions policy fields which are common to all policies in an organization. All related to how and how often the policy can be updated.
@@ -232,16 +232,16 @@ export async function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
-        const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        const { validate } = getLogic(["validate"], authDataById[id].__typename, userData?.languages ?? ["en"], "getMultiplePermissions");
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataById[id], userData.id), userData.id) : false;
-        const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
+        const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
+        const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id] });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
         const permissions = await Promise.all(
-            Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()])
+            Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()]),
         ).then(entries => Object.fromEntries(entries));
         // Add permissions object to result
         permissionsById[id] = permissions;
@@ -267,25 +267,25 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getSingleTypePermissions");
     // Get auth data for all objects
     let select: any;
     let authData: any = [];
     try {
-        select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']);
+        select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
         authData = await delegate(prisma).findMany({
             where: { id: { in: ids } },
             select,
-        })
+        });
     } catch (error) {
-        throw new CustomError('0388', 'InternalError', userData?.languages ?? ['en'], { ids, select, objectType: type });
+        throw new CustomError("0388", "InternalError", userData?.languages ?? ["en"], { ids, select, objectType: type });
     }
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
-        const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ['en']);
+        const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ['en']);
+        const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
@@ -323,14 +323,14 @@ export async function permissionsCheck(
             const permissions = permissionsById[id];
             // Make sure permissions exists. If not, and not create, something went wrong.
             if (!permissions) {
-                if (action !== 'Create') {
-                    throw new CustomError('0390', 'InternalError', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
+                if (action !== "Create") {
+                    throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
                 }
                 continue;
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
+                throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
             }
         }
     }

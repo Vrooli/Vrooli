@@ -1,24 +1,23 @@
-import { useQuery } from '@apollo/client';
-import { Box, List, ListItem, Typography, useTheme } from '@mui/material';
-import { Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Wrap } from 'types';
-import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
-import { NotificationsViewProps } from '../types';
+import { useQuery } from "@apollo/client";
+import { Notification, NotificationSearchInput, NotificationSearchResult, useLocation } from "@local/shared";
+import { Box, List, ListItem, Typography, useTheme } from "@mui/material";
+import { notificationFindMany } from "api/generated/endpoints/notification_findMany";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Wrap } from "types";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { NotificationsViewProps } from "../types";
 
 export const NotificationsView = ({
-    display = 'page',
+    display = "page",
 }: NotificationsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
 
-    const [searchString, setSearchString] = useState('');
-    const { data, refetch, loading, error } = useQuery<Wrap<NotificationSearchResult, 'notifications'>, Wrap<NotificationSearchInput, 'input'>>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const [searchString, setSearchString] = useState("");
+    const { data, refetch, loading, error } = useQuery<Wrap<NotificationSearchResult, "notifications">, Wrap<NotificationSearchInput, "input">>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: "all" });
     const [notifications, setNotifications] = useState<Notification[]>([]);
     useDisplayApolloError(error);
     useMemo(() => {
@@ -47,21 +46,21 @@ export const NotificationsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Notification',
+                    titleKey: "Notification",
                     titleVariables: { count: 2 },
                 }}
             />
             <Box sx={{
                 marginTop: 2,
-                maxWidth: '1000px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
+                maxWidth: "1000px",
+                marginLeft: "auto",
+                marginRight: "auto",
                 ...(hasItems ? {
                     boxShadow: 12,
                     background: palette.background.paper,
-                    borderRadius: '8px',
-                    overflow: 'overlay',
-                    display: 'block',
+                    borderRadius: "8px",
+                    overflow: "overlay",
+                    display: "block",
                 } : {}),
             }}>
                 {
@@ -73,9 +72,9 @@ export const NotificationsView = ({
                                 </ListItem>
                             ))}
                         </List>
-                    ) : (<Typography variant="h6" textAlign="center">{t(`NoResults`, { ns: 'error' })}</Typography>)
+                    ) : (<Typography variant="h6" textAlign="center">{t("NoResults", { ns: "error" })}</Typography>)
                 }
             </Box>
         </>
-    )
+    );
 };

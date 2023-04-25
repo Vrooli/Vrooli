@@ -1,14 +1,12 @@
-import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from '@shared/icons';
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { CommonKey } from '@shared/translations';
-import { SearchList } from 'components/lists/SearchList/SearchList';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { PageTabs } from 'components/PageTabs/PageTabs';
-import { PageTab } from 'components/types';
-import { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { HistoryPageTabOption, SearchType } from 'utils/search/objectToSearch';
-import { HistoryViewProps } from '../types';
+import { addSearchParams, BookmarkFilledIcon, CommonKey, parseSearchParams, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, useLocation, VisibleIcon } from "@local/shared";
+import { SearchList } from "components/lists/SearchList/SearchList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { HistoryViewProps } from "../types";
 
 
 // Tab data type
@@ -23,25 +21,25 @@ type BaseParams = {
 // Data for each tab
 const tabParams: BaseParams[] = [{
     Icon: VisibleIcon,
-    titleKey: 'View',
+    titleKey: "View",
     searchType: SearchType.View,
     tabType: HistoryPageTabOption.Viewed,
     where: {},
 }, {
     Icon: BookmarkFilledIcon,
-    titleKey: 'Bookmark',
+    titleKey: "Bookmark",
     searchType: SearchType.BookmarkList,
     tabType: HistoryPageTabOption.Bookmarked,
     where: {},
 }, {
     Icon: RoutineActiveIcon,
-    titleKey: 'Active',
+    titleKey: "Active",
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
     where: {},
 }, {
     Icon: RoutineCompleteIcon,
-    titleKey: 'Complete',
+    titleKey: "Complete",
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
     where: {},
@@ -51,7 +49,7 @@ const tabParams: BaseParams[] = [{
  * Shows items you've bookmarked, viewed, or run recently.
  */
 export const HistoryView = ({
-    display = 'page',
+    display = "page",
 }: HistoryViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -78,17 +76,17 @@ export const HistoryView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
     const { searchType, title, where } = useMemo(() => {
         // Update tab title
-        document.title = `${t(`Search`)} | ${currTab.label}`;
+        document.title = `${t("Search")} | ${currTab.label}`;
         return {
             ...tabParams[currTab.index],
             title: currTab.label,
-        }
+        };
     }, [currTab.index, currTab.label, t]);
 
     return (
@@ -116,10 +114,10 @@ export const HistoryView = ({
                 sxs={{
                     search: {
                         marginTop: 2,
-                    }
+                    },
                 }}
                 where={where}
             />}
         </>
-    )
-}
+    );
+};

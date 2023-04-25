@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from "react";
 
 // A simple deep comparison function
 function deepEqual(a: any, b: any): boolean {
     if (a === b) return true;
     if (a === null || b === null || a === undefined || b === undefined) return false;
-    if (typeof a !== 'object' || typeof b !== 'object') return false;
+    if (typeof a !== "object" || typeof b !== "object") return false;
 
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
 
     if (keysA.length !== keysB.length) return false;
 
-    for (let key of keysA) {
+    for (const key of keysA) {
         if (!keysB.includes(key)) return false;
         if (!deepEqual(a[key], b[key])) return false;
     }
@@ -33,4 +33,4 @@ export const useStableObject = <T extends object | null | undefined>(obj: T): T 
     }, [obj]);
 
     return useMemo(() => prevObjRef.current, [prevObjRef]);
-}
+};

@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
-import { SlideContainerProps } from '../types';
+import { Box } from "@mui/material";
+import { SlideContainerProps } from "../types";
 
 export const SlideContainer = ({
     id,
@@ -11,13 +11,13 @@ export const SlideContainer = ({
             id={id}
             key={id}
             sx={{
-                position: 'relative',
-                overflow: 'hidden',
-                scrollSnapAlign: 'start',
-                ...sx
+                position: "relative",
+                overflow: "hidden",
+                scrollSnapAlign: "start",
+                ...sx,
             }}
         >
             {children}
         </Box>
     );
-}
+};

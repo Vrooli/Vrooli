@@ -1,8 +1,8 @@
-import { FindByIdInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum ChatMessageSortBy {
@@ -101,9 +101,9 @@ export const typeDef = gql`
         chatMessageCreate(input: ChatMessageCreateInput!): ChatMessage!
         chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
     }
-`
+`;
 
-const objectType = 'ChatMessage';
+const objectType = "ChatMessage";
 export const resolvers: {
     // ChatMessageFor: typeof ChatMessageFor;
     // ChatMessageSortBy: typeof ChatMessageSortBy;
@@ -121,21 +121,21 @@ export const resolvers: {
     Query: {
         chatMessage: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         chatMessages: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         chatMessageCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         chatMessageUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

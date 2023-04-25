@@ -1,5 +1,5 @@
+import { StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy } from "@shared/consts";
 import i18next from "i18next";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";

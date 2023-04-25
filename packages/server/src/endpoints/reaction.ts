@@ -1,11 +1,11 @@
-import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, Success } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper } from '../actions';
-import { assertRequestFrom } from '../auth/request';
-import { rateLimit } from '../middleware';
-import { ReactionModel } from '../models';
-import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
-import { resolveUnion } from './resolvers';
+import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, Success } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper } from "../actions";
+import { assertRequestFrom } from "../auth/request";
+import { rateLimit } from "../middleware";
+import { ReactionModel } from "../models";
+import { FindManyResult, GQLEndpoint, UnionResolver } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum ReactionSortBy {
@@ -69,9 +69,9 @@ export const typeDef = gql`
     extend type Mutation {
         react(input: ReactInput!): Success!
     }
-`
+`;
 
-const objectType = 'Reaction';
+const objectType = "Reaction";
 export const resolvers: {
     ReactionSortBy: typeof ReactionSortBy,
     ReactionFor: typeof ReactionFor,
@@ -85,7 +85,7 @@ export const resolvers: {
 } = {
     ReactionSortBy,
     ReactionFor,
-    ReactionTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    ReactionTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         reactions: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
@@ -102,7 +102,7 @@ export const resolvers: {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
             const success = await ReactionModel.react(prisma, userData, input);
-            return { __typename: 'Success', success };
+            return { __typename: "Success", success };
         },
-    }
-}
+    },
+};

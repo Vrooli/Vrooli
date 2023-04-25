@@ -1,4 +1,4 @@
-import { NoteSortBy } from "@shared/consts";
+import { NoteSortBy } from "@local/shared";
 import { noteFindMany } from "api/generated/endpoints/note_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

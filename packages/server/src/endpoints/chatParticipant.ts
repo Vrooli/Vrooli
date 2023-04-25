@@ -1,8 +1,8 @@
-import { FindByIdInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum ChatParticipantSortBy {
@@ -58,9 +58,9 @@ export const typeDef = gql`
     extend type Mutation {
         chatParticipantUpdate(input: ChatParticipantUpdateInput!): ChatParticipant!
     }
-`
+`;
 
-const objectType = 'ChatParticipant';
+const objectType = "ChatParticipant";
 export const resolvers: {
     // ChatParticipantSortBy: typeof ChatParticipantSortBy;
     Query: {
@@ -75,17 +75,17 @@ export const resolvers: {
     Query: {
         chatParticipant: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         chatParticipants: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         chatParticipantUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

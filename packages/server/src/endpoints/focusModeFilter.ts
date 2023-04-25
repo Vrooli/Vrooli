@@ -1,5 +1,5 @@
-import { FocusModeFilterType } from '@shared/consts';
-import { gql } from 'apollo-server-express';
+import { FocusModeFilterType } from "@local/shared";
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     enum FocusModeFilterType {
@@ -21,10 +21,10 @@ export const typeDef = gql`
         focusMode: FocusMode!
         tag: Tag!
     }
-`
+`;
 
 export const resolvers: {
     FocusModeFilterType: typeof FocusModeFilterType;
 } = {
     FocusModeFilterType,
-}
+};

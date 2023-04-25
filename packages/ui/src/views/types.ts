@@ -1,4 +1,4 @@
-import { RoutineVersion } from "@shared/consts";
+import { RoutineVersion } from "@local/shared";
 import React from "react";
 import { ViewProps } from "./objects/types";
 

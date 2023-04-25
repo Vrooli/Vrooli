@@ -11,7 +11,7 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from '@shared/consts';
+import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
@@ -23,12 +23,12 @@ import { QueryAction } from "../utils/types";
 const checkObjectLimitNumber = (
     count: number,
     limit: number,
-    languages: string[]
+    languages: string[],
 ): void => {
     if (count > limit) {
-        throw new CustomError('0352', 'MaxObjectsReached', languages);
+        throw new CustomError("0352", "MaxObjectsReached", languages);
     }
-}
+};
 
 
 /**
@@ -38,11 +38,11 @@ const checkObjectLimitPremium = (
     count: number,
     hasPremium: boolean,
     limit: ObjectLimitPremium,
-    languages: string[]
+    languages: string[],
 ): void => {
     if (hasPremium) checkObjectLimitNumber(count, limit.premium, languages);
     else checkObjectLimitNumber(count, limit.noPremium, languages);
-}
+};
 
 /**
  * Helper function to check if a count exceeds a public/private limit
@@ -52,40 +52,40 @@ const checkObjectLimitPrivacy = (
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimitPrivacy,
-    languages: string[]
+    languages: string[],
 ): void => {
     if (isPrivate) {
-        if (typeof limit.private === 'number') checkObjectLimitNumber(count, limit.private, languages);
+        if (typeof limit.private === "number") checkObjectLimitNumber(count, limit.private, languages);
         else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium, languages);
     }
     else {
-        if (typeof limit.public === 'number') checkObjectLimitNumber(count, limit.public, languages);
+        if (typeof limit.public === "number") checkObjectLimitNumber(count, limit.public, languages);
         else checkObjectLimitPremium(count, hasPremium, limit.public as ObjectLimitPremium, languages);
     }
-}
+};
 
 /**
  * Helper function to check if a count exceeds an Organization/User limit
  */
 const checkObjectLimitOwner = (
     count: number,
-    ownerType: 'User' | 'Organization',
+    ownerType: "User" | "Organization",
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimitOwner,
-    languages: string[]
+    languages: string[],
 ): void => {
-    if (ownerType === 'User') {
-        if (typeof limit.User === 'number') checkObjectLimitNumber(count, limit.User, languages);
+    if (ownerType === "User") {
+        if (typeof limit.User === "number") checkObjectLimitNumber(count, limit.User, languages);
         else if (typeof (limit.User as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.User as ObjectLimitPremium, languages);
         else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.User as ObjectLimitPrivacy, languages);
     }
     else {
-        if (typeof limit.Organization === 'number') checkObjectLimitNumber(count, limit.Organization, languages);
+        if (typeof limit.Organization === "number") checkObjectLimitNumber(count, limit.Organization, languages);
         else if (typeof (limit.Organization as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Organization as ObjectLimitPremium, languages);
         else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.Organization as ObjectLimitPrivacy, languages);
     }
-}
+};
 
 /**
  * Helper function to check if a count exceeds the limit
@@ -99,17 +99,17 @@ const checkObjectLimitOwner = (
  */
 const checkObjectLimit = (
     count: number,
-    ownerType: 'User' | 'Organization',
+    ownerType: "User" | "Organization",
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimit,
     languages: string[],
 ): void => {
-    if (typeof limit === 'number') checkObjectLimitNumber(count, limit, languages);
+    if (typeof limit === "number") checkObjectLimitNumber(count, limit, languages);
     else if (typeof (limit as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit as ObjectLimitPremium, languages);
     else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit as ObjectLimitPrivacy, languages);
     else checkObjectLimitOwner(count, ownerType, hasPremium, isPrivate, limit as ObjectLimitOwner, languages);
-}
+};
 
 // TODO Would be nice if we could check max number of relations for an object, not just the absolute number of the object. 
 // For example, we could limit the versions on a root object
@@ -129,26 +129,26 @@ export async function maxObjectsCheck(
     userData: SessionUserToken,
 ) {
     // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
-    const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {}
+    const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
             // Get auth data
-            const authData = authDataById[id]
+            const authData = authDataById[id];
             // Get validator
-            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-create')
+            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-create");
             // Find owner and object type
             const owners = validate.owner(authData, userData.id);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError('0310', 'InternalError', userData.languages);
+            if (!ownerId) throw new CustomError("0310", "InternalError", userData.languages);
             // Initialize shape of counts for this owner
-            counts[authData.__typename] = counts[authData.__typename] || {}
-            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
+            counts[authData.__typename] = counts[authData.__typename] || {};
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
             const isPublic = validate.isPublic(authData, userData.languages);
             // Increment count
-            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']++;
+            counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]++;
         }
     }
     // Ignore count for updates, as that doesn't change the total number of objects
@@ -156,28 +156,28 @@ export async function maxObjectsCheck(
     if (idsByAction.Delete) {
         for (const id of idsByAction.Delete) {
             // Get auth data
-            const authData = authDataById[id]
+            const authData = authDataById[id];
             // Get validator
-            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-delete')
+            const { validate } = getLogic(["validate"], authData.__typename, userData.languages, "maxObjectsCheck-delete");
             // Find owner and object type
             const owners = validate.owner(authData, userData.id);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError('0311', 'InternalError', userData.languages);
+            if (!ownerId) throw new CustomError("0311", "InternalError", userData.languages);
             // Initialize shape of counts for this owner
-            counts[authData.__typename] = counts[authData.__typename] || {}
-            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
+            counts[authData.__typename] = counts[authData.__typename] || {};
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
             const isPublic = validate.isPublic(authData, userData.languages);
             // Decrement count
-            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']--;
+            counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }
     }
     // Add counts for all existing objects, then check if any limits will be exceeded
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const { delegate, validate } = getLogic(['delegate', 'validate'], objectType as GqlModelType, userData.languages, 'maxObjectsCheck-existing');
+        const { delegate, validate } = getLogic(["delegate", "validate"], objectType as GqlModelType, userData.languages, "maxObjectsCheck-existing");
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
@@ -188,7 +188,7 @@ export async function maxObjectsCheck(
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
             const maxObjects = validate.maxObjects;
-            const ownerType = userData.id === ownerId ? 'User' : 'Organization';
+            const ownerType = userData.id === ownerId ? "User" : "Organization";
             const hasPremium = userData.hasPremium;
             checkObjectLimit(currCountPrivate, ownerType, hasPremium, true, maxObjects, userData.languages);
             checkObjectLimit(currCountPublic, ownerType, hasPremium, false, maxObjects, userData.languages);

@@ -1,13 +1,13 @@
-import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { PushListItemProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback } from 'react';
-import { DeleteIcon } from '@shared/icons';
+import { DeleteIcon } from "@local/shared";
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { useCallback } from "react";
+import { multiLineEllipsis } from "styles";
+import { PushListItemProps } from "../types";
 
 const Status = {
-    NotVerified: '#a71c2d', // Red
-    Verified: '#19972b', // Green
-}
+    NotVerified: "#a71c2d", // Red
+    Verified: "#19972b", // Green
+};
 
 //  TODO copied from emaillistitem. need to rewrite
 export function PushListItem({
@@ -26,12 +26,12 @@ export function PushListItem({
         <ListItem
             disablePadding
             sx={{
-                display: 'flex',
+                display: "flex",
                 padding: 1,
             }}
         >
             {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: 'auto' }}>
+            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
                 <ListItemText
                     primary={data.name ?? data.id}
                     sx={{ ...multiLineEllipsis(1) }}
@@ -63,5 +63,5 @@ export function PushListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

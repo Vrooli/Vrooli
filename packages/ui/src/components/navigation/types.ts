@@ -1,5 +1,5 @@
-import { OptionalTranslation } from 'types';
-import { ViewDisplayType } from 'views/types';
+import { OptionalTranslation } from "types";
+import { ViewDisplayType } from "views/types";
 
 export interface ContactInfoProps {
     sx?: { [key: string]: any };
@@ -12,7 +12,7 @@ export type NavbarProps = {
     shouldHideTitle?: boolean;
 }
 
-export type NavbarLogoState = 'full' | 'icon' | 'none';
+export type NavbarLogoState = "full" | "icon" | "none";
 export interface NavbarLogoProps {
     onClick: () => void;
     state: NavbarLogoState;
@@ -23,7 +23,7 @@ export interface HideOnScrollProps {
     children: JSX.Element;
 }
 
-export interface SettingsTopBarProps extends Omit<TopBarProps, 'below'> { }
+export type SettingsTopBarProps = Omit<TopBarProps, "below">
 
 export interface TopBarProps {
     display: ViewDisplayType

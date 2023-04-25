@@ -1,6 +1,6 @@
-import { ProjectOrOrganization } from "@shared/consts";
-import { rel } from "../utils";
+import { ProjectOrOrganization } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const projectOrOrganization: GqlPartial<ProjectOrOrganization> = {
     __typename: 'ProjectOrOrganization' as any,

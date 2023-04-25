@@ -1,9 +1,9 @@
-import { PullRequest, PullRequestTranslation, PullRequestYou } from "@shared/consts";
-import { rel } from '../utils';
+import { PullRequest, PullRequestTranslation, PullRequestYou } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const pullRequestYou: GqlPartial<PullRequestYou> = {
-    __typename: 'PullRequestYou',
+    __typename: "PullRequestYou",
     common: {
         canComment: true,
         canDelete: true,
@@ -12,10 +12,10 @@ export const pullRequestYou: GqlPartial<PullRequestYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
-    __typename: 'PullRequestTranslation',
+    __typename: "PullRequestTranslation",
     common: {
         id: true,
         language: true,
@@ -23,24 +23,24 @@ export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const pullRequest: GqlPartial<PullRequest> = {
-    __typename: 'PullRequest',
+    __typename: "PullRequest",
     common: {
         __define: {
-            0: async () => rel((await import('./api')).api, 'list'),
-            1: async () => rel((await import('./apiVersion')).apiVersion, 'list'),
-            2: async () => rel((await import('./note')).note, 'list'),
-            3: async () => rel((await import('./noteVersion')).noteVersion, 'list'),
-            4: async () => rel((await import('./project')).project, 'list'),
-            5: async () => rel((await import('./projectVersion')).projectVersion, 'list'),
-            6: async () => rel((await import('./routine')).routine, 'list'),
-            7: async () => rel((await import('./routineVersion')).routineVersion, 'list'),
-            8: async () => rel((await import('./smartContract')).smartContract, 'list'),
-            9: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'list'),
-            10: async () => rel((await import('./standard')).standard, 'list'),
-            11: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
+            0: async () => rel((await import("./api")).api, "list"),
+            1: async () => rel((await import("./apiVersion")).apiVersion, "list"),
+            2: async () => rel((await import("./note")).note, "list"),
+            3: async () => rel((await import("./noteVersion")).noteVersion, "list"),
+            4: async () => rel((await import("./project")).project, "list"),
+            5: async () => rel((await import("./projectVersion")).projectVersion, "list"),
+            6: async () => rel((await import("./routine")).routine, "list"),
+            7: async () => rel((await import("./routineVersion")).routineVersion, "list"),
+            8: async () => rel((await import("./smartContract")).smartContract, "list"),
+            9: async () => rel((await import("./smartContractVersion")).smartContractVersion, "list"),
+            10: async () => rel((await import("./standard")).standard, "list"),
+            11: async () => rel((await import("./standardVersion")).standardVersion, "list"),
         },
         id: true,
         created_at: true,
@@ -56,7 +56,7 @@ export const pullRequest: GqlPartial<PullRequest> = {
                 RoutineVersion: 7,
                 SmartContractVersion: 9,
                 StandardVersion: 11,
-            }
+            },
         },
         to: {
             __union: {
@@ -66,16 +66,16 @@ export const pullRequest: GqlPartial<PullRequest> = {
                 Routine: 6,
                 SmartContract: 8,
                 Standard: 10,
-            }
+            },
         },
-        createdBy: async () => rel((await import('./user')).user, 'nav'),
-        you: () => rel(pullRequestYou, 'full'),
+        createdBy: async () => rel((await import("./user")).user, "nav"),
+        you: () => rel(pullRequestYou, "full"),
     },
     full: {
-        translations: () => rel(pullRequestTranslation, 'full'),
+        translations: () => rel(pullRequestTranslation, "full"),
     },
     list: {
-        translations: () => rel(pullRequestTranslation, 'list'),
+        translations: () => rel(pullRequestTranslation, "list"),
     },
     nav: {
         id: true,
@@ -83,5 +83,5 @@ export const pullRequest: GqlPartial<PullRequest> = {
         updated_at: true,
         mergedOrRejectedAt: true,
         status: true,
-    }
-}
+    },
+};

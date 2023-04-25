@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
 import { mutationWrapper } from "api";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";

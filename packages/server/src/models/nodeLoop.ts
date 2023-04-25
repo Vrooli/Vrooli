@@ -1,6 +1,5 @@
+import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, nodeLoopValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/consts';
-import { nodeLoopValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -8,7 +7,7 @@ import { defaultPermissions } from "../utils";
 import { NodeModel } from "./node";
 import { ModelLogic } from "./types";
 
-const __typename = 'NodeLoop' as const;
+const __typename = "NodeLoop" as const;
 const suppFields = [] as const;
 export const NodeLoopModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +18,8 @@ export const NodeLoopModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.node_loopUpsertArgs['create'],
-    PrismaUpdate: Prisma.node_loopUpsertArgs['update'],
+    PrismaCreate: Prisma.node_loopUpsertArgs["create"],
+    PrismaUpdate: Prisma.node_loopUpsertArgs["update"],
     PrismaModel: Prisma.node_loopGetPayload<SelectWrap<Prisma.node_loopSelect>>,
     PrismaSelect: Prisma.node_loopSelect,
     PrismaWhere: Prisma.node_loopWhereInput,
@@ -30,17 +29,17 @@ export const NodeLoopModel: ModelLogic<{
     // Doesn't make sense to have a displayer for this model
     display: {
         select: () => ({ id: true }),
-        label: () => ''
+        label: () => "",
     },
     format: {
         gqlRelMap: {
             __typename,
-            whiles: 'NodeLoopWhile',
+            whiles: "NodeLoopWhile",
         },
         prismaRelMap: {
             __typename,
-            node: 'Node',
-            whiles: 'NodeLoopWhile',
+            node: "Node",
+            whiles: "NodeLoopWhile",
         },
         countFields: {},
     },
@@ -51,23 +50,23 @@ export const NodeLoopModel: ModelLogic<{
                 loops: noNull(data.loops),
                 maxLoops: noNull(data.maxLoops),
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
-                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
+                ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Node", parentRelationshipName: "loop", data, ...rest })),
+                ...(await shapeHelper({ relation: "whiles", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 loops: noNull(data.loops),
                 maxLoops: noNull(data.maxLoops),
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
-                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Node", parentRelationshipName: "loop", data, ...rest })),
+                ...(await shapeHelper({ relation: "whiles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest })),
+            }),
         },
         yup: nodeLoopValidation,
     },
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ node: 'Node' }),
+        permissionsSelect: () => ({ node: "Node" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => NodeModel.validate!.owner(data.node as any, userId),
         isDeleted: (data, languages) => NodeModel.validate!.isDeleted(data.node as any, languages),
@@ -76,6 +75,6 @@ export const NodeLoopModel: ModelLogic<{
             private: { node: NodeModel.validate!.visibility.private },
             public: { node: NodeModel.validate!.visibility.public },
             owner: (userId) => ({ node: NodeModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

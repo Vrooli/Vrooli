@@ -2,13 +2,13 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { AddIcon, DeleteIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useField } from 'formik';
-import { CheckboxProps } from 'forms/types';
-import { useCallback } from 'react';
-import { CheckboxStandardInputProps } from '../types';
+import { AddIcon, DeleteIcon } from "@local/shared";
+import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useField } from "formik";
+import { CheckboxProps } from "forms/types";
+import { useCallback } from "react";
+import { CheckboxStandardInputProps } from "../types";
 
 /**
  * Create new option
@@ -80,8 +80,8 @@ const CheckboxOption = ({
                     }
                     // Hide label on small screens
                     sx={{
-                        '.MuiFormControlLabel-label': {
-                            display: { xs: 'none', sm: 'block' },
+                        ".MuiFormControlLabel-label": {
+                            display: { xs: "none", sm: "block" },
                         },
                     }}
                 />
@@ -93,8 +93,8 @@ const CheckboxOption = ({
 export const CheckboxStandardInput = ({
     isEditing,
 }: CheckboxStandardInputProps) => {
-    const [defaultValueField, , defaultValueHelpers] = useField<CheckboxProps['defaultValue']>('defaultValue');
-    const [optionsField, , optionsHelpers] = useField<CheckboxProps['options']>('options');
+    const [defaultValueField, , defaultValueHelpers] = useField<CheckboxProps["defaultValue"]>("defaultValue");
+    const [optionsField, , optionsHelpers] = useField<CheckboxProps["options"]>("options");
 
     const handleOptionAdd = useCallback(() => {
         optionsHelpers.setValue([...(optionsField.value ?? [emptyCheckboxOption(0)]), emptyCheckboxOption(optionsField.value.length)]);
@@ -142,13 +142,13 @@ export const CheckboxStandardInput = ({
                         background="#6daf72"
                         sx={{
                             zIndex: 1,
-                            width: 'fit-content',
-                            margin: '5px auto !important',
-                            padding: '0',
-                            marginBottom: '16px !important',
-                            display: 'flex',
-                            alignItems: 'center',
-                            borderRadius: '100%',
+                            width: "fit-content",
+                            margin: "5px auto !important",
+                            padding: "0",
+                            marginBottom: "16px !important",
+                            display: "flex",
+                            alignItems: "center",
+                            borderRadius: "100%",
                         }}
                     >
                         <AddIcon fill='white' />
@@ -157,4 +157,4 @@ export const CheckboxStandardInput = ({
             )}
         </Stack>
     );
-}
+};

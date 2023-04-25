@@ -1,4 +1,4 @@
-import { ViewFor } from "@shared/consts";
+import { ViewFor } from "@local/shared";
 import { getUser } from "../auth";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";

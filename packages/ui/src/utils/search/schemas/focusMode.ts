@@ -1,4 +1,4 @@
-import { FocusModeSortBy } from "@shared/consts";
+import { FocusModeSortBy } from "@local/shared";
 import { focusModeFindMany } from "api/generated/endpoints/focusMode_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

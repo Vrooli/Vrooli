@@ -1,7 +1,5 @@
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from "@shared/consts";
-import { lowercaseFirstLetter } from "@shared/utils";
-import { commentValidation } from "@shared/validation";
 import { Request } from "express";
 import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";

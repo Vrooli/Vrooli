@@ -1,9 +1,9 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, MeetingInviteSortBy, MeetingInviteStatus, MeetingInvite, MeetingInviteSearchInput, MeetingInviteCreateInput, MeetingInviteUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { CustomError } from '../events';
+import { FindByIdInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteStatus, MeetingInviteUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum MeetingInviteSortBy {
@@ -87,9 +87,9 @@ export const typeDef = gql`
         meetingInviteAccept(input: FindByIdInput!): MeetingInvite!
         meetingInviteDecline(input: FindByIdInput!): MeetingInvite!
     }
-`
+`;
 
-const objectType = 'MeetingInvite';
+const objectType = "MeetingInvite";
 export const resolvers: {
     MeetingInviteSortBy: typeof MeetingInviteSortBy;
     MeetingInviteStatus: typeof MeetingInviteStatus;
@@ -109,27 +109,27 @@ export const resolvers: {
     Query: {
         meetingInvite: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         meetingInvites: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         meetingInviteCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         meetingInviteUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         meetingInviteAccept: async (_, { input }, { prisma, req }, info) => {
-            throw new CustomError('0000', 'NotImplemented', ['en']);
+            throw new CustomError("0000", "NotImplemented", ["en"]);
         },
         meetingInviteDecline: async (_, { input }, { prisma, req }, info) => {
-            throw new CustomError('0000', 'NotImplemented', ['en']);
-        }
-    }
-}
+            throw new CustomError("0000", "NotImplemented", ["en"]);
+        },
+    },
+};

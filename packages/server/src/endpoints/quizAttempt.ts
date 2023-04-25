@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, QuizSortBy, QuizAttemptStatus, QuizAttempt, QuizAttemptSearchInput, QuizAttemptCreateInput, QuizAttemptUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { FindByIdInput, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptStatus, QuizAttemptUpdateInput, QuizSortBy } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum QuizAttemptSortBy {
@@ -96,9 +96,9 @@ export const typeDef = gql`
         quizAttemptCreate(input: QuizAttemptCreateInput!): QuizAttempt!
         quizAttemptUpdate(input: QuizAttemptUpdateInput!): QuizAttempt!
     }
-`
+`;
 
-const objectType = 'QuizAttempt';
+const objectType = "QuizAttempt";
 export const resolvers: {
     QuizSortBy: typeof QuizSortBy;
     QuizAttemptStatus: typeof QuizAttemptStatus;
@@ -116,21 +116,21 @@ export const resolvers: {
     Query: {
         quizAttempt: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         quizAttempts: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         quizAttemptCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         quizAttemptUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

@@ -1,4 +1,4 @@
-import { meetsMinVersion } from "@shared/validation";
+import { meetsMinVersion } from "@local/shared";
 
 /**
 * Determines mimimum version. This is either: 

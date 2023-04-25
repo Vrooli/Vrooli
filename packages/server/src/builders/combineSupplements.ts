@@ -1,5 +1,6 @@
-import pkg from 'lodash';
+import pkg from "lodash";
 import { isRelationshipObject } from "./isRelationshipObject";
+
 const { merge } = pkg;
 
 /**
@@ -9,7 +10,7 @@ const { merge } = pkg;
  * @returns data with supplemental fields added
  */
 export const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: string]: any }) => {
-    let result: { [x: string]: any } = {};
+    const result: { [x: string]: any } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
@@ -24,5 +25,5 @@ export const combineSupplements = (data: { [x: string]: any }, objectsById: { [x
         }
     }
     // Handle base case (combining non-array and non-object values)
-    return merge(result, objectsById[data.id])
-}
+    return merge(result, objectsById[data.id]);
+};

@@ -1,9 +1,9 @@
-import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@shared/consts";
+import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
 import { organizationCreate } from "api/generated/endpoints/organization_create";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { organizationUpdate } from "api/generated/endpoints/organization_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
+import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { OrganizationUpsertProps } from "../types";
 
 export const OrganizationUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -27,7 +27,7 @@ export const OrganizationUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Organization, FindByIdInput>(organizationFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => organizationInitialValues(session, existing), [existing, session]);
@@ -42,7 +42,7 @@ export const OrganizationUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateOrganization' : 'UpdateOrganization',
+                    titleKey: isCreate ? "CreateOrganization" : "UpdateOrganization",
                 }}
             />
             <Formik
@@ -50,15 +50,15 @@ export const OrganizationUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<Organization, OrganizationCreateInput | OrganizationUpdateInput>({
                         mutation,
                         input: transformOrganizationValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateOrganizationValues(values, existing)}
             >
@@ -74,5 +74,5 @@ export const OrganizationUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

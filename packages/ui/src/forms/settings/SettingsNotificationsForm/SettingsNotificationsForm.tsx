@@ -1,5 +1,5 @@
+import { EmailIcon, PhoneIcon } from "@local/shared";
 import { Stack } from "@mui/material";
-import { EmailIcon, PhoneIcon } from "@shared/icons";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";

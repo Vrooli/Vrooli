@@ -2,13 +2,13 @@
  * Input for entering (and viewing format of) Radio data that 
  * must match a certain schema.
  */
-import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { AddIcon, DeleteIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useField } from 'formik';
-import { RadioProps } from 'forms/types';
-import { useCallback } from 'react';
-import { RadioStandardInputProps } from '../types';
+import { AddIcon, DeleteIcon } from "@local/shared";
+import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useField } from "formik";
+import { RadioProps } from "forms/types";
+import { useCallback } from "react";
+import { RadioStandardInputProps } from "../types";
 
 /**
  * Create new option
@@ -84,8 +84,8 @@ const RadioOption = ({
                     }
                     // Hide label on small screens
                     sx={{
-                        '.MuiFormControlLabel-label': {
-                            display: { xs: 'none', sm: 'block' },
+                        ".MuiFormControlLabel-label": {
+                            display: { xs: "none", sm: "block" },
                         },
                     }}
                 />
@@ -97,15 +97,15 @@ const RadioOption = ({
 export const RadioStandardInput = ({
     isEditing,
 }: RadioStandardInputProps) => {
-    const [defaultValueField, , defaultValueHelpers] = useField<RadioProps['defaultValue']>('defaultValue');
-    const [optionsField, , optionsHelpers] = useField<RadioProps['options']>('options');
+    const [defaultValueField, , defaultValueHelpers] = useField<RadioProps["defaultValue"]>("defaultValue");
+    const [optionsField, , optionsHelpers] = useField<RadioProps["options"]>("options");
     // const [rowField, , rowHelpers] = useField<RadioProps['row']>('row');
 
     const handleOptionAdd = useCallback(() => {
         const newOption = emptyRadioOption((optionsField.value ?? [emptyRadioOption(0)]).length);
         optionsHelpers.setValue([...(optionsField.value ?? [emptyRadioOption(0)]), newOption]);
         // If default value was not set before, set it to the new option
-        if (!(typeof defaultValueField.value === 'string') || defaultValueField.value.length === 0) {
+        if (!(typeof defaultValueField.value === "string") || defaultValueField.value.length === 0) {
             defaultValueHelpers.setValue(newOption.value);
         }
     }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
@@ -155,13 +155,13 @@ export const RadioStandardInput = ({
                         background="#6daf72"
                         sx={{
                             zIndex: 1,
-                            width: 'fit-content',
-                            margin: '5px auto !important',
-                            padding: '0',
-                            marginBottom: '16px !important',
-                            display: 'flex',
-                            alignItems: 'center',
-                            borderRadius: '100%',
+                            width: "fit-content",
+                            margin: "5px auto !important",
+                            padding: "0",
+                            marginBottom: "16px !important",
+                            display: "flex",
+                            alignItems: "center",
+                            borderRadius: "100%",
                         }}
                     >
                         <AddIcon fill="white" />
@@ -170,4 +170,4 @@ export const RadioStandardInput = ({
             )}
         </Stack>
     );
-}
+};

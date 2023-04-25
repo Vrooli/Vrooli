@@ -1,10 +1,9 @@
-import { Box, ListItemText, Stack, useTheme } from '@mui/material';
-import { ReportIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
-import { useCallback, useMemo } from 'react';
-import { multiLineEllipsis } from 'styles';
-import { getObjectReportUrl } from 'utils/navigation/openObject';
-import { ReportsButtonProps } from '../types';
+import { ReportIcon, useLocation } from "@local/shared";
+import { Box, ListItemText, Stack, useTheme } from "@mui/material";
+import { useCallback, useMemo } from "react";
+import { multiLineEllipsis } from "styles";
+import { getObjectReportUrl } from "utils/navigation/openObject";
+import { ReportsButtonProps } from "../types";
 
 export const ReportsButton = ({
     reportsCount = 0,
@@ -13,7 +12,7 @@ export const ReportsButton = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const link = useMemo(() => object ? getObjectReportUrl(object) : '', [object]);
+    const link = useMemo(() => object ? getObjectReportUrl(object) : "", [object]);
     const handleClick = useCallback((event: any) => {
         // Stop propagation to prevent list item from being selected
         event.stopPropagation();
@@ -29,7 +28,7 @@ export const ReportsButton = ({
             spacing={0.5}
             sx={{
                 marginRight: 0,
-                pointerEvents: 'none',
+                pointerEvents: "none",
             }}
         >
             <Box
@@ -37,17 +36,17 @@ export const ReportsButton = ({
                 href={link}
                 onClick={handleClick}
                 sx={{
-                    display: 'contents',
-                    cursor: 'pointer',
-                    pointerEvents: 'all',
+                    display: "contents",
+                    cursor: "pointer",
+                    pointerEvents: "all",
                 }}
             >
                 <ReportIcon fill={palette.secondary.main} />
             </Box>
             <ListItemText
                 primary={reportsCount}
-                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: "none" }}
             />
         </Stack>
-    )
-}
+    );
+};

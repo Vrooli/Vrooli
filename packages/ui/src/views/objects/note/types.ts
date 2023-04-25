@@ -1,4 +1,4 @@
-import { NoteVersion } from "@shared/consts";
+import { NoteVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface NoteUpsertProps extends UpsertProps<NoteVersion> { }

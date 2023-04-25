@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@shared/consts";
+import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
 import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";

@@ -1,4 +1,4 @@
-import { SubscribableObject } from '@shared/consts';
+import { SubscribableObject } from "@local/shared";
 import { getLogic } from "../getters";
 import { subscribableMapper } from "../models";
 import { PrismaType, SessionUserToken } from "../types";
@@ -25,10 +25,10 @@ export const Subscriber = (prisma: PrismaType) => ({
     subscribe: async (
         object: { __typename: SubscribableObject, id: string },
         userData: SessionUserToken,
-        silent?: boolean
+        silent?: boolean,
     ) => {
         // Find the object and its owner
-        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const { delegate, validate } = getLogic(["delegate", "validate"], object.__typename, userData.languages, "Transfer.request-object");
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -37,14 +37,14 @@ export const Subscriber = (prisma: PrismaType) => ({
         const isDeleted = permissionData && validate.isDeleted(permissionData, userData.languages);
         // Don't subscribe if object is private or deleted
         if (!isPublic || isDeleted)
-            throw new CustomError('0332', 'Unauthorized', userData.languages);
+            throw new CustomError("0332", "Unauthorized", userData.languages);
         // Create subscription
         await prisma.notification_subscription.create({
             data: {
                 subscriber: { connect: { id: userData.id } },
                 [subscribableMapper[object.__typename]]: { connect: { id: object.id } },
                 silent,
-            }
+            },
         });
     },
     /**
@@ -54,20 +54,20 @@ export const Subscriber = (prisma: PrismaType) => ({
      */
     unsubscribe: async (
         subscriptionId: string,
-        userData: SessionUserToken
+        userData: SessionUserToken,
     ) => {
         // Find the subscription
         const subscription = await prisma.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
                 subscriberId: true,
-            }
+            },
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
-            throw new CustomError('0333', 'NotFound', userData.languages);
+            throw new CustomError("0333", "NotFound", userData.languages);
         if (subscription.subscriberId !== userData.id)
-            throw new CustomError('0334', 'Unauthorized', userData.languages);
+            throw new CustomError("0334", "Unauthorized", userData.languages);
         // Delete subscription
         await prisma.notification_subscription.delete({
             where: { id: subscriptionId },
@@ -82,7 +82,7 @@ export const Subscriber = (prisma: PrismaType) => ({
     update: async (
         subscriptionId: string,
         userData: SessionUserToken,
-        silent: boolean
+        silent: boolean,
     ) => {
         // Find the subscription
         const subscription = await prisma.notification_subscription.findUnique({
@@ -90,13 +90,13 @@ export const Subscriber = (prisma: PrismaType) => ({
             select: {
                 subscriberId: true,
                 silent: true,
-            }
+            },
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
-            throw new CustomError('0335', 'NotFound', userData.languages);
+            throw new CustomError("0335", "NotFound", userData.languages);
         if (subscription.subscriberId !== userData.id)
-            throw new CustomError('0336', 'Unauthorized', userData.languages);
+            throw new CustomError("0336", "Unauthorized", userData.languages);
         // Update subscription if silent status has changed
         if (subscription.silent !== silent) {
             await prisma.notification_subscription.update({
@@ -104,5 +104,5 @@ export const Subscriber = (prisma: PrismaType) => ({
                 data: { silent },
             });
         }
-    }
-})
+    },
+});

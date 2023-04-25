@@ -1,6 +1,5 @@
+import { Node, NodeLink, NodeType, OpenInNewIcon } from "@local/shared";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import { Node, NodeLink, NodeType } from "@shared/consts";
-import { OpenInNewIcon } from "@shared/icons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useContext, useMemo } from "react";
 import { multiLineEllipsis } from "styles";

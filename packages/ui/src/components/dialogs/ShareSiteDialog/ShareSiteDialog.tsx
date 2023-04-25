@@ -1,23 +1,22 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
-import { LINKS } from '@shared/consts';
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useTranslation } from 'react-i18next';
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, LINKS, TwitterIcon } from "@local/shared";
+import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { getDeviceInfo } from 'utils/display/device';
-import usePress from 'utils/hooks/usePress';
-import { PubSub } from 'utils/pubsub';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { ShareSiteDialogProps } from '../types';
+import { getDeviceInfo } from "utils/display/device";
+import usePress from "utils/hooks/usePress";
+import { PubSub } from "utils/pubsub";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { ShareSiteDialogProps } from "../types";
 
 // Invite link
 const inviteLink = `https://vrooli.com${LINKS.Start}`;
 // Title for social media posts
-const postTitle = 'Vrooli - Visual Work Routines';
+const postTitle = "Vrooli - Visual Work Routines";
 // Invite message for social media posts
 const postText = `The future of work in a decentralized world. ${inviteLink}`;
 
@@ -26,11 +25,11 @@ const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(p
 const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`;
 
 const buttonProps = (palette: Palette) => ({
-    height: '48px',
-    width: '48px',
-})
+    height: "48px",
+    width: "48px",
+});
 
-const titleId = 'share-site-dialog-title';
+const titleId = "share-site-dialog-title";
 
 export const ShareSiteDialog = ({
     open,
@@ -40,12 +39,12 @@ export const ShareSiteDialog = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+    const openLink = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
-        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
-    }
+        PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+    };
 
     /**
      * Opens navigator share dialog (if supported)
@@ -55,8 +54,8 @@ export const ShareSiteDialog = ({
             title: postTitle,
             text: postText,
             url: inviteLink,
-        })
-    }
+        });
+    };
 
     /**
     * When QR code is long-pressed in standalone (i.e. app is downloaded), open copy/save photo dialog
@@ -65,18 +64,18 @@ export const ShareSiteDialog = ({
         const { isStandalone } = getDeviceInfo();
         if (!isStandalone) return;
         // Find image using parent element's ID
-        const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
+        const qrCode = document.getElementById("qr-code-box")?.firstChild as HTMLImageElement;
         if (!qrCode) return;
         // Create file
-        const file = new File([qrCode.src], 'qr-code.png', { type: 'image/png' });
+        const file = new File([qrCode.src], "qr-code.png", { type: "image/png" });
         // Open save dialog
         const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = 'qr-code.png';
+        a.download = "qr-code.png";
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
 
     const pressEvents = usePress({
         onLongPress: handleQRCodeLongPress,
@@ -95,11 +94,11 @@ export const ShareSiteDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{ titleId, titleKey: 'SpreadTheWord' }}
+                titleData={{ titleId, titleKey: "SpreadTheWord" }}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
-                    <Tooltip title={t('CopyLink')}>
+                    <Tooltip title={t("CopyLink")}>
                         <ColorIconButton
                             onClick={copyInviteLink}
                             background={palette.secondary.main}
@@ -108,7 +107,7 @@ export const ShareSiteDialog = ({
                             <CopyIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title={t('ShareByEmail')}>
+                    <Tooltip title={t("ShareByEmail")}>
                         <ColorIconButton
                             href={emailUrl}
                             onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
@@ -118,7 +117,7 @@ export const ShareSiteDialog = ({
                             <EmailIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title={t('TweetIt')}>
+                    <Tooltip title={t("TweetIt")}>
                         <ColorIconButton
                             href={twitterUrl}
                             onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
@@ -128,7 +127,7 @@ export const ShareSiteDialog = ({
                             <TwitterIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title={t('LinkedInPost')}>
+                    <Tooltip title={t("LinkedInPost")}>
                         <ColorIconButton
                             href={linkedInUrl}
                             onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
@@ -138,7 +137,7 @@ export const ShareSiteDialog = ({
                             <LinkedInIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title={t('Other')}>
+                    <Tooltip title={t("Other")}>
                         <ColorIconButton
                             onClick={shareNative}
                             background={palette.secondary.main}
@@ -152,13 +151,13 @@ export const ShareSiteDialog = ({
                     id="qr-code-box"
                     {...pressEvents}
                     sx={{
-                        width: '210px',
-                        height: '210px',
+                        width: "210px",
+                        height: "210px",
                         background: palette.secondary.main,
                         borderRadius: 1,
                         padding: 0.5,
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
+                        marginLeft: "auto",
+                        marginRight: "auto",
                     }}>
                     <QRCode
                         size={200}
@@ -168,5 +167,5 @@ export const ShareSiteDialog = ({
                 </Box>
             </Box>
         </LargeDialog>
-    )
-}
+    );
+};

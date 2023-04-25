@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input NodeLoopCreateInput {
@@ -26,7 +26,7 @@ export const typeDef = gql`
         maxLoops: Int
         whiles: [NodeLoopWhile!]!
     }
-`
+`;
 export const resolvers: {
 } = {
-}
+};

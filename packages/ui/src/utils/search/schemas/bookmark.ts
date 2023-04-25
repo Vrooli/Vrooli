@@ -1,4 +1,4 @@
-import { BookmarkSortBy } from "@shared/consts";
+import { BookmarkSortBy } from "@local/shared";
 import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
 import { FormSchema } from "forms/types";
 import i18next from "i18next";

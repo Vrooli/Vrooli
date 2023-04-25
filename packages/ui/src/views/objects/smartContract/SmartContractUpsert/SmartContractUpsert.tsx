@@ -1,4 +1,4 @@
-import { FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@shared/consts";
+import { FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
 import { mutationWrapper } from "api";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { smartContractCreate } from "api/generated/endpoints/smartContract_create";

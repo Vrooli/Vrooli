@@ -1,7 +1,5 @@
+import { AddIcon, CloseIcon, DeleteIcon, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
-import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType } from "@shared/consts";
-import { AddIcon, CloseIcon, DeleteIcon } from "@shared/icons";
-import { uuid } from "@shared/uuid";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";

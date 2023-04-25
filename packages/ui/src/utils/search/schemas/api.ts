@@ -1,4 +1,4 @@
-import { ApiSortBy } from "@shared/consts";
+import { ApiSortBy } from "@local/shared";
 import { apiFindMany } from "api/generated/endpoints/api_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

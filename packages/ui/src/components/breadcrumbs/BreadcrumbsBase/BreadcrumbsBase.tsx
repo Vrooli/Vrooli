@@ -1,16 +1,16 @@
+import { openLink, useLocation } from "@local/shared";
 import {
     Breadcrumbs,
     Link
-} from '@mui/material';
-import { BreadcrumbsBaseProps } from '../types';
-import { useMemo } from 'react';
-import { openLink, useLocation } from '@shared/route';
-import { noSelect } from 'styles';
+} from "@mui/material";
+import { useMemo } from "react";
+import { noSelect } from "styles";
+import { BreadcrumbsBaseProps } from "../types";
 
 export const BreadcrumbsBase = ({
     paths,
-    separator = '|',
-    ariaLabel = 'breadcrumb',
+    separator = "|",
+    ariaLabel = "breadcrumb",
     textColor,
     sx,
 }: BreadcrumbsBaseProps) => {
@@ -22,26 +22,26 @@ export const BreadcrumbsBase = ({
                 key={p.text}
                 color={textColor}
                 href={p.link}
-                onClick={(e) => { e.preventDefault(); openLink(setLocation, p.link) }}
+                onClick={(e) => { e.preventDefault(); openLink(setLocation, p.link); }}
             >
                 {window.location.pathname === p.link ? <b>{p.text}</b> : p.text}
             </Link>
         ))
-    ), [setLocation, paths, textColor])
+    ), [setLocation, paths, textColor]);
 
     return (
         <Breadcrumbs
             sx={{
                 ...sx,
-                '& .MuiBreadcrumbs-li > a': {
-                    color: sx?.color || 'inherit',
-                    minHeight: '48px', // Lighthouse recommends this for SEO, as it is more clickable
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    cursor: 'pointer',
+                "& .MuiBreadcrumbs-li > a": {
+                    color: sx?.color || "inherit",
+                    minHeight: "48px", // Lighthouse recommends this for SEO, as it is more clickable
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    cursor: "pointer",
                     ...noSelect,
-                }
+                },
             }}
             separator={separator}
             aria-label={ariaLabel}
@@ -49,4 +49,4 @@ export const BreadcrumbsBase = ({
             {pathLinks}
         </Breadcrumbs>
     );
-}
+};

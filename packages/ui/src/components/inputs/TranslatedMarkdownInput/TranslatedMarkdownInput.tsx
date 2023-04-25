@@ -1,14 +1,14 @@
-import { useField } from 'formik';
-import { getTranslationData, handleTranslationChange } from 'utils/display/translationTools';
-import { MarkdownInputBase } from '../MarkdownInputBase/MarkdownInputBase';
-import { TranslatedMarkdownInputProps } from '../types';
+import { useField } from "formik";
+import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
+import { MarkdownInputBase } from "../MarkdownInputBase/MarkdownInputBase";
+import { TranslatedMarkdownInputProps } from "../types";
 
 export const TranslatedMarkdownInput = ({
     language,
     name,
     ...props
 }: TranslatedMarkdownInputProps) => {
-    const [field, meta, helpers] = useField('translations');
+    const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
     const handleBlur = (event) => {
@@ -23,7 +23,7 @@ export const TranslatedMarkdownInput = ({
         <MarkdownInputBase
             {...props}
             name={name}
-            value={value?.[name] || ''}
+            value={value?.[name] || ""}
             error={touched?.[name] && Boolean(error?.[name])}
             helperText={touched?.[name] && error?.[name]}
             onBlur={handleBlur}

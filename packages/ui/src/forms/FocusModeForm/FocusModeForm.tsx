@@ -1,6 +1,5 @@
+import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon, Schedule } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
-import { Schedule } from "@shared/consts";
-import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "@shared/icons";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";

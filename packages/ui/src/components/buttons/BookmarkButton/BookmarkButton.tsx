@@ -1,14 +1,12 @@
-import { Box, useTheme } from '@mui/material';
-import { Bookmark, BookmarkFor } from '@shared/consts';
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
-import { uuidValidate } from '@shared/uuid';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ObjectActionComplete } from 'utils/actions/objectActions';
-import { getCurrentUser } from 'utils/authentication/session';
-import { useBookmarker } from 'utils/hooks/useBookmarker';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { BookmarkButtonProps } from '../types';
+import { Bookmark, BookmarkFilledIcon, BookmarkFor, BookmarkOutlineIcon, uuidValidate } from "@local/shared";
+import { Box, useTheme } from "@mui/material";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ObjectActionComplete } from "utils/actions/objectActions";
+import { getCurrentUser } from "utils/authentication/session";
+import { useBookmarker } from "utils/hooks/useBookmarker";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { BookmarkButtonProps } from "../types";
 
 export const BookmarkButton = ({
     disabled = false,
@@ -30,7 +28,7 @@ export const BookmarkButton = ({
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
-        console.log('action complete', action, data)
+        console.log("action complete", action, data);
         switch (action) {
             // When a bookmark is created, we assign a list automatically. 
             // So we must show a snackbar to inform the user that the bookmark was created, 
@@ -39,11 +37,11 @@ export const BookmarkButton = ({
                 const listName = (data as Bookmark).list.label;
                 PubSub.get().publishSnack({
                     message: `Added to list "${listName}"`,
-                    buttonKey: 'Change',
+                    buttonKey: "Change",
                     buttonClicked: () => {
-                        console.log('TODO')
+                        console.log("TODO");
                     },
-                    severity: 'Success',
+                    severity: "Success",
                 });
                 break;
             // When bookmark is removed, we don't need to do anything
@@ -57,7 +55,7 @@ export const BookmarkButton = ({
     });
 
     const handleClick = useCallback((event: any) => {
-        console.log('bookmark button click', objectId, internalIsBookmarked, userId, bookmarkFor);
+        console.log("bookmark button click", objectId, internalIsBookmarked, userId, bookmarkFor);
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;
         setInternalIsBookmarked(isBookmarked);
@@ -72,8 +70,8 @@ export const BookmarkButton = ({
 
     const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
     const fill = useMemo<string>(() => {
-        if (!userId || disabled) return 'rgb(189 189 189)';
-        if (internalIsBookmarked) return '#cbae30';
+        if (!userId || disabled) return "rgb(189 189 189)";
+        if (internalIsBookmarked) return "#cbae30";
         return palette.secondary.main;
     }, [userId, disabled, internalIsBookmarked, palette]);
 
@@ -82,14 +80,14 @@ export const BookmarkButton = ({
             onClick={handleClick}
             sx={{
                 marginRight: 0,
-                marginTop: 'auto !important',
-                marginBottom: 'auto !important',
-                pointerEvents: disabled ? 'none' : 'all',
-                cursor: userId ? 'pointer' : 'default',
+                marginTop: "auto !important",
+                marginBottom: "auto !important",
+                pointerEvents: disabled ? "none" : "all",
+                cursor: userId ? "pointer" : "default",
                 ...(sxs?.root ?? {}),
             }}
         >
             <Icon fill={fill} />
         </Box>
-    )
-}
+    );
+};

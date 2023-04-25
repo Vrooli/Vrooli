@@ -1,7 +1,6 @@
 import { useQuery } from "@apollo/client";
+import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult } from "@local/shared";
 import { Stack } from "@mui/material";
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
-import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { AwardCard } from "components/lists/AwardCard/AwardCard";
@@ -19,7 +18,7 @@ import { AwardsViewProps } from "views/types";
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
 
-//TODO store tiers in @shared/consts, so we can show tier progress and stuff
+//TODO store tiers in @local/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 export const AwardsView = ({

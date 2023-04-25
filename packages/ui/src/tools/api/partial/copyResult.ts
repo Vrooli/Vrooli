@@ -1,6 +1,6 @@
-import { CopyResult } from "@shared/consts";
-import { rel } from "../utils";
+import { CopyResult } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const copyResult: GqlPartial<CopyResult> = {
     __typename: 'CopyResult',

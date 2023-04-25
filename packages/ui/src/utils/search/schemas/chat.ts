@@ -1,4 +1,4 @@
-import { ChatSortBy } from "@shared/consts";
+import { ChatSortBy } from "@local/shared";
 import { chatFindMany } from "api/generated/endpoints/chat_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";

@@ -1,8 +1,7 @@
-import { Stack, TextField, Tooltip, useTheme } from '@mui/material';
-import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@shared/icons";
-import { calculateVersionsFromString, meetsMinVersion } from "@shared/validation";
+import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon, calculateVersionsFromString, meetsMinVersion } from "@local/shared";
+import { Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { useField } from 'formik';
+import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getMinimumVersion } from "utils/shape/general";
 import { VersionInputProps } from "../types";
@@ -10,8 +9,8 @@ import { VersionInputProps } from "../types";
 export const VersionInput = ({
     autoFocus = false,
     fullWidth = true,
-    label = 'Version',
-    name = 'versionLabel',
+    label = "Version",
+    name = "versionLabel",
     versions,
     ...props
 }: VersionInputProps) => {
@@ -37,7 +36,7 @@ export const VersionInput = ({
     // Ex: 1 => major = 1, moderate = 0, minor = 0
     // Ex: 1.2 => major = 1, moderate = 2, minor = 0
     // Ex: asdfasdf (or any other invalid number) => major = minMajor, moderate = minModerate, minor = minMinor
-    const { major, moderate, minor } = useMemo(() => calculateVersionsFromString(internalValue ?? ''), [internalValue]);
+    const { major, moderate, minor } = useMemo(() => calculateVersionsFromString(internalValue ?? ""), [internalValue]);
 
     const bumpMajor = useCallback(() => {
         const changedVersion = `${major + 1}.${moderate}.${minor}`;
@@ -78,9 +77,9 @@ export const VersionInput = ({
                 helperText={meta.touched && meta.error}
                 ref={textFieldRef}
                 sx={{
-                    '& .MuiInputBase-root': {
-                        borderRadius: '5px 0 0 5px',
-                    }
+                    "& .MuiInputBase-root": {
+                        borderRadius: "5px 0 0 5px",
+                    },
                 }}
             />
             <Tooltip placement="top" title="Major bump (increment the first number)">
@@ -89,7 +88,7 @@ export const VersionInput = ({
                     background={palette.secondary.main}
                     onClick={bumpMajor}
                     sx={{
-                        borderRadius: '0',
+                        borderRadius: "0",
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
@@ -102,7 +101,7 @@ export const VersionInput = ({
                     background={palette.secondary.main}
                     onClick={bumpModerate}
                     sx={{
-                        borderRadius: '0',
+                        borderRadius: "0",
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
@@ -115,12 +114,12 @@ export const VersionInput = ({
                     background={palette.secondary.main}
                     onClick={bumpMinor}
                     sx={{
-                        borderRadius: '0 5px 5px 0',
+                        borderRadius: "0 5px 5px 0",
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpMinorIcon />
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
-}
+    );
+};

@@ -6,13 +6,13 @@
  * 
  * This is run infrequently, and is not a critical job.
  */
-import cron from 'node-cron';
-import { logger } from '../../events';
+import cron from "node-cron";
+import { logger } from "../../events";
 
 // Cron syntax created using this website: https://crontab.guru/
 // NOTE: Cron job starts at a weird time so it runs when there is less activity.
 // This cron job is run every month at 5:49am (UTC)
-const countsCron = '49 5 * * *';
+const countsCron = "49 5 * * *";
 
 /**
  * Initializes cron jobs for count checking 
@@ -20,15 +20,15 @@ const countsCron = '49 5 * * *';
  * See https://crontab.guru/ for more information on cron jobs.
  */
 export const initCountsCronJobs = () => {
-    logger.info('Initializing counts cron jobs.', { trace: '0395' });
+    logger.info("Initializing counts cron jobs.", { trace: "0395" });
     try {
         // Start cron
         cron.schedule(countsCron, () => {
-            logger.info('Starting counts cron job.', { trace: '0396' });
+            logger.info("Starting counts cron job.", { trace: "0396" });
             // TODO
         });
-        logger.info('✅ Counts cron jobs initialized');
+        logger.info("✅ Counts cron jobs initialized");
     } catch (error) {
-        logger.error('❌ Failed to initialize counts cron jobs.', { trace: '0397', error });
+        logger.error("❌ Failed to initialize counts cron jobs.", { trace: "0397", error });
     }
 };

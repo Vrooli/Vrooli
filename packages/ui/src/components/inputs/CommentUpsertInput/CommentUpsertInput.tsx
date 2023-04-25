@@ -1,6 +1,5 @@
+import { Comment, CommentCreateInput, CommentUpdateInput, exists } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { Comment, CommentCreateInput, CommentUpdateInput } from "@shared/consts";
-import { exists } from "@shared/utils";
 import { commentCreate } from "api/generated/endpoints/comment_create";
 import { commentUpdate } from "api/generated/endpoints/comment_update";
 import { useCustomMutation } from "api/hooks";
