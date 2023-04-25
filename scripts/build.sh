@@ -82,6 +82,7 @@ if [ -z "$VERSION" ]; then
         SHOULD_UPDATE_VERSION=true
     else
         info "Keeping the same version number."
+        VERSION=$CURRENT_VERSION
     fi
 else
     SHOULD_UPDATE_VERSION=true

@@ -8,21 +8,11 @@ WORKDIR ${PROJECT_DIR}
 # Copy main package.json, as well as packages this container will use.
 COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/server/package.json packages/server/
-COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
-COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
-COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
-COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
-COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
-COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
+COPY --chown=node:node packages/shared/package.json packages/shared/
 
 # Copy all files from packages/server/dist and every directory's dist in packages/shared 
 COPY --chown=node:node packages/server/dist packages/server/dist
-COPY --chown=node:node packages/shared/consts/dist packages/shared/consts/dist
-COPY --chown=node:node packages/shared/route/dist packages/shared/route/dist
-COPY --chown=node:node packages/shared/utils/dist packages/shared/utils/dist
-COPY --chown=node:node packages/shared/uuid/dist packages/shared/uuid/dist
-COPY --chown=node:node packages/shared/validation/dist packages/shared/validation/dist
-COPY --chown=node:node packages/shared/translations/dist packages/shared/translations/dist
+COPY --chown=node:node packages/shared/dist packages/shared/dist
 
 # Install local packages
 RUN yarn install --production

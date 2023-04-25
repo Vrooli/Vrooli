@@ -10,21 +10,11 @@ WORKDIR ${PROJECT_DIR}
 # Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
 COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/server/package.json packages/server/
-COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
-COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
-COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
-COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
-COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
-COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
+COPY --chown=node:node packages/shared/package.json packages/shared/
 
 # Copy all files from packages/server/src, and every directory's src in packages/shared
 COPY --chown=node:node packages/server/src packages/server/
-COPY --chown=node:node packages/shared/consts/src packages/shared/consts/
-COPY --chown=node:node packages/shared/route/src packages/shared/route/
-COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
-COPY --chown=node:node packages/shared/uuid/src packages/shared/uuid/
-COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
-COPY --chown=node:node packages/shared/translations/src packages/shared/translations/
+COPY --chown=node:node packages/shared/src packages/shared/
 
 # Copy packages/ui/public, which is needed to store sitemap files that we create for user-generated pages
 COPY --chown=node:node packages/ui/public packages/ui/public
