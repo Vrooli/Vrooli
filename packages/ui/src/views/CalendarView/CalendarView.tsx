@@ -1,5 +1,5 @@
-import { AddIcon, addSearchParams, calculateOccurrences, CommonKey, FocusModeIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, useLocation } from "@local/shared";
-import { useTheme } from "@mui/material";
+import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleRecurrenceType, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, uuid, WeekIcon } from "@local/shared";
+import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
@@ -9,7 +9,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Calendar, dateFnsLocalizer, DateLocalizer } from "react-big-calendar";
+import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { CalendarEvent } from "types";
@@ -49,136 +49,212 @@ const tabParams: BaseParams[] = [{
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
-// // Replace this with your own events data
-// const sampleSchedules = [
-//     {
-//         id: uuid(),
-//         title: "Meeting",
-//         startTime: new Date(),
-//         endTime: add(new Date(), { hours: 1 }),
-//         recurrences: [
-//             {
-//                 __typename: "ScheduleRecurrence" as const,
-//                 id: uuid(),
-//                 recurrenceType: ScheduleRecurrenceType.Weekly,
-//                 interval: 1,
-//                 dayOfWeek: 3,
-//             },
-//         ],
-//         exceptions: [
-//             {
-//                 __typename: "ScheduleException" as const,
-//                 id: uuid(),
-//                 originalStartTime: add(new Date(), { weeks: 1 }),
-//                 newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
-//                 newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
-//             },
-//         ],
-//         labels: [
-//             {
-//                 __typename: "Label" as const,
-//                 id: uuid(),
-//                 color: "#4caf50",
-//                 label: "Work",
-//             },
-//             {
-//                 __typename: "Label" as const,
-//                 id: uuid(),
-//                 label: "Important",
-//             },
-//         ],
-//         // Dummy data for reminders
-//         // reminders: ['10 minutes before', '1 hour before'],
-//     },
-//     {
-//         id: uuid(),
-//         title: "Monthly Report",
-//         startTime: add(new Date(), { days: 5 }),
-//         endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
-//         recurrences: [
-//             {
-//                 __typename: "ScheduleRecurrence" as const,
-//                 id: uuid(),
-//                 recurrenceType: ScheduleRecurrenceType.Monthly,
-//                 interval: 1,
-//                 dayOfMonth: 10,
-//             },
-//         ],
-//         exceptions: [],
-//         labels: [
-//             {
-//                 __typename: "Label" as const,
-//                 id: uuid(),
-//                 color: "#2196f3",
-//                 label: "Reports",
-//             },
-//         ],
-//     },
-//     {
-//         id: uuid(),
-//         title: "Bi-weekly Team Lunch",
-//         startTime: add(new Date(), { days: 6 }),
-//         endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
-//         recurrences: [
-//             {
-//                 __typename: "ScheduleRecurrence" as const,
-//                 id: uuid(),
-//                 recurrenceType: ScheduleRecurrenceType.Weekly,
-//                 interval: 2,
-//                 dayOfWeek: 6,
-//             },
-//         ],
-//         exceptions: [
-//             {
-//                 __typename: "ScheduleException" as const,
-//                 id: uuid(),
-//                 originalStartTime: add(new Date(), { weeks: 2 }),
-//                 newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
-//                 newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
-//             },
-//         ],
-//         labels: [
-//             {
-//                 __typename: "Label" as const,
-//                 id: uuid(),
-//                 color: "#ff9800",
-//                 label: "Social",
-//             },
-//         ],
-//     },
-//     {
-//         id: uuid(),
-//         title: "Daily Stand-up",
-//         startTime: add(new Date(), { days: 1 }),
-//         endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
-//         recurrences: [
-//             {
-//                 __typename: "ScheduleRecurrence" as const,
-//                 id: uuid(),
-//                 recurrenceType: ScheduleRecurrenceType.Daily,
-//                 interval: 1,
-//                 endDate: add(new Date(), { days: 15 }),
-//             },
-//         ],
-//         exceptions: [
-//             {
-//                 __typename: "ScheduleException" as const,
-//                 id: uuid(),
-//                 originalStartTime: add(new Date(), { days: 2 }),
-//                 newStartTime: null,
-//                 newEndTime: null,
-//             },
-//         ],
-//         labels: [
-//             {
-//                 __typename: "Label" as const,
-//                 id: uuid(),
-//                 color: "#f44336",
-//                 label: "Stand-up",
-//             },
-//         ],
-//     },
-// ];
+const sampleSchedules = [
+    {
+        id: uuid(),
+        title: "Meeting",
+        startTime: new Date(),
+        endTime: add(new Date(), { hours: 1 }),
+        recurrences: [
+            {
+                __typename: "ScheduleRecurrence" as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Weekly,
+                interval: 1,
+                dayOfWeek: 3,
+            },
+        ],
+        exceptions: [
+            {
+                __typename: "ScheduleException" as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { weeks: 1 }),
+                newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
+                newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
+            },
+        ],
+        labels: [
+            {
+                __typename: "Label" as const,
+                id: uuid(),
+                color: "#4caf50",
+                label: "Work",
+            },
+            {
+                __typename: "Label" as const,
+                id: uuid(),
+                label: "Important",
+            },
+        ],
+        // Dummy data for reminders
+        // reminders: ['10 minutes before', '1 hour before'],
+    },
+    {
+        id: uuid(),
+        title: "Monthly Report",
+        startTime: add(new Date(), { days: 5 }),
+        endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
+        recurrences: [
+            {
+                __typename: "ScheduleRecurrence" as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Monthly,
+                interval: 1,
+                dayOfMonth: 10,
+            },
+        ],
+        exceptions: [],
+        labels: [
+            {
+                __typename: "Label" as const,
+                id: uuid(),
+                color: "#2196f3",
+                label: "Reports",
+            },
+        ],
+    },
+    {
+        id: uuid(),
+        title: "Bi-weekly Team Lunch",
+        startTime: add(new Date(), { days: 6 }),
+        endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
+        recurrences: [
+            {
+                __typename: "ScheduleRecurrence" as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Weekly,
+                interval: 2,
+                dayOfWeek: 6,
+            },
+        ],
+        exceptions: [
+            {
+                __typename: "ScheduleException" as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { weeks: 2 }),
+                newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
+                newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
+            },
+        ],
+        labels: [
+            {
+                __typename: "Label" as const,
+                id: uuid(),
+                color: "#ff9800",
+                label: "Social",
+            },
+        ],
+    },
+    {
+        id: uuid(),
+        title: "Daily Stand-up",
+        startTime: add(new Date(), { days: 1 }),
+        endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
+        recurrences: [
+            {
+                __typename: "ScheduleRecurrence" as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Daily,
+                interval: 1,
+                endDate: add(new Date(), { days: 15 }),
+            },
+        ],
+        exceptions: [
+            {
+                __typename: "ScheduleException" as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { days: 2 }),
+                newStartTime: null,
+                newEndTime: null,
+            },
+        ],
+        labels: [
+            {
+                __typename: "Label" as const,
+                id: uuid(),
+                color: "#f44336",
+                label: "Stand-up",
+            },
+        ],
+    },
+];
+
+const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
+    display: "flex",
+    alignItems: "center",
+    [breakpoints.down("sm")]: {
+        width: "100%",
+        justifyContent: "space-evenly",
+        marginBottom: spacing(1),
+    },
+});
+
+const CustomToolbar = (props) => {
+    const { breakpoints, palette, spacing } = useTheme();
+    const { t } = useTranslation();
+    const { label, onView, view, onNavigate } = props;
+
+    const navigate = (action) => {
+        onNavigate(action);
+    };
+
+    const changeView = (nextView) => {
+        onView(nextView);
+    };
+
+    return (
+        <Box sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0 16px",
+            [breakpoints.down(400)]: {
+                flexDirection: "column",
+            },
+        }}>
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <Tooltip title={t("Today")}>
+                    <IconButton onClick={() => navigate(Navigate.TODAY)}>
+                        <TodayIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Previous")}>
+                    <IconButton onClick={() => navigate(Navigate.PREVIOUS)}>
+                        <ArrowLeftIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Next")}>
+                    <IconButton onClick={() => navigate(Navigate.NEXT)}>
+                        <ArrowRightIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <span>{label}</span>
+            </Box>
+
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <Tooltip title={t("Month")}>
+                    <IconButton onClick={() => changeView(Views.MONTH)}>
+                        <MonthIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Week")}>
+                    <IconButton onClick={() => changeView(Views.WEEK)}>
+                        <WeekIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Day")}>
+                    <IconButton onClick={() => changeView(Views.DAY)}>
+                        <DayIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+        </Box >
+    );
+};
+
 
 export const CalendarView = ({
     display = "page",
@@ -293,7 +369,7 @@ export const CalendarView = ({
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
-        schedules.forEach((schedule: any) => {
+        sampleSchedules.forEach((schedule: any) => {
             // Get occurrences (i.e. start and end times)
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
             // Create events
@@ -390,7 +466,9 @@ export const CalendarView = ({
                 onSelectEvent={openEvent}
                 startAccessor="start"
                 endAccessor="end"
-                views={["month", "week", "day"]}
+                components={{
+                    toolbar: CustomToolbar,
+                }}
                 style={{
                     height: calendarHeight,
                     background: palette.background.paper,
