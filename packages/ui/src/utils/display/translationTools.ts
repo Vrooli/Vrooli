@@ -635,6 +635,20 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
 };
 
 /**
+ * Shortens a word to a maximum of 3 characters for Latin scripts and 1 character for Han (Chinese) scripts.
+ * @param label The label to shorten
+ */
+export const getShortenedLabel = (label: string) => {
+    // Check if the label contains at least one Han (Chinese) character.
+    const hasHan = /[\u4e00-\u9fff]/.test(label);
+    if (hasHan) {
+        return label.slice(0, 1);
+    }
+    // Assume Latin or other script if no Han characters are found.
+    return label.slice(0, 3);
+};
+
+/**
  * Finds the error, touched, and value for a translation field in a formik object
  * @param field The formik field that contains the translation object
  * @param meta The formik meta object for the field

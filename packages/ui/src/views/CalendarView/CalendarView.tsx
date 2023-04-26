@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarEvent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
+import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
 import { useDimensions } from "utils/hooks/useDimensions";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { useWindowSize } from "utils/hooks/useWindowSize";
@@ -189,6 +189,9 @@ const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
     },
 });
 
+/**
+ * Toolbar for changing calendar view and navigating between dates
+ */
 const CustomToolbar = (props) => {
     const { breakpoints, palette, spacing } = useTheme();
     const { t } = useTranslation();
@@ -255,6 +258,22 @@ const CustomToolbar = (props) => {
     );
 };
 
+/**
+ * Day header for Month view. Use
+ */
+const DayColumnHeader = ({ label }) => {
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
+
+    return (
+        <Box sx={{
+            textAlign: "center",
+            fontWeight: "bold",
+        }}>
+            {isMobile ? getShortenedLabel(label) : label}
+        </Box>
+    );
+};
 
 export const CalendarView = ({
     display = "page",
@@ -468,6 +487,9 @@ export const CalendarView = ({
                 endAccessor="end"
                 components={{
                     toolbar: CustomToolbar,
+                    month: {
+                        header: DayColumnHeader,
+                    },
                 }}
                 style={{
                     height: calendarHeight,
