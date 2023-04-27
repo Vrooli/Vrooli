@@ -290,6 +290,7 @@ export const UserView = ({
                         isBookmarked={user?.you?.isBookmarked ?? false}
                         bookmarks={user?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                     <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>

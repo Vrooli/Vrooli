@@ -27,15 +27,15 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
     const { t } = useTranslation();
 
     // Handle scheduling
-    const [scheduleField, scheduleMeta, scheduleHelpers] = useField<Schedule | null>('schedule');
+    const [scheduleField, scheduleMeta, scheduleHelpers] = useField<Schedule | null>("schedule");
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true) };
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
     const handleUpdateSchedule = () => {
         setEditingSchedule(scheduleField.value);
         setIsScheduleDialogOpen(true);
     };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false) };
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
     const handleScheduleCreated = (created: Schedule) => {
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
@@ -44,7 +44,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
         scheduleHelpers.setValue(updated);
         setIsScheduleDialogOpen(false);
     };
-    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null) };
+    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
 
     return (
         <>
@@ -63,12 +63,12 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(600px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(600px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
@@ -76,13 +76,13 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         <Field
                             fullWidth
                             name="name"
-                            label={t('Name')}
+                            label={t("Name")}
                             as={TextField}
                         />
                         <Field
                             fullWidth
                             name="description"
-                            label={t('Description')}
+                            label={t("Description")}
                             as={TextField}
                         />
                     </Stack>
@@ -92,8 +92,8 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
                             sx={{
-                                display: 'flex',
-                                margin: 'auto',
+                                display: "flex",
+                                margin: "auto",
                             }}
                         >{"Add schedule"}</Button>
                     )}
@@ -107,9 +107,9 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                     spacing={1}
                                     pl={2}
                                     sx={{
-                                        width: '-webkit-fill-available',
-                                        display: 'grid',
-                                        pointerEvents: 'none',
+                                        width: "-webkit-fill-available",
+                                        display: "grid",
+                                        pointerEvents: "none",
                                     }}
                                 >
                                     {/* TODO */}
@@ -118,9 +118,9 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                     direction="column"
                                     spacing={1}
                                     sx={{
-                                        pointerEvents: 'none',
-                                        justifyContent: 'center',
-                                        alignItems: 'start',
+                                        pointerEvents: "none",
+                                        justifyContent: "center",
+                                        alignItems: "start",
                                     }}
                                 >
                                     {/* Edit */}
@@ -128,12 +128,12 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                         component="a"
                                         onClick={handleUpdateSchedule}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <EditIcon fill={palette.secondary.main} />
                                     </Box>
@@ -142,12 +142,12 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                         component="a"
                                         onClick={handleDeleteSchedule}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <DeleteIcon fill={palette.secondary.main} />
                                     </Box>
@@ -161,16 +161,22 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                     />
                     <Subheader
                         Icon={HeartFilledIcon}
-                        title={t('TopicsFavorite')}
-                        help={t('TopicsFavoriteHelp')}
+                        title={t("TopicsFavorite")}
+                        help={t("TopicsFavoriteHelp")}
                     />
-                    <TagSelector name="favorites" />
+                    <TagSelector
+                        name="favorites"
+                        zIndex={zIndex}
+                    />
                     <Subheader
                         Icon={InvisibleIcon}
-                        title={t('TopicsHidden')}
-                        help={t('TopicsHiddenHelp')}
+                        title={t("TopicsHidden")}
+                        help={t("TopicsHiddenHelp")}
                     />
-                    <TagSelector name="hidden" />
+                    <TagSelector
+                        name="hidden"
+                        zIndex={zIndex}
+                    />
                 </Stack>
             </BaseForm>
             <GridSubmitButtons
@@ -183,5 +189,5 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

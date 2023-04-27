@@ -3,6 +3,7 @@ import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as J
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
+import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
 import { NodeShape } from "utils/shape/models/node";
@@ -77,6 +78,7 @@ export interface SignUpFormProps extends FormProps {
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
+export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {

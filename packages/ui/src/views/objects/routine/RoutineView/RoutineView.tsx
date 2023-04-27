@@ -10,7 +10,6 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
-import { UpTransition } from "components/dialogs/transitions";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -21,6 +20,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";

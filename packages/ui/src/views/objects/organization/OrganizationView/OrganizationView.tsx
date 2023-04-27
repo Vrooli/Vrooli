@@ -270,6 +270,7 @@ export const OrganizationView = ({
                         isBookmarked={organization?.you?.isBookmarked ?? false}
                         bookmarks={organization?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>

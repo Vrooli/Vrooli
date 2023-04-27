@@ -24,18 +24,20 @@ export type UseObjectActionsProps = {
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];
-    hasBookmarkingSupport: boolean;
+    closeBookmarkDialog: () => void;
     closeDeleteDialog: () => void;
     closeDonateDialog: () => void;
     closeShareDialog: () => void;
     closeStatsDialog: () => void;
     closeReportDialog: () => void;
+    hasBookmarkingSupport: boolean;
     hasCopyingSupport: boolean;
     hasDeletingSupport: boolean;
     hasReportingSupport: boolean;
     hasSharingSupport: boolean;
     hasStatsSupport: boolean;
     hasVotingSupport: boolean;
+    isBookmarkDialogOpen: boolean;
     isDeleteDialogOpen: boolean;
     isDonateDialogOpen: boolean;
     isShareDialogOpen: boolean;
@@ -80,28 +82,36 @@ export const useObjectActions = ({
         }
         switch (action) {
             case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
+            case ObjectActionComplete.BookmarkUndo: {
                 const isBookmarkedLocation = getYouDot(object, "isBookmarked");
                 const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
                 if (wasSuccessful && isBookmarkedLocation && object) setObject(setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful));
                 break;
-            case ObjectActionComplete.Fork:
+            }
+            case ObjectActionComplete.Fork: {
                 // Data is in first key with a value
                 const forkData: any = Object.values(data).find((v) => typeof v === "object");
                 openObject(forkData, setLocation);
                 window.location.reload();
                 break;
+            }
             case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
+            case ObjectActionComplete.VoteUp: {
                 const reactionLocation = getYouDot(object, "reaction");
                 const emoji = action === ObjectActionComplete.VoteUp ? "👍" : action === ObjectActionComplete.VoteDown ? "👎" : null;
                 if (data.success && reactionLocation && object) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
                 break;
+            }
         }
     }, [object, setLocation, setObject]);
 
     // Hooks for specific actions
-    const { handleBookmark, hasBookmarkingSupport } = useBookmarker({
+    const {
+        isBookmarkDialogOpen,
+        handleBookmark,
+        closeBookmarkDialog,
+        hasBookmarkingSupport,
+    } = useBookmarker({
         objectId: object?.id,
         objectType: objectType as BookmarkFor,
         onActionComplete,
@@ -195,6 +205,7 @@ export const useObjectActions = ({
 
     return {
         availableActions,
+        closeBookmarkDialog,
         closeDeleteDialog,
         closeDonateDialog,
         closeShareDialog,
@@ -207,6 +218,7 @@ export const useObjectActions = ({
         hasSharingSupport,
         hasStatsSupport,
         hasVotingSupport,
+        isBookmarkDialogOpen,
         isDeleteDialogOpen,
         isDonateDialogOpen,
         isShareDialogOpen,

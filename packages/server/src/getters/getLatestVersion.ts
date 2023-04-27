@@ -21,22 +21,22 @@ export async function getLatestVersion({
     handleRoot?: string | null,
 }): Promise<string | undefined> {
     // Make sure either idRoot or handleRoot is provided
-    if (!idRoot && !handleRoot) throw new CustomError('0371', 'InvalidArgs', ['en'], { objectType });
+    if (!idRoot && !handleRoot) throw new CustomError("0371", "InvalidArgs", ["en"], { objectType });
     // Make sure handle is only supplied for objects that have handles
-    const handleableObjects = ['ProjectVersion'];
-    if (handleRoot && !handleableObjects.includes(objectType)) throw new CustomError('0372', 'InvalidArgs', ['en'], { objectType, handleRoot });
+    const handleableObjects = ["ProjectVersion"];
+    if (handleRoot && !handleableObjects.includes(objectType)) throw new CustomError("0372", "InvalidArgs", ["en"], { objectType, handleRoot });
     // Create root select query
     const rootSelectQuery = idRoot ? { id: idRoot } : { handle: handleRoot };
     // Get model
     const model = ObjectMap[objectType];
-    if (!model) throw new CustomError('0373', 'InternalError', ['en'], { objectType });
+    if (!model) throw new CustomError("0373", "InternalError", ["en"], { objectType });
     // Handle apis and notes, which don't have an "isComplete" field
-    if (isOfType({ __typename: objectType }, 'Api', 'Note')) {
+    if (isOfType({ __typename: objectType }, "Api", "Note")) {
         const query = {
             where: { root: rootSelectQuery },
-            orderBy: { versionIndex: 'desc' as const },
+            orderBy: { versionIndex: "desc" as const },
             select: { id: true },
-        }
+        };
         const latestVersion = await model.delegate(prisma).findFirst(query);
         return latestVersion?.id;
     }
@@ -44,9 +44,9 @@ export async function getLatestVersion({
     else {
         const query = {
             where: { root: rootSelectQuery, isComplete: includeIncomplete ? undefined : true },
-            orderBy: { versionIndex: 'desc' as const },
+            orderBy: { versionIndex: "desc" as const },
             select: { id: true },
-        }
+        };
         const latestVersion = await model.delegate(prisma).findFirst(query);
         return latestVersion?.id;
     }

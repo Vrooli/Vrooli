@@ -154,6 +154,7 @@ export const CommandPalette = () => {
                         },
                         paper: { background: palette.background.paper },
                     }}
+                    zIndex={1000}
                 />
             </DialogContent>
         </LargeDialog>

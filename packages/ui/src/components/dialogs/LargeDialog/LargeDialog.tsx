@@ -1,5 +1,5 @@
 import { Dialog, useTheme } from "@mui/material";
-import { UpTransition } from "../transitions";
+import { UpTransition } from "../../transitions";
 import { LargeDialogProps } from "../types";
 
 export const LargeDialog = ({
@@ -23,28 +23,28 @@ export const LargeDialog = ({
             TransitionComponent={UpTransition}
             sx={{
                 zIndex: zIndex + 1000,
-                '& > .MuiDialog-container': {
-                    '& > .MuiPaper-root': {
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
                         zIndex: zIndex + 1000,
                         margin: { xs: 0, sm: 2, md: 4 },
-                        minWidth: { xs: '100vw', sm: 'unset' },
-                        maxWidth: { xs: '100vw', sm: 'calc(100vw - 64px)' },
-                        bottom: { xs: 0, sm: 'auto' },
-                        paddingBottom: 'env(safe-area-inset-bottom)',
-                        top: { xs: 'auto', sm: undefined },
-                        position: { xs: 'absolute', sm: 'relative' },
-                        display: { xs: 'block', sm: 'inline-block' },
+                        minWidth: { xs: "100vw", sm: "unset" },
+                        maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
+                        bottom: { xs: 0, sm: "auto" },
+                        paddingBottom: "env(safe-area-inset-bottom)",
+                        top: { xs: "auto", sm: undefined },
+                        position: { xs: "absolute", sm: "relative" },
+                        display: { xs: "block", sm: "inline-block" },
                         background: palette.background.default,
                         color: palette.background.textPrimary,
-                        '& > .MuiDialogContent-root': {
-                            position: 'relative',
+                        "& > .MuiDialogContent-root": {
+                            position: "relative",
                         },
-                        ...(sxs?.paper ?? {})
+                        ...(sxs?.paper ?? {}),
                     },
-                }
+                },
             }}
         >
             {children}
         </Dialog>
-    )
-}
+    );
+};

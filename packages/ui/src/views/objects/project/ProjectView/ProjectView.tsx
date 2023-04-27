@@ -181,6 +181,7 @@ export const ProjectView = ({
                         isBookmarked={projectVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={projectVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>

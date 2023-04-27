@@ -15,6 +15,7 @@ export const TagSelectorBase = ({
     handleTagsUpdate,
     tags,
     placeholder,
+    zIndex,
 }: TagSelectorBaseProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -179,6 +180,7 @@ export const TagSelectorBase = ({
                         isBookmarked={(option as Tag).you.isBookmarked}
                         bookmarks={(option as Tag).bookmarks}
                         onChange={(isBookmarked) => { handleIsBookmarked(option.tag, isBookmarked); }}
+                        zIndex={zIndex}
                     />
                 </MenuItem>
             )}

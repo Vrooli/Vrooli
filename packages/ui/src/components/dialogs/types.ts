@@ -1,4 +1,4 @@
-import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from "components/text/types";
@@ -294,6 +294,22 @@ export interface RunStepsDialogProps {
      */
     percentComplete: number;
     stepList: RoutineStep | null;
+    zIndex: number;
+}
+
+export interface DeleteBookmarkListDialogProps {
+    bookmarkDeleteOptions: Bookmark[];
+    onClose: () => any;
+    onDelete: (bookmarks: Bookmark[]) => any;
+    zIndex: number;
+}
+
+export interface SelectBookmarkListDialogProps {
+    objectId: string | null;
+    objectType: BookmarkFor | `${BookmarkFor}`;
+    onClose: (inList: boolean) => any;
+    isCreate: boolean;
+    isOpen: boolean;
     zIndex: number;
 }
 

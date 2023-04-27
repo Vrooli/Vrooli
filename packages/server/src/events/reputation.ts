@@ -8,24 +8,24 @@ import { PrismaType } from "../types";
 import { logger } from "./logger";
 
 export enum ReputationEvent {
-    ObjectDeletedFromReport = 'ObjectDeletedFromReport',
-    ReportWasAccepted = 'ReportWasAccepted',
-    ReportWasRejected = 'ReportWasRejected',
-    PullRequestWasAccepted = 'PullRequestWasAccepted',
-    PullRequestWasRejected = 'PullRequestWasRejected',
-    IssueCreatedWasAccepted = 'IssueCreatedWasAccepted',
-    IssueCreatedWasRejected = 'IssueCreatedWasRejected',
-    AnsweredQuestion = 'AnsweredQuestion',
-    AnsweredQuestionWasAccepted = 'AnsweredQuestionWasAccepted',
-    PublicApiCreated = 'PublicApiCreated',
-    PublicProjectCreated = 'PublicProjectCreated',
-    PublicRoutineCreated = 'PublicRoutineCreated',
-    PublicSmartContractCreated = 'PublicSmartContractCreated',
-    PublicStandardCreated = 'PublicStandardCreated',
-    ReceivedVote = 'ReceivedVote',
-    ReceivedStar = 'ReceivedStar',
-    ContributedToReport = 'ContributedToReport',
-};
+    ObjectDeletedFromReport = "ObjectDeletedFromReport",
+    ReportWasAccepted = "ReportWasAccepted",
+    ReportWasRejected = "ReportWasRejected",
+    PullRequestWasAccepted = "PullRequestWasAccepted",
+    PullRequestWasRejected = "PullRequestWasRejected",
+    IssueCreatedWasAccepted = "IssueCreatedWasAccepted",
+    IssueCreatedWasRejected = "IssueCreatedWasRejected",
+    AnsweredQuestion = "AnsweredQuestion",
+    AnsweredQuestionWasAccepted = "AnsweredQuestionWasAccepted",
+    PublicApiCreated = "PublicApiCreated",
+    PublicProjectCreated = "PublicProjectCreated",
+    PublicRoutineCreated = "PublicRoutineCreated",
+    PublicSmartContractCreated = "PublicSmartContractCreated",
+    PublicStandardCreated = "PublicStandardCreated",
+    ReceivedVote = "ReceivedVote",
+    ReceivedStar = "ReceivedStar",
+    ContributedToReport = "ContributedToReport",
+}
 
 const MaxReputationGainPerDay = 100;
 
@@ -36,7 +36,7 @@ const MaxReputationGainPerDay = 100;
  */
 export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objectType: T): `Public${T}Created` | null => {
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
-}
+};
 
 
 /**
@@ -61,7 +61,7 @@ export const reputationDeltaVote = (v0: number, v1: number): number => {
     if (v1 > v0) return isMultiple ? 1 : 0;
     // Otherwise vote must have decreased. Lose reputation if it's a multiple of 10^(magnitude)
     return isMultiple ? -1 : 0;
-}
+};
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a star.
@@ -69,7 +69,7 @@ export const reputationDeltaVote = (v0: number, v1: number): number => {
  */
 export const reputationDeltaStar = (v0: number, v1: number): number => {
     return reputationDeltaVote(v0, v1) * 2;
-}
+};
 
 /**
  * Generates the reputation which should be rewarded to a user for contributing to a report. 
@@ -78,7 +78,7 @@ export const reputationDeltaStar = (v0: number, v1: number): number => {
  */
 export const reputationDeltaReportContribute = (totalContributions: number): number => {
     return Math.floor(totalContributions / 10);
-}
+};
 
 /**
  * Maps reputation events to the amount of reputation gained. Events which 
@@ -99,7 +99,7 @@ const reputationMap: { [key in ReputationEvent]?: number } = {
     PublicRoutineCreated: 2,
     PublicSmartContractCreated: 2,
     PublicStandardCreated: 2,
-}
+};
 
 /**
  * Updates the reputation gained today in Redis
@@ -122,7 +122,7 @@ export async function getReputationGainedToday(userId: string, delta: number): P
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.error('Error occured while connecting or accessing redis server', { trace: '0279', error });
+        logger.error("Error occured while connecting or accessing redis server", { trace: "0279", error });
         // Return absurdly high number so we don't store reputation
         return Number.MAX_SAFE_INTEGER;
     }
@@ -143,12 +143,12 @@ const updateReputationHelper = async (
     userId: string,
     event: ReputationEvent | `${ReputationEvent}`,
     objectId1?: string,
-    objectId2?: string
+    objectId2?: string,
 ) => {
     // Determine how much reputation the user will have gained today. 
     // Should not be able to gain more than 100 reputation per day, 
     // or lose more than 100 reputation per day.
-    let totalReputationToday = await getReputationGainedToday(userId, delta);
+    const totalReputationToday = await getReputationGainedToday(userId, delta);
     let updatedReputation = totalReputationToday;
     if (totalReputationToday > MaxReputationGainPerDay) {
         updatedReputation = MaxReputationGainPerDay;
@@ -162,9 +162,9 @@ const updateReputationHelper = async (
     }
     // Update the user's reputation
     await prisma.award.update({
-        where: { userId_category: { userId, category: 'Reputation' } },
-        data: { progress: updatedReputation }
-    })
+        where: { userId_category: { userId, category: "Reputation" } },
+        data: { progress: updatedReputation },
+    });
     // Also add to user's reputation history, so they can see why their reputation changed
     const amount = totalReputationToday > MaxReputationGainPerDay || totalReputationToday < -MaxReputationGainPerDay ?
         totalReputationToday - delta : delta;
@@ -177,7 +177,7 @@ const updateReputationHelper = async (
             objectId2,
         },
     });
-}
+};
 
 /**
  * Handles updating the reputation score for a user. Repuation is stored as an 
@@ -199,23 +199,23 @@ export const Reputation = () => ({
                 userId,
                 event: {
                     in: [
-                        'PublicApiCreated',
-                        'PublicProjectCreated',
-                        'PublicRoutineCreated',
-                        'PublicSmartContractCreated',
-                        'PublicStandardCreated',
-                    ]
-                }
-            }
+                        "PublicApiCreated",
+                        "PublicProjectCreated",
+                        "PublicRoutineCreated",
+                        "PublicSmartContractCreated",
+                        "PublicStandardCreated",
+                    ],
+                },
+            },
         });
         // If the entry exists, delete it and decrease the user's reputation
         if (historyEntry) {
             await prisma.reputation_history.delete({
-                where: { id: historyEntry.id }
+                where: { id: historyEntry.id },
             });
             await prisma.user.update({
                 where: { id: userId },
-                data: { reputation: { decrement: historyEntry.amount } }
+                data: { reputation: { decrement: historyEntry.amount } },
             });
         }
     },
@@ -227,11 +227,11 @@ export const Reputation = () => ({
      * but can also be the user who owns the object that was affected
      */
     update: async (
-        event: Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'> | `${Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'>}`,
+        event: Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport"> | `${Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport">}`,
         prisma: PrismaType,
         userId: string,
         object1Id?: string,
-        object2Id?: string
+        object2Id?: string,
     ) => {
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
@@ -247,7 +247,7 @@ export const Reputation = () => ({
      */
     updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
-        await updateReputationHelper(delta, prisma, userId, 'ReceivedVote');
+        await updateReputationHelper(delta, prisma, userId, "ReceivedVote");
     },
     /**
      * Custom reputation update function for bookmarks
@@ -258,7 +258,7 @@ export const Reputation = () => ({
      */
     updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
-        await updateReputationHelper(delta, prisma, userId, 'ReceivedStar');
+        await updateReputationHelper(delta, prisma, userId, "ReceivedStar");
     },
     /**
      * Custom reputation update function for report contributions
@@ -268,6 +268,6 @@ export const Reputation = () => ({
      */
     updateReportContribute: async (totalContributions: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaReportContribute(totalContributions);
-        await updateReputationHelper(delta, prisma, userId, 'ContributedToReport');
-    }
+        await updateReputationHelper(delta, prisma, userId, "ContributedToReport");
+    },
 });

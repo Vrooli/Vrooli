@@ -1,4 +1,5 @@
 import { BookmarkList } from "@local/shared";
-import { ViewProps } from "../types";
+import { UpsertProps, ViewProps } from "../types";
 
-export interface BookmarkListViewProps extends ViewProps<BookmarkList> { }
+export type BookmarkListUpsertProps = UpsertProps<BookmarkList>
+export type BookmarkListViewProps = ViewProps<BookmarkList>

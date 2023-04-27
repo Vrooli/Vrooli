@@ -68,9 +68,12 @@ export const createRel = <
         if (t === "Connect") {
             // If create is an option, ignore items which have more than just an ID (or __typename), since they must be creates instead
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            filteredRelationData = relTypes.includes("Create") ?
-                filteredRelationData.filter((x) => Object.keys(x).every((k) => ["id", "__typename"].includes(k))) :
-                filteredRelationData;
+            if (relTypes.includes("Create")) {
+                filteredRelationData = filteredRelationData.filter((x) => {
+                    const filteredObj = Object.fromEntries(Object.entries(x).filter(([_, v]) => v !== undefined));
+                    return Object.keys(filteredObj).every((k) => ["id", "__typename"].includes(k));
+                });
+            }
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
                 (relationData as any)[shape?.idField ?? "id"] :

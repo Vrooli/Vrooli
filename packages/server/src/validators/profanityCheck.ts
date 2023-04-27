@@ -29,7 +29,7 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
     if (isRelationshipArray(input.translationsCreate) && input.translationsCreate.length > 0) {
         // Only add non-ID fields
         for (const field of Object.keys(input.translationsCreate[0])) {
-            if (field !== 'id' && !field.endsWith('Id')) {
+            if (field !== "id" && !field.endsWith("Id")) {
                 const values = input.translationsCreate.map((x: any) => x[field]);
                 result[field] = result[field] ? [...result[field], ...values] : values;
             }
@@ -38,7 +38,7 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
     if (input.translationsUpdate) {
         // Only add non-ID fields
         for (const field of Object.keys(input.translationsUpdate)) {
-            if (field !== 'id' && !field.endsWith('Id')) {
+            if (field !== "id" && !field.endsWith("Id")) {
                 const values = input.translationsUpdate.map((x: any) => x[field]);
                 result[field] = result[field] ? [...result[field], ...values] : values;
             }
@@ -49,9 +49,9 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
         // Find next objectType, if any
         let nextObjectType: `${GqlModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
-        const strippedKey = key.endsWith('Create') || key.endsWith('Update') ? key.slice(0, -6) : key;
+        const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
         // Check if stripped key is in validator's validateMap
-        if (typeof format?.gqlRelMap?.[strippedKey] === 'string')
+        if (typeof format?.gqlRelMap?.[strippedKey] === "string")
             nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;
         // Now we can validate translations objects
         // Check for array
@@ -72,7 +72,7 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
         }
     }
     return result;
-}
+};
 
 /**
  * Throws an error if a object's translations contain any banned words.
@@ -99,7 +99,7 @@ export const profanityCheck = (input: { [x: string]: any }[], objectType: `${Gql
     // Check each field for profanity
     for (const field in fieldsToCheck) {
         if (hasProfanity(...fieldsToCheck[field])) {
-            throw new CustomError('0115', 'BannedWord', languages);
+            throw new CustomError("0115", "BannedWord", languages);
         }
     }
-}
+};

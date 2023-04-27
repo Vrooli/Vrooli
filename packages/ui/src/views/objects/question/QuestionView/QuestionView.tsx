@@ -166,6 +166,7 @@ export const QuestionView = ({
                         isBookmarked={question?.you?.isBookmarked ?? false}
                         bookmarks={question?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>

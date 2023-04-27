@@ -1,5 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders";
+import { PrismaSelect } from "../builders/types";
+import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 
@@ -18,10 +20,19 @@ export const getAuthenticatedData = async (
         // Find validator and prisma delegate for this object type
         const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getAuthenticatedData");
         // Query for data
-        const data = await delegate(prisma).findMany({
-            where: { id: { in: idsByType[type] } },
-            select: permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]),
-        });
+        const where = { id: { in: idsByType[type] } };
+        let select: PrismaSelect | undefined;
+        let data: any[];
+        try {
+            select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
+            data = await delegate(prisma).findMany({
+                where,
+                ...select,
+            });
+        } catch (error) {
+            logger.error("getAuthenticatedData: findMany failed", { trace: "0453", error, type, ...select, where });
+            throw new CustomError("0453", "InternalError", userData?.languages ?? ["en"], { objectType: type });
+        }
         // Add data to return object
         for (const datum of data) {
             authDataById[datum.id] = { __typename: type, ...datum };

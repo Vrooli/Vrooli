@@ -80,8 +80,8 @@ export const useFindMany = <DataType extends Record<string, any>>({
         }
         if (typeof searchParams.time === "object" &&
             !Array.isArray(searchParams.time) &&
-            searchParams.time.hasOwnProperty("after") &&
-            searchParams.time.hasOwnProperty("before")) {
+            Object.prototype.hasOwnProperty.call(searchParams.time, "after") &&
+            Object.prototype.hasOwnProperty.call(searchParams.time, "before")) {
             setTimeFrame({
                 after: new Date((searchParams.time as any).after),
                 before: new Date((searchParams.time as any).before),

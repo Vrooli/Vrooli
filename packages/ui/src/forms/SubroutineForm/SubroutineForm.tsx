@@ -296,7 +296,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     }
                     <Grid item xs={12} marginBottom={4}>
                         {
-                            canUpdate ? <TagSelector name='routineVersion.root.tags' /> :
+                            canUpdate ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
                                 <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
                         }
                     </Grid>

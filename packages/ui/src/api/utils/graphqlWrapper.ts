@@ -64,7 +64,7 @@ interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperPr
  */
 const wrapInput = (input: Record<string, any> | undefined): InputType | undefined => {
     if (!exists(input)) return undefined;
-    if (Object.keys(input).length === 1 && input.hasOwnProperty("input")) return input as InputType;
+    if (Object.keys(input).length === 1 && Object.prototype.hasOwnProperty.call(input, "input")) return input as InputType;
     return { input } as InputType;
 };
 
@@ -88,7 +88,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         // Stop spinner
         if (spinnerDelay) PubSub.get().publishLoading(false);
         // Determine if error caused by bad response, or caught error
-        const isApolloError: boolean = exists(data) && data.hasOwnProperty("graphQLErrors");
+        const isApolloError: boolean = exists(data) && Object.prototype.hasOwnProperty.call(data, "graphQLErrors");
         // If specific error message is set, display it
         if (typeof errorMessage === "function") {
             const { key, variables } = errorMessage(data);

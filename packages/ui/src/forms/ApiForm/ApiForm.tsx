@@ -169,7 +169,10 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector name="root.tags" />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}

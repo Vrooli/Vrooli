@@ -86,7 +86,7 @@ export function SearchList<DataType extends NavigableObject>({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: any) => { setSearchString(newString); }, [setSearchString]);
+    const handleSearch = useCallback((newString: string) => { setSearchString(newString); }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -119,6 +119,7 @@ export function SearchList<DataType extends NavigableObject>({
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
+                    zIndex={zIndex}
                 />
             </Box>
             <SearchButtons

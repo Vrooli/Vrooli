@@ -268,6 +268,7 @@ export const DashboardView = ({
                     onInputChange={onInputSelect}
                     showSecondaryLabel={true}
                     sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
+                    zIndex={zIndex}
                 />
             </Stack>
             {/* Result feeds */}

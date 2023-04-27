@@ -40,6 +40,7 @@ export const typeDef = gql`
 
     input BookmarkListSearchInput {
         after: String
+        bookmarksContainsId: ID
         ids: [ID!]
         labelsIds: [String!]
         searchString: String

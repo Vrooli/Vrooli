@@ -9,6 +9,7 @@ export const TagSelector = ({
     disabled,
     name,
     placeholder = "Enter tags, followed by commas...",
+    zIndex,
 }: TagSelectorProps) => {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
@@ -22,6 +23,7 @@ export const TagSelector = ({
             handleTagsUpdate={handleTagsUpdate}
             placeholder={placeholder}
             tags={field.value ?? []}
+            zIndex={zIndex}
         />
     );
 };

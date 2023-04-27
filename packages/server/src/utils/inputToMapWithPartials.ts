@@ -69,27 +69,27 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
     const idsByType: IdsByType = {};
     const inputsByType: InputsByType = {};
     // If action is Create, Update, or Delete, add input to inputsByType
-    if (['Create', 'Update', 'Delete'].includes(actionType)) {
+    if (["Create", "Update", "Delete"].includes(actionType)) {
         inputsByType[relMap.__typename] = { Create: [], Update: [], Delete: [], [actionType]: [object as any] };
     }
     // If action is Connect, Disconnect, or Delete, add to maps and return. 
     // The rest of the function is for parsing objects
-    if (['Connect', 'Disconnect', 'Delete'].includes(actionType)) {
+    if (["Connect", "Disconnect", "Delete"].includes(actionType)) {
         idsByAction[actionType] = [object as string];
         idsByType[relMap.__typename] = [object as string];
         return { idsByAction, idsByType, inputsByType };
     }
     // Can only be Create, Update, or Read past this point
     // If not a 'Create' (i.e. already exists in database), add id of this object to return object
-    if (actionType !== 'Create') {
-        const objectId = actionType === 'Update' ? object.where.id : object.id;
+    if (actionType !== "Create") {
+        const objectId = actionType === "Update" ? object.where.id : object.id;
         idsByAction[actionType] = [objectId];
         idsByType[relMap.__typename] = [objectId];
     }
     // Loop through all keys in relationship map
     Object.keys(relMap).forEach((key) => {
         // Ignore __typename
-        if (key === '__typename') return;
+        if (key === "__typename") return;
 
         // Get relationship type
         const relType = relMap[key]!;
@@ -97,10 +97,10 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
         // Helper function to process relationship action
         const processRelationshipAction = (action, relationshipAction, relationshipType) => {
             // Get nested relMap data
-            const { format } = getLogic(['format'], relationshipType, languages, 'inputToMapWithPartials loop');
+            const { format } = getLogic(["format"], relationshipType, languages, "inputToMapWithPartials loop");
             const childRelMap = format.gqlRelMap;
 
-            if (object.hasOwnProperty(relationshipAction)) {
+            if (Object.prototype.hasOwnProperty.call(object, relationshipAction)) {
                 // Get the nested object(s) corresponding to the relationship action
                 const nestedObjects = Array.isArray(object[relationshipAction])
                     ? object[relationshipAction]
@@ -109,7 +109,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                 // Process each nested object
                 nestedObjects.forEach((nestedObject) => {
                     // Handle Disconnect case (boolean or array of strings)
-                    if (action === 'Disconnect' && typeof nestedObject === 'boolean') {
+                    if (action === "Disconnect" && typeof nestedObject === "boolean") {
                         nestedObject = `${relationshipType}|${key}`;
                     }
 
@@ -118,7 +118,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                         action,
                         childRelMap as any,
                         nestedObject,
-                        languages
+                        languages,
                     );
 
                     // Merge results
@@ -130,8 +130,8 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
         };
 
         // Check for each action type in the object
-        (['Connect', 'Disconnect', 'Create', 'Update', 'Delete'] as const).forEach((action) => {
-            if (typeof relType === 'object') {
+        (["Connect", "Disconnect", "Create", "Update", "Delete"] as const).forEach((action) => {
+            if (typeof relType === "object") {
                 // Process union relationship actions
                 Object.keys(relType).forEach((unionKey) => {
                     const unionRelType = relType[unionKey];

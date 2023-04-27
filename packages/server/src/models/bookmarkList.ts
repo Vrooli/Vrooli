@@ -6,7 +6,7 @@ import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 
-const __typename = 'BookmarkList' as const;
+const __typename = "BookmarkList" as const;
 const suppFields = [] as const;
 export const BookmarkListModel: ModelLogic<{
     IsTransferable: false,
@@ -17,8 +17,8 @@ export const BookmarkListModel: ModelLogic<{
     GqlSearch: BookmarkListSearchInput,
     GqlSort: BookmarkListSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.bookmark_listUpsertArgs['create'],
-    PrismaUpdate: Prisma.bookmark_listUpsertArgs['update'],
+    PrismaCreate: Prisma.bookmark_listUpsertArgs["create"],
+    PrismaUpdate: Prisma.bookmark_listUpsertArgs["update"],
     PrismaModel: Prisma.bookmark_listGetPayload<SelectWrap<Prisma.bookmark_listSelect>>,
     PrismaSelect: Prisma.bookmark_listSelect,
     PrismaWhere: Prisma.bookmark_listWhereInput,
@@ -32,11 +32,11 @@ export const BookmarkListModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            bookmarks: 'Bookmark',
+            bookmarks: "Bookmark",
         },
         prismaRelMap: {
             __typename,
-            bookmarks: 'Bookmark',
+            bookmarks: "Bookmark",
         },
         countFields: {
             bookmarksCount: true,
@@ -49,12 +49,12 @@ export const BookmarkListModel: ModelLogic<{
                 index: -1, //TODO
                 label: data.label,
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, ...rest })),
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 label: noNull(data.label),
-                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+            }),
         },
         yup: bookmarkListValidation,
     },
@@ -62,10 +62,11 @@ export const BookmarkListModel: ModelLogic<{
         defaultSort: BookmarkListSortBy.LabelAsc,
         sortBy: BookmarkListSortBy,
         searchFields: {
+            bookmarksContainsId: true,
             labelsIds: true,
         },
         searchStringQuery: () => ({
-            label: 'label'
+            label: "label",
         }),
     },
     validate: {
@@ -79,14 +80,14 @@ export const BookmarkListModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                user: { id: userId }
+                user: { id: userId },
             }),
         },
     },
-})
+});

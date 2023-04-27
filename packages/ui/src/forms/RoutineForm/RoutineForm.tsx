@@ -234,7 +234,10 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             minRows={4}
                         />
                     </Stack>
-                    <TagSelector name="root.tags" />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}

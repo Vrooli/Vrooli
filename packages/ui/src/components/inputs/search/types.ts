@@ -14,6 +14,7 @@ export type SiteSearchBarProps = InputProps & {
     showSecondaryLabel?: boolean;
     value: string;
     sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
+    zIndex: number;
 }
 
 export type SettingsSearchBarProps = InputProps & {

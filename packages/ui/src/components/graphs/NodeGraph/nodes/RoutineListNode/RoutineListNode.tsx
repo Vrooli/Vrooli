@@ -1,14 +1,5 @@
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon, name as nameValidation, NodeRoutineListItem, reqErr } from "@local/shared";
-import {
-    Checkbox,
-    Collapse,
-    Container,
-    FormControlLabel,
-    IconButton,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Checkbox, Collapse, Container, FormControlLabel, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";

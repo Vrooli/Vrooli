@@ -166,6 +166,7 @@ export const SmartContractView = ({
                         isBookmarked={smartContractVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={smartContractVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>

@@ -12,9 +12,6 @@ export const bookmarkList: GqlPartial<BookmarkList> = {
         bookmarksCount: true,
     },
     list: {
-        __define: {
-            0: async () => rel((await import("./bookmark")).bookmark, "list", { omit: "list" }),
-        },
         bookmarks: { __use: 0 },
     },
     full: {

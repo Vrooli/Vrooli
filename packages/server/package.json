@@ -25,7 +25,7 @@
         "start-development": "yarn pre-build && yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
-        "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
+        "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/src/consts/graphqlTypes.ts"
     },
     "dependencies": {
         "@blockfrost/blockfrost-js": "^4.1.0",

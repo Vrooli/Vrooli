@@ -165,6 +165,7 @@ export function CommentThreadItem({
                             bookmarkFor={BookmarkFor.Comment}
                             isBookmarked={isBookmarked ?? false}
                             showBookmarks={false}
+                            zIndex={zIndex}
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton

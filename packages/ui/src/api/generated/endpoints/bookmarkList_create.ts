@@ -2,9 +2,8 @@ import gql from "graphql-tag";
 import { Api_list } from "../fragments/Api_list";
 import { Api_nav } from "../fragments/Api_nav";
 import { Bookmark_full } from "../fragments/Bookmark_full";
-import { Comment_list } from "../fragments/Comment_list";
-import { Issue_list } from "../fragments/Issue_list";
-import { Label_common } from "../fragments/Label_common";
+import { Comment_common } from "../fragments/Comment_common";
+import { Issue_nav } from "../fragments/Issue_nav";
 import { Label_full } from "../fragments/Label_full";
 import { Label_list } from "../fragments/Label_list";
 import { Note_list } from "../fragments/Note_list";
@@ -30,9 +29,8 @@ import { User_nav } from "../fragments/User_nav";
 export const bookmarkListCreate = gql`${Api_list}
 ${Api_nav}
 ${Bookmark_full}
-${Comment_list}
-${Issue_list}
-${Label_common}
+${Comment_common}
+${Issue_nav}
 ${Label_full}
 ${Label_list}
 ${Note_list}

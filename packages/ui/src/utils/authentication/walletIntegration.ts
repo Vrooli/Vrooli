@@ -75,11 +75,11 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
     let providers = Object.entries(window.cardano).filter(([key, value]) => {
         if (typeof value !== "object") return false;
         const obj = value as { [x: string]: any };
-        if (!obj.hasOwnProperty("apiVersion")) return false;
-        if (!obj.hasOwnProperty("enable")) return false;
-        if (!obj.hasOwnProperty("name")) return false;
-        if (!obj.hasOwnProperty("icon")) return false;
-        if (!obj.hasOwnProperty("isEnabled")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "apiVersion")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "enable")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "name")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "icon")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "isEnabled")) return false;
         return true;
     }) as [string, WalletProviderInfo][];
     // Filter out duplicate names and excluded

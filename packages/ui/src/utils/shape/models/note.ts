@@ -6,8 +6,8 @@ import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
-export type NoteShape = Pick<Note, 'id' | 'isPrivate'> & {
-    __typename?: 'Note';
+export type NoteShape = Pick<Note, "id" | "isPrivate"> & {
+    __typename?: "Note";
     labels?: ({ id: string } | LabelShape)[];
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
@@ -19,18 +19,18 @@ export type NoteShape = Pick<Note, 'id' | 'isPrivate'> & {
 
 export const shapeNote: ShapeModel<NoteShape, NoteCreateInput, NoteUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'isPrivate'),
-        ...createOwner(d, 'ownedBy'),
-        ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
-        ...createRel(d, 'parent', ['Connect'], 'one'),
-        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createPrims(d, "id", "isPrivate"),
+        ...createOwner(d, "ownedBy"),
+        ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
+        ...createRel(d, "parent", ["Connect"], "one"),
+        ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
         ...createVersion(d, shapeNoteVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'isPrivate'),
-        ...updateOwner(o, u, 'ownedBy'),
-        ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
-        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updatePrims(o, u, "id", "isPrivate"),
+        ...updateOwner(o, u, "ownedBy"),
+        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
+        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeNoteVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

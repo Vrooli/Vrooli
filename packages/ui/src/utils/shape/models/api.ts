@@ -6,8 +6,8 @@ import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 import { OwnerShape } from "./types";
 
-export type ApiShape = Pick<Api, 'id' | 'isPrivate'> & {
-    __typename?: 'Api';
+export type ApiShape = Pick<Api, "id" | "isPrivate"> & {
+    __typename?: "Api";
     labels?: ({ id: string } | LabelShape)[];
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
@@ -19,18 +19,18 @@ export type ApiShape = Pick<Api, 'id' | 'isPrivate'> & {
 
 export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'isPrivate'),
-        ...createOwner(d, 'ownedBy'),
-        ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
-        ...createRel(d, 'parent', ['Connect'], 'one'),
-        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createPrims(d, "id", "isPrivate"),
+        ...createOwner(d, "ownedBy"),
+        ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
+        ...createRel(d, "parent", ["Connect"], "one"),
+        ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
         ...createVersion(d, shapeApiVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'isPrivate'),
-        ...updateOwner(o, u, 'ownedBy'),
-        ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
-        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updatePrims(o, u, "id", "isPrivate"),
+        ...updateOwner(o, u, "ownedBy"),
+        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
+        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeApiVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

@@ -195,7 +195,7 @@ export const RoutineVersionModel: ModelLogic<{
                     ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest })),
                     ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest })),
                     ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest })),
-                    // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
+                    // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
                     ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
                 };
             },
@@ -218,7 +218,7 @@ export const RoutineVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "versions", data, ...rest })),
                 ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async (params) => {

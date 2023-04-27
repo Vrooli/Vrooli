@@ -164,6 +164,7 @@ export interface BookmarkButtonProps {
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
+    zIndex: number;
 }
 
 export interface StatusMessageArray {

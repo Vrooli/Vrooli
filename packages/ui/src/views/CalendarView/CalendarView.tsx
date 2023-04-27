@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleRecurrenceType, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, uuid, WeekIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, WeekIcon } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -49,135 +49,135 @@ const tabParams: BaseParams[] = [{
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
-const sampleSchedules = [
-    {
-        id: uuid(),
-        title: "Meeting",
-        startTime: new Date(),
-        endTime: add(new Date(), { hours: 1 }),
-        recurrences: [
-            {
-                __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Weekly,
-                interval: 1,
-                dayOfWeek: 3,
-            },
-        ],
-        exceptions: [
-            {
-                __typename: "ScheduleException" as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { weeks: 1 }),
-                newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
-                newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
-            },
-        ],
-        labels: [
-            {
-                __typename: "Label" as const,
-                id: uuid(),
-                color: "#4caf50",
-                label: "Work",
-            },
-            {
-                __typename: "Label" as const,
-                id: uuid(),
-                label: "Important",
-            },
-        ],
-        // Dummy data for reminders
-        // reminders: ['10 minutes before', '1 hour before'],
-    },
-    {
-        id: uuid(),
-        title: "Monthly Report",
-        startTime: add(new Date(), { days: 5 }),
-        endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
-        recurrences: [
-            {
-                __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Monthly,
-                interval: 1,
-                dayOfMonth: 10,
-            },
-        ],
-        exceptions: [],
-        labels: [
-            {
-                __typename: "Label" as const,
-                id: uuid(),
-                color: "#2196f3",
-                label: "Reports",
-            },
-        ],
-    },
-    {
-        id: uuid(),
-        title: "Bi-weekly Team Lunch",
-        startTime: add(new Date(), { days: 6 }),
-        endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
-        recurrences: [
-            {
-                __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Weekly,
-                interval: 2,
-                dayOfWeek: 6,
-            },
-        ],
-        exceptions: [
-            {
-                __typename: "ScheduleException" as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { weeks: 2 }),
-                newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
-                newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
-            },
-        ],
-        labels: [
-            {
-                __typename: "Label" as const,
-                id: uuid(),
-                color: "#ff9800",
-                label: "Social",
-            },
-        ],
-    },
-    {
-        id: uuid(),
-        title: "Daily Stand-up",
-        startTime: add(new Date(), { days: 1 }),
-        endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
-        recurrences: [
-            {
-                __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Daily,
-                interval: 1,
-                endDate: add(new Date(), { days: 15 }),
-            },
-        ],
-        exceptions: [
-            {
-                __typename: "ScheduleException" as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { days: 2 }),
-                newStartTime: null,
-                newEndTime: null,
-            },
-        ],
-        labels: [
-            {
-                __typename: "Label" as const,
-                id: uuid(),
-                color: "#f44336",
-                label: "Stand-up",
-            },
-        ],
-    },
-];
+// const sampleSchedules = [
+//     {
+//         id: uuid(),
+//         title: "Meeting",
+//         startTime: new Date(),
+//         endTime: add(new Date(), { hours: 1 }),
+//         recurrences: [
+//             {
+//                 __typename: "ScheduleRecurrence" as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Weekly,
+//                 interval: 1,
+//                 dayOfWeek: 3,
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: "ScheduleException" as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { weeks: 1 }),
+//                 newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
+//                 newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: "Label" as const,
+//                 id: uuid(),
+//                 color: "#4caf50",
+//                 label: "Work",
+//             },
+//             {
+//                 __typename: "Label" as const,
+//                 id: uuid(),
+//                 label: "Important",
+//             },
+//         ],
+//         // Dummy data for reminders
+//         // reminders: ['10 minutes before', '1 hour before'],
+//     },
+//     {
+//         id: uuid(),
+//         title: "Monthly Report",
+//         startTime: add(new Date(), { days: 5 }),
+//         endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
+//         recurrences: [
+//             {
+//                 __typename: "ScheduleRecurrence" as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Monthly,
+//                 interval: 1,
+//                 dayOfMonth: 10,
+//             },
+//         ],
+//         exceptions: [],
+//         labels: [
+//             {
+//                 __typename: "Label" as const,
+//                 id: uuid(),
+//                 color: "#2196f3",
+//                 label: "Reports",
+//             },
+//         ],
+//     },
+//     {
+//         id: uuid(),
+//         title: "Bi-weekly Team Lunch",
+//         startTime: add(new Date(), { days: 6 }),
+//         endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
+//         recurrences: [
+//             {
+//                 __typename: "ScheduleRecurrence" as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Weekly,
+//                 interval: 2,
+//                 dayOfWeek: 6,
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: "ScheduleException" as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { weeks: 2 }),
+//                 newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
+//                 newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: "Label" as const,
+//                 id: uuid(),
+//                 color: "#ff9800",
+//                 label: "Social",
+//             },
+//         ],
+//     },
+//     {
+//         id: uuid(),
+//         title: "Daily Stand-up",
+//         startTime: add(new Date(), { days: 1 }),
+//         endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
+//         recurrences: [
+//             {
+//                 __typename: "ScheduleRecurrence" as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Daily,
+//                 interval: 1,
+//                 endDate: add(new Date(), { days: 15 }),
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: "ScheduleException" as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { days: 2 }),
+//                 newStartTime: null,
+//                 newEndTime: null,
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: "Label" as const,
+//                 id: uuid(),
+//                 color: "#f44336",
+//                 label: "Stand-up",
+//             },
+//         ],
+//     },
+// ];
 
 const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
     display: "flex",
@@ -388,7 +388,7 @@ export const CalendarView = ({
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
-        sampleSchedules.forEach((schedule: any) => {
+        schedules.forEach((schedule: any) => {
             // Get occurrences (i.e. start and end times)
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
             // Create events

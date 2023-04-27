@@ -130,7 +130,7 @@ export const ProjectVersionModel: ModelLogic<{
                 versionNotes: noNull(data.versionNotes),
                 ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
@@ -139,7 +139,7 @@ export const ProjectVersionModel: ModelLogic<{
                 versionNotes: noNull(data.versionNotes),
                 ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async (params) => {

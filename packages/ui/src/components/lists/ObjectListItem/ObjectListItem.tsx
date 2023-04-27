@@ -113,7 +113,7 @@ export function ObjectListItem<T extends ListObjectType>({
         // Show icons for organizations and users
         switch (object?.__typename) {
             case "Organization":
-            case "User":
+            case "User": {
                 const Icon: SvgComponent = object?.__typename === "Organization" ? OrganizationIcon : UserIcon;
                 return (
                     <Box
@@ -137,6 +137,7 @@ export function ObjectListItem<T extends ListObjectType>({
                         />
                     </Box>
                 );
+            }
             case "Project":
             case "Routine":
             case "Standard":
@@ -226,6 +227,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
+                    zIndex={zIndex}
                 />}
                 {commentableObjects.includes(object?.__typename ?? "") && (<CommentsButton
                     commentsCount={getCounts(object).comments}

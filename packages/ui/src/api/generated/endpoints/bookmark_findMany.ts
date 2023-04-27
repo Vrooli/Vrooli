@@ -1,9 +1,9 @@
 import gql from "graphql-tag";
 import { Api_list } from "../fragments/Api_list";
 import { Api_nav } from "../fragments/Api_nav";
-import { Comment_list } from "../fragments/Comment_list";
-import { Issue_list } from "../fragments/Issue_list";
-import { Label_common } from "../fragments/Label_common";
+import { BookmarkList_common } from "../fragments/BookmarkList_common";
+import { Comment_common } from "../fragments/Comment_common";
+import { Issue_nav } from "../fragments/Issue_nav";
 import { Label_full } from "../fragments/Label_full";
 import { Label_list } from "../fragments/Label_list";
 import { Note_list } from "../fragments/Note_list";
@@ -28,9 +28,9 @@ import { User_nav } from "../fragments/User_nav";
 
 export const bookmarkFindMany = gql`${Api_list}
 ${Api_nav}
-${Comment_list}
-${Issue_list}
-${Label_common}
+${BookmarkList_common}
+${Comment_common}
+${Issue_nav}
 ${Label_full}
 ${Label_list}
 ${Note_list}
@@ -59,15 +59,18 @@ query bookmarks($input: BookmarkSearchInput!) {
         cursor
         node {
             id
+            list {
+                ...BookmarkList_common
+            }
             to {
                 ... on Api {
                     ...Api_list
                 }
                 ... on Comment {
-                    ...Comment_list
+                    ...Comment_common
                 }
                 ... on Issue {
-                    ...Issue_list
+                    ...Issue_nav
                 }
                 ... on Note {
                     ...Note_list

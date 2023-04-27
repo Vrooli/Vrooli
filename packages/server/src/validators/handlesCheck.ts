@@ -6,10 +6,10 @@ import { hasProfanity } from "../utils/censor";
 * Maps GqlModelType to wallet relationship field
 */
 const walletOwnerMap = {
-    User: 'userId',
-    Organization: 'organizationId',
-    Project: 'projectId',
-} as const
+    User: "userId",
+    Organization: "organizationId",
+    Project: "projectId",
+} as const;
 
 /**
  * Verifies that one or more handles are owned by a wallet, that is owned by an object. 
@@ -22,10 +22,10 @@ const walletOwnerMap = {
  */
 export const handlesCheck = async (
     prisma: PrismaType,
-    forType: 'User' | 'Organization' | 'Project',
+    forType: "User" | "Organization" | "Project",
     list: { id: string, handle?: string | null | undefined }[],
     languages: string[],
-    checkProfanity: boolean = true
+    checkProfanity = true,
 ): Promise<void> => {
     // Filter out empty handles
     const filtered = list.filter(x => x.handle) as { id: string, handle: string }[];
@@ -36,22 +36,22 @@ export const handlesCheck = async (
             handles: {
                 select: {
                     handle: true,
-                }
-            }
-        }
+                },
+            },
+        },
     });
     // Check that each handle is owned by the wallet
     for (const { id, handle } of filtered) {
         const wallet = wallets.find(w => w[walletOwnerMap[forType]] === id);
         if (!wallet) {
-            throw new CustomError('0019', 'ErrorUnknown', languages);
+            throw new CustomError("0019", "ErrorUnknown", languages);
         }
-        const found = Boolean(wallet.handles.find(h => h.handle === handle));   
+        const found = Boolean(wallet.handles.find(h => h.handle === handle));
         if (!found) {
-            throw new CustomError('0374', 'ErrorUnknown', languages);
+            throw new CustomError("0374", "ErrorUnknown", languages);
         }
         if (checkProfanity && hasProfanity(handle)) {
-            throw new CustomError('0375', 'BannedWord', languages);
+            throw new CustomError("0375", "BannedWord", languages);
         }
     }
-}
+};

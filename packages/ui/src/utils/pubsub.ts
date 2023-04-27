@@ -6,7 +6,7 @@
  *      PubSub.get().publishSnack({ messageKey: "HelloWorld" });
  */
 import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
-import { SnackSeverity } from "components/dialogs/snacks";
+import { SnackSeverity } from "components/snacks";
 
 export type Pubs = "Celebration" |
     "CommandPalette" |

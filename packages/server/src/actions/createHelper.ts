@@ -19,7 +19,7 @@ export async function createHelper<GraphQLModel>({
     req,
 }: CreateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
-    const { format } = getLogic(['format'], objectType, req.languages, 'createHelper');
+    const { format } = getLogic(["format"], objectType, req.languages, "createHelper");
     // Partially convert info type
     const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.languages, true);
     // Create objects. cudHelper will check permissions
@@ -28,5 +28,5 @@ export async function createHelper<GraphQLModel>({
     if (created && created.length > 0) {
         return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
     }
-    throw new CustomError('0028', 'ErrorUnknown', userData.languages);
+    throw new CustomError("0028", "ErrorUnknown", userData.languages);
 }

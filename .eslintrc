@@ -3,7 +3,8 @@
     "ignorePatterns": [
         "dist/",
         "server/src/auth/message_signing/",
-        "vite.config.ts"
+        "vite.config.ts",
+        "graphqlTypes.ts"
     ],
     "extends": [
         "eslint:recommended",

@@ -159,7 +159,10 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector name="root.tags" />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}

@@ -189,6 +189,7 @@ export const ApiView = ({
                         isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={apiVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>

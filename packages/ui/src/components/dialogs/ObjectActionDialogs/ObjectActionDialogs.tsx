@@ -1,10 +1,11 @@
-import { DeleteType, ReportFor } from "@local/shared";
+import { BookmarkFor, DeleteType, ReportFor } from "@local/shared";
 import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { ReportDialog } from "../ReportDialog/ReportDialog";
+import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { StatsDialog } from "../StatsDialog/StatsDialog";
 import { ObjectActionDialogsProps } from "../types";
@@ -18,12 +19,14 @@ export const ObjectActionDialogs = ({
     hasStatsSupport,
     hasVotingSupport,
     isDeleteDialogOpen,
+    isBookmarkDialogOpen,
     isDonateDialogOpen,
     isShareDialogOpen,
     isStatsDialogOpen,
     isReportDialogOpen,
     onActionStart,
     onActionComplete,
+    closeBookmarkDialog,
     openDeleteDialog,
     closeDeleteDialog,
     openDonateDialog,
@@ -39,13 +42,21 @@ export const ObjectActionDialogs = ({
     zIndex,
 }: ObjectActionDialogsProps) => {
     const session = useContext(SessionContext);
-    console.log('isDeleteDialogOpen', isDeleteDialogOpen, object?.id, hasDeletingSupport)
+    console.log("isDeleteDialogOpen", isDeleteDialogOpen, object?.id, hasDeletingSupport);
 
     return (
         <>
             {/* openAddCommentDialog?: () => void; //TODO: implement
     openDonateDialog?: () => void; //TODO: implement
     */}
+            {object?.id && hasBookmarkingSupport && <SelectBookmarkListDialog
+                objectId={object.id}
+                objectType={objectType as unknown as BookmarkFor}
+                onClose={closeBookmarkDialog}
+                isCreate={true}
+                isOpen={isBookmarkDialogOpen}
+                zIndex={zIndex + 1}
+            />}
             {object?.id && hasDeletingSupport && <DeleteDialog
                 isOpen={isDeleteDialogOpen}
                 objectId={object.id}
@@ -75,5 +86,5 @@ export const ObjectActionDialogs = ({
                 zIndex={zIndex + 1}
             />}
         </>
-    )
-}
+    );
+};

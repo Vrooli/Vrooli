@@ -293,6 +293,7 @@ export interface TagSelectorProps {
     disabled?: boolean;
     name: string;
     placeholder?: string;
+    zIndex: number;
 }
 
 export interface TagSelectorBaseProps {
@@ -300,6 +301,7 @@ export interface TagSelectorBaseProps {
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+    zIndex: number
 }
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
