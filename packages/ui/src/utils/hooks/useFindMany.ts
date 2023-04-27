@@ -54,29 +54,46 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const stableWhere = useStableObject(where);
 
     const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
+    const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? "");
+    const [searchString, setSearchString] = useState<string>("");
+    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
+
+    const updateSortBy = useCallback((newParams: Partial<SearchParams>) => {
+        const searchParams = parseSearchParams();
+        if (typeof searchParams.sort === "string") {
+            if (exists(newParams.sortByOptions) && searchParams.sort in newParams.sortByOptions) {
+                setSortBy(searchParams.sort);
+            } else {
+                setSortBy(newParams.defaultSortBy ?? "");
+            }
+        }
+    }, []);
+
+    const updateWhere = useCallback((newWhere: any) => {
+        setParams((prevParams) => ({
+            ...prevParams,
+            where: newWhere,
+        }));
+    }, []);
+
     useEffect(() => {
         const fetchParams = async () => {
             const newParams = searchTypeToParams[searchType];
             if (!newParams) return;
             const resolvedParams = await newParams();
             setParams({ ...resolvedParams, where: stableWhere });
+            updateSortBy(resolvedParams);
+            updateWhere(stableWhere);
         };
         fetchParams();
-    }, [searchType, stableWhere]);
+    }, [searchType, stableWhere, updateSortBy, updateWhere]);
 
-    const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? "");
-    const [searchString, setSearchString] = useState<string>("");
-    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
+
     useEffect(() => {
         const searchParams = parseSearchParams();
         if (typeof searchParams.search === "string") setSearchString(searchParams.search);
         if (typeof searchParams.sort === "string") {
-            // Check if sortBy is valid
-            if (exists(params?.sortByOptions) && searchParams.sort in params.sortByOptions) {
-                setSortBy(searchParams.sort);
-            } else {
-                setSortBy(params?.defaultSortBy ?? "");
-            }
+            updateSortBy(params);
         }
         if (typeof searchParams.time === "object" &&
             !Array.isArray(searchParams.time) &&
@@ -87,7 +104,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [params?.defaultSortBy, params?.sortByOptions]);
+    }, [params, updateSortBy]);
 
     /**
      * When sort and filter options change, update the URL
