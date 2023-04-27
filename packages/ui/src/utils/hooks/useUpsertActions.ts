@@ -1,6 +1,7 @@
 import { LINKS, useLocation } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ViewDisplayType } from "views/types";
@@ -18,6 +19,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
     onCancel?: () => any, // Only used for dialog display
     onCompleted?: (data: T) => any, // Only used for dialog display
 ) => {
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     // We can only use history.back()/replace if there is a previous page
@@ -35,11 +37,13 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
                     onCompleted!(item!);
                 }
                 if (isCreate) {
+                    const rootType = (item?.__typename ?? "").replace("Version", "");
+                    const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
                     PubSub.get().publishSnack({
-                        message: `${item?.__typename ?? ""} created!`,
+                        message: t("ObjectCreated", { objectName: objectTranslation }),
                         severity: "Success",
                         buttonKey: "CreateNew",
-                        buttonClicked: () => { setLocation("add"); },
+                        buttonClicked: () => { setLocation(`${LINKS[rootType]}/add`); },
                     });
                 }
                 break;
