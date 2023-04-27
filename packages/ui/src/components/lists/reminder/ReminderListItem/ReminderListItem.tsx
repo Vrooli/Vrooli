@@ -1,5 +1,6 @@
 // Used to display popular/search results of a particular object type
-import { Checkbox, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { DeleteIcon } from "@local/shared";
+import { Checkbox, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { CompletionBar } from "components/lists/ObjectListItem/ObjectListItem";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
@@ -16,7 +17,6 @@ export function ReminderListItem({
     handleOpen,
     handleUpdate,
     reminder,
-    zIndex,
 }: ReminderListItemProps) {
     const { palette } = useTheme();
 
@@ -51,10 +51,24 @@ export function ReminderListItem({
         return { stepsComplete, stepsTotal, percentComplete };
     }, [reminder]);
 
+    const handleClick = useCallback((event: React.MouseEvent) => {
+        // Don't open if the checkbox was clicked
+        if ((event.target as HTMLElement).id === "reminder-checkbox") {
+            event.stopPropagation();
+            return;
+        }
+        handleOpen();
+    }, [handleOpen]);
+
+    const handleDeleteClick = useCallback((event: React.MouseEvent) => {
+        event.stopPropagation();
+        handleDelete(reminder);
+    }, [handleDelete, reminder]);
+
     return (
         <ListItem
             disablePadding
-            onClick={handleOpen}
+            onClick={handleClick}
             sx={{
                 display: "flex",
                 padding: 1,
@@ -81,7 +95,7 @@ export function ReminderListItem({
                     sx={{ height: "15px" }}
                 />}
             </Stack>
-            {/* Right-aligned checkbox */}
+            {/* Right-aligned checkbox and delete icon */}
             <Stack direction="row" spacing={1}>
                 <Tooltip placement={"top"} title={checkTooltip}>
                     <Checkbox
@@ -93,6 +107,13 @@ export function ReminderListItem({
                         onChange={handleCheck}
                     />
                 </Tooltip>
+                {checked && (
+                    <Tooltip title="Delete">
+                        <IconButton edge="end" size="small" onClick={handleDeleteClick}>
+                            <DeleteIcon fill={palette.error.main} />
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Stack>
         </ListItem>
     );

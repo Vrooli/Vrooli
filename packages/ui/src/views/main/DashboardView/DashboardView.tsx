@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { calculateOccurrences, DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { feedHome } from "api/generated/endpoints/feed_home";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
@@ -158,25 +158,54 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
-    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
-    const onNoteCreated = useCallback((note: NoteVersion) => {
-        //TODO - add note to note list
-    }, []);
-
     const beforeNavigation = useCallback(() => {
         if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
     }, [searchString, setLocation]);
 
-    const notes = useMemo(() => listToListItems({
+    const [reminders, setReminders] = useState<Reminder[]>([]);
+    useEffect(() => {
+        if (data?.home?.reminders) {
+            setReminders(data.home.reminders);
+        }
+    }, [data]);
+    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
+        setReminders(updatedReminders);
+    }, []);
+
+    const reminderListId = useMemo(() => {
+        // First, try to find list using foccus mode
+        const sessionReminderListId = activeFocusMode?.mode?.reminderList?.id;
+        // If that doesn't work, try to find list using the reminders and hope for the best
+        const reminderList = reminders.length > 0 ? reminders[0].reminderList.id : null;
+        return sessionReminderListId ?? reminderList ?? "";
+    }, [activeFocusMode, reminders]);
+
+    const [notes, setNotes] = useState<Note[]>([]);
+    useEffect(() => {
+        if (data?.home?.notes) {
+            setNotes(data.home.notes);
+        }
+    }, [data]);
+
+    const noteItems = useMemo(() => listToListItems({
         beforeNavigation,
         dummyItems: new Array(5).fill("Note"),
-        items: data?.home?.notes ?? [],
+        items: notes,
         keyPrefix: "note-list-item",
         loading,
         zIndex,
-    }), [beforeNavigation, data?.home?.notes, loading]);
+    }), [beforeNavigation, notes, loading]);
+
+    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
+    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
+    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
+    const onNoteCreated = useCallback((note: NoteVersion) => {
+        closeCreateNote();
+        // Convert NoteVersion to Note before adding to list
+        const { root, ...rest } = note;
+        const asRoot = { ...root, versions: [note] };
+        setNotes(n => [asRoot, ...n]);
+    }, []);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -213,16 +242,6 @@ export const DashboardView = ({
             zIndex,
         });
     }, [beforeNavigation, data?.home?.schedules, loading, session]);
-
-    const [reminders, setReminders] = useState<Reminder[]>([]);
-    useEffect(() => {
-        if (data?.home?.reminders) {
-            setReminders(data.home.reminders);
-        }
-    }, [data]);
-    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
-        setReminders(updatedReminders);
-    }, []);
 
     return (
         <PageContainer>
@@ -294,19 +313,18 @@ export const DashboardView = ({
                 <ReminderList
                     handleUpdate={handleReminderUpdate}
                     loading={loading}
-                    // Use list of first reminder we find associated with the active focus mode
-                    listId={data?.home?.reminders.find((r) => r.reminderList?.focusMode?.id === activeFocusMode?.mode?.id)?.reminderList?.id}
+                    listId={reminderListId}
                     reminders={reminders}
                     zIndex={zIndex}
                 />
                 {/* Notes */}
                 <ListTitleContainer
-                    isEmpty={notes.length === 0}
+                    isEmpty={noteItems.length === 0}
                     titleKey="Note"
                     titleVariables={{ count: 2 }}
                     options={[["Create", openCreateNote]]}
                 >
-                    {notes}
+                    {noteItems}
                 </ListTitleContainer>
             </Stack>
         </PageContainer>

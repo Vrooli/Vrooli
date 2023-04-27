@@ -99,7 +99,7 @@ export const ScheduleDialog = ({
                             mutationWrapper<Schedule, ScheduleCreateInput | ScheduleUpdateInput>({
                                 mutation: isCreate ? addMutation : updateMutation,
                                 input: transformValues(values),
-                                successMessage: () => ({ key: isCreate ? "ScheduleCreated" : "ScheduleUpdated" }),
+                                successMessage: () => ({ messageKey: isCreate ? "ScheduleCreated" : "ScheduleUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
                                 onError: () => { helpers.setSubmitting(false); },

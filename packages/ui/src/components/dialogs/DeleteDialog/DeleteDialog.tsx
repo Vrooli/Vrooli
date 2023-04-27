@@ -42,12 +42,12 @@ export const DeleteDialog = ({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: "ObjectDeleted", variables: { objectName } }),
+            successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName } }),
             onSuccess: () => {
                 setLocation(LINKS.Home);
                 close(true);
             },
-            errorMessage: () => ({ key: "FailedToDelete" }),
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
             onError: () => {
                 close(false);
             },

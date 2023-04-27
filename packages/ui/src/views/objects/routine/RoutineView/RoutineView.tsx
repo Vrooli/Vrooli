@@ -162,7 +162,7 @@ export const RoutineView = ({
                 name: name ?? "Unnamed Routine",
                 ...runInputsCreate(formikToRunInputs(formik.values), existing.id),
             },
-            successMessage: () => ({ key: "RoutineCompleted" }),
+            successMessage: () => ({ messageKey: "RoutineCompleted" }),
             onSuccess: () => {
                 PubSub.get().publishCelebration();
                 setLocation(LINKS.Home);

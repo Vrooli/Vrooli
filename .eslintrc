@@ -45,6 +45,7 @@
         "arrow-spacing": "error",
         "prefer-const": "error",
         "no-var": "error",
+        "no-empty-function": "off",
         "object-shorthand": "error",
         "eol-last": "error",
         "padding-line-between-statements": [

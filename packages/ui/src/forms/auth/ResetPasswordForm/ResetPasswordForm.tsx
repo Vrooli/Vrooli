@@ -59,7 +59,7 @@ export const ResetPasswordForm = ({
                             PubSub.get().publishSession(data);
                             setLocation(LINKS.Home);
                         },
-                        successMessage: () => ({ key: "PasswordReset" }),
+                        successMessage: () => ({ messageKey: "PasswordReset" }),
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}

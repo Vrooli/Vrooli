@@ -109,7 +109,7 @@ export const FocusModeDialog = ({
                         mutationWrapper<FocusMode, FocusModeCreateInput | FocusModeUpdateInput>({
                             mutation: isCreating ? addMutation : updateMutation,
                             input: transformValues(values),
-                            successMessage: () => ({ key: isCreating ? "FocusModeCreated" : "FocusModeUpdated" }),
+                            successMessage: () => ({ messageKey: isCreating ? "FocusModeCreated" : "FocusModeUpdated" }),
                             successCondition: (data) => data !== null,
                             onSuccess,
                             onError: () => { helpers.setSubmitting(false); },

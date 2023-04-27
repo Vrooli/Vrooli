@@ -56,7 +56,7 @@ export const SettingsProfileView = ({
                                 id: profile.id,
                                 ...values,
                             }),
-                            successMessage: () => ({ key: "SettingsUpdated" }),
+                            successMessage: () => ({ messageKey: "SettingsUpdated" }),
                             onError: () => { helpers.setSubmitting(false); },
                         });
                     }}

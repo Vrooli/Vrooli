@@ -9,21 +9,27 @@ import { initializeApollo } from "./initialize";
 // DocumentNode definitions
 type InputType = { input: { [x: string]: any } }
 
+type MessageProps<KeyType> = {
+    autoHideDuration?: number | "persist";
+    buttonClicked?: (event?: any) => any;
+    buttonKey?: CommonKey;
+    buttonVariables?: { [key: string]: string | number };
+    data?: any;
+    id?: string;
+    message?: string;
+    messageKey?: KeyType;
+    messageVariables?: { [key: string]: string | number };
+}
+
 interface BaseWrapperProps<Output extends object> {
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (data: Output) => boolean;
     // Message displayed on success
-    successMessage?: (data: Output) => {
-        key: CommonKey;
-        variables?: { [key: string]: string | number };
-    }
+    successMessage?: (data: Output) => MessageProps<CommonKey>;
     // Callback triggered on success
     onSuccess?: (data: Output) => any;
     // Message displayed on error
-    errorMessage?: (response?: ApolloError | Output) => {
-        key: ErrorKey | CommonKey;
-        variables?: { [key: string]: string | number };
-    }
+    errorMessage?: (response?: ApolloError | Output) => MessageProps<ErrorKey | CommonKey>;
     // If true, display default error snack. Will not display if error message is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
@@ -91,8 +97,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         const isApolloError: boolean = exists(data) && Object.prototype.hasOwnProperty.call(data, "graphQLErrors");
         // If specific error message is set, display it
         if (typeof errorMessage === "function") {
-            const { key, variables } = errorMessage(data);
-            PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: "Error", data });
+            PubSub.get().publishSnack({ ...(errorMessage(data) as any), severity: "Error", data });
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
@@ -124,10 +129,9 @@ export const graphqlWrapperHelper = <Output extends object>({
         }
         if (successCondition(data)) {
             if (successMessage) PubSub.get().publishSnack({
-                messageKey: successMessage(data).key,
-                messageVariables: successMessage(data).variables,
+                ...successMessage(data),
                 severity: "Success",
-            });
+            } as any);
             if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === "function") onSuccess(data);
         } else {

@@ -87,7 +87,7 @@ export const SelectLanguageMenu = ({
                     PubSub.get().publishSnack({ messageKey: "FailedToTranslate", severity: "Error" });
                 }
             },
-            errorMessage: () => ({ key: "FailedToTranslate" }),
+            errorMessage: () => ({ messageKey: "FailedToTranslate" }),
         });
     }, [getAutoTranslation, languages]);
 

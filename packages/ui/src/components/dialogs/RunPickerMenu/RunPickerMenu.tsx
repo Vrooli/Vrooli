@@ -67,7 +67,7 @@ export const RunPickerMenu = ({
                     onSelect(data);
                     handleClose();
                 },
-                errorMessage: () => ({ key: "FailedToCreateRun" }),
+                errorMessage: () => ({ messageKey: "FailedToCreateRun" }),
             });
         }
         else {
@@ -85,7 +85,7 @@ export const RunPickerMenu = ({
                     onSelect(data);
                     handleClose();
                 },
-                errorMessage: () => ({ key: "FailedToCreateRun" }),
+                errorMessage: () => ({ messageKey: "FailedToCreateRun" }),
             });
         }
     }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
@@ -96,11 +96,11 @@ export const RunPickerMenu = ({
             mutation: deleteOne,
             input: { id: run.id, objectType: run.__typename as DeleteType },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: "RunDeleted", variables: { runName: displayDate(run.startedAt) } }),
+            successMessage: () => ({ messageKey: "RunDeleted", messageVariables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {
                 onDelete(run);
             },
-            errorMessage: () => ({ key: "RunDeleteFailed", variables: { runName: displayDate(run.startedAt) } }),
+            errorMessage: () => ({ messageKey: "RunDeleteFailed", messageVariables: { runName: displayDate(run.startedAt) } }),
         });
     }, [deleteOne, onDelete]);
 

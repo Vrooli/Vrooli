@@ -59,11 +59,11 @@ export function CommentThreadItem({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
-                            successMessage: () => ({ key: "CommentDeleted" }),
+                            successMessage: () => ({ messageKey: "CommentDeleted" }),
                             onSuccess: () => {
                                 handleCommentRemove(data);
                             },
-                            errorMessage: () => ({ key: "DeleteCommentFailed" }),
+                            errorMessage: () => ({ messageKey: "DeleteCommentFailed" }),
                         });
                     },
                 },

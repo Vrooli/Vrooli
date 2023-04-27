@@ -53,7 +53,7 @@ export const SettingsFocusModesView = ({
                             mutation: deleteMutation,
                             input: { id: focusMode.id, objectType: DeleteType.FocusMode },
                             successCondition: (data) => data.success,
-                            successMessage: () => ({ key: "FocusModeDeleted" }),
+                            successMessage: () => ({ messageKey: "FocusModeDeleted" }),
                             onSuccess: () => {
                                 setFocusModes((prevFocusModes) => prevFocusModes.filter((prevFocusMode) => prevFocusMode.id !== focusMode.id));
                             },

@@ -70,12 +70,12 @@ export const DeleteAccountDialog = ({
                         mutation: deleteAccount,
                         input: values,
                         successCondition: (data) => data.success,
-                        successMessage: () => ({ key: "AccountDeleteSuccess" }),
+                        successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
                         onSuccess: () => {
                             setLocation(LINKS.Home);
                             handleClose(true);
                         },
-                        errorMessage: () => ({ key: "AccountDeleteFail" }),
+                        errorMessage: () => ({ messageKey: "AccountDeleteFail" }),
                         onError: () => {
                             handleClose(false);
                         },

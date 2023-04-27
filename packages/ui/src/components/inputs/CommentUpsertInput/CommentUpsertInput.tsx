@@ -33,7 +33,7 @@ export const CommentUpsertInput = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => commentInitialValues(session, objectType, objectId, language, comment), [comment, language, objectId, objectType, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Comment>('dialog', !exists(comment), onCancel, onCompleted);
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>("dialog", !exists(comment), onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useCustomMutation<Comment, CommentCreateInput>(commentCreate);
     const [update, { loading: isUpdateLoading }] = useCustomMutation<Comment, CommentUpdateInput>(commentUpdate);
     const mutation = !exists(comment) ? create : update;
@@ -49,13 +49,13 @@ export const CommentUpsertInput = ({
                     mutation,
                     input: transformCommentValues(values, comment),
                     successCondition: (data) => data !== null,
-                    successMessage: () => ({ key: 'CommentUpdated' }),
+                    successMessage: () => ({ messageKey: "CommentUpdated" }),
                     onSuccess: (data) => {
                         helpers.resetForm();
                         handleCompleted(data);
                     },
-                    onError: () => { helpers.setSubmitting(false) },
-                })
+                    onError: () => { helpers.setSubmitting(false); },
+                });
             }}
             validate={async (values) => await validateCommentValues(values, comment)}
         >
@@ -69,7 +69,7 @@ export const CommentUpsertInput = ({
                     ref={formRef}
                     zIndex={zIndex + 1}
                     {...formik}
-                />
+                />;
                 return <CommentForm
                     display="page"
                     isCreate={!exists(comment)}
@@ -79,8 +79,8 @@ export const CommentUpsertInput = ({
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}
-                />
+                />;
             }}
         </Formik>
-    )
-}
+    );
+};

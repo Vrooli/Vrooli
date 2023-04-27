@@ -120,7 +120,7 @@ export const AccountMenu = ({
             mutationWrapper<Session, SwitchCurrentAccountInput>({
                 mutation: switchCurrentAccount,
                 input: { id: user.id },
-                successMessage: () => ({ key: "LoggedInAs", variables: { name: user.name ?? user.handle ?? "" } }),
+                successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => { PubSub.get().publishSession(data); },
             });
         }
@@ -138,7 +138,7 @@ export const AccountMenu = ({
         mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id: user.id },
-            successMessage: () => ({ key: "LoggedOutOf", variables: { name: user.name ?? user.handle ?? "" } }),
+            successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },

@@ -78,7 +78,7 @@ export const ResourceDialog = ({
                             mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
                                 mutation: isCreating ? addMutation : updateMutation,
                                 input: transformResourceValues(values, partialData as any),
-                                successMessage: () => ({ key: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
+                                successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
                                 onError: () => { helpers.setSubmitting(false); },

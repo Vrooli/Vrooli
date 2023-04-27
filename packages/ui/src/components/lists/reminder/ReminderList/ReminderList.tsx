@@ -1,14 +1,18 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, Reminder, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { reminderCreate } from "api/generated/endpoints/reminder_create";
+import { reminderUpdate } from "api/generated/endpoints/reminder_update";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
 import { ReminderListProps } from "../types";
@@ -58,6 +62,25 @@ export const ReminderList = ({
         closeDialog();
     }, []);
 
+    // Handle add mutation (for undo)
+    const [addMutation, { error: addError }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
+    useDisplayApolloError(addError);
+
+    // Handle update mutation
+    const [updateMutation, { error: updateError }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
+    useDisplayApolloError(updateError);
+    const saveUpdate = useCallback((index: number, original: Reminder, updated: Reminder) => {
+        // Don't wait for the mutation to call handleUpdated
+        handleUpdated(index, updated);
+        // Call the mutation
+        mutationWrapper<Reminder, ReminderUpdateInput>({
+            mutation: updateMutation,
+            input: shapeReminder.update(original, updated),
+            successCondition: (data) => !!data.id,
+            successMessage: () => ({ messageKey: "ObjectUpdated", messageVariables: { objectName: updated.name } }),
+        });
+    }, [updateMutation, handleUpdated]);
+
     // Handle delete
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback((index: number) => {
@@ -66,7 +89,27 @@ export const ReminderList = ({
             mutation: deleteMutation,
             input: { id: reminder.id, objectType: DeleteType.Reminder },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: "ObjectDeleted", variables: { objectName: reminder.name } }),
+            successMessage: () => ({
+                messageKey: "ObjectDeleted",
+                messageVariables: { objectName: reminder.name },
+                buttonKey: "Undo",
+                buttonClicked: () => {
+                    mutationWrapper<Reminder, ReminderCreateInput>({
+                        mutation: addMutation,
+                        input: shapeReminder.create({
+                            ...reminder,
+                            // Make sure not to set any extra fields, 
+                            // so this is treated as a "Connect" instead of a "Create"
+                            reminderList: {
+                                __typename: "ReminderList" as const,
+                                id: reminder.reminderList.id,
+                            },
+                        }),
+                        successCondition: (data) => !!data.id,
+                        onSuccess: (data) => { handleCreated(data); },
+                    });
+                },
+            }),
             onSuccess: () => {
                 const newList = [...allReminders];
                 newList.splice(index, 1);
@@ -74,7 +117,7 @@ export const ReminderList = ({
                 handleUpdate && handleUpdate(newList);
                 closeDialog();
             },
-            errorMessage: () => ({ key: "FailedToDelete" }),
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
         });
     }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
 
@@ -108,9 +151,9 @@ export const ReminderList = ({
                 {reminders.map((reminder, index) => (
                     <ReminderListItem
                         key={`reminder-${index}`}
-                        handleDelete={() => { }}
+                        handleDelete={() => handleDelete(index)}
                         handleOpen={() => openUpdateDialog(index)}
-                        handleUpdate={(updated) => handleUpdated(index, updated)}
+                        handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
                         reminder={reminder}
                         zIndex={zIndex}
                     />

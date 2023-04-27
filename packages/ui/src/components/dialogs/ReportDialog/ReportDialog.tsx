@@ -85,7 +85,7 @@ export const ReportDialog = ({
                                 language,
                             },
                             successCondition: (data) => data !== null,
-                            successMessage: () => ({ key: "ReportSubmitted" }),
+                            successMessage: () => ({ messageKey: "ReportSubmitted" }),
                             onSuccess: () => {
                                 helpers.resetForm();
                                 onClose();

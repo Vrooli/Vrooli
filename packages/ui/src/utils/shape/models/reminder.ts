@@ -4,7 +4,7 @@ import { ReminderItemShape, shapeReminderItem } from "./reminderItem";
 import { ReminderListShape, shapeReminderList } from "./reminderList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ReminderShape = Pick<Reminder, "id" | "name" | "description" | "dueDate" | "index"> & {
+export type ReminderShape = Pick<Reminder, "id" | "name" | "description" | "dueDate" | "index" | "isComplete"> & {
     __typename?: "Reminder";
     reminderList?: { id: string } | ReminderListShape | null;
     reminderItems?: ReminderItemShape[] | null,
@@ -17,7 +17,7 @@ export const shapeReminder: ShapeModel<ReminderShape, ReminderCreateInput, Remin
         ...createRel(d, "reminderItems", ["Create"], "many", shapeReminderItem, (r) => ({ ...r, reminder: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "name", "description", "dueDate", "index"),
+        ...updatePrims(o, u, "id", "name", "description", "dueDate", "index", "isComplete"),
         ...updateRel(o, u, "reminderItems", ["Create", "Update", "Delete"], "many", shapeReminderItem, (r, i) => ({ ...r, reminder: { id: i.id } })),
     }, a),
 };
