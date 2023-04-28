@@ -1,4 +1,4 @@
-import { CommentFor, CommonKey } from "@local/shared";
+import { CommentFor, CommonKey, SvgComponent } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 
@@ -16,13 +16,24 @@ export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[] | boolean | null | undefined;
     helpKey?: CommonKey;
     helpVariables?: { [x: string]: string | number };
+    /**
+     * Icon displayed to the left of the title
+     */
     Icon?: SvgComponent;
     titleKey: CommonKey;
     titleVariables?: { [x: string]: string | number };
     id?: string;
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
-    options?: [(CommonKey | { key: CommonKey, variables: Record<string, any> }), (e?: any) => void][];
+    options?: {
+        /**
+         * If set, adds icon for option to the right of the title
+         */
+        Icon?: SvgComponent;
+        key: CommonKey;
+        onClick: (e?: any) => void;
+        variables?: Record<string, any>
+    }[];
     sx?: object;
     tooltip?: string;
 }

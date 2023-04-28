@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
@@ -38,6 +38,14 @@ export function TitleContainer({
                         {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
                         <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, { ...titleVariables, defaultValue: titleKey })}</Typography>
                         {helpKey ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
+                        {/* Display any options with a title */}
+                        {options.filter(({ Icon }) => Icon).map(({ Icon, key, onClick, variables }, index) => (
+                            <Tooltip key={`title-option-${index}`} title={t(key, { ...variables, defaultValue: key })}>
+                                <IconButton onClick={onClick}>
+                                    {Icon && <Icon fill={palette.secondary.main} style={{ width: "30px", height: "30px" }} />}
+                                </IconButton>
+                            </Tooltip>
+                        ))}
                     </Stack>
                 </Box>
                 <Box
@@ -76,7 +84,7 @@ export function TitleContainer({
                                     justifyContent: "end",
                                 }}
                                 >
-                                    {options.map(([labelData, onClick], index) => (
+                                    {options.map(({ key, onClick, variables }, index) => (
                                         <Link key={index} onClick={onClick} sx={{
                                             marginTop: "auto",
                                             marginBottom: "auto",
@@ -85,7 +93,8 @@ export function TitleContainer({
                                             <Typography sx={{
                                                 color: palette.mode === "light" ? palette.secondary.dark : palette.secondary.light,
                                             }}
-                                            >{typeof labelData === "string" ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
+                                            >{t(key, { ...variables, defaultValue: key })}
+                                            </Typography>
                                         </Link>
                                     ))}
                                 </Stack>

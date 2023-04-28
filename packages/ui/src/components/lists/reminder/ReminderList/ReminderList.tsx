@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
 import { Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
@@ -146,7 +146,11 @@ export const ReminderList = ({
             <TitleContainer
                 Icon={ReminderIcon}
                 titleKey="ToDo"
-                options={[["Create", openDialog]]}
+                options={[{
+                    Icon: AddIcon,
+                    key: "Create",
+                    onClick: openDialog,
+                }]}
             >
                 <>
                     {/* Empty text */}
