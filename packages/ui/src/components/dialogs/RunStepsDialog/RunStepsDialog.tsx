@@ -3,17 +3,7 @@
  */
 import { addSearchParams, ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen, useLocation } from "@local/shared";
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
-import {
-    alpha,
-    Box,
-    Checkbox,
-    IconButton,
-    Palette,
-    styled,
-    SwipeableDrawer,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import React, { useCallback, useMemo, useState } from "react";
 import { RoutineStep } from "types";
 import { RoutineStepType } from "utils/consts";

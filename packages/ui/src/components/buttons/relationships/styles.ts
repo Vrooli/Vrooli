@@ -1,5 +1,13 @@
-export const commonButtonProps = (isEditing: boolean, canPressWhenNotEditing: boolean) => ({
+export const smallButtonProps = (isEditing: boolean, canPressWhenNotEditing: boolean) => ({
     width: { xs: "58px", md: "69px" },
+    height: { xs: "58px", md: "69px" },
+    overflow: "hidden",
+    boxShadow: !isEditing && !canPressWhenNotEditing ? 0 : 4,
+    pointerEvents: !isEditing && !canPressWhenNotEditing ? "none" : "auto",
+});
+
+export const largeButtonProps = (isEditing: boolean, canPressWhenNotEditing: boolean) => ({
+    minWidth: { xs: "58px", md: "69px" },
     height: { xs: "58px", md: "69px" },
     overflow: "hidden",
     boxShadow: !isEditing && !canPressWhenNotEditing ? 0 : 4,

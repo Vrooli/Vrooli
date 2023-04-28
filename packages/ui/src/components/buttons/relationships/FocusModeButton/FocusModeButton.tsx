@@ -1,16 +1,15 @@
-import { exists, FocusModeIcon, LINKS, useLocation } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { AddIcon, exists, FocusModeIcon, LINKS, useLocation } from "@local/shared";
+import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
 export function FocusModeButton({
@@ -26,7 +25,7 @@ export function FocusModeButton({
 
     const [field, , helpers] = useField("focusMode");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && exists(field.value), [objectType, field.value]);
+    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && typeof field.value === "boolean", [objectType, field.value]);
 
     // Focus mode dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -66,7 +65,7 @@ export function FocusModeButton({
         const focusMode = field?.value;
         // If no data, marked as unset
         if (!focusMode) return {
-            Icon: null,
+            Icon: AddIcon,
             tooltip: isEditing ? "" : "Press to assign to a focus mode",
         };
         const focusModeName = focusMode?.name ?? "";
@@ -74,11 +73,10 @@ export function FocusModeButton({
             Icon: FocusModeIcon,
             tooltip: `Focus Mode: ${focusModeName}`,
         };
-    }, [isEditing, languages, field?.value]);
+    }, [isEditing, field?.value]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
-    // Return button with label on top
     return (
         <>
             {/* Popup for selecting focus mode */}
@@ -94,18 +92,32 @@ export function FocusModeButton({
                 direction="column"
                 alignItems="center"
                 justifyContent="center"
+                sx={{
+                    marginTop: "auto",
+                }}
             >
-                <TextShrink id="focusMode" sx={{ ...commonLabelProps() }}>
-                    {t("FocusMode", { count: 1 })}
-                </TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...commonButtonProps(isEditing, true) }}
+                    <Stack
+                        direction="row"
+                        justifyContent="center"
+                        alignItems="center"
                         onClick={handleClick}
+                        sx={{
+                            borderRadius: 8,
+                            paddingRight: 2,
+                            ...largeButtonProps(isEditing, true),
+                            ...buttonSx(palette.primary.light, !isEditing),
+                        }}
                     >
-                        {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                        {Icon && (
+                            <IconButton>
+                                <Icon width={"48px"} height={"48px"} fill="white" />
+                            </IconButton>
+                        )}
+                        <Typography variant="body1" sx={{ color: "white" }}>
+                            {field?.value?.name ?? t("FocusMode", { count: 1 })}
+                        </Typography>
+                    </Stack>
                 </Tooltip>
             </Stack>
         </>

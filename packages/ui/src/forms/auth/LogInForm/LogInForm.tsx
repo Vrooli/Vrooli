@@ -1,9 +1,5 @@
 import { emailLogInFormValidation, EmailLogInInput, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
-import {
-    Button,
-    Grid,
-    Link, TextField, Typography
-} from "@mui/material";
+import { Button, Grid, Link, TextField, Typography } from "@mui/material";
 import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
 import { useCustomMutation } from "api/hooks";
 import { errorToCode, hasErrorCode, mutationWrapper } from "api/utils";

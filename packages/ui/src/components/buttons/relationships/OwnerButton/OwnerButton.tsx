@@ -15,7 +15,7 @@ import { getTranslation, getUserLanguages } from "utils/display/translationTools
 import { openObject } from "utils/navigation/openObject";
 import { SessionContext } from "utils/SessionContext";
 import { OwnerShape } from "utils/shape/models/types";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { OwnerButtonProps } from "../types";
 
 enum OwnerTypesEnum {
@@ -154,7 +154,7 @@ export function OwnerButton({
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}
-                        sx={{ ...commonButtonProps(isEditing, true) }}
+                        sx={{ ...smallButtonProps(isEditing, true) }}
                         onClick={handleOwnerClick}
                     >
                         {Icon && <Icon {...commonIconProps()} />}

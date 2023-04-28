@@ -13,9 +13,7 @@ import usePress from "utils/hooks/usePress";
 import { PubSub } from "utils/pubsub";
 import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
-import {
-    routineNodeCheckboxLabel, routineNodeCheckboxOption
-} from "../styles";
+import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from "../styles";
 import { RoutineListNodeProps } from "../types";
 
 /**

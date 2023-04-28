@@ -14,7 +14,7 @@ import { getTranslation, getUserLanguages } from "utils/display/translationTools
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ParentButtonProps } from "../types";
 
 export function ParentButton({
@@ -128,7 +128,7 @@ export function ParentButton({
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}
-                        sx={{ ...commonButtonProps(isEditing, true) }}
+                        sx={{ ...smallButtonProps(isEditing, true) }}
                         onClick={handleParentClick}
                     >
                         {Icon && <Icon {...commonIconProps()} />}

@@ -1,12 +1,5 @@
 import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
-import {
-    BottomNavigation,
-    BottomNavigationAction,
-    Box,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { BottomNavigation, BottomNavigationAction, Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useMemo } from "react";

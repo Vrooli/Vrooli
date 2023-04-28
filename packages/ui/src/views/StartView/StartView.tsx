@@ -5,12 +5,7 @@
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
 import { EmailIcon, EmailLogInInput, LINKS, Session, useLocation, WalletIcon } from "@local/shared";
-import {
-    Box,
-    Button, Stack,
-    SxProps,
-    Typography
-} from "@mui/material";
+import { Box, Button, Stack, SxProps, Typography } from "@mui/material";
 import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
 import { useCustomMutation } from "api/hooks";
 import { hasErrorCode, mutationWrapper } from "api/utils";

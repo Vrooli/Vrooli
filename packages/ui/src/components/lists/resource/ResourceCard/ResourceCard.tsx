@@ -1,11 +1,5 @@
 import { CommonKey, DeleteIcon, EditIcon, openLink, ResourceUsedFor, useLocation } from "@local/shared";
-import {
-    Box,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

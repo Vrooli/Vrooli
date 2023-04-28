@@ -1,8 +1,5 @@
 import { EmailResetPasswordInput, emailResetPasswordSchema, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
-import {
-    Button,
-    Grid
-} from "@mui/material";
+import { Button, Grid } from "@mui/material";
 import { authEmailResetPassword } from "api/generated/endpoints/auth_emailResetPassword";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";

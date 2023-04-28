@@ -1,17 +1,5 @@
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
-import {
-    Box,
-    Collapse,
-    Divider,
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    SwipeableDrawer,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { authSwitchCurrentAccount } from "api/generated/endpoints/auth_switchCurrentAccount";

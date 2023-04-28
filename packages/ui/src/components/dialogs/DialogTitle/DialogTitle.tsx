@@ -1,10 +1,5 @@
 import { CloseIcon } from "@local/shared";
-import {
-    Box,
-    DialogTitle as MuiDialogTitle,
-    IconButton,
-    useTheme
-} from "@mui/material";
+import { Box, DialogTitle as MuiDialogTitle, IconButton, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { forwardRef } from "react";
 import { noSelect } from "styles";

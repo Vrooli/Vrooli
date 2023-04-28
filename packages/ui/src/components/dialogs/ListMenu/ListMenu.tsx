@@ -1,12 +1,4 @@
-import {
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    useTheme
-} from "@mui/material";
+import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useMemo } from "react";
 import { MenuTitle } from "../MenuTitle/MenuTitle";

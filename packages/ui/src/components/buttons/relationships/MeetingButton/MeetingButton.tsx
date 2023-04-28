@@ -1,10 +1,9 @@
-import { exists, OrganizationIcon, useLocation } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { AddIcon, exists, OrganizationIcon, useLocation } from "@local/shared";
+import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemMeeting } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +11,7 @@ import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { SessionContext } from "utils/SessionContext";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { largeButtonProps } from "../styles";
 import { MeetingButtonProps } from "../types";
 
 export function MeetingButton({
@@ -28,7 +27,7 @@ export function MeetingButton({
 
     const [field, , helpers] = useField("meeting");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && exists(field.value), [objectType, field.value]);
+    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && typeof field.value === "boolean", [objectType, field.value]);
 
     // Meeting dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -66,22 +65,21 @@ export function MeetingButton({
         const meeting = field?.value;
         // If no data, marked as unset
         if (!meeting) return {
-            Icon: null,
+            Icon: AddIcon,
             tooltip: isEditing ? "" : "Press to assign to a meeting",
         };
-        const meetingName = firstString(getTranslation(meeting as RelationshipItemMeeting, languages, true).name, "Focus Mode");
+        const meetingName = firstString(getTranslation(meeting as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }));
         return {
             Icon: OrganizationIcon,
-            tooltip: `Focus Mode: ${meetingName}`,
+            tooltip: `Meeting: ${meetingName}`,
         };
-    }, [isEditing, languages, field?.value]);
+    }, [field?.value, isEditing, languages, t]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
-    // Return button with label on top
     return (
         <>
-            {/* Popup for selecting meeting */}
+            {/* Popup for selecting focus mode */}
             {findType && <FindObjectDialog
                 find="List"
                 isOpen={Boolean(findType)}
@@ -94,18 +92,32 @@ export function MeetingButton({
                 direction="column"
                 alignItems="center"
                 justifyContent="center"
+                sx={{
+                    marginTop: "auto",
+                }}
             >
-                <TextShrink id="meeting" sx={{ ...commonLabelProps() }}>
-                    {t("Meeting", { count: 1 })}
-                </TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton
-                        background={palette.primary.light}
-                        sx={{ ...commonButtonProps(isEditing, true) }}
+                    <Stack
+                        direction="row"
+                        justifyContent="center"
+                        alignItems="center"
                         onClick={handleClick}
+                        sx={{
+                            borderRadius: 8,
+                            paddingRight: 2,
+                            ...largeButtonProps(isEditing, true),
+                            ...buttonSx(palette.primary.light, !isEditing),
+                        }}
                     >
-                        {Icon && <Icon {...commonIconProps()} />}
-                    </ColorIconButton>
+                        {Icon && (
+                            <IconButton>
+                                <Icon width={"48px"} height={"48px"} fill="white" />
+                            </IconButton>
+                        )}
+                        <Typography variant="body1" sx={{ color: "white" }}>
+                            {firstString(getTranslation(field?.value as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }))}
+                        </Typography>
+                    </Stack>
                 </Tooltip>
             </Stack>
         </>

@@ -1,15 +1,5 @@
 import { CloseIcon, name as nameValidation, reqErr, Routine } from "@local/shared";
-import {
-    Box,
-    Checkbox,
-    Container,
-    FormControlLabel,
-    IconButton,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Box, Checkbox, Container, FormControlLabel, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";

@@ -1,12 +1,5 @@
 import { DeleteIcon, DeleteOneInput, LINKS, Success, useLocation } from "@local/shared";
-import {
-    Button,
-    DialogContent,
-    Stack,
-    TextField,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";

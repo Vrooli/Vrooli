@@ -1,10 +1,4 @@
-import {
-    Card,
-    CardContent,
-    LinearProgress,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Card, CardContent, LinearProgress, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { AwardCardProps } from "../types";
 
@@ -51,6 +45,7 @@ export const AwardCard = ({
                 justifyContent: "space-between",
                 height: "100%",
             }}>
+                {/* TODO add brone, silver, gold, etc. AwardIcon depending on tier */}
                 <Typography
                     variant="h6"
                     component="h2"

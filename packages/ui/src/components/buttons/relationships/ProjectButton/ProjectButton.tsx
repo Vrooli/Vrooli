@@ -11,7 +11,7 @@ import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { SessionContext } from "utils/SessionContext";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ProjectButtonProps } from "../types";
 
 export function ProjectButton({
@@ -101,7 +101,7 @@ export function ProjectButton({
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}
-                        sx={{ ...commonButtonProps(isEditing, true) }}
+                        sx={{ ...smallButtonProps(isEditing, true) }}
                         onClick={handleProjectClick}
                     >
                         {Icon && <Icon {...commonIconProps()} />}

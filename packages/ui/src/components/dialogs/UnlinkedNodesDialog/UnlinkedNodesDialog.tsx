@@ -2,14 +2,7 @@
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, Node, NodeEnd, NodeRoutineList, NodeType, UnlinkedNodesIcon } from "@local/shared";
-import {
-    Box,
-    IconButton,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

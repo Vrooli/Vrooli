@@ -62,7 +62,7 @@ export const ScheduleUpsert = ({
             const index = calendarTabParams.findIndex(tab => tab.tabType === defaultTab);
             if (index !== -1) setCurrTab(tabs[index]);
         }
-    }, [defaultTab, tabs]);
+    }, [defaultTab, isCreate, tabs]);
     const handleTabChange = useCallback((e: any, tab: PageTab<CalendarPageTabOption>) => {
         e.preventDefault();
         // Update curr tab
@@ -77,14 +77,17 @@ export const ScheduleUpsert = ({
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => scheduleInitialValues(session, {
         ...existing,
-        // For creating, set values for linking to an object
+        // For creating, set values for linking to an object. 
+        // NOTE: We can't set these values to null or undefined like you'd expect, 
+        // because Formik will treat them as uncontrolled inputs and throw errors. 
+        // Instead, we pretend that false is null and an empty string is undefined.
         ...(isCreate ? {
-            focusMode: currTab.value === "FocusModes" ? null : undefined,
-            meeting: currTab.value === "Meetings" ? null : undefined,
-            runProject: currTab.value === "Projects" ? null : undefined,
-            runRoutine: currTab.value === "Routines" ? null : undefined,
+            focusMode: currTab.value === "FocusModes" ? false : "",
+            meeting: currTab.value === "Meetings" ? false : "",
+            runProject: currTab.value === "Projects" ? false : "",
+            runRoutine: currTab.value === "Routines" ? false : "",
         } : {}),
-    } as Schedule), [existing, listId, partialData, session]);
+    } as Schedule), [currTab.value, existing, isCreate, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useCustomMutation<Schedule, ScheduleCreateInput>(scheduleCreate);
     const [update, { loading: isUpdateLoading }] = useCustomMutation<Schedule, ScheduleUpdateInput>(scheduleUpdate);
@@ -96,7 +99,7 @@ export const ScheduleUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? "CreateSchedule" : "UpdateSchedule",
+                    titleKey: isCreate ? "ScheduleCreate" : "ScheduleUpdate",
                 }}
                 // Can only link to an object when creating
                 below={isCreate && <PageTabs

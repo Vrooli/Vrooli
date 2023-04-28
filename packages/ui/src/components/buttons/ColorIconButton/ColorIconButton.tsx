@@ -2,7 +2,7 @@ import { IconButton } from "@mui/material";
 import { forwardRef } from "react";
 import { ColorIconButtonProps } from "../types";
 
-const buttonSx = (background: string, disabled: boolean | undefined) => ({
+export const buttonSx = (background: string, disabled: boolean | undefined) => ({
     background,
     pointerEvents: disabled ? "none" : "auto",
     filter: disabled ? "grayscale(1) opacity(0.5)" : "none",

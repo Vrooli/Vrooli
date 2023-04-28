@@ -1,10 +1,7 @@
 /**
  * Displays all search options for an organization
  */
-import {
-    Button, Grid,
-    Stack, Typography
-} from "@mui/material";
+import { Button, Grid, Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { TopBar } from "components/navigation/TopBar/TopBar";

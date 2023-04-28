@@ -1,11 +1,5 @@
 import { DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
-import {
-    Box, Grid, List,
-    ListItem,
-    ListItemIcon,
-    ListItemText, Tooltip,
-    useTheme
-} from "@mui/material";
+import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

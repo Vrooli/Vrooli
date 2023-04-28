@@ -4,7 +4,7 @@ import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconBut
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsPrivateButtonProps } from "../types";
 
 export function IsPrivateButton({
@@ -43,7 +43,7 @@ export function IsPrivateButton({
             <Tooltip title={tooltip}>
                 <ColorIconButton
                     background={palette.primary.light}
-                    sx={{ ...commonButtonProps(isEditing, false) }}
+                    sx={{ ...smallButtonProps(isEditing, false) }}
                     onClick={handleClick}
                 >
                     {Icon && <Icon {...commonIconProps()} />}

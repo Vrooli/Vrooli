@@ -1,9 +1,4 @@
-import {
-    ApolloClient,
-    ApolloLink,
-    InMemoryCache,
-    NormalizedCacheObject
-} from "@apollo/client";
+import { ApolloClient, ApolloLink, InMemoryCache, NormalizedCacheObject } from "@apollo/client";
 import { onError } from "@apollo/client/link/error";
 import { createUploadLink } from "apollo-upload-client";
 import { useMemo } from "react";

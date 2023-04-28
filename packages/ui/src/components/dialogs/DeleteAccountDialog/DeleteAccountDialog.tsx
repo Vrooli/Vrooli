@@ -1,14 +1,5 @@
 import { DeleteIcon, LINKS, Success, useLocation, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
-import {
-    Button,
-    Checkbox,
-    DialogContent,
-    FormControlLabel,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomMutation } from "api";
 import { userDeleteOne } from "api/generated/endpoints/user_deleteOne";
 import { mutationWrapper } from "api/utils";

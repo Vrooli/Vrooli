@@ -1,15 +1,7 @@
 /**
  * Used to create/update a link between two routineVersion nodes
  */
-import {
-    Autocomplete,
-    Box, DialogContent,
-    Grid,
-    Stack,
-    TextField,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Autocomplete, Box, DialogContent, Grid, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";

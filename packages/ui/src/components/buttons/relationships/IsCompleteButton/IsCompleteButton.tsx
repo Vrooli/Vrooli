@@ -4,7 +4,7 @@ import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconBut
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
-import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsCompleteButtonProps } from "../types";
 
 export function IsCompleteButton({
@@ -41,7 +41,7 @@ export function IsCompleteButton({
         >
             <TextShrink id="complete" sx={{ ...commonLabelProps() }}>Complete?</TextShrink>
             <Tooltip title={tooltip}>
-                <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(isEditing, false) }} onClick={handleClick}>
+                <ColorIconButton background={palette.primary.light} sx={{ ...smallButtonProps(isEditing, false) }} onClick={handleClick}>
                     {Icon && <Icon {...commonIconProps()} />}
                 </ColorIconButton>
             </Tooltip>

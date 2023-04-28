@@ -2,15 +2,7 @@
  * Used to create/update a link between two routine nodes
  */
 import { NodeType, uuid } from "@local/shared";
-import {
-    Autocomplete,
-    Box, DialogContent,
-    Grid,
-    Stack,
-    TextField,
-    Typography,
-    useTheme
-} from "@mui/material";
+import { Autocomplete, Box, DialogContent, Grid, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

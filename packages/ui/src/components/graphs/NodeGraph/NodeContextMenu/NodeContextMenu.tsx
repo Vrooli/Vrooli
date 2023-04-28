@@ -1,16 +1,4 @@
-import {
-    AddEndNodeAfterIcon,
-    AddIncomingLinkIcon,
-    AddOutgoingLinkIcon,
-    AddRoutineListAfterIcon,
-    AddRoutineListBeforeIcon,
-    DeleteIcon,
-    DeleteNodeIcon,
-    EditIcon,
-    MoveNodeIcon,
-    SvgComponent,
-    UnlinkNodeIcon
-} from "@local/shared";
+import { AddEndNodeAfterIcon, AddIncomingLinkIcon, AddOutgoingLinkIcon, AddRoutineListAfterIcon, AddRoutineListBeforeIcon, DeleteIcon, DeleteNodeIcon, EditIcon, MoveNodeIcon, SvgComponent, UnlinkNodeIcon } from "@local/shared";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "components/dialogs/types";
 import { useMemo } from "react";
