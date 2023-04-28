@@ -16,7 +16,7 @@ export const valueFromDot = (object: any, notation: string): any => {
     if (!object || !notation) return null;
     // Use reduce method to traverse the object using dot notation
     // If the final result is falsy, return null
-    const value = notation.split('.').reduce(index, object);
+    const value = notation.split(".").reduce(index, object);
     return exists(value) ? value : null;
 };
 
@@ -24,18 +24,18 @@ export const arrayValueFromDot = (object, notation, index) => {
     const value = valueFromDot(object, notation);
     if (!value || !Array.isArray(value) || index <= 0 || value.length >= index) return null;
     return value[index];
-}
+};
 
 /**
  * Maps the keys of an object to dot notation
  */
 export function convertToDot(obj, parent = [], keyValue = {}) {
-    for (let key in obj) {
-        let keyPath: any = [...parent, key];
-        if (obj[key] !== null && typeof obj[key] === 'object') {
+    for (const key in obj) {
+        const keyPath: any = [...parent, key];
+        if (obj[key] !== null && typeof obj[key] === "object") {
             Object.assign(keyValue, convertToDot(obj[key], keyPath, keyValue));
         } else {
-            keyValue[keyPath.join('.')] = obj[key];
+            keyValue[keyPath.join(".")] = obj[key];
         }
     }
     return keyValue;
@@ -47,7 +47,7 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
  * @param notationArray Array of dot notation strings 
  * @returns Array of strings with the first level removed
  */
-export const removeFirstLevel = (notationArray: string[]) => notationArray.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
+export const removeFirstLevel = (notationArray: string[]) => notationArray.map(s => s.split(".").slice(1).join(".")).filter(s => s.length > 0);
 
 /**
  * Checks if any of the specified fields in an object have been changed. 
@@ -94,19 +94,19 @@ export function hasObjectChanged(original: any, updated: any, fields: string[] =
 export const stringSpread = <
     Object extends { [key: string]: any },
     Fields extends keyof Object & string,
-    Prefix extends string = ''
+    Prefix extends string = ""
 >(
     object: Object | null | undefined,
     fields: readonly Fields[],
-    prefix?: Prefix
-): (Prefix extends '' ? { [key in Fields]: string } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: string }) => {
+    prefix?: Prefix,
+): (Prefix extends "" ? { [key in Fields]: string } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: string }) => {
     const spread: any = {};
     fields.forEach(field => {
-        const value = object ? object[field] : '';
-        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === 'string' ? value : '';
+        const value = object ? object[field] : "";
+        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === "string" ? value : "";
     });
     return spread;
-}
+};
 
 /**
  * Grabs and shapes booleans from an object
@@ -121,16 +121,16 @@ export const stringSpread = <
 export const booleanSpread = <
     Object extends { [key: string]: any },
     Fields extends keyof Object & string,
-    Prefix extends string = ''
+    Prefix extends string = ""
 >(
     object: Object | null | undefined,
     fields: readonly Fields[],
-    prefix?: Prefix
-): (Prefix extends '' ? { [key in Fields]: boolean } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: boolean }) => {
+    prefix?: Prefix,
+): (Prefix extends "" ? { [key in Fields]: boolean } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: boolean }) => {
     const spread: any = {};
     fields.forEach(field => {
         const value = object ? object[field] : false;
-        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === 'boolean' ? value : false;
+        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === "boolean" ? value : false;
     });
     return spread;
-}
+};

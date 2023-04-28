@@ -6,7 +6,7 @@ import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsSite' as const;
+const __typename = "StatsSite" as const;
 const suppFields = [] as const;
 export const StatsSiteModel: ModelLogic<{
     IsTransferable: false,
@@ -17,8 +17,8 @@ export const StatsSiteModel: ModelLogic<{
     GqlSearch: StatsSiteSearchInput,
     GqlSort: StatsSiteSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_siteUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_siteUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_siteUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_siteUpsertArgs["update"],
     PrismaModel: Prisma.stats_siteGetPayload<SelectWrap<Prisma.stats_siteSelect>>,
     PrismaSelect: Prisma.stats_siteSelect,
     PrismaWhere: Prisma.stats_siteWhereInput,
@@ -27,8 +27,8 @@ export const StatsSiteModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_site,
     display: {
         select: () => ({ id: true }),
-        label: (_, languages) => i18next.t(`common:SiteStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (_, languages) => i18next.t("common:SiteStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
         }),
     },
     format: {
@@ -47,7 +47,7 @@ export const StatsSiteModel: ModelLogic<{
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({})
+        searchStringQuery: () => ({}),
     },
     validate: {
         isDeleted: () => false,
@@ -65,4 +65,4 @@ export const StatsSiteModel: ModelLogic<{
             owner: () => ({}),
         },
     },
-})
+});

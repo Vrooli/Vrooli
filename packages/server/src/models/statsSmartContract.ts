@@ -8,7 +8,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { SmartContractModel } from "./smartContract";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsSmartContract' as const;
+const __typename = "StatsSmartContract" as const;
 const suppFields = [] as const;
 export const StatsSmartContractModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const StatsSmartContractModel: ModelLogic<{
     GqlSearch: StatsSmartContractSearchInput,
     GqlSort: StatsSmartContractSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_smart_contractUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_smart_contractUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_smart_contractUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_smart_contractUpsertArgs["update"],
     PrismaModel: Prisma.stats_smart_contractGetPayload<SelectWrap<Prisma.stats_smart_contractSelect>>,
     PrismaSelect: Prisma.stats_smart_contractSelect,
     PrismaWhere: Prisma.stats_smart_contractWhereInput,
@@ -29,8 +29,8 @@ export const StatsSmartContractModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_smart_contract,
     display: {
         select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:ObjectStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
             objectName: SmartContractModel.display.label(select.smartContract as any, languages),
         }),
     },
@@ -40,7 +40,7 @@ export const StatsSmartContractModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            smartContract: 'SmartContract',
+            smartContract: "SmartContract",
         },
         countFields: {},
     },
@@ -58,18 +58,18 @@ export const StatsSmartContractModel: ModelLogic<{
         maxObjects: 0,
         permissionsSelect: () => ({
             id: true,
-            smartContract: 'SmartContract',
+            smartContract: "SmartContract",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => SmartContractModel.validate!.owner(data.smartContract as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
-            ['smartContract', 'SmartContract'],
+            ["smartContract", "SmartContract"],
         ], languages),
         visibility: {
             private: { smartContract: SmartContractModel.validate!.visibility.private },
             public: { smartContract: SmartContractModel.validate!.visibility.public },
             owner: (userId) => ({ smartContract: SmartContractModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

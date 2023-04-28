@@ -13,7 +13,7 @@ import { DateDisplayProps } from "../types";
 export const DateDisplay = ({
     loading = false,
     showIcon = true,
-    textBeforeDate = '',
+    textBeforeDate = "",
     timestamp,
     ...props
 }: DateDisplayProps) => {
@@ -22,7 +22,7 @@ export const DateDisplay = ({
     // Full date popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
     const open = useCallback((target: EventTarget) => {
-        setAnchorEl(target)
+        setAnchorEl(target);
     }, []);
     const close = useCallback(() => setAnchorEl(null), []);
 
@@ -34,7 +34,7 @@ export const DateDisplay = ({
 
     if (loading) return (
         <Box {...props}>
-            <LinearProgress color="inherit" sx={{ height: '6px', borderRadius: '12px' }} />
+            <LinearProgress color="inherit" sx={{ height: "6px", borderRadius: "12px" }} />
         </Box>
     );
     if (!timestamp) return null;
@@ -57,12 +57,12 @@ export const DateDisplay = ({
                 justifyContent="center"
                 sx={{
                     ...(props.sx ?? {}),
-                    cursor: 'pointer',
+                    cursor: "pointer",
                 }}
             >
                 {showIcon && <ScheduleIcon fill={palette.background.textPrimary} />}
                 {`${textBeforeDate} ${displayDate(timestamp, false)}`}
             </Box>
         </>
-    )
-}
+    );
+};

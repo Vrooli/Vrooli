@@ -8,31 +8,31 @@ export interface BaseStandardInputProps {
     fieldName: string;
     inputType: InputType;
     isEditing: boolean;
-    label?: FieldDataBase['label'];
+    label?: FieldDataBase["label"];
     storageKey: string;
-    yup?: FieldData['yup'];
+    yup?: FieldData["yup"];
 }
 
 /**
  * Used for components that set the "prop" values of a standard input.
  */
-interface StandardInputCommonProps extends Omit<BaseStandardInputProps, 'inputType' | 'label' | 'storageKey' | 'yup'> { }
+type StandardInputCommonProps = Omit<BaseStandardInputProps, "inputType" | "label" | "storageKey" | "yup">
 
-export interface CheckboxStandardInputProps extends StandardInputCommonProps { };
+export type CheckboxStandardInputProps = StandardInputCommonProps;
 
-export interface DropzoneStandardInputProps extends StandardInputCommonProps { };
+export type DropzoneStandardInputProps = StandardInputCommonProps;
 
-export interface JsonStandardInputProps extends StandardInputCommonProps { };
+export type JsonStandardInputProps = StandardInputCommonProps;
 
-export interface MarkdownStandardInputProps extends StandardInputCommonProps { };
+export type MarkdownStandardInputProps = StandardInputCommonProps;
 
-export interface IntegerStandardInputProps extends StandardInputCommonProps { };
+export type IntegerStandardInputProps = StandardInputCommonProps;
 
-export interface RadioStandardInputProps extends StandardInputCommonProps { };
+export type RadioStandardInputProps = StandardInputCommonProps;
 
-export interface SwitchStandardInputProps extends StandardInputCommonProps { };
+export type SwitchStandardInputProps = StandardInputCommonProps;
 
-export interface TextFieldStandardInputProps extends StandardInputCommonProps { };
+export type TextFieldStandardInputProps = StandardInputCommonProps;
 
 export interface StandardInputProps {
     disabled?: boolean;

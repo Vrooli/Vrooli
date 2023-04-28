@@ -1,4 +1,4 @@
-import { ResourceUsedFor } from "@local/shared";
+import { resourceListValidation, ResourceUsedFor } from "@local/shared";
 import * as yup from "yup";
 import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 
@@ -30,7 +30,7 @@ export const resourceValidation: YupModel = {
         link: req(link),
         usedFor: opt(usedFor),
     }, [
-        ["list", ["Connect"], "one", "req"],
+        ["list", ["Connect"], "one", "req", resourceListValidation, ["resources"]],
         ["translations", ["Create"], "many", "opt", resourceTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
@@ -39,7 +39,7 @@ export const resourceValidation: YupModel = {
         link: opt(link),
         usedFor: opt(usedFor),
     }, [
-        ["list", ["Connect"], "one", "req"],
+        ["list", ["Connect"], "one", "req", resourceListValidation, ["resources"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceTranslationValidation],
     ], [], o),
 };

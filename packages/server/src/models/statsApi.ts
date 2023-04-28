@@ -8,7 +8,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { ApiModel } from "./api";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsApi' as const;
+const __typename = "StatsApi" as const;
 const suppFields = [] as const;
 export const StatsApiModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const StatsApiModel: ModelLogic<{
     GqlSearch: StatsApiSearchInput,
     GqlSort: StatsApiSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_apiUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_apiUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_apiUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_apiUpsertArgs["update"],
     PrismaModel: Prisma.stats_apiGetPayload<SelectWrap<Prisma.stats_apiSelect>>,
     PrismaSelect: Prisma.stats_apiSelect,
     PrismaWhere: Prisma.stats_apiWhereInput,
@@ -29,8 +29,8 @@ export const StatsApiModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_api,
     display: {
         select: () => ({ id: true, api: selPad(ApiModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:ObjectStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
             objectName: ApiModel.display.label(select.api as any, languages),
         }),
     },
@@ -40,7 +40,7 @@ export const StatsApiModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            api: 'Api',
+            api: "Api",
         },
         countFields: {},
     },
@@ -58,18 +58,18 @@ export const StatsApiModel: ModelLogic<{
         maxObjects: 0,
         permissionsSelect: () => ({
             id: true,
-            api: 'Api',
+            api: "Api",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ApiModel.validate!.owner(data.api as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_apiSelect>(data, [
-            ['api', 'Api'],
+            ["api", "Api"],
         ], languages),
         visibility: {
             private: { api: ApiModel.validate!.visibility.private },
             public: { api: ApiModel.validate!.visibility.public },
             owner: (userId) => ({ api: ApiModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

@@ -16,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { QuestionUpsertProps } from "../types";
 
 export const QuestionUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -27,7 +27,7 @@ export const QuestionUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Question, FindByIdInput>(questionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
@@ -42,7 +42,7 @@ export const QuestionUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateQuestion' : 'UpdateQuestion',
+                    titleKey: isCreate ? "CreateQuestion" : "UpdateQuestion",
                 }}
             />
             <Formik
@@ -50,15 +50,15 @@ export const QuestionUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<Question, QuestionCreateInput | QuestionUpdateInput>({
                         mutation,
                         input: transformQuestionValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateQuestionValues(values, existing)}
             >
@@ -74,5 +74,5 @@ export const QuestionUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

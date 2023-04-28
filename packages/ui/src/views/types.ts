@@ -5,39 +5,39 @@ import { ViewProps } from "./objects/types";
 /**
  * Views can be displayed as full pages or as dialogs
  */
-export type ViewDisplayType = 'dialog' | 'page';
+export type ViewDisplayType = "dialog" | "page";
 
 export type BaseViewProps = {
     display?: ViewDisplayType;
 }
 
-export interface AboutViewProps extends BaseViewProps { }
+export type AboutViewProps = BaseViewProps
 
-export interface AwardsViewProps extends BaseViewProps { }
+export type AwardsViewProps = BaseViewProps
 
-export interface CalendarViewProps extends BaseViewProps { }
+export type CalendarViewProps = BaseViewProps
 
-export interface HistorySearchViewProps extends BaseViewProps { }
+export type HistorySearchViewProps = BaseViewProps
 
-export interface ObjectViewProps extends BaseViewProps { }
+export type ObjectViewProps = BaseViewProps
 
-export interface PremiumViewProps extends BaseViewProps { }
+export type PremiumViewProps = BaseViewProps
 
-export interface SearchViewProps extends BaseViewProps { }
+export type SearchViewProps = BaseViewProps
 
-export interface StartViewProps extends BaseViewProps { }
+export type StartViewProps = BaseViewProps
 
-export interface StatsViewProps extends BaseViewProps { }
+export type StatsViewProps = BaseViewProps
 
-export interface ReportsViewProps extends BaseViewProps { }
+export type ReportsViewProps = BaseViewProps
 
 export interface BuildViewProps extends ViewProps<RoutineVersion> {
     handleCancel: () => void;
     handleClose: () => void;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>) => void;
+    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => void;
     isEditing: boolean;
     loading: boolean;
-    routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
+    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
     translationData: {
         language: string;
         setLanguage: (language: string) => void;
@@ -51,6 +51,6 @@ export interface ErrorBoundaryProps {
     children: React.ReactNode;
 }
 
-export interface CalendarViewProps extends BaseViewProps { }
+export type CalendarViewProps = BaseViewProps
 
-export interface WelcomeViewProps extends BaseViewProps { };
+export type WelcomeViewProps = BaseViewProps;

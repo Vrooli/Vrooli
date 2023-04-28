@@ -24,12 +24,12 @@ export const resourceListValidation: YupModel = {
         ["routineVersion", ["Connect"], "one", "opt"],
         ["smartContractVersion", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", resourceListTranslationValidation],
-        ["resources", ["Create"], "many", "opt", resourceValidation],
+        ["resources", ["Create"], "many", "opt", resourceValidation, ["list"]],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
     }, [
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceListTranslationValidation],
-        ["resources", ["Create", "Update", "Delete"], "many", "opt", resourceValidation],
+        ["resources", ["Create", "Update", "Delete"], "many", "opt", resourceValidation, ["list"]],
     ], [], o),
 };

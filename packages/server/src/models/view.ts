@@ -7,6 +7,7 @@ import { CustomError } from "../events";
 import { getLabels, getLogic } from "../getters";
 import { initializeRedis } from "../redisConn";
 import { PrismaType, SessionUserToken } from "../types";
+import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -150,8 +151,8 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
 const __typename = "View" as const;
 const suppFields = [] as const;
 export const ViewModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: View,
@@ -273,6 +274,30 @@ export const ViewModel: ModelLogic<{
                 result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
             }
             return result;
+        },
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: 10000000,
+        owner: (data) => ({
+            User: data.by,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            by: "User",
+        }),
+        //TODO should set private/public based on viewed object's visibility, 
+        //since you could view it when it was public and then it became private.
+        //Should look into doing this for more than just views.
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                by: { id: userId },
+            }),
         },
     },
     /**
