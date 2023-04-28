@@ -10,15 +10,15 @@ import { SessionContext } from "utils/SessionContext";
 import { ObjectActionsRowObject, ObjectActionsRowProps } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
-    color: 'inherit',
-    width: '48px',
-    height: '100%',
-})
+    color: "inherit",
+    width: "48px",
+    height: "100%",
+});
 
 const commonIconProps = (palette: Palette) => ({
-    width: '30px',
-    height: '30px',
-})
+    width: "30px",
+    height: "30px",
+});
 
 /**
  * Horizontal list of action icons displayed on an object's view page. 
@@ -35,7 +35,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const { palette } = useTheme();
 
     const { actionsDisplayed, actionsExtra } = useMemo(() => {
-        let availableActions = getAvailableActions(object, session, exclude);
+        const availableActions = getAvailableActions(object, session, exclude);
         let actionsDisplayed: ObjectAction[];
         let actionsExtra: ObjectAction[];
         // If there are more than 5 actions, display the first 4 in the row, and the rest in the overflow menu
@@ -54,12 +54,12 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             id: object?.id,
             name: getDisplay(object, getUserLanguages(session)).title,
             objectType: object?.__typename,
-        }
+        };
     }, [exclude, object, session]);
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openOverflowMenu = useCallback((event: React.MouseEvent) => {
-        setAnchorEl(event.target as HTMLElement)
+        setAnchorEl(event.target as HTMLElement);
     }, []);
     const closeOverflowMenu = useCallback(() => setAnchorEl(null), []);
 
@@ -69,11 +69,11 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             const { Icon, iconColor, label, value } = action;
             if (!Icon) return null;
             return <Tooltip title={label} key={index}>
-                <IconButton sx={commonButtonSx(palette)} onClick={() => { actionData.onActionStart(value) }}>
-                    <Icon {...commonIconProps(palette)} fill={iconColor === 'default' ? palette.secondary.main : iconColor} />
+                <IconButton sx={commonButtonSx(palette)} onClick={() => { actionData.onActionStart(value); }}>
+                    <Icon {...commonIconProps(palette)} fill={iconColor === "default" ? palette.secondary.main : iconColor} />
                 </IconButton>
-            </Tooltip>
-        })
+            </Tooltip>;
+        });
         // If there are extra actions, display an ellipsis button
         if (actionsExtra.length > 0) {
             displayedActions.push(
@@ -81,8 +81,8 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                     <IconButton sx={commonButtonSx(palette)} onClick={openOverflowMenu}>
                         <EllipsisIcon {...commonIconProps(palette)} fill={palette.secondary.main} />
                     </IconButton>
-                </Tooltip>
-            )
+                </Tooltip>,
+            );
         }
         return displayedActions;
     }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette]);
@@ -94,9 +94,9 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             sx={{
                 marginTop: 1,
                 marginBottom: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
             }}
         >
             {/* Action dialogs */}
@@ -117,5 +117,5 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 zIndex={zIndex + 1}
             />}
         </Stack>
-    )
-}
+    );
+};

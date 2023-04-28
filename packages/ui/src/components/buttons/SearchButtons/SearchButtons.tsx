@@ -1,8 +1,8 @@
-import { Box } from "@mui/material"
-import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton"
-import { SortButton } from "../SortButton/SortButton"
-import { TimeButton } from "../TimeButton/TimeButton"
-import { SearchButtonsProps } from "../types"
+import { Box } from "@mui/material";
+import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
+import { SortButton } from "../SortButton/SortButton";
+import { TimeButton } from "../TimeButton/TimeButton";
+import { SearchButtonsProps } from "../types";
 
 export const SearchButtons = ({
     advancedSearchParams,
@@ -17,7 +17,7 @@ export const SearchButtons = ({
     zIndex,
 }: SearchButtonsProps) => {
     return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1 }}>
             <SortButton
                 options={sortByOptions}
                 setSortBy={setSortBy}
@@ -35,5 +35,5 @@ export const SearchButtons = ({
                 zIndex={zIndex}
             />
         </Box>
-    )
-}
+    );
+};

@@ -24,7 +24,7 @@ export const useDimensions = (): UseDimensionsReturn => {
         const width = ref.current?.clientWidth ?? 0;
         const height = ref.current?.clientHeight ?? 0;
         setDimensions({ width, height });
-    }, [setDimensions])
+    }, [setDimensions]);
 
     // Calculate the dimensions when the component mounts or the element changes
     useEffect(() => {
@@ -42,12 +42,12 @@ export const useDimensions = (): UseDimensionsReturn => {
             if (ref.current) {
                 refreshDimensions();
             } else {
-                console.warn('No ref found for useDimensions hook.');
+                console.warn("No ref found for useDimensions hook.");
             }
         };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
     }, [refreshDimensions]);
 
     return { dimensions, ref, refreshDimensions };
-}
+};

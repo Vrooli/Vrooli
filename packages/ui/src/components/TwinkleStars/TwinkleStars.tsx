@@ -21,7 +21,7 @@ const twinkle = keyframes`
 export const TwinkleStars = ({
     amount = 100,
     size = 4,
-    color = 'white',
+    color = "white",
     speed = 20,
     sx = {},
 }: TwinklingStarsProps) => {
@@ -33,29 +33,29 @@ export const TwinkleStars = ({
             <Box
                 key={i}
                 sx={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: `${Math.random() * 100}%`,
                     left: `${Math.random() * 100}%`,
                     width: `${starSize}px`,
                     height: `${starSize}px`,
                     background: color,
-                    borderRadius: '50%',
+                    borderRadius: "50%",
                     animation: `${twinkle} ${starSpeed}s linear infinite`,
                     zIndex: 1,
                 }}
             />
-        )
+        );
     }), [amount, size, color, speed]);
 
     return (
         <Box
             sx={{
-                position: 'fixed',
+                position: "fixed",
                 top: 0,
                 left: 0,
-                width: '100vw',
-                height: '100vh',
-                overflow: 'hidden',
+                width: "100vw",
+                height: "100vh",
+                overflow: "hidden",
                 zIndex: 2,
                 ...sx,
             }}

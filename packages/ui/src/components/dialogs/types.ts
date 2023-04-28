@@ -8,10 +8,11 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObjectType } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
-import { SearchType } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ScheduleShape } from "utils/shape/models/schedule";
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -250,13 +251,13 @@ export interface LinkDialogProps {
 }
 
 export interface ScheduleDialogProps extends Omit<DialogProps, "open"> {
-    isCreate: boolean;
+    defaultTab: CalendarPageTabOption;
+    existing?: ScheduleShape;
     isMutate: boolean;
     isOpen: boolean;
     onClose: () => any;
     onCreated: (schedule: Schedule) => any;
     onUpdated: (schedule: Schedule) => any;
-    partialData?: Partial<Schedule>;
     zIndex: number;
 }
 

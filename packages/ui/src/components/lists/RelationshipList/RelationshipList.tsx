@@ -1,6 +1,6 @@
 import { Session } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
-import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from "components/buttons/relationships";
+import { FocusModeButton, IsCompleteButton, IsPrivateButton, MeetingButton, OwnerButton, ParentButton, ProjectButton, RunProjectButton, RunRoutineButton } from "components/buttons/relationships";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { OwnerShape } from "utils/shape/models/types";
@@ -41,11 +41,17 @@ export function RelationshipList(props: RelationshipListProps) {
                 ...(props.sx ?? {}),
             }}
         >
+            {/* Buttons applicable to main objects (e.g. projects, notes, routines, organizations) */}
             <OwnerButton {...props} />
             <ProjectButton {...props} />
             <ParentButton {...props} />
             <IsPrivateButton {...props} />
             <IsCompleteButton {...props} />
+            {/* Buttons for special cases (e.g. schedules) */}
+            <FocusModeButton {...props} />
+            <MeetingButton {...props} />
+            <RunProjectButton {...props} />
+            <RunRoutineButton {...props} />
         </Stack>
     );
 }

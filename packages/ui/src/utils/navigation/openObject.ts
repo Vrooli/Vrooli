@@ -10,6 +10,8 @@ import { uuidToBase36 } from "./urlTools";
 export type ObjectType = "Api" |
     "Bookmark" |
     "Comment" |
+    "FocusMode" |
+    "Meeting" |
     "Note" |
     "Organization" |
     "Project" |
@@ -17,7 +19,9 @@ export type ObjectType = "Api" |
     "Reaction" |
     "Reminder" |
     "Routine" |
-    "Run" |
+    "RunProject" |
+    "RunRoutine" |
+    "Schedule" |
     "SmartContract" |
     "Standard" |
     "Tag" |
@@ -82,7 +86,7 @@ export const getObjectSearchParams = (
     // If object is an event, add start time to search params
     if (isOfType(object, "CalendarEvent")) return stringifySearchParams({ start: (object as any).start });
     // If object is a run
-    if (object.__typename === "RunRoutine") return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36(object.id) });
     return "";
 };
 // Omit<NavigableObject, '__typename'> & { __typename: `${GqlModelType}`}

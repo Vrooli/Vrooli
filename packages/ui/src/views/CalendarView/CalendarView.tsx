@@ -2,7 +2,7 @@ import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccur
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -21,17 +21,18 @@ import { useFindMany } from "utils/hooks/useFindMany";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
+import { ScheduleUpsert } from "views/objects/schedule";
 import { CalendarViewProps } from "views/types";
 
 // Tab data type
-type BaseParams = {
+type CalendarBaseParams = {
     Icon: (props: SvgProps) => JSX.Element,
     titleKey: CommonKey;
     tabType: CalendarPageTabOption;
 }
 
 // Data for each tab
-const tabParams: BaseParams[] = [{
+export const calendarTabParams: CalendarBaseParams[] = [{
     Icon: OrganizationIcon,
     titleKey: "Meeting",
     tabType: CalendarPageTabOption.Meetings,
@@ -314,7 +315,11 @@ export const CalendarView = ({
     }, [locale]);
 
     // Data for calculating calendar height
-    const { dimensions, ref } = useDimensions();
+    const { dimensions, ref, refreshDimensions } = useDimensions();
+    // Refresh dimensions once after the component is mounted
+    useEffect(() => {
+        setTimeout(refreshDimensions, 1000);
+    }, [refreshDimensions]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const calendarHeight = useMemo(() => `calc(100vh - ${dimensions.height}px - ${isMobile ? 56 : 0}px - env(safe-area-inset-bottom))`, [dimensions, isMobile]);
 
@@ -328,7 +333,7 @@ export const CalendarView = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
+        return calendarTabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
@@ -337,7 +342,7 @@ export const CalendarView = ({
     }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<CalendarPageTabOption>>(() => {
         const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        const index = calendarTabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to bookmarked tab
         if (index === -1) return tabs[0];
         // Return tab
@@ -421,11 +426,7 @@ export const CalendarView = ({
         setIsScheduleDialogOpen(true);
     };
     const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
-    const handleScheduleCreated = (created: Schedule) => {
-        //TODO
-        setIsScheduleDialogOpen(false);
-    };
-    const handleScheduleUpdated = (updated: Schedule) => {
+    const handleScheduleCompleted = (created: Schedule) => {
         //TODO
         setIsScheduleDialogOpen(false);
     };
@@ -437,15 +438,25 @@ export const CalendarView = ({
     return (
         <>
             {/* Dialog for creating/updating schedules */}
-            <ScheduleDialog
-                isCreate={editingSchedule === null}
-                isMutate={true}
-                isOpen={isScheduleDialogOpen}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseScheduleDialog}
-                onCreated={handleScheduleCreated}
-                onUpdated={handleScheduleUpdated}
+                isOpen={isScheduleDialogOpen}
+                titleId={""}
                 zIndex={202}
-            />
+            >
+                <ScheduleUpsert
+                    defaultTab={currTab.value}
+                    display="dialog"
+                    handleDelete={handleDeleteSchedule}
+                    isCreate={editingSchedule === null}
+                    isMutate={false}
+                    onCancel={handleCloseScheduleDialog}
+                    onCompleted={handleScheduleCompleted}
+                    partialData={editingSchedule ?? undefined}
+                    zIndex={202}
+                />
+            </LargeDialog>
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
@@ -493,6 +504,7 @@ export const CalendarView = ({
                 }}
                 style={{
                     height: calendarHeight,
+                    maxHeight: calendarHeight,
                     background: palette.background.paper,
                 }}
             />

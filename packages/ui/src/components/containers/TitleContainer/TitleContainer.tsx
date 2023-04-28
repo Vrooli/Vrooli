@@ -9,6 +9,7 @@ export function TitleContainer({
     id,
     helpKey,
     helpVariables,
+    Icon,
     titleKey,
     titleVariables,
     onClick,
@@ -23,7 +24,22 @@ export function TitleContainer({
 
     return (
         <Tooltip placement="bottom" title={tooltip}>
-            <Box id={id} display="flex" justifyContent="center">
+            <Stack direction="column" id={id} display="flex" justifyContent="center">
+                {/* Title container */}
+                <Box
+                    onClick={(e) => { onClick && onClick(e); }}
+                    sx={{
+                        color: palette.background.textPrimary,
+                        padding: 0.5,
+                    }}
+                >
+                    {/* Title */}
+                    <Stack direction="row" justifyContent="center" alignItems="center">
+                        {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
+                        <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, { ...titleVariables, defaultValue: titleKey })}</Typography>
+                        {helpKey ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
+                    </Stack>
+                </Box>
                 <Box
                     sx={{
                         boxShadow: 4,
@@ -38,21 +54,6 @@ export function TitleContainer({
                         ...sx,
                     }}
                 >
-                    {/* Title container */}
-                    <Box
-                        onClick={(e) => { onClick && onClick(e); }}
-                        sx={{
-                            background: palette.primary.dark,
-                            color: palette.primary.contrastText,
-                            padding: 0.5,
-                        }}
-                    >
-                        {/* Title */}
-                        <Stack direction="row" justifyContent="center" alignItems="center">
-                            <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, { ...titleVariables, defaultValue: titleKey })}</Typography>
-                            {helpKey ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
-                        </Stack>
-                    </Box>
                     {/* Main content */}
                     <Stack direction="column">
                         <Box sx={{
@@ -92,7 +93,7 @@ export function TitleContainer({
                         }
                     </Stack>
                 </Box>
-            </Box>
+            </Stack>
         </Tooltip>
     );
 }

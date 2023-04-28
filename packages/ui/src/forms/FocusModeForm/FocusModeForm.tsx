@@ -2,7 +2,7 @@ import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon, Schedule
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Subheader } from "components/text/Subheader/Subheader";
@@ -11,6 +11,8 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { ScheduleUpsert } from "views/objects/schedule";
 
 export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
     display,
@@ -36,12 +38,8 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
         setIsScheduleDialogOpen(true);
     };
     const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
-    const handleScheduleCreated = (created: Schedule) => {
+    const handleScheduleCompleted = (created: Schedule) => {
         scheduleHelpers.setValue(created);
-        setIsScheduleDialogOpen(false);
-    };
-    const handleScheduleUpdated = (updated: Schedule) => {
-        scheduleHelpers.setValue(updated);
         setIsScheduleDialogOpen(false);
     };
     const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
@@ -49,15 +47,25 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <ScheduleDialog
-                isCreate={editingSchedule === null}
-                isMutate={false}
-                isOpen={isScheduleDialogOpen}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseScheduleDialog}
-                onCreated={handleScheduleCreated}
-                onUpdated={handleScheduleUpdated}
+                isOpen={isScheduleDialogOpen}
+                titleId={""}
                 zIndex={zIndex + 1}
-            />
+            >
+                <ScheduleUpsert
+                    defaultTab={CalendarPageTabOption.FocusModes}
+                    display="dialog"
+                    handleDelete={handleDeleteSchedule}
+                    isCreate={editingSchedule === null}
+                    isMutate={false}
+                    onCancel={handleCloseScheduleDialog}
+                    onCompleted={handleScheduleCompleted}
+                    partialData={editingSchedule ?? undefined}
+                    zIndex={zIndex + 1}
+                />
+            </LargeDialog>
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}

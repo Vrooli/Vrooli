@@ -1,8 +1,8 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
-import { useTheme } from "@mui/material";
+import { DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
@@ -144,20 +144,28 @@ export const ReminderList = ({
             </LargeDialog>
             {/* List */}
             <TitleContainer
+                Icon={ReminderIcon}
                 titleKey="ToDo"
                 options={[["Create", openDialog]]}
             >
-                {/* Existing reminders */}
-                {reminders.map((reminder, index) => (
-                    <ReminderListItem
-                        key={`reminder-${index}`}
-                        handleDelete={() => handleDelete(index)}
-                        handleOpen={() => openUpdateDialog(index)}
-                        handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
-                        reminder={reminder}
-                        zIndex={zIndex}
-                    />
-                ))}
+                <>
+                    {/* Empty text */}
+                    {reminders.length === 0 && <Typography variant="h6" sx={{
+                        textAlign: "center",
+                        paddingTop: "8px",
+                    }}>{t("NoResults", { ns: "error" })}</Typography>}
+                    {/* Existing reminders */}
+                    {reminders.map((reminder, index) => (
+                        <ReminderListItem
+                            key={`reminder-${index}`}
+                            handleDelete={() => handleDelete(index)}
+                            handleOpen={() => openUpdateDialog(index)}
+                            handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
+                            reminder={reminder}
+                            zIndex={zIndex}
+                        />
+                    ))}
+                </>
             </TitleContainer>
         </>
     );

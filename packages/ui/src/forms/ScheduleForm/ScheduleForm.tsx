@@ -1,15 +1,48 @@
-import { AddIcon, CloseIcon, DeleteIcon, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, uuid } from "@local/shared";
+import { AddIcon, CloseIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Subheader } from "components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
+
+export const scheduleInitialValues = (
+    session: Session | undefined,
+    existing?: Schedule | null | undefined,
+): ScheduleShape => ({
+    __typename: "Schedule" as const,
+    id: DUMMY_ID,
+    startTime: null,
+    endTime: null,
+    // Default to current timezone
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    exceptions: [],
+    labels: [],
+    recurrences: [],
+    ...existing,
+});
+
+export const transformScheduleValues = (values: ScheduleShape, existing?: ScheduleShape) => {
+    return existing === undefined
+        ? shapeSchedule.create(values)
+        : shapeSchedule.update(existing, values);
+};
+
+export const validateScheduleValues = async (values: ScheduleShape, existing?: ScheduleShape) => {
+    const transformedValues = transformScheduleValues(values, existing);
+    const validationSchema = scheduleValidation[existing === undefined ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
+
 
 export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
     display,
@@ -77,6 +110,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"Schedule"}
+                        zIndex={zIndex}
+                        sx={{ marginBottom: 4 }}
+                    />
                     <Subheader
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."

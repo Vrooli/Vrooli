@@ -9,12 +9,13 @@ import { IsPrivateButtonProps } from "../types";
 
 export function IsPrivateButton({
     isEditing,
+    objectType,
 }: IsPrivateButtonProps) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField("isPrivate");
 
-    const isAvailable = true;
+    const isAvailable = useMemo(() => ["Api", "Note", "Organization", "Project", "Routine", "RunProject", "RunRoutine", "SmartContract", "Standard"].includes(objectType), [objectType]);
 
     const { Icon, tooltip } = useMemo(() => {
         const isPrivate = field?.value;

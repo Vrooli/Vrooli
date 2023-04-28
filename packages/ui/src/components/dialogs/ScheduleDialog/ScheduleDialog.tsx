@@ -1,58 +1,79 @@
-import { DUMMY_ID, Schedule, ScheduleCreateInput, ScheduleUpdateInput, scheduleValidation } from "@local/shared";
-import { scheduleCreate } from "api/generated/endpoints/schedule_create";
-import { scheduleUpdate } from "api/generated/endpoints/schedule_update";
+import { DUMMY_ID, parseSearchParams, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm } from "forms/ScheduleForm/ScheduleForm";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ScheduleDialogProps } from "../types";
 
 const titleId = "schedule-dialog-title";
 
 export const ScheduleDialog = ({
-    isCreate,
+    defaultTab,
+    existing,
     isMutate,
     isOpen,
     onClose,
     onCreated,
     onUpdated,
-    partialData,
     zIndex,
 }: ScheduleDialogProps) => {
+    const { t } = useTranslation();
+
     const formRef = useRef<BaseFormRef>();
-    const [addMutation, { loading: addLoading }] = useCustomMutation<Schedule, ScheduleCreateInput>(scheduleCreate);
-    const [updateMutation, { loading: updateLoading }] = useCustomMutation<Schedule, ScheduleUpdateInput>(scheduleUpdate);
+    const initialValues = useMemo(() => scheduleInitialValues(session, existing), [existing, session]);
+    const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
+    const [create, { loading: isCreateLoading }] = useCustomMutation<Schedule, ScheduleCreateInput>(noteVersionCreate);
+    const [update, { loading: isUpdateLoading }] = useCustomMutation<Schedule, ScheduleUpdateInput>(noteVersionUpdate);
+    const mutation = isCreate ? create : update;
 
     const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Confirm dialog is dirty and closed by clicking outside
         formRef.current?.handleClose(onClose, reason !== "backdropClick");
     }, [onClose]);
 
-    const transformValues = useCallback((values: ScheduleShape) => {
-        return isCreate
-            ? shapeSchedule.create(values)
-            : shapeSchedule.update(partialData as any, values);
-
-    }, [isCreate, partialData]);
-
-    const validateFormValues = useCallback(
-        async (values: ScheduleShape) => {
-            const transformedValues = transformValues(values);
-            const validationSchema = isCreate
-                ? scheduleValidation.create({})
-                : scheduleValidation.update({});
-            const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-            return result;
-        },
-        [isCreate, transformValues],
-    );
+    // Handle tabs
+    const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
+        return calendarTabParams.map((tab, i) => ({
+            index: i,
+            Icon: tab.Icon,
+            label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
+            value: tab.tabType,
+        }));
+    }, [t]);
+    const [currTab, setCurrTab] = useState<PageTab<CalendarPageTabOption>>(() => {
+        if (defaultTab !== undefined) {
+            const index = calendarTabParams.findIndex(tab => tab.tabType === defaultTab);
+            if (index !== -1) return tabs[index];
+        }
+        const searchParams = parseSearchParams();
+        const index = calendarTabParams.findIndex(tab => tab.tabType === searchParams.type);
+        // Default to bookmarked tab
+        if (index === -1) return tabs[0];
+        // Return tab
+        return tabs[index];
+    });
+    useEffect(() => {
+        if (defaultTab !== undefined) {
+            const index = calendarTabParams.findIndex(tab => tab.tabType === defaultTab);
+            if (index !== -1) setCurrTab(tabs[index]);
+        }
+    }, [defaultTab, tabs]);
+    const handleTabChange = useCallback((e: any, tab: PageTab<CalendarPageTabOption>) => {
+        e.preventDefault();
+        // Update curr tab
+        setCurrTab(tab);
+    }, []);
 
     return (
         <>
@@ -64,10 +85,18 @@ export const ScheduleDialog = ({
                 titleId={titleId}
                 zIndex={zIndex}
             >
-                <DialogTitle
-                    id={titleId}
-                    title={(isCreate) ? "Add Schedule" : "Update Schedule"}
+                <TopBar
+                    display="dialog"
+                    titleData={{
+                        titleKey: isCreate ? "ScheduleCreate" : "ScheduleUpdate",
+                    }}
                     onClose={handleClose}
+                    below={isCreate && <PageTabs
+                        ariaLabel="search-tabs"
+                        currTab={currTab}
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
                 />
                 <Formik
                     enableReinitialize={true}

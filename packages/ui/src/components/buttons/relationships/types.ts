@@ -7,8 +7,12 @@ interface RelationshipButtonsBaseProps {
     zIndex: number;
 }
 
-export interface IsCompleteButtonProps extends RelationshipButtonsBaseProps { }
-export interface IsPrivateButtonProps extends RelationshipButtonsBaseProps { }
-export interface OwnerButtonProps extends RelationshipButtonsBaseProps { }
-export interface ParentButtonProps extends RelationshipButtonsBaseProps { }
-export interface ProjectButtonProps extends RelationshipButtonsBaseProps { }
+export type FocusModeButtonProps = RelationshipButtonsBaseProps
+export type IsCompleteButtonProps = RelationshipButtonsBaseProps
+export type IsPrivateButtonProps = RelationshipButtonsBaseProps
+export type MeetingButtonProps = RelationshipButtonsBaseProps
+export type OwnerButtonProps = RelationshipButtonsBaseProps
+export type ParentButtonProps = RelationshipButtonsBaseProps
+export type ProjectButtonProps = RelationshipButtonsBaseProps
+export type RunProjectButtonProps = RelationshipButtonsBaseProps
+export type RunRoutineButtonProps = RelationshipButtonsBaseProps

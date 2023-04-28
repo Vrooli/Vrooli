@@ -13,7 +13,7 @@ import { SessionContext } from "utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CommentDialogProps } from "../types";
 
-const titleId = 'comment-dialog-title';
+const titleId = "comment-dialog-title";
 
 /**
  * Dialog for creating/updating a comment. 
@@ -41,8 +41,8 @@ export const CommentDialog = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['text'],
-        validationSchema: commentTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["text"],
+        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
@@ -58,21 +58,21 @@ export const CommentDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: isCreate ? 'AddComment' : 'EditComment' }}
+                titleData={{ titleId, titleKey: isCreate ? "AddComment" : "EditComment" }}
             />
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    paddingBottom: '64px',
+                    display: "block",
+                    paddingBottom: "64px",
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
-                    placeholder={t(`PleaseBeNice`)}
+                    placeholder={t("PleaseBeNice")}
                     minRows={3}
                     sxs={{
                         bar: {
@@ -81,17 +81,17 @@ export const CommentDialog = ({
                         },
                         textArea: {
                             borderRadius: 0,
-                            resize: 'none',
-                            height: parent ? '70vh' : '100vh',
+                            resize: "none",
+                            height: parent ? "70vh" : "100vh",
                             background: palette.background.paper,
-                        }
+                        },
                     }}
                 />
                 {/* Display parent underneath */}
                 {parent && (
                     <Box sx={{
                         backgroundColor: palette.background.paper,
-                        height: '30vh',
+                        height: "30vh",
                     }}>
                         <Typography variant="body2">{parentText}</Typography>
                     </Box>
@@ -107,5 +107,5 @@ export const CommentDialog = ({
                 />
             </BaseForm>
         </LargeDialog>
-    )
-}
+    );
+};

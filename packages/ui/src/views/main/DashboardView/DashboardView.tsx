@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { calculateOccurrences, DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { feedHome } from "api/generated/endpoints/feed_home";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
@@ -303,6 +303,7 @@ export const DashboardView = ({
                 />
                 {/* Events */}
                 <ListTitleContainer
+                    Icon={MonthIcon}
                     isEmpty={upcomingEvents.length === 0}
                     titleKey="Schedule"
                     options={[["Open", openSchedule]]}
@@ -319,6 +320,7 @@ export const DashboardView = ({
                 />
                 {/* Notes */}
                 <ListTitleContainer
+                    Icon={NoteIcon}
                     isEmpty={noteItems.length === 0}
                     titleKey="Note"
                     titleVariables={{ count: 2 }}

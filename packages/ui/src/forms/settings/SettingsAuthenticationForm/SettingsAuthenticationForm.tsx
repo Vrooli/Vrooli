@@ -20,9 +20,9 @@ export const SettingsAuthenticationForm = ({
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 500px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 500px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
 
@@ -30,14 +30,14 @@ export const SettingsAuthenticationForm = ({
             <TextField
                 name="username"
                 autoComplete="username"
-                sx={{ display: 'none' }}
+                sx={{ display: "none" }}
             />
             <Grid container spacing={1}>
                 <Grid item xs={12}>
                     <PasswordTextField
                         fullWidth
                         name="currentPassword"
-                        label={t('PasswordCurrent')}
+                        label={t("PasswordCurrent")}
                         autoComplete="current-password"
                     />
                 </Grid>
@@ -45,7 +45,7 @@ export const SettingsAuthenticationForm = ({
                     <PasswordTextField
                         fullWidth
                         name="newPassword"
-                        label={t('PasswordNew')}
+                        label={t("PasswordNew")}
                         autoComplete="new-password"
                     />
                 </Grid>
@@ -54,7 +54,7 @@ export const SettingsAuthenticationForm = ({
                         fullWidth
                         name="newPasswordConfirmation"
                         autoComplete="new-password"
-                        label={t('PasswordNewConfirm')}
+                        label={t("PasswordNewConfirm")}
                     />
                 </Grid>
             </Grid>
@@ -68,5 +68,5 @@ export const SettingsAuthenticationForm = ({
                 onSubmit={props.handleSubmit}
             />
         </BaseForm>
-    )
-}
+    );
+};

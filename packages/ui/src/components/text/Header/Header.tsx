@@ -13,14 +13,14 @@ export const Header = ({
         component="h1"
         variant="h3"
         sx={{
-            textAlign: 'center',
+            textAlign: "center",
             marginTop: 2,
             marginBottom: 2,
-            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
+            fontSize: { xs: "1.75rem", sm: "2rem", md: "2.5rem" },
             ...noSelect,
             ...(sxs?.text || {}),
         }}
-    >{title}</Typography>
+    >{title}</Typography>;
 
     // If no help data, return a simple title
     if (!help) return titleDisplay;
@@ -40,8 +40,8 @@ export const Header = ({
             {titleDisplay}
             <HelpButton
                 markdown={help}
-                sx={{ width: '40px', height: '40px' }}
+                sx={{ width: "40px", height: "40px" }}
             />
         </Stack>
-    )
-}
+    );
+};

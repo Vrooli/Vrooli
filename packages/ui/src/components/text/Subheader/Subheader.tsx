@@ -15,14 +15,14 @@ export const Subheader = ({
         component="h2"
         variant="h4"
         sx={{
-            textAlign: 'center',
+            textAlign: "center",
             marginTop: 2,
             marginBottom: 2,
-            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+            fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2rem" },
             ...noSelect,
             ...(sxs?.text || {}),
         }}
-    >{title}</Typography>
+    >{title}</Typography>;
 
     // If no help or Icon data, return a simple title
     if (!help && !Icon) return titleDisplay;
@@ -39,12 +39,12 @@ export const Subheader = ({
                 ...(sxs?.stack || {}),
             }}
         >
-            {Icon && <Icon fill={palette.background.textPrimary} style={{ width: '30px', height: '30px', marginRight: 8 }} />}
+            {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
             {titleDisplay}
             {help && <HelpButton
                 markdown={help}
-                sx={{ width: '30px', height: '30px' }}
+                sx={{ width: "30px", height: "30px" }}
             />}
         </Stack>
-    )
-}
+    );
+};

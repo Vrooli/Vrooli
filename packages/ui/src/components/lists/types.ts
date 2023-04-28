@@ -1,4 +1,4 @@
-import { ApiVersion, CommonKey, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -63,6 +63,15 @@ export interface DateRangeMenuProps {
     strictIntervalRange?: number;
 }
 
+export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
+{
+    __typename: "FocusMode";
+};
+export type RelationshipItemMeeting = Pick<Meeting, "id"> &
+{
+    translations?: Pick<Meeting["translations"][0], "name" | "id" | "language">[];
+    __typename: "Meeting";
+}
 export type RelationshipItemOrganization = Pick<Organization, "handle" | "id"> &
 {
     translations?: Pick<Organization["translations"][0], "name" | "id" | "language">[];
@@ -83,6 +92,16 @@ export type RelationshipItemRoutineVersion = Pick<RoutineVersion, "id"> &
     translations?: Pick<RoutineVersion["translations"][0], "name" | "id" | "language">[];
     __typename: "RoutineVersion";
 };
+export type RelationshipItemRunProject = Pick<RunProject, "id" | "name"> &
+{
+    __typename: "RunProject";
+    projectVersion: RelationshipItemProjectVersion;
+}
+export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
+{
+    __typename: "RunRoutine";
+    routineVersion: RelationshipItemRoutineVersion;
+}
 
 export interface RelationshipListProps {
     isEditing: boolean;
