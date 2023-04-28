@@ -1,7 +1,7 @@
-import { modelToGql, toPartialGqlInfo } from "../builders"
-import { getLogic } from "../getters"
-import { readManyHelper } from "./readManyHelper"
-import { ReadManyHelperProps } from "./types"
+import { modelToGql, toPartialGqlInfo } from "../builders";
+import { getLogic } from "../getters";
+import { readManyHelper } from "./readManyHelper";
+import { ReadManyHelperProps } from "./types";
 
 /**
  * Helper function for reading many objects and converting them to a GraphQL response
@@ -14,7 +14,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     objectType,
     prisma,
     req,
-}: Omit<ReadManyHelperProps<Input>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
+}: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<{ pageInfo: any, nodes: any[] }> {
     const readManyResult = await readManyHelper({
         additionalQueries,
         addSupplemental: false,
@@ -23,12 +23,12 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
         objectType,
         prisma,
         req,
-    })
-    const { format } = getLogic(['format'], objectType, req.languages, 'readManyAsFeedHelper')
+    });
+    const { format } = getLogic(["format"], objectType, req.languages, "readManyAsFeedHelper");
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.languages, true))) as any[]
+        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.languages, true))) as any[];
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,
-    }
+    };
 }

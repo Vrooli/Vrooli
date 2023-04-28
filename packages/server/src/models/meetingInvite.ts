@@ -80,7 +80,6 @@ export const MeetingInviteModel: ModelLogic<{
             userId: true,
             organizationId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

@@ -1,4 +1,4 @@
-import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput } from "@local/shared";
+import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth/request";
@@ -161,8 +161,7 @@ export const resolvers: {
         },
         runRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            const userData = assertRequestFrom(req, { isUser: true });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {

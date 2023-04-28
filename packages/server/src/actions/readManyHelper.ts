@@ -1,5 +1,6 @@
+import { VisibilityType } from "@local/shared";
 import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
@@ -26,6 +27,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     objectType,
     prisma,
     req,
+    visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req);
     const model = ObjectMap[objectType];
@@ -54,8 +56,10 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     if (searcher?.customQueryData) {
         customQueries.push(searcher.customQueryData(input, userData));
     }
+    // Create query for visibility, if supported
+    const visibilityQuery = visibilityBuilder({ objectType, userData, visibility: input.visibility ?? visibility });
     // Combine queries
-    const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
+    const where = combineQueries([additionalQueries, searchQuery, visibilityQuery, ...customQueries]);
     // Determine sort order
     // Make sure sort field is valid
     const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;

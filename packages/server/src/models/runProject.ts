@@ -92,7 +92,6 @@ export const RunProjectModel: ModelLogic<{
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

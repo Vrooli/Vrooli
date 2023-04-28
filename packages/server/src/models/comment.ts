@@ -1,8 +1,8 @@
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects } from "@local/shared";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
@@ -218,8 +218,10 @@ export const CommentModel: ModelLogic<{
                     customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
                 }
             }
+            // Create query for visibility
+            const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: VisibilityType.Public });
             // Combine queries
-            const where = combineQueries([searchQuery, ...customQueries]);
+            const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
             // Make sure sort field is valid
             const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;

@@ -76,6 +76,7 @@ export type ReadManyHelperProps<
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUserToken[] };
+    visibility?: VisibilityType;
 }
 
 type FindUniqueInput = {

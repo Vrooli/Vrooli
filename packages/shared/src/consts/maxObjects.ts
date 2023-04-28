@@ -34,7 +34,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 3,
                 premium: 100,
-            }
+            },
         },
         Organization: {
             private: {
@@ -44,7 +44,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 5,
                 premium: 100,
-            }
+            },
         },
     },
     ApiKey: {
@@ -123,7 +123,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 20,
                 premium: 100,
-            }
+            },
         },
         Organization: {
             private: {
@@ -134,7 +134,7 @@ export const MaxObjects = {
                 noPremium: 20,
                 premium: 100,
             },
-        }
+        },
     },
     Meeting: {
         User: 0,
@@ -171,7 +171,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 50,
                 premium: 2000,
-            }
+            },
         },
         Organization: {
             private: {
@@ -181,7 +181,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 50,
                 premium: 2000,
-            }
+            },
         },
     },
     NoteVersion: 100000,
@@ -199,7 +199,7 @@ export const MaxObjects = {
             public: {
                 noPremium: 3,
                 premium: 25,
-            }
+            },
         },
         Organization: 0,
     },
@@ -297,6 +297,16 @@ export const MaxObjects = {
     },
     RunRoutineInput: 100000,
     RunRoutineStep: 100000,
+    Schedule: {
+        User: {
+            noPremium: 25,
+            premium: 1000,
+        },
+        Organization: {
+            noPremium: 25,
+            premium: 1000,
+        },
+    },
     SmartContract: {
         private: {
             noPremium: 6,
@@ -305,7 +315,7 @@ export const MaxObjects = {
         public: {
             noPremium: 10,
             premium: 200,
-        }
+        },
     },
     SmartContractVersion: 100000,
     Standard: {
@@ -340,5 +350,5 @@ export const MaxObjects = {
             },
             public: 0,
         },
-    }
+    },
 } as const;

@@ -122,7 +122,6 @@ export const NoteVersionModel: ModelLogic<{
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

@@ -57,7 +57,6 @@ export const MemberModel: ModelLogic<{
             organizationId: true,
             updatedTimeFrame: true,
             userId: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

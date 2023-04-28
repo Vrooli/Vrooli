@@ -81,7 +81,6 @@ export const RoleModel: ModelLogic<{
             translationLanguages: true,
             organizationId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

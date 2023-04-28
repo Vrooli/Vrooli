@@ -25,7 +25,7 @@ const validateNodePositions = async (
     // // Remove nodes that have duplicate rowIndexes and columnIndexes
     // console.log('unique nodes check', JSON.stringify(combinedNodes));
     // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
-    // if (uniqueNodes.length < combinedNodes.length) throw new CustomError('NodeDuplicatePosition', {});
+    // if (uniqueNodes.length < combinedNodes.length) throw new CustomError("NodeDuplicatePosition", {});
     return;
 };
 
@@ -262,7 +262,6 @@ export const RoutineVersionModel: ModelLogic<{
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

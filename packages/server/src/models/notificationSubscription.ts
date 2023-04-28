@@ -162,7 +162,6 @@ export const NotificationSubscriptionModel: ModelLogic<{
             objectType: true,
             objectId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

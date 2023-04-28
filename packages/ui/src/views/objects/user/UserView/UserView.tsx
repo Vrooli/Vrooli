@@ -21,6 +21,7 @@ import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/di
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { useObjectActions } from "utils/hooks/useObjectActions";
+import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
@@ -75,7 +76,7 @@ export const UserView = ({
     useDisplayApolloError(userError ?? profileError);
     useEffect(() => {
         const urlEnding = getLastUrlPart();
-        if (urlEnding && uuidValidate(urlEnding)) getUserData({ variables: { id: urlEnding } as any });
+        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ variables: { id: base36ToUuid(urlEnding) } as any });
         else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
     }, [getUserData, getProfileData]);

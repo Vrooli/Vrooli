@@ -9567,6 +9567,7 @@ export type ViewTo = Api | Issue | Note | Organization | Post | Project | Questi
 
 export enum VisibilityType {
   All = 'All',
+  Own = 'Own',
   Private = 'Private',
   Public = 'Public'
 }

@@ -140,7 +140,6 @@ export const NoteModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

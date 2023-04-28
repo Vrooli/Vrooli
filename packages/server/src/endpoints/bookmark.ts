@@ -1,7 +1,6 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
-import { assertRequestFrom } from "../auth/request";
 import { rateLimit } from "../middleware";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../types";
 import { resolveUnion } from "./resolvers";
@@ -120,9 +119,8 @@ export const resolvers: {
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         bookmarks: async (_, { input }, { prisma, req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { list: { userId: userData.id } } });
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {

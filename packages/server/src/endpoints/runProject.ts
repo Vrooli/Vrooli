@@ -1,4 +1,4 @@
-import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from "@local/shared";
+import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom } from "../auth";
@@ -152,8 +152,7 @@ export const resolvers: {
         },
         runProjects: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            const userData = assertRequestFrom(req, { isUser: true });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {

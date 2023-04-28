@@ -48,6 +48,7 @@ export const SettingsPrivacyView = ({
                         mutationWrapper<User, ProfileUpdateInput>({
                             mutation,
                             input: values,
+                            successMessage: () => ({ messageKey: "SettingsUpdated" }),
                             onSuccess: (data) => { onProfileUpdate(data); },
                             onError: () => { helpers.setSubmitting(false); },
                         });

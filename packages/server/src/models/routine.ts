@@ -340,7 +340,6 @@ export const RoutineModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

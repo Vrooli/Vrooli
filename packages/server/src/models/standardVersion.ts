@@ -253,7 +253,6 @@ export const StandardVersionModel: ModelLogic<{
             translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

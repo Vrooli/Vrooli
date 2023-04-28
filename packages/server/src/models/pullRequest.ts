@@ -178,7 +178,6 @@ export const PullRequestModel: ModelLogic<{
             tags: true,
             updatedTimeFrame: true,
             userId: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

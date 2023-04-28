@@ -42,7 +42,6 @@ export const NotificationModel: ModelLogic<{
         sortBy: NotificationSortBy,
         searchFields: {
             createdTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

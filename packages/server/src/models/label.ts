@@ -133,7 +133,6 @@ export const LabelModel: ModelLogic<{
             ownedByUserId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

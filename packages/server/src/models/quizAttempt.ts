@@ -98,7 +98,6 @@ export const QuizAttemptModel: ModelLogic<{
             userId: true,
             quizId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({}), // No strings to search
     },

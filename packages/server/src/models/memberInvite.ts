@@ -84,7 +84,6 @@ export const MemberInviteModel: ModelLogic<{
             status: true,
             updatedTimeFrame: true,
             userId: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

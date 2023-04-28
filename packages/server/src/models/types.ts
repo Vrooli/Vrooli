@@ -173,7 +173,7 @@ export interface Formatter<
     supplemental?: SupplementalConverter<SuppFields>;
 }
 
-type CommonSearchFields = "after" | "take" | "ids" | "searchString";
+type CommonSearchFields = "after" | "take" | "ids" | "searchString" | "visibility";
 
 export type SearchStringQueryParams = {
     insensitive: { contains: string; mode: "default" | "insensitive"; },

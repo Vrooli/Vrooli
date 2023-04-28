@@ -115,6 +115,7 @@ export const typeDef = gql`
 
     enum VisibilityType {
         All
+        Own
         Public
         Private
     }

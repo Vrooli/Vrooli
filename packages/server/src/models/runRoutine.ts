@@ -301,7 +301,6 @@ export const RunRoutineModel: ModelLogic<{
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

@@ -82,7 +82,6 @@ export const QuizQuestionResponseModel: ModelLogic<{
             quizAttemptId: true,
             quizQuestionId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

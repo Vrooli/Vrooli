@@ -11,13 +11,13 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
         for (const [key, value] of Object.entries(query)) {
             let currValue = value;
             // If key is AND, OR, or NOT, combine
-            if (['AND', 'OR', 'NOT'].includes(key)) {
+            if (["AND", "OR", "NOT"].includes(key)) {
                 // Value should be an array
                 if (!Array.isArray(value)) {
                     currValue = [value];
                 }
                 // For AND, combine arrays
-                if (key === 'AND') {
+                if (key === "AND") {
                     combined[key] = key in combined ? [...combined[key], ...currValue] : currValue;
                 }
                 // For OR and NOT, set as value if none exists
@@ -38,8 +38,15 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
                     ];
                 }
             }
-            // Otherwise, just add it
-            else combined[key] = value;
+            // Otherwise, add it or cancel it out if it has an opposite boolean value
+            else {
+                if (key in combined && typeof combined[key] === "boolean" && typeof currValue === "boolean" && combined[key] !== currValue) {
+                    // Cancel out true/false values
+                    delete combined[key];
+                } else {
+                    combined[key] = value;
+                }
+            }
         }
     }
     return combined;

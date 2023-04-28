@@ -215,7 +215,6 @@ export const OrganizationModel: ModelLogic<{
             tags: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         sortBy: OrganizationSortBy,
         searchStringQuery: () => ({

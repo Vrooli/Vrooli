@@ -245,7 +245,6 @@ export const StandardModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

@@ -142,7 +142,6 @@ export const MeetingModel: ModelLogic<{
             showOnOrganizationProfile: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

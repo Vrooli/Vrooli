@@ -1,4 +1,4 @@
-import { ApiSortBy, exists, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularObjectType, PopularResult, PopularSortBy, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from "@local/shared";
+import { ApiSortBy, exists, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularObjectType, PopularResult, PopularSortBy, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { readManyAsFeedHelper } from "../actions";
 import { assertRequestFrom, getUser } from "../auth/request";
@@ -92,9 +92,8 @@ export const resolvers: {
             // Query notes
             const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ownedByUser: { id: userData.id } },
                 info: partial.notes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc },
+                input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc, visibility: VisibilityType.Own },
                 objectType: "Note",
             });
             // Query reminders
@@ -108,7 +107,7 @@ export const resolvers: {
                     },
                 },
                 info: partial.reminders as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
+                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Public }, // VisibilityType.Own clashes with additionalQueries
                 objectType: "Reminder",
             });
             // Query resources
@@ -122,7 +121,7 @@ export const resolvers: {
                     },
                 },
                 info: partial.resources as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
+                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Public }, // VisibilityType.Own clashes with additionalQueries
                 objectType: "Resource",
             });
             // Query schedules that might occur in the next 7 days. 
@@ -134,42 +133,9 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: {
                     ...schedulesWhereInTimeframe(startDate, endDate),
-                    OR: [
-                        {
-                            meetings: {
-                                some: {
-                                    attendees: {
-                                        some: {
-                                            user: {
-                                                id: userData.id,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            runProjects: {
-                                some: {
-                                    user: {
-                                        id: userData.id,
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            runRoutines: {
-                                some: {
-                                    user: {
-                                        id: userData.id,
-                                    },
-                                },
-                            },
-                        },
-                    ],
                 },
                 info: partial.schedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ScheduleSortBy.EndTimeAsc },
+                input: { ...input, take, sortBy: ScheduleSortBy.EndTimeAsc, visibility: VisibilityType.Own },
                 objectType: "Schedule",
             });
             // Add supplemental fields to every result

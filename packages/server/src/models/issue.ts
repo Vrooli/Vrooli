@@ -135,7 +135,6 @@ export const IssueModel: ModelLogic<{
             status: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({ OR: ["transDescriptionWrapped", "transNameWrapped"] }),
     },

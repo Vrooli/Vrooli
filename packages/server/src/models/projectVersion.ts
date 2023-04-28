@@ -179,8 +179,10 @@ export const ProjectVersionModel: ModelLogic<{
     //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
     //             }
     //         }
+    // Create query for visibility
+    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: input.visibility ?? VisibilityType.Public });
     //         // Combine queries
-    //         const where = combineQueries([searchQuery, ...customQueries]);
+    //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
     //         // Make sure sort field is valid
     //         const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
@@ -286,7 +288,6 @@ export const ProjectVersionModel: ModelLogic<{
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [

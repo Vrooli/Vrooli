@@ -1,8 +1,10 @@
-import { Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from "@local/shared";
+import { MaxObjects, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { selPad } from "../builders";
+import { findFirstRel, selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { getLogic } from "../getters";
 import { PrismaType } from "../types";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";
 import { RunProjectModel } from "./runProject";
@@ -78,7 +80,6 @@ export const ScheduleModel: ModelLogic<{
             scheduleForUserId: true,
             startTimeFrame: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -89,5 +90,48 @@ export const ScheduleModel: ModelLogic<{
             ],
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => oneIsPublic<Prisma.scheduleSelect>(data, [
+            ["focusModes", "FocusMode"],
+            ["meetings", "Meeting"],
+            ["runProjects", "RunProject"],
+            ["runRoutines", "RunRoutine"],
+        ], languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data, userId) => {
+            // Find owner from the object that has the pull request
+            const [onField, onData] = findFirstRel(data, [
+                "focusModes",
+                "meetings",
+                "runProjects",
+                "runRoutines",
+            ]);
+            const { validate } = getLogic(["validate"], onField as any, ["en"], "ScheduleModel.validate.owner");
+            return Array.isArray(onData) && onData.length > 0 ?
+                validate.owner(onData[0], userId)
+                : {};
+        },
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            focusModes: "FocusMode",
+            meetings: "Meeting",
+            runProjects: "RunProject",
+            runRoutines: "RunRoutine",
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                OR: [
+                    { focusModes: { some: FocusModeModel.validate!.visibility.owner(userId) } },
+                    { meetings: { some: MeetingModel.validate!.visibility.owner(userId) } },
+                    { runProjects: { some: RunProjectModel.validate!.visibility.owner(userId) } },
+                    { runRoutines: { some: RunRoutineModel.validate!.visibility.owner(userId) } },
+                ],
+            }),
+        },
+    },
 });

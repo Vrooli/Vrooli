@@ -151,7 +151,6 @@ export const ApiModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
