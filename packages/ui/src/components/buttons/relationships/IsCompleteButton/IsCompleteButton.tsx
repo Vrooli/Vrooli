@@ -39,7 +39,7 @@ export function IsCompleteButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>Complete?</TextShrink>
+            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{field?.value ? "Complete" : "Incomplete"}</TextShrink>
             <Tooltip title={tooltip}>
                 <ColorIconButton background={palette.primary.light} sx={{ ...smallButtonProps(isEditing, false) }} onClick={handleClick}>
                     {Icon && <Icon {...commonIconProps()} />}

@@ -39,7 +39,7 @@ export function IsPrivateButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>Privacy</TextShrink>
+            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{field?.value ? "Private" : "Public"}</TextShrink>
             <Tooltip title={tooltip}>
                 <ColorIconButton
                     background={palette.primary.light}
