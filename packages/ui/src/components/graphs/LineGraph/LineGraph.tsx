@@ -1,7 +1,8 @@
-import { Tooltip } from "@mui/material";
+import { Typography } from "@mui/material";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line } from "d3-shape";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { LineGraphProps } from "../types";
 
 type Point = {
@@ -73,7 +74,11 @@ export const LineGraph = ({
         return `${selectedPoint.label.length > 0 ? `${selectedPoint.label}: ` : ""} ${selectedPoint.value}`;
     }, [selectedPoint]);
 
-    const renderGrid = () => {
+    // Anchor for popover that displays a point's label/value
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+
+    const grid = useMemo(() => {
         const numOfHorizontalLines = 5;
         const numOfVerticalLines = data.length > 1 ? data.length - 1 : 1;
 
@@ -113,105 +118,59 @@ export const LineGraph = ({
                 {verticalLines}
             </>
         );
-    };
+    }, [data, dims.height, dims.width]);
 
-    const renderDataPoints = () => {
+    const closeTimeout = useRef<number | null>(null);
+
+    const dataPoints = useMemo(() => {
         return points.map((point, index) => (
-            <circle
-                key={`point-${index}`}
-                cx={point.x}
-                cy={point.y}
-                r={3}
-                fill={selectedPoint === point ? lineColor : "#ccc"}
-                stroke={lineColor}
-                strokeWidth={1}
-                onMouseEnter={() => setSelectedPoint(point)}
-                onMouseLeave={() => setSelectedPoint(null)}
-            />
-        ));
-    };
-
-    const renderTooltip = () => {
-        if (selectedPoint === null) {
-            return null;
-        }
-
-        const tooltipWidth = 100;
-        const tooltipHeight = 50;
-        const tooltipX = Math.min(selectedPoint.x, dims.width - tooltipWidth);
-        const tooltipY = Math.min(selectedPoint.y, dims.height - tooltipHeight);
-
-        return (
-            <g>
-                <rect
-                    x={tooltipX}
-                    y={tooltipY}
-                    width={tooltipWidth}
-                    height={tooltipHeight}
-                    fill="white"
+            <g key={`point-${index}`}>
+                {/* Actual displayed circle */}
+                <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={3}
+                    fill={selectedPoint === point ? lineColor : "#ccc"}
                     stroke={lineColor}
                     strokeWidth={1}
                 />
-                <text
-                    x={tooltipX + 5}
-                    y={tooltipY + 20}
-                    fontSize={14}
-                    fill={lineColor}
-                >
-                    {selectedPoint.label}
-                </text>
-                <text
-                    x={tooltipX + 5}
-                    y={tooltipY + 35}
-                    fontSize={12}
-                    fill={lineColor}
-                >
-                    Value: {selectedPoint.value}
-                </text>
+                {/* Invisible circle that is used to increase the size of the hover area */}
+                <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={12} // Increase the radius to create a larger hover area
+                    fill="transparent" // Make the circle invisible
+                    onMouseEnter={(e) => {
+                        // Clear the timeout if it exists
+                        if (closeTimeout.current) {
+                            clearTimeout(closeTimeout.current);
+                            closeTimeout.current = null;
+                        }
+                        setSelectedPoint(point);
+                        setAnchorEl(e.currentTarget as unknown as HTMLElement);
+                    }}
+                    onMouseLeave={() => {
+                        // Delay the tooltip removal
+                        closeTimeout.current = window.setTimeout(() => {
+                            setSelectedPoint(null);
+                            setAnchorEl(null); // Remove the anchor element
+                        }, 500);
+                    }}
+                />
             </g>
-        );
-    };
+        ));
+    }, [lineColor, points, selectedPoint]);
 
     return (
-        <Tooltip title={tooltipText} placement="top" sx={{
-            // Custom placement of the tooltip to align with the data point
-            // '& .MuiTooltip-tooltip': {
-            //     transform: `translateX(${selectedPoint ? selectedPoint.x - 10 : 0}px)`,
-            // },
-        }}>
+        <>
             {/* The line graph */}
             <svg width={dims.width} height={dims.height}>
-                {renderGrid()}
+                {grid}
                 <path
                     d={path}
                     stroke={lineColor}
                     strokeWidth={lineWidth}
                     fill="none"
-                    onMouseMove={(e) => {
-                        // Calculate the x and y coordinates of the mouse relative to the SVG element
-                        const svgRect = e.currentTarget.getBoundingClientRect();
-                        const x = e.clientX - svgRect.left;
-                        const y = e.clientY - svgRect.top;
-                        // Find the data point closest to the mouse cursor
-                        const closest = points.reduce((acc, point) => {
-                            const distance = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
-                            if (distance < acc.distance) {
-                                return { point, distance };
-                            }
-                            return acc;
-                        }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
-                        if (closest.distance < 25) {
-                            // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
-                            setSelectedPoint(closest.point);
-                        } else {
-                            // Otherwise, hide the selectedPoint
-                            setSelectedPoint(null);
-                        }
-                    }}
-                    onMouseLeave={() => {
-                        // Hide the selectedPoint when the mouse leaves the SVG element
-                        setSelectedPoint(null);
-                    }}
                     onClick={(e) => {
                         // Calculate the x and y coordinates of the mouse relative to the SVG element
                         const svgRect = e.currentTarget.getBoundingClientRect();
@@ -225,7 +184,7 @@ export const LineGraph = ({
                             }
                             return acc;
                         }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
-                        if (closest.distance < 25) {
+                        if (closest.distance < 40) {
                             // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
                             setSelectedPoint(closest.point);
                         } else {
@@ -234,9 +193,42 @@ export const LineGraph = ({
                         }
                     }}
                 />
-                {renderDataPoints()}
-                {renderTooltip()}
+                {dataPoints}
             </svg>
-        </Tooltip>
+            {selectedPoint && anchorEl && (
+                <PopoverWithArrow
+                    anchorEl={anchorEl}
+                    handleClose={() => {
+                        setSelectedPoint(null);
+                        setAnchorEl(null);
+                    }}
+                    onMouseEnter={() => {
+                        // Clear the timeout when the mouse enters the tooltip
+                        if (closeTimeout.current) {
+                            clearTimeout(closeTimeout.current);
+                            closeTimeout.current = null;
+                        }
+                    }}
+                    onMouseMove={(event) => {
+                        // If the mouse moves far enough away from the data point, hide the tooltip
+                        const svgRect = anchorEl.getBoundingClientRect();
+                        const x = event.clientX - svgRect.left;
+                        const y = event.clientY - svgRect.top;
+                        const distance = Math.sqrt(x ** 2 + y ** 2);
+                        console.log("on mouse moveee 1", event.clientX, event.clientY, svgRect.left, svgRect.top);
+                        console.log("on mouse moveee 2", x, y, distance, "\n");
+                        if (distance > 40) {
+                            setSelectedPoint(null);
+                            setAnchorEl(null);
+                        }
+                    }}
+                >
+                    <Typography variant="body2" color="textPrimary">
+                        {tooltipText}
+                    </Typography>
+                </PopoverWithArrow>
+            )}
+
+        </>
     );
 };
