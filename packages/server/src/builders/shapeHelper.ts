@@ -203,8 +203,8 @@ export const shapeHelper = async<
         // If not in data, skip
         const curr = data[`${relation}${t}` as string];
         if (!curr) continue;
-        // Shape the data. Exclude parent relationship
-        const currShaped = shapeRelationshipData(curr, [parentRelationshipName, `${parentRelationshipName}Id`]);
+        // Shape the data
+        const currShaped = shapeRelationshipData(curr);
         // Add to result
         result[t.toLowerCase()] = Array.isArray(result[t.toLowerCase()]) ?
             [...result[t.toLowerCase()] as any, ...currShaped] :
@@ -231,7 +231,9 @@ export const shapeHelper = async<
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
             const created = await (mutate.shape as any).create({ data: create, preMap, prisma, userData });
-            shaped.push(created);
+            // Exclude parent relationship to prevent circular references
+            const { [parentRelationshipName]: _, ...rest } = created;
+            shaped.push(rest);
         }
         result.create = shaped;
     }
@@ -239,7 +241,9 @@ export const shapeHelper = async<
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
             const updated = await (mutate.shape as any).update({ data: update, preMap, prisma, userData });
-            shaped.push({ where: update.where, data: updated });
+            // Exclude parent relationship to prevent circular references
+            const { [parentRelationshipName]: _, ...rest } = updated;
+            shaped.push({ where: update.where, data: rest });
         }
         result.update = shaped;
     }
