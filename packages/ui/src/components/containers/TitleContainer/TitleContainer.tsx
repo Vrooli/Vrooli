@@ -24,7 +24,7 @@ export function TitleContainer({
 
     return (
         <Tooltip placement="bottom" title={tooltip}>
-            <Stack direction="column" id={id} display="flex" justifyContent="center">
+            <Stack direction="column" id={id} display="flex" justifyContent="center" alignItems="center">
                 {/* Title container */}
                 <Box
                     onClick={(e) => { onClick && onClick(e); }}
