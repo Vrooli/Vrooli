@@ -12,6 +12,77 @@ type Point = {
     value: number,
 }
 
+// type XAxisLabelsProps = {
+//     data: any[];
+//     xScale: any;
+//     height: number;
+// };
+
+type YAxisLabelsProps = {
+    yScale: any;
+    numOfHorizontalLines: number;
+    width: number;
+};
+
+const getRoundingPrecision = (minValue: number, maxValue: number, numOfLines: number) => {
+    const range = maxValue - minValue;
+    const increment = range / (numOfLines - 1);
+
+    if (increment >= 1) {
+        return Math.max(0, Math.ceil(Math.log10(increment)) - 1);
+    } else {
+        return Math.ceil(-Math.log10(increment));
+    }
+};
+
+// const XAxisLabels: React.FC<XAxisLabelsProps> = ({ data, xScale, height }) => {
+//     return (
+//         <g>
+//             {data.map((datum, index) => (
+//                 <text
+//                     key={`x-label-${index}`}
+//                     x={xScale(index)}
+//                     y={height + 15}
+//                     fontSize={10}
+//                     textAnchor="middle"
+//                 >
+//                     {toLabel(datum)}
+//                 </text>
+//             ))}
+//         </g>
+//     );
+// };
+
+const YAxisLabels: React.FC<YAxisLabelsProps> = ({ yScale, numOfHorizontalLines, width }) => {
+    const minValue = yScale.domain()[0];
+    const maxValue = yScale.domain()[1];
+
+    const precision = getRoundingPrecision(minValue, maxValue, numOfHorizontalLines);
+
+    const labels = [...Array(numOfHorizontalLines)].map((_, index) => {
+        const value = (index / (numOfHorizontalLines - 1)) * (maxValue - minValue) + minValue;
+        return (
+            <g key={`y-label-${index}`} transform={`translate(-30, ${yScale(value)})`}>
+                <foreignObject width="40" height="20" y={-10}>
+                    <Typography
+                        variant="body2"
+                        component="span"
+                        sx={{
+                            textAnchor: "end",
+                            dominantBaseline: "central",
+                            display: "block",
+                        }}
+                    >
+                        {value.toFixed(precision)}
+                    </Typography>
+                </foreignObject>
+            </g>
+        );
+    });
+
+    return <g>{labels}</g>;
+};
+
 // Function to extract the label from a data point
 const toLabel = (datum: any): string => {
     if (typeof datum === "object" && datum !== null && "label" in datum) {
@@ -31,6 +102,8 @@ const toValue = (datum: any): number => {
     return 0;
 };
 
+const padding = { top: 10, right: 35, bottom: 10, left: 10 };
+
 /**
  * A line graph component to represent a list of numerical data as a line.
  */
@@ -44,11 +117,14 @@ export const LineGraph = ({
     // Find the maximum and minimum value in the data array
     const maxData = Math.max(...data.map(toValue));
     const minData = Math.min(...data.map(toValue));
-    const constantValue = minData === maxData;
+    const numOfHorizontalLines = 5;
 
-    // Calculate the x and y coordinates of each point in the data array
-    const xScale = scaleLinear().domain([0, data.length - 1]).range([0, dims.width]);
-    const yScale = scaleLinear().domain([constantValue ? minData - 0.5 : 0, maxData]).range([dims.height, 0]);
+    const xScale = scaleLinear()
+        .domain([0, data.length - 1])
+        .range([padding.left, dims.width - padding.right]);
+    const yScale = scaleLinear()
+        .domain([Math.floor(minData * 0.9), maxData === 0 ? 1 : Math.ceil(maxData * 1.1)])
+        .range([dims.height - padding.bottom, padding.top]);
 
     const points: Point[] = data.map((datum, index) => ({
         x: xScale(index),
@@ -83,13 +159,13 @@ export const LineGraph = ({
         const numOfVerticalLines = data.length > 1 ? data.length - 1 : 1;
 
         const horizontalLines = [...Array(numOfHorizontalLines)].map((_, index) => {
-            const y = (index / (numOfHorizontalLines - 1)) * dims.height;
+            const y = padding.top + ((dims.height - padding.top - padding.bottom) * index) / (numOfHorizontalLines - 1);
             return (
                 <line
                     key={`h-line-${index}`}
-                    x1={0}
+                    x1={padding.left}
                     y1={y}
-                    x2={dims.width}
+                    x2={dims.width - padding.right}
                     y2={y}
                     stroke="#ccc"
                     strokeWidth={1}
@@ -98,14 +174,14 @@ export const LineGraph = ({
         });
 
         const verticalLines = [...Array(numOfVerticalLines)].map((_, index) => {
-            const x = (index / (numOfVerticalLines - 1)) * dims.width;
+            const x = padding.left + ((dims.width - padding.left - padding.right) * index) / (numOfVerticalLines - 1);
             return (
                 <line
                     key={`v-line-${index}`}
                     x1={x}
-                    y1={0}
+                    y1={padding.top}
                     x2={x}
-                    y2={dims.height}
+                    y2={dims.height - padding.bottom}
                     stroke="#ccc"
                     strokeWidth={1}
                 />
@@ -118,7 +194,7 @@ export const LineGraph = ({
                 {verticalLines}
             </>
         );
-    }, [data, dims.height, dims.width]);
+    }, [data, dims.height, dims.width, padding]);
 
     const closeTimeout = useRef<number | null>(null);
 
@@ -166,6 +242,16 @@ export const LineGraph = ({
             {/* The line graph */}
             <svg width={dims.width} height={dims.height}>
                 {grid}
+                {/* <g transform={`translate(0, ${dims.height})`}>
+                    <XAxisLabels data={data} xScale={xScale} height={dims.height} />
+                </g> */}
+                <g transform={`translate(${dims.width}, 0)`}>
+                    <YAxisLabels
+                        yScale={yScale}
+                        numOfHorizontalLines={numOfHorizontalLines}
+                        width={dims.width}
+                    />
+                </g>
                 <path
                     d={path}
                     stroke={lineColor}
