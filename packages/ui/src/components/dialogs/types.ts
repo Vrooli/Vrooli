@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from "components/text/types";
@@ -61,8 +61,21 @@ export interface DialogTitleProps {
     title?: string;
 }
 
-export type SelectOrCreateObjectType = "ApiVersion" | "NoteVersion" | "Organization" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion" | "User";
+export type SelectOrCreateObjectType = "ApiVersion" |
+    "FocusMode" |
+    "Meeting" |
+    "NoteVersion" |
+    "Organization" |
+    "ProjectVersion" |
+    "RoutineVersion" |
+    "RunProject" |
+    "RunRoutine" |
+    "SmartContractVersion" |
+    "StandardVersion" |
+    "User";
 export type SelectOrCreateObject = ApiVersion |
+    FocusMode |
+    Meeting |
     NoteVersion |
     Organization |
     ProjectVersion |
@@ -102,16 +115,6 @@ export interface FindSubroutineDialogProps {
     isOpen: boolean;
     nodeId: string;
     routineVersionId: string | null | undefined;
-    zIndex: number;
-}
-
-export interface FocusModeDialogProps extends Omit<DialogProps, "open"> {
-    isCreate: boolean;
-    isOpen: boolean;
-    onClose: () => any;
-    onCreated: (focusMode: FocusMode) => any;
-    onUpdated: (focusMode: FocusMode) => any;
-    partialData?: Partial<FocusMode>;
     zIndex: number;
 }
 

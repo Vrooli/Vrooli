@@ -5,10 +5,8 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
 import { useField } from "formik";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
 import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
@@ -17,11 +15,9 @@ export function FocusModeButton({
     objectType,
     zIndex,
 }: FocusModeButtonProps) {
-    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [field, , helpers] = useField("focusMode");
 
@@ -32,10 +28,8 @@ export function FocusModeButton({
         if (!isAvailable) return;
         ev.stopPropagation();
         const focusMode = field?.value;
-        // // If not editing, navigate to focus mode
         // If not editing, navigate to display settings
         if (!isEditing) {
-            // if (focusMode) openObject(focusMode, setLocation);
             if (focusMode) setLocation(LINKS.SettingsFocusModes);
         }
         else {

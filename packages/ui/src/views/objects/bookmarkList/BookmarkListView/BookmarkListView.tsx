@@ -73,7 +73,7 @@ export const BookmarkListView = ({
                 }}>
                     <SiteSearchBar
                         id={"history-search-bar"}
-                        placeholder={`${t("SearchBookmark")}...`}
+                        placeholder={"SearchBookmark"}
                         loading={isLoading}
                         value={searchString}
                         onChange={updateSearchString}

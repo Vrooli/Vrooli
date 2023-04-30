@@ -1,10 +1,10 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { mutationWrapper } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCustomMutation } from "api/hooks";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FocusModeDialog } from "components/dialogs/FocusModeDialog/FocusModeDialog";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { t } from "i18next";
@@ -13,6 +13,7 @@ import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
@@ -119,26 +120,52 @@ export const SettingsFocusModesView = ({
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
     };
-    const handleCreated = (newFocusMode: FocusMode) => {
+    const handleCompleted = useCallback((focusMode: FocusMode) => {
+        let updatedFocusModes: FocusMode[];
+        // Check if focus mode is already in list (i.e. updated instead of created)
+        const existingFocusMode = focusModes.find((existingFocusMode) => existingFocusMode.id === focusMode.id);
+        if (existingFocusMode) {
+            updatedFocusModes = focusModes.map((existingFocusMode) => existingFocusMode.id === focusMode.id ? focusMode : existingFocusMode);
+            setFocusModes(updatedFocusModes);
+        }
+        // Otherwise, add to list
+        else {
+            updatedFocusModes = [...focusModes, focusMode];
+            setFocusModes(updatedFocusModes);
+        }
+        // Publish updated focus mode list. This should also update the active focus mode, if necessary.
+        const currentUser = getCurrentUser(session);
+        const users: SessionUser[] = [
+            ...session!.users!.filter((user) => user.id !== currentUser.id),
+            {
+                ...currentUser,
+                focusModes: updatedFocusModes,
+            } as SessionUser,
+        ];
+        PubSub.get().publishSession({ users } as any);
+        // Close dialog
         setIsDialogOpen(false);
-        PubSub.get().publishFocusMode({
-            __typename: "ActiveFocusMode" as const,
-            mode: newFocusMode,
-            stopCondition: FocusModeStopCondition.NextBegins,
-        });
-    };
+    }, [focusModes, session]);
 
     return (
         <>
-            {/* Dialog to create a new focus mode */}
-            <FocusModeDialog
-                isCreate={editingFocusMode === null}
-                isOpen={isDialogOpen}
+            {/* Dialog to create/update focus modes */}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseDialog}
-                onCreated={handleCreated}
-                onUpdated={() => { }}
+                isOpen={isDialogOpen}
+                titleId={""}
                 zIndex={1000}
-            />
+            >
+                <FocusModeUpsert
+                    display="dialog"
+                    isCreate={editingFocusMode === null}
+                    onCancel={handleCloseDialog}
+                    onCompleted={handleCompleted}
+                    partialData={editingFocusMode ?? undefined}
+                    zIndex={1000}
+                />
+            </LargeDialog>
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}

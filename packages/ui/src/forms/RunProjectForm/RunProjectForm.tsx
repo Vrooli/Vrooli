@@ -1,59 +1,42 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, FocusMode, focusModeValidation, HeartFilledIcon, InvisibleIcon, Schedule, Session } from "@local/shared";
-import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, RunProject, runProjectValidation, Schedule, Session } from "@local/shared";
+import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { Field, useField } from "formik";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FocusModeFormProps } from "forms/types";
+import { RunProjectFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
+import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
 import { ScheduleUpsert } from "views/objects/schedule";
 
-export const focusModeInitialValues = (
+export const runProjectInitialValues = (
     session: Session | undefined,
-    existing?: FocusMode | null | undefined,
-): FocusModeShape => ({
-    __typename: "FocusMode" as const,
+    existing?: RunProject | null | undefined,
+): RunProjectShape => ({
+    __typename: "RunProject" as const,
     id: DUMMY_ID,
-    description: "",
-    name: "",
-    reminderList: {
-        __typename: "ReminderList" as const,
-        id: DUMMY_ID,
-        reminders: [],
-    },
-    resourceList: {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-        resources: [],
-    },
-    filters: [],
-    schedule: null,
     ...existing,
+    //TODO
 });
 
-export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
-    console.log("transformFocusModeValues", values, shapeFocusMode.create(values));
+export function transformRunProjectValues(values: RunProjectShape, existing?: RunProjectShape) {
     return existing === undefined
-        ? shapeFocusMode.create(values)
-        : shapeFocusMode.update(existing, values);
+        ? shapeRunProject.create(values)
+        : shapeRunProject.update(existing, values);
 }
 
-export const validateFocusModeValues = async (values: FocusModeShape, existing?: FocusModeShape) => {
-    const transformedValues = transformFocusModeValues(values, existing);
-    const validationSchema = focusModeValidation[existing === undefined ? "create" : "update"]({});
+export const validateRunProjectValues = async (values: RunProjectShape, existing?: RunProjectShape) => {
+    const transformedValues = transformRunProjectValues(values, existing);
+    const validationSchema = runProjectValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
-export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
+export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
     display,
     dirty,
     isCreate,
@@ -96,7 +79,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 <ScheduleUpsert
                     canChangeTab={false}
                     canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.FocusModes}
+                    defaultTab={CalendarPageTabOption.Projects}
                     display="dialog"
                     handleDelete={handleDeleteSchedule}
                     isCreate={editingSchedule === null}
@@ -121,20 +104,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
-                    <Stack direction="column" spacing={2}>
-                        <Field
-                            fullWidth
-                            name="name"
-                            label={t("Name")}
-                            as={TextField}
-                        />
-                        <Field
-                            fullWidth
-                            name="description"
-                            label={t("Description")}
-                            as={TextField}
-                        />
-                    </Stack>
+                    {/* TODO */}
                     {/* Handle adding, updating, and removing schedule */}
                     {!scheduleField.value && (
                         <Button
@@ -204,28 +174,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                             </ListItem>
                         )}
                     </ListContainer>}
-                    <ResourceListHorizontalInput
-                        isCreate={true}
-                        zIndex={zIndex}
-                    />
-                    <Subheader
-                        Icon={HeartFilledIcon}
-                        title={t("TopicsFavorite")}
-                        help={t("TopicsFavoriteHelp")}
-                    />
-                    <TagSelector
-                        name="favorites"
-                        zIndex={zIndex}
-                    />
-                    <Subheader
-                        Icon={InvisibleIcon}
-                        title={t("TopicsHidden")}
-                        help={t("TopicsHiddenHelp")}
-                    />
-                    <TagSelector
-                        name="hidden"
-                        zIndex={zIndex}
-                    />
+                    {/* TODO */}
                 </Stack>
             </BaseForm>
             <GridSubmitButtons

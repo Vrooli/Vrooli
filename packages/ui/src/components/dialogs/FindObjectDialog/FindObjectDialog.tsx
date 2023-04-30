@@ -22,10 +22,14 @@ import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
+const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
+const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
 const { NoteUpsert } = lazily(() => import("../../../views/objects/note/NoteUpsert/NoteUpsert"));
 const { OrganizationUpsert } = lazily(() => import("../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert"));
 const { ProjectUpsert } = lazily(() => import("../../../views/objects/project/ProjectUpsert/ProjectUpsert"));
 const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
+const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
+const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert/RunRoutineUpsert"));
 const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert"));
 const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/StandardUpsert/StandardUpsert"));
 
@@ -97,10 +101,14 @@ const tabParams: BaseParams[] = [{
  */
 const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Element } = {
     Api: ApiUpsert,
+    FocusMode: FocusModeUpsert,
+    Meeting: MeetingUpsert,
     Note: NoteUpsert,
     Organization: OrganizationUpsert,
     Project: ProjectUpsert,
     Routine: RoutineUpsert,
+    RunProject: RunProjectUpsert,
+    RunRoutine: RunRoutineUpsert,
     SmartContract: SmartContractUpsert,
     Standard: StandardUpsert,
 };

@@ -45,6 +45,7 @@ export const validateScheduleValues = async (values: ScheduleShape, existing?: S
 
 
 export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
+    canSetScheduleFor,
     display,
     dirty,
     errors,
@@ -110,12 +111,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
-                    <RelationshipList
+                    {canSetScheduleFor && <RelationshipList
                         isEditing={true}
                         objectType={"Schedule"}
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
-                    />
+                    />}
                     <Subheader
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."

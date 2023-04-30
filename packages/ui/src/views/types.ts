@@ -51,6 +51,4 @@ export interface ErrorBoundaryProps {
     children: React.ReactNode;
 }
 
-export type CalendarViewProps = BaseViewProps
-
 export type WelcomeViewProps = BaseViewProps;

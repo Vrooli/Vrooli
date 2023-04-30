@@ -6,6 +6,7 @@ import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
+import { MeetingShape } from "utils/shape/models/meeting";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeEndShape } from "utils/shape/models/nodeEnd";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
@@ -18,6 +19,8 @@ import { ReminderShape } from "utils/shape/models/reminder";
 import { ReportShape } from "utils/shape/models/report";
 import { ResourceShape } from "utils/shape/models/resource";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
+import { RunProjectShape } from "utils/shape/models/runProject";
+import { RunRoutineShape } from "utils/shape/models/runRoutine";
 import { ScheduleShape } from "utils/shape/models/schedule";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
@@ -85,6 +88,7 @@ export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> 
     isEditing: boolean;
 }
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
+export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
 export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
     versions: string[];
 }
@@ -103,7 +107,11 @@ export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShap
     isSubroutine: boolean;
     versions: string[];
 }
-export type ScheduleFormProps = BaseObjectFormProps<ScheduleShape>
+export type RunProjectFormProps = BaseObjectFormProps<RunProjectShape>
+export type RunRoutineFormProps = BaseObjectFormProps<RunRoutineShape>
+export type ScheduleFormProps = BaseObjectFormProps<ScheduleShape> & {
+    canSetScheduleFor: boolean;
+}
 export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
     versions: string[];
 }

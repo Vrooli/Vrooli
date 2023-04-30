@@ -21,6 +21,8 @@ import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
 
 export const ScheduleUpsert = ({
+    canChangeTab = true,
+    canSetScheduleFor = true,
     defaultTab,
     display = "page",
     handleDelete,
@@ -81,13 +83,13 @@ export const ScheduleUpsert = ({
         // NOTE: We can't set these values to null or undefined like you'd expect, 
         // because Formik will treat them as uncontrolled inputs and throw errors. 
         // Instead, we pretend that false is null and an empty string is undefined.
-        ...(isCreate ? {
+        ...(isCreate && canSetScheduleFor ? {
             focusMode: currTab.value === "FocusModes" ? false : "",
             meeting: currTab.value === "Meetings" ? false : "",
             runProject: currTab.value === "Projects" ? false : "",
             runRoutine: currTab.value === "Routines" ? false : "",
         } : {}),
-    } as Schedule), [currTab.value, existing, isCreate, session]);
+    } as Schedule), [canSetScheduleFor, currTab.value, existing, isCreate, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useCustomMutation<Schedule, ScheduleCreateInput>(scheduleCreate);
     const [update, { loading: isUpdateLoading }] = useCustomMutation<Schedule, ScheduleUpdateInput>(scheduleUpdate);
@@ -102,7 +104,7 @@ export const ScheduleUpsert = ({
                     titleKey: isCreate ? "ScheduleCreate" : "ScheduleUpdate",
                 }}
                 // Can only link to an object when creating
-                below={isCreate && <PageTabs
+                below={isCreate && canChangeTab && <PageTabs
                     ariaLabel="schedule-link-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
@@ -135,6 +137,7 @@ export const ScheduleUpsert = ({
                 validate={async (values) => await validateScheduleValues(values, existing)}
             >
                 {(formik) => <ScheduleForm
+                    canSetScheduleFor={canSetScheduleFor}
                     display={display}
                     isCreate={isCreate}
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}

@@ -1,59 +1,59 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, FocusMode, focusModeValidation, HeartFilledIcon, InvisibleIcon, Schedule, Session } from "@local/shared";
-import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, Meeting, meetingValidation, orDefault, Schedule, Session } from "@local/shared";
+import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { Field, useField } from "formik";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FocusModeFormProps } from "forms/types";
+import { MeetingFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getUserLanguages } from "utils/display/translationTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
+import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
 import { ScheduleUpsert } from "views/objects/schedule";
 
-export const focusModeInitialValues = (
+export const meetingInitialValues = (
     session: Session | undefined,
-    existing?: FocusMode | null | undefined,
-): FocusModeShape => ({
-    __typename: "FocusMode" as const,
+    existing?: Meeting | null | undefined,
+): MeetingShape => ({
+    __typename: "Meeting" as const,
     id: DUMMY_ID,
-    description: "",
-    name: "",
-    reminderList: {
-        __typename: "ReminderList" as const,
+    openToAnyoneWithInvite: false,
+    showOnOrganizationProfile: true,
+    organization: {
+        __typename: "Organization" as const,
         id: DUMMY_ID,
-        reminders: [],
     },
-    resourceList: {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-        resources: [],
-    },
-    filters: [],
+    restrictedToRoles: [],
+    labels: [],
     schedule: null,
     ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: "MeetingTranslation" as const,
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        description: "",
+        link: "",
+        name: "",
+    }]),
 });
 
-export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
-    console.log("transformFocusModeValues", values, shapeFocusMode.create(values));
+export function transformMeetingValues(values: MeetingShape, existing?: MeetingShape) {
     return existing === undefined
-        ? shapeFocusMode.create(values)
-        : shapeFocusMode.update(existing, values);
+        ? shapeMeeting.create(values)
+        : shapeMeeting.update(existing, values);
 }
 
-export const validateFocusModeValues = async (values: FocusModeShape, existing?: FocusModeShape) => {
-    const transformedValues = transformFocusModeValues(values, existing);
-    const validationSchema = focusModeValidation[existing === undefined ? "create" : "update"]({});
+export const validateMeetingValues = async (values: MeetingShape, existing?: MeetingShape) => {
+    const transformedValues = transformMeetingValues(values, existing);
+    const validationSchema = meetingValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
-export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
+export const MeetingForm = forwardRef<any, MeetingFormProps>(({
     display,
     dirty,
     isCreate,
@@ -96,7 +96,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 <ScheduleUpsert
                     canChangeTab={false}
                     canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.FocusModes}
+                    defaultTab={CalendarPageTabOption.Meetings}
                     display="dialog"
                     handleDelete={handleDeleteSchedule}
                     isCreate={editingSchedule === null}
@@ -121,20 +121,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
-                    <Stack direction="column" spacing={2}>
-                        <Field
-                            fullWidth
-                            name="name"
-                            label={t("Name")}
-                            as={TextField}
-                        />
-                        <Field
-                            fullWidth
-                            name="description"
-                            label={t("Description")}
-                            as={TextField}
-                        />
-                    </Stack>
+                    {/* TODO */}
                     {/* Handle adding, updating, and removing schedule */}
                     {!scheduleField.value && (
                         <Button
@@ -204,28 +191,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                             </ListItem>
                         )}
                     </ListContainer>}
-                    <ResourceListHorizontalInput
-                        isCreate={true}
-                        zIndex={zIndex}
-                    />
-                    <Subheader
-                        Icon={HeartFilledIcon}
-                        title={t("TopicsFavorite")}
-                        help={t("TopicsFavoriteHelp")}
-                    />
-                    <TagSelector
-                        name="favorites"
-                        zIndex={zIndex}
-                    />
-                    <Subheader
-                        Icon={InvisibleIcon}
-                        title={t("TopicsHidden")}
-                        help={t("TopicsHiddenHelp")}
-                    />
-                    <TagSelector
-                        name="hidden"
-                        zIndex={zIndex}
-                    />
+                    {/* TODO */}
                 </Stack>
             </BaseForm>
             <GridSubmitButtons

@@ -3,7 +3,7 @@ import { InputProps } from "@mui/material";
 import { AutocompleteOption } from "types";
 import { SearchItem } from "utils/search/siteToSearch";
 
-export type SiteSearchBarProps = InputProps & {
+export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> & {
     debounce?: number;
     id?: string;
     loading?: boolean;

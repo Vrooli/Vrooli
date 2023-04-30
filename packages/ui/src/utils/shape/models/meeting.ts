@@ -1,6 +1,7 @@
 import { Meeting, MeetingCreateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
+import { OrganizationShape } from "./organization";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
@@ -10,7 +11,7 @@ export type MeetingTranslationShape = Pick<MeetingTranslation, "id" | "language"
 
 export type MeetingShape = Pick<Meeting, "id" | "openToAnyoneWithInvite" | "showOnOrganizationProfile"> & {
     __typename?: "Meeting";
-    organization: { id: string };
+    organization: { id: string } | OrganizationShape;
     restrictedToRoles?: { id: string }[] | null;
     invites?: MeetingInviteShape[] | null;
     labels?: { id: string }[] | null;
