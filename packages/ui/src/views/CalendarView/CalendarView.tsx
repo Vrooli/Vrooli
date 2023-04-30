@@ -31,7 +31,7 @@ type CalendarBaseParams = {
     tabType: CalendarPageTabOption;
 }
 
-// Data for each tab
+// Data for each tab. Ordered by tab index
 export const calendarTabParams: CalendarBaseParams[] = [{
     Icon: OrganizationIcon,
     titleKey: "Meeting",
@@ -39,11 +39,11 @@ export const calendarTabParams: CalendarBaseParams[] = [{
 }, {
     Icon: RoutineIcon,
     titleKey: "Routine",
-    tabType: CalendarPageTabOption.Routines,
+    tabType: CalendarPageTabOption.RunRoutines,
 }, {
     Icon: ProjectIcon,
     titleKey: "Project",
-    tabType: CalendarPageTabOption.Projects,
+    tabType: CalendarPageTabOption.RunProjects,
 }, {
     Icon: FocusModeIcon,
     titleKey: "FocusMode",

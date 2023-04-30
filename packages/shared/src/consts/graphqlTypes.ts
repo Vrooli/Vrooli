@@ -1210,8 +1210,6 @@ export type FocusModeSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
-  recurrEndTimeFrame?: InputMaybe<TimeFrame>;
-  recurrStartTimeFrame?: InputMaybe<TimeFrame>;
   scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
   scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1228,16 +1226,8 @@ export type FocusModeSearchResult = {
 };
 
 export enum FocusModeSortBy {
-  EventEndAsc = 'EventEndAsc',
-  EventEndDesc = 'EventEndDesc',
-  EventStartAsc = 'EventStartAsc',
-  EventStartDesc = 'EventStartDesc',
   NameAsc = 'NameAsc',
-  NameDesc = 'NameDesc',
-  RecurrEndAsc = 'RecurrEndAsc',
-  RecurrEndDesc = 'RecurrEndDesc',
-  RecurrStartAsc = 'RecurrStartAsc',
-  RecurrStartDesc = 'RecurrStartDesc'
+  NameDesc = 'NameDesc'
 }
 
 export enum FocusModeStopCondition {
@@ -1803,16 +1793,10 @@ export type MeetingSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
-  maxEventEnd?: InputMaybe<Scalars['Date']>;
-  maxEventStart?: InputMaybe<Scalars['Date']>;
-  maxRecurrEnd?: InputMaybe<Scalars['Date']>;
-  maxRecurrStart?: InputMaybe<Scalars['Date']>;
-  minEventEnd?: InputMaybe<Scalars['Date']>;
-  minEventStart?: InputMaybe<Scalars['Date']>;
-  minRecurrEnd?: InputMaybe<Scalars['Date']>;
-  minRecurrStart?: InputMaybe<Scalars['Date']>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
+  scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
+  scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   showOnOrganizationProfile?: InputMaybe<Scalars['Boolean']>;
   sortBy?: InputMaybe<MeetingSortBy>;
@@ -1831,16 +1815,8 @@ export type MeetingSearchResult = {
 export enum MeetingSortBy {
   AttendeesAsc = 'AttendeesAsc',
   AttendeesDesc = 'AttendeesDesc',
-  EventEndAsc = 'EventEndAsc',
-  EventEndDesc = 'EventEndDesc',
-  EventStartAsc = 'EventStartAsc',
-  EventStartDesc = 'EventStartDesc',
   InvitesAsc = 'InvitesAsc',
-  InvitesDesc = 'InvitesDesc',
-  RecurrEndAsc = 'RecurrEndAsc',
-  RecurrEndDesc = 'RecurrEndDesc',
-  RecurrStartAsc = 'RecurrStartAsc',
-  RecurrStartDesc = 'RecurrStartDesc'
+  InvitesDesc = 'InvitesDesc'
 }
 
 export type MeetingTranslation = {
@@ -7498,6 +7474,8 @@ export type RunProjectSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   projectVersionId?: InputMaybe<Scalars['ID']>;
+  scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
+  scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunProjectSortBy>;
   startedTimeFrame?: InputMaybe<TimeFrame>;
@@ -7711,6 +7689,8 @@ export type RunRoutineSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   routineVersionId?: InputMaybe<Scalars['ID']>;
+  scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
+  scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunRoutineSortBy>;
   startedTimeFrame?: InputMaybe<TimeFrame>;

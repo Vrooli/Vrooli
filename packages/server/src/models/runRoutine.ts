@@ -298,6 +298,8 @@ export const RunRoutineModel: ModelLogic<{
             createdTimeFrame: true,
             excludeIds: true,
             routineVersionId: true,
+            scheduleEndTimeFrame: true,
+            scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,

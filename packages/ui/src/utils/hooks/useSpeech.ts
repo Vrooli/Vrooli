@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DeviceOS, getDeviceInfo } from "utils/display/device";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -16,7 +17,10 @@ export const useSpeech = () => {
     // Check if speech recognition is supported in the browser
     const [isSpeechSupported, setIsSpeechSupported] = useState(false);
     useEffect(() => {
-        if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) { setIsSpeechSupported(true); }
+        // Doesn't work on iOS right now
+        const { deviceOS } = getDeviceInfo();
+        if (deviceOS === DeviceOS.IOS || deviceOS === DeviceOS.MacOS) { setIsSpeechSupported(false); }
+        else if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) { setIsSpeechSupported(true); }
     }, []);
 
     // State for the speech recognition object

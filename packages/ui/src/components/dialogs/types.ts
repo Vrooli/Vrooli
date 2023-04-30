@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from "components/text/types";
@@ -67,6 +67,7 @@ export type SelectOrCreateObjectType = "ApiVersion" |
     "NoteVersion" |
     "Organization" |
     "ProjectVersion" |
+    "Question" |
     "RoutineVersion" |
     "RunProject" |
     "RunRoutine" |
@@ -79,6 +80,7 @@ export type SelectOrCreateObject = ApiVersion |
     NoteVersion |
     Organization |
     ProjectVersion |
+    Question |
     RoutineVersion |
     SmartContractVersion |
     StandardVersion |

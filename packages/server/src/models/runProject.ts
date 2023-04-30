@@ -89,6 +89,8 @@ export const RunProjectModel: ModelLogic<{
             createdTimeFrame: true,
             excludeIds: true,
             projectVersionId: true,
+            scheduleEndTimeFrame: true,
+            scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,

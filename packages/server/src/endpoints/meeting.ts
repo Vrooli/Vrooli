@@ -6,14 +6,6 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 
 export const typeDef = gql`
     enum MeetingSortBy {
-        EventStartAsc
-        EventStartDesc
-        EventEndAsc
-        EventEndDesc
-        RecurrStartAsc
-        RecurrStartDesc
-        RecurrEndAsc
-        RecurrEndDesc
         AttendeesAsc
         AttendeesDesc
         InvitesAsc
@@ -101,15 +93,9 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
+        scheduleStartTimeFrame: TimeFrame
+        scheduleEndTimeFrame: TimeFrame
         showOnOrganizationProfile: Boolean
-        maxEventStart: Date
-        maxEventEnd: Date
-        maxRecurrStart: Date
-        maxRecurrEnd: Date
-        minEventStart: Date
-        minEventEnd: Date
-        minRecurrStart: Date
-        minRecurrEnd: Date
         labelsIds: [ID!]
         organizationId: ID
         searchString: String

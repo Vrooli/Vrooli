@@ -88,6 +88,8 @@ export const typeDef = gql`
         completedTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        scheduleStartTimeFrame: TimeFrame
+        scheduleEndTimeFrame: TimeFrame
         status: RunStatus
         routineVersionId: ID
         searchString: String

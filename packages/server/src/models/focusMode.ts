@@ -82,8 +82,6 @@ export const FocusModeModel: ModelLogic<{
             createdTimeFrame: true,
             scheduleStartTimeFrame: true,
             scheduleEndTimeFrame: true,
-            recurrStartTimeFrame: true,
-            recurrEndTimeFrame: true,
             labelsIds: true,
             timeZone: true,
             updatedTimeFrame: true,

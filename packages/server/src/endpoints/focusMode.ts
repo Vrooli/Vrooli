@@ -10,14 +10,6 @@ export const typeDef = gql`
     enum FocusModeSortBy {
         NameAsc
         NameDesc
-        EventStartAsc
-        EventStartDesc
-        EventEndAsc
-        EventEndDesc
-        RecurrStartAsc
-        RecurrStartDesc
-        RecurrEndAsc
-        RecurrEndDesc
     }
 
     enum FocusModeStopCondition {
@@ -85,8 +77,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        recurrStartTimeFrame: TimeFrame
-        recurrEndTimeFrame: TimeFrame
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
         searchString: String

@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, UserIcon, VisibleIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, UserIcon, VisibleIcon } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -15,7 +15,7 @@ import { lazily } from "react-lazily";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
 import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";
@@ -27,6 +27,7 @@ const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/Me
 const { NoteUpsert } = lazily(() => import("../../../views/objects/note/NoteUpsert/NoteUpsert"));
 const { OrganizationUpsert } = lazily(() => import("../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert"));
 const { ProjectUpsert } = lazily(() => import("../../../views/objects/project/ProjectUpsert/ProjectUpsert"));
+const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
 const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
 const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
 const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert/RunRoutineUpsert"));
@@ -36,14 +37,15 @@ const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/
 type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
 type CreateViewTypes = Exclude<RemoveVersion<SelectOrCreateObjectType>, "User">;
 
+type AllTabOptions = "All" | SearchPageTabOption | CalendarPageTabOption;
 type BaseParams = {
     Icon: (props: SvgProps) => JSX.Element,
     searchType: "All" | SearchType;
-    tabType: "All" | SearchPageTabOption;
+    tabType: AllTabOptions;
     where: { [x: string]: any };
 }
 
-// Data for each tab
+// Data for each tab. Ordered by tab index
 const tabParams: BaseParams[] = [{
     Icon: VisibleIcon,
     searchType: "All",
@@ -94,6 +96,26 @@ const tabParams: BaseParams[] = [{
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
     where: {},
+}, {
+    Icon: FocusModeIcon,
+    searchType: SearchType.FocusMode,
+    tabType: CalendarPageTabOption.FocusModes,
+    where: {},
+}, {
+    Icon: OrganizationIcon,
+    searchType: SearchType.Meeting,
+    tabType: CalendarPageTabOption.Meetings,
+    where: {},
+}, {
+    Icon: ProjectIcon,
+    searchType: SearchType.RunProject,
+    tabType: CalendarPageTabOption.RunProjects,
+    where: {},
+}, {
+    Icon: RoutineIcon,
+    searchType: SearchType.RunRoutine,
+    tabType: CalendarPageTabOption.RunRoutines,
+    where: {},
 }];
 
 /**
@@ -106,6 +128,7 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
     Note: NoteUpsert,
     Organization: OrganizationUpsert,
     Project: ProjectUpsert,
+    Question: QuestionUpsert,
     Routine: RoutineUpsert,
     RunProject: RunProjectUpsert,
     RunRoutine: RunRoutineUpsert,
@@ -115,6 +138,9 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
 
 const searchTitleId = "search-vrooli-for-link-title";
 
+/**
+ * Dialog for selecting or creating an object
+ */
 export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
     find,
     handleCancel,
@@ -129,12 +155,17 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [, setLocation] = useLocation();
 
     // Tabs to filter by object type
-    const tabs = useMemo<PageTab<"All" | SearchPageTabOption>[]>(() => {
+    const tabs = useMemo<PageTab<AllTabOptions>[]>(() => {
         // If limitTo is set, only show those tabs
         let filteredTabParams = tabParams;
         if (limitTo && limitTo.length > 0) {
             const unversionedLimitTo = limitTo.map(l => l.replace("Version", "") as any);
             filteredTabParams = tabParams.filter(tab => unversionedLimitTo.includes(tab.searchType as any));
+        }
+        // If it's not set, show tabs for objects that appear in main search page
+        else {
+            const mainSearchTabs = ["All", "ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"];
+            filteredTabParams = tabParams.filter(tab => mainSearchTabs.includes(tab.searchType as any));
         }
         return filteredTabParams.map((tab, i) => ({
             index: i,
@@ -144,7 +175,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }));
     }, [limitTo, t]);
 
-    const [currTab, setCurrTab] = useState<PageTab<"All" | SearchPageTabOption> | null>(null);
+    const [currTab, setCurrTab] = useState<PageTab<AllTabOptions> | null>(null);
     useEffect(() => {
         // Get tab from search params
         const searchParams = parseSearchParams();
@@ -158,7 +189,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [tabs]);
     console.log("yeeeeet", currTab);
 
-    const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<Exclude<AllTabOptions, "All">>) => {
         e.preventDefault();
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
@@ -240,6 +271,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
         return { searchType: "All", where: {} };
     }, [currTab, searchData, tabs]);
+    console.log("yotes search type", searchType, searchData, currTab, tabs);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
@@ -447,9 +479,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                             }
                             return result;
                         }}
-                        searchType={searchData?.searchType ?? "Popular"}
+                        searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
                         zIndex={zIndex}
-                        where={searchData?.where ?? { ...where, objectType: searchType === "All" ? undefined : searchType }}
+                        where={searchData?.where ?? { ...(where ?? {}), objectType: searchType === "All" ? undefined : searchType }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (
