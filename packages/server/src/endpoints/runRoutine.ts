@@ -150,7 +150,7 @@ export const resolvers: {
     Mutation: {
         runRoutineCreate: GQLEndpoint<RunRoutineCreateInput, CreateOneResult<RunRoutine>>;
         runRoutineUpdate: GQLEndpoint<RunRoutineUpdateInput, UpdateOneResult<RunRoutine>>;
-        runRoutineDeleteAll: GQLEndpoint<{}, Count>;
+        runRoutineDeleteAll: GQLEndpoint<Record<string, never>, Count>;
         runRoutineComplete: GQLEndpoint<RunRoutineCompleteInput, RecursivePartial<RunRoutine>>;
         runRoutineCancel: GQLEndpoint<RunRoutineCancelInput, RecursivePartial<RunRoutine>>;
     }

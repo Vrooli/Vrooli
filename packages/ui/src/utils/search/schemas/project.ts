@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchProject'),
+    formLayout: searchFormLayout("SearchProject"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),
@@ -19,7 +19,7 @@ export const projectSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
-export const projectSearchParams = () => toParams(projectSearchSchema(), projectFindMany, ProjectSortBy, ProjectSortBy.ScoreDesc)
+export const projectSearchParams = () => toParams(projectSearchSchema(), projectFindMany, ProjectSortBy, ProjectSortBy.ScoreDesc);

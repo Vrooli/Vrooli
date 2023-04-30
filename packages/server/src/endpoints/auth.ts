@@ -126,7 +126,7 @@ export const resolvers: {
         emailSignUp: GQLEndpoint<EmailSignUpInput, Session>;
         emailRequestPasswordChange: GQLEndpoint<EmailRequestPasswordChangeInput, Success>;
         emailResetPassword: GQLEndpoint<EmailResetPasswordInput, Session>;
-        guestLogIn: GQLEndpoint<{}, RecursivePartial<Session>>;
+        guestLogIn: GQLEndpoint<Record<string, never>, RecursivePartial<Session>>;
         logOut: GQLEndpoint<LogOutInput, Session>;
         validateSession: GQLEndpoint<ValidateSessionInput, RecursivePartial<Session>>;
         switchCurrentAccount: GQLEndpoint<SwitchCurrentAccountInput, RecursivePartial<Session>>;

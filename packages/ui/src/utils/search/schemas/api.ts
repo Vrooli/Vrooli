@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const apiSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchApi'),
+    formLayout: searchFormLayout("SearchApi"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),
@@ -19,7 +19,7 @@ export const apiSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const apiSearchParams = () => toParams(apiSearchSchema(), apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc);

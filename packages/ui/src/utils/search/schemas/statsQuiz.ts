@@ -5,9 +5,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const statsQuizSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchStatsQuiz'),
+    formLayout: searchFormLayout("SearchStatsQuiz"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);

@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput } from "@local/shared";
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { assertRequestFrom, focusModeSelect, updateSessionCurrentUser } from "../auth";
@@ -132,7 +132,7 @@ export const resolvers: {
         },
         focusModes: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {

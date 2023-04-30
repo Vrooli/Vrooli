@@ -5,9 +5,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const memberInviteSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchMemberInvite'),
+    formLayout: searchFormLayout("SearchMemberInvite"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const memberInviteSearchParams = () => toParams(memberInviteSearchSchema(), memberInviteFindMany, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc);

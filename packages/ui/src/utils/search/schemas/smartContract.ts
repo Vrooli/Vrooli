@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const smartContractSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchSmartContract'),
+    formLayout: searchFormLayout("SearchSmartContract"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),
@@ -19,7 +19,7 @@ export const smartContractSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const smartContractSearchParams = () => toParams(smartContractSearchSchema(), smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc);

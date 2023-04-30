@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectOrRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchProjectOrRoutine'),
+    formLayout: searchFormLayout("SearchProjectOrRoutine"),
     containers: [
         { totalItems: 1 },
         hasCompleteVersionContainer,
@@ -22,14 +22,14 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
             label: "Object Type",
             type: InputType.Radio,
             props: {
-                defaultValue: 'undefined',
+                defaultValue: "undefined",
                 row: true,
                 options: [
-                    { label: "Project", value: 'Project' },
-                    { label: "Routine", value: 'Routine' },
-                    { label: "Don't Care", value: 'undefined' },
-                ]
-            }
+                    { label: "Project", value: "Project" },
+                    { label: "Routine", value: "Routine" },
+                    { label: "Don't Care", value: "undefined" },
+                ],
+            },
         },
         ...hasCompleteVersionFields(),
         ...votesFields(),
@@ -38,7 +38,7 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
         ...complexityFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
-export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc)
+export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc);

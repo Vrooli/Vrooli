@@ -234,7 +234,7 @@ const objectType = "User";
 export const resolvers: {
     UserSortBy: typeof UserSortBy;
     Query: {
-        profile: GQLEndpoint<{}, FindOneResult<User>>;
+        profile: GQLEndpoint<Record<string, never>, FindOneResult<User>>;
         user: GQLEndpoint<FindByIdOrHandleInput, FindOneResult<User>>;
         users: GQLEndpoint<UserSearchInput, FindManyResult<User>>;
     },
@@ -244,8 +244,8 @@ export const resolvers: {
         userDeleteOne: GQLEndpoint<UserDeleteInput, Success>;
         importCalendar: GQLEndpoint<any, Success>;
         // importUserData: GQLEndpoint<ImportUserDataInput, Success>;
-        exportCalendar: GQLEndpoint<{}, string>;
-        exportData: GQLEndpoint<{}, string>;
+        exportCalendar: GQLEndpoint<Record<string, never>, string>;
+        exportData: GQLEndpoint<Record<string, never>, string>;
     }
 } = {
     UserSortBy,

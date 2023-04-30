@@ -28,7 +28,7 @@ export function RunRoutineButton({
 
     const [field, , helpers] = useField("runRoutine");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && typeof field.value === "boolean", [objectType, field.value]);
+    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Routine run dialog
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {

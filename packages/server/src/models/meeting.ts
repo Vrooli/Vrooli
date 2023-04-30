@@ -40,6 +40,7 @@ export const MeetingModel: ModelLogic<{
             labels: "Label",
             organization: "Organization",
             restrictedToRoles: "Role",
+            schedule: "Schedule",
         },
         prismaRelMap: {
             __typename,
@@ -48,6 +49,7 @@ export const MeetingModel: ModelLogic<{
             attendees: "User",
             invites: "MeetingInvite",
             labels: "Label",
+            schedule: "Schedule",
         },
         joinMap: {
             labels: "label",

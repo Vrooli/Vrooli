@@ -140,7 +140,7 @@ export const resolvers: {
     Mutation: {
         runProjectCreate: GQLEndpoint<RunProjectCreateInput, CreateOneResult<RunProject>>;
         runProjectUpdate: GQLEndpoint<RunProjectUpdateInput, UpdateOneResult<RunProject>>;
-        runProjectDeleteAll: GQLEndpoint<{}, Count>;
+        runProjectDeleteAll: GQLEndpoint<Record<string, never>, Count>;
         runProjectComplete: GQLEndpoint<RunProjectCompleteInput, RecursivePartial<RunProject>>;
         runProjectCancel: GQLEndpoint<RunProjectCancelInput, RecursivePartial<RunProject>>;
     }

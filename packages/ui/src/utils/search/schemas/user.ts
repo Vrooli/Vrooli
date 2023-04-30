@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
 
 export const userSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchUser'),
+    formLayout: searchFormLayout("SearchUser"),
     containers: [
         bookmarksContainer(),
         languagesContainer(),
@@ -13,7 +13,7 @@ export const userSearchSchema = (): FormSchema => ({
     fields: [
         ...bookmarksFields(),
         ...languagesFields(),
-    ]
-})
+    ],
+});
 
-export const userSearchParams = () => toParams(userSearchSchema(), userFindMany, UserSortBy, UserSortBy.BookmarksDesc)
+export const userSearchParams = () => toParams(userSearchSchema(), userFindMany, UserSortBy, UserSortBy.BookmarksDesc);

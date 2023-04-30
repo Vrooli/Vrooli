@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchRunRoutine'),
+    formLayout: searchFormLayout("SearchRunRoutine"),
     containers: [
         { totalItems: 1 },
     ],
@@ -23,11 +23,11 @@ export const runRoutineSearchSchema = (): FormSchema => ({
                     { label: "Scheduled", value: RunStatus.Scheduled },
                     { label: "Failed", value: RunStatus.Failed },
                     { label: "Cancelled", value: RunStatus.Cancelled },
-                    { label: "Don't Care", value: 'undefined' },
-                ]
-            }
+                    { label: "Don't Care", value: "undefined" },
+                ],
+            },
         },
-    ]
-})
+    ],
+});
 
 export const runRoutineSearchParams = () => toParams(runRoutineSearchSchema(), runRoutineFindMany, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc);

@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
 export const apiVersionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchApiVersion'),
+    formLayout: searchFormLayout("SearchApiVersion"),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
@@ -21,7 +21,7 @@ export const apiVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
 export const apiVersionSearchParams = () => toParams(apiVersionSearchSchema(), apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc);

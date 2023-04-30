@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const standardSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchStandard'),
+    formLayout: searchFormLayout("SearchStandard"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),
@@ -19,7 +19,7 @@ export const standardSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const standardSearchParams = () => toParams(standardSearchSchema(), standardFindMany, StandardSortBy, StandardSortBy.ScoreDesc);

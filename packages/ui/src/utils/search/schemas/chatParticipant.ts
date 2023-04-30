@@ -5,9 +5,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const chatParticipantSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchChatParticipant'),
+    formLayout: searchFormLayout("SearchChatParticipant"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), chatParticipantFindMany, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc)
+export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), chatParticipantFindMany, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);

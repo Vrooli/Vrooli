@@ -86,8 +86,8 @@ export const ScheduleUpsert = ({
         ...(isCreate && canSetScheduleFor ? {
             focusMode: currTab.value === "FocusModes" ? false : "",
             meeting: currTab.value === "Meetings" ? false : "",
-            runProject: currTab.value === "Projects" ? false : "",
-            runRoutine: currTab.value === "Routines" ? false : "",
+            runProject: currTab.value === "RunProjects" ? false : "",
+            runRoutine: currTab.value === "RunRoutines" ? false : "",
         } : {}),
     } as Schedule), [canSetScheduleFor, currTab.value, existing, isCreate, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
