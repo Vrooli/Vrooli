@@ -165,7 +165,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         // If it's not set, show tabs for objects that appear in main search page
         else {
             const mainSearchTabs = ["All", "ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"];
-            filteredTabParams = tabParams.filter(tab => mainSearchTabs.includes(tab.searchType as any));
+            filteredTabParams = tabParams.filter(tab => mainSearchTabs.includes(tab.searchType as any) || mainSearchTabs.includes(tab.searchType + "Version" as any));
         }
         return filteredTabParams.map((tab, i) => ({
             index: i,
@@ -187,7 +187,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             setCurrTab(tabs[index]);
         }
     }, [tabs]);
-    console.log("yeeeeet", currTab);
 
     const handleTabChange = useCallback((e: any, tab: PageTab<Exclude<AllTabOptions, "All">>) => {
         e.preventDefault();
@@ -481,7 +480,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         }}
                         searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
                         zIndex={zIndex}
-                        where={searchData?.where ?? { ...(where ?? {}), objectType: searchType === "All" ? undefined : searchType }}
+                        where={searchData?.where ?? { ...(where ?? {}) }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (

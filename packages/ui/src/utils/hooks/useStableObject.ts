@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // A simple deep comparison function
 function deepEqual(a: any, b: any): boolean {
@@ -25,12 +25,14 @@ function deepEqual(a: any, b: any): boolean {
  */
 export const useStableObject = <T extends object | null | undefined>(obj: T): T => {
     const prevObjRef = useRef<T>(obj);
+    const [, forceUpdate] = useState({});
 
     useEffect(() => {
         if (!deepEqual(prevObjRef.current, obj)) {
             prevObjRef.current = obj;
+            forceUpdate({}); // Force a re-render
         }
     }, [obj]);
 
-    return useMemo(() => prevObjRef.current, [prevObjRef]);
+    return prevObjRef.current;
 };

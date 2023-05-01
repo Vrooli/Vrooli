@@ -52,6 +52,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     const stableResolve = useStableObject(resolve);
     const stableWhere = useStableObject(where);
+    console.log("where check", where, stableWhere);
 
     const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
     const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? "");

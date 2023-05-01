@@ -22,6 +22,7 @@ export const typeDef = gql`
         Node
         Note
         NoteVersion
+        Notification
         Organization
         Post
         Project

@@ -248,6 +248,7 @@ export const endpoints = {
             findMany: toQuery("notifications", "NotificationSearchInput", ...(await toSearch(notificationPartial))),
             settings: toQuery("notificationSettings", null, notificationSettingsPartial, "full"),
             markAsRead: toMutation("notificationMarkAsRead", "FindByIdInput", successPartial, "full"),
+            markAllAsRead: toMutation("notificationMarkAllAsRead", null, countPartial, "full"),
             update: toMutation("notificationMarkAllAsRead", null, countPartial, "full"),
             settingsUpdate: toMutation("notificationSettingsUpdate", "NotificationSettingsUpdateInput", notificationSettingsPartial, "full"),
         };

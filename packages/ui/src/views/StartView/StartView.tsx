@@ -4,15 +4,11 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { EmailIcon, EmailLogInInput, LINKS, Session, useLocation, WalletIcon } from "@local/shared";
-import { Box, Button, Stack, SxProps, Typography } from "@mui/material";
+import { EmailLogInInput, LINKS, Session, useLocation } from "@local/shared";
+import { Box, SxProps, useTheme } from "@mui/material";
 import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
 import { useCustomMutation } from "api/hooks";
 import { hasErrorCode, mutationWrapper } from "api/utils";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
-import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -40,6 +36,7 @@ export const StartView = ({
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
+    const { palette } = useTheme();
     const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -161,7 +158,7 @@ export const StartView = ({
     return (
         <>
             {/* Dialogs */}
-            <WalletSelectDialog
+            {/* <WalletSelectDialog
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
@@ -183,7 +180,7 @@ export const StartView = ({
                     onClose={closeEmailPopup}
                     onFormChange={handleFormChange}
                 />
-            </LargeDialog>
+            </LargeDialog> */}
             {/* App bar */}
             <TopBar
                 display={display}
@@ -200,12 +197,15 @@ export const StartView = ({
                 alignItems: "center",
                 textAlign: "center",
                 height: "calc(100vh - 128px)", // Minus double the app bar height
-                marginTop: 4,
             }}>
                 <Box sx={{
                     width: "min(calc(100vw - 16px), 400px)",
+                    marginTop: 4,
+                    background: palette.background.paper,
+                    borderRadius: 2,
+                    overflow: "overlay",
                 }}>
-                    <Box sx={{
+                    {/* <Box sx={{
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -237,7 +237,11 @@ export const StartView = ({
                             startIcon={<EmailIcon />}
                             sx={{ ...buttonProps }}
                         >{t("Email")}</Button>
-                    </Stack>
+                    </Stack> */}
+                    <Form
+                        onClose={closeEmailPopup}
+                        onFormChange={handleFormChange}
+                    />
                 </Box>
             </Box>
         </>
