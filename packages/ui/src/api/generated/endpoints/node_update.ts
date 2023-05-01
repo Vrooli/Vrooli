@@ -1,17 +1,17 @@
-import gql from 'graphql-tag';
-import { ApiVersion_full } from '../fragments/ApiVersion_full';
-import { Label_full } from '../fragments/Label_full';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { PullRequest_full } from '../fragments/PullRequest_full';
-import { ResourceList_full } from '../fragments/ResourceList_full';
-import { Routine_full } from '../fragments/Routine_full';
-import { RoutineVersion_nav } from '../fragments/RoutineVersion_nav';
-import { RoutineVersionInput_full } from '../fragments/RoutineVersionInput_full';
-import { RoutineVersionOutput_full } from '../fragments/RoutineVersionOutput_full';
-import { SmartContractVersion_full } from '../fragments/SmartContractVersion_full';
-import { Tag_list } from '../fragments/Tag_list';
-import { User_nav } from '../fragments/User_nav';
+import gql from "graphql-tag";
+import { ApiVersion_full } from "../fragments/ApiVersion_full";
+import { Label_full } from "../fragments/Label_full";
+import { Label_list } from "../fragments/Label_list";
+import { Organization_nav } from "../fragments/Organization_nav";
+import { PullRequest_full } from "../fragments/PullRequest_full";
+import { ResourceList_full } from "../fragments/ResourceList_full";
+import { Routine_full } from "../fragments/Routine_full";
+import { RoutineVersion_nav } from "../fragments/RoutineVersion_nav";
+import { RoutineVersionInput_full } from "../fragments/RoutineVersionInput_full";
+import { RoutineVersionOutput_full } from "../fragments/RoutineVersionOutput_full";
+import { SmartContractVersion_full } from "../fragments/SmartContractVersion_full";
+import { Tag_list } from "../fragments/Tag_list";
+import { User_nav } from "../fragments/User_nav";
 
 export const nodeUpdate = gql`${ApiVersion_full}
 ${Label_full}

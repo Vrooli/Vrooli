@@ -1,5 +1,4 @@
-import { FocusMode, Session } from "@shared/consts";
-import { calculateOccurrences } from "@shared/utils";
+import { calculateOccurrences, FocusMode, Session } from "@local/shared";
 import { getCurrentUser } from "utils/authentication/session";
 
 /**

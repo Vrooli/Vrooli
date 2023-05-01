@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Post, PostSearchInput, PostCreateInput, PostUpdateInput, PostSortBy } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { FindByIdInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum PostSortBy {
@@ -123,9 +123,9 @@ export const typeDef = gql`
         postCreate(input: PostCreateInput!): Post!
         postUpdate(input: PostUpdateInput!): Post!
     }
-`
+`;
 
-const objectType = 'Post';
+const objectType = "Post";
 export const resolvers: {
     PostSortBy: typeof PostSortBy;
     Query: {
@@ -141,21 +141,21 @@ export const resolvers: {
     Query: {
         post: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         posts: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         postCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         postUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

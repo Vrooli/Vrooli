@@ -1,4 +1,4 @@
-import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from '@shared/consts';
+import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import { SessionUserToken, SingleOrArray } from "../types";
 
@@ -38,7 +38,7 @@ export type PrismaSelect = {
     select: { [key: string]: boolean | PrismaSelectInside }
 }
 
-type PrismaSelectInside = Omit<PrismaSearch, 'select'> & {
+type PrismaSelectInside = Omit<PrismaSearch, "select"> & {
     select: { [x: string]: boolean | PrismaSelectInside }
 }
 
@@ -88,7 +88,7 @@ export type PrismaUpdate = {
     [x: string]: boolean | string | number | PrismaUpdateInside
 }
 
-export type RelationshipType = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Update';
+export type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 
 /**
  * Generic Prisma model type. Useful for helper functions that work with any model
@@ -218,7 +218,7 @@ export type BuiltRelationship<
         disconnect?: boolean,
         delete?: boolean,
         create?: RelCreate<Shaped>,
-        update?: RelUpdate<Shaped, IDField>['data'],
+        update?: RelUpdate<Shaped, IDField>["data"],
     } : {
         connect?: RelConnect<IDField>[],
         disconnect?: RelDisconnect<IDField>[],

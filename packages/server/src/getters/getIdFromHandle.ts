@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { PrismaType } from "../types";
 
 /**

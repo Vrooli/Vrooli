@@ -7,7 +7,7 @@
 export const addCountFields = (obj: any, countFields: { [x: string]: true } | undefined): any => {
     if (!countFields) return obj;
     // Create result object
-    let result: any = {};
+    const result: any = {};
     // Iterate over count map
     for (const key of Object.keys(countFields)) {
         if (obj[key]) {
@@ -20,6 +20,6 @@ export const addCountFields = (obj: any, countFields: { [x: string]: true } | un
     }
     return {
         ...obj,
-        ...result
-    }
-}
+        ...result,
+    };
+};

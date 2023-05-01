@@ -1,7 +1,7 @@
-import { exists } from '@shared/utils';
-import { ShapeModel } from 'types';
-import { hasObjectChanged } from 'utils/shape/general';
-import { createRel } from './createRel';
+import { exists } from "@local/shared";
+import { ShapeModel } from "types";
+import { hasObjectChanged } from "utils/shape/general";
+import { createRel } from "./createRel";
 
 /**
  * Finds items which have been added to the array, and connects them to the parent.
@@ -17,7 +17,7 @@ const findConnectedItems = <
 >(
     original: Input[],
     updated: Input[],
-    idField: IDField = 'id' as IDField,
+    idField: IDField = "id" as IDField,
 ): string | string[] | undefined => {
     const connected: string[] = [];
     for (const updatedItem of (updated as any)) {
@@ -26,7 +26,7 @@ const findConnectedItems = <
         if (!originalItem) connected.push(updatedItem[idField]);
     }
     return connected.length > 0 ? connected : undefined;
-}
+};
 
 /**
  * Finds objects which have been created, and returns an array of the created objects, formatted for
@@ -48,7 +48,7 @@ const findCreatedItems = <
     shape: Shape,
     preShape?: (item: any, originalOrUpdated: Item) => any,
 ): Output[] | undefined => {
-    const idField = shape.idField ?? 'id';
+    const idField = shape.idField ?? "id";
     const preShaper = preShape ?? ((x: any) => x);
     const originalDataArray = asArray(original[relation]);
     const updatedDataArray = asArray(updated[relation]);
@@ -62,7 +62,7 @@ const findCreatedItems = <
         }
     }
     return createdItems.length > 0 ? createdItems : undefined;
-}
+};
 
 /**
  * Find objects which have been updated, and returns an array of the updated objects, formatted for 
@@ -84,7 +84,7 @@ const findUpdatedItems = <
     shape: Shape,
     preShape?: (item: any, originalOrUpdated: Item) => any,
 ): Output[] | undefined => {
-    const idField = shape.idField ?? 'id';
+    const idField = shape.idField ?? "id";
     const preShaper = preShape ?? ((x: any) => x);
     const originalDataArray = asArray(original[relation]);
     const updatedDataArray = asArray(updated[relation]);
@@ -97,7 +97,7 @@ const findUpdatedItems = <
         }
     }
     return updatedItems.length > 0 ? updatedItems : undefined;
-}
+};
 
 /**
  * Finds items which have been removed from the array.
@@ -112,7 +112,7 @@ const findDeletedItems = <
 >(
     original: Input[],
     updated: Input[],
-    idField: IDField = 'id' as IDField,
+    idField: IDField = "id" as IDField,
 ): string[] | undefined => {
     const removed: string[] = [];
     for (const originalItem of original) {
@@ -121,7 +121,7 @@ const findDeletedItems = <
         if (!updatedItem) removed.push(originalItem[idField as string]);
     }
     return removed.length > 0 ? removed : undefined;
-}
+};
 
 /**
  * Finds items which have been disconnected from the parent.
@@ -136,7 +136,7 @@ const findDisconnectedItems = <
 >(
     original: Input[],
     updated: Input[],
-    idField: IDField = 'id' as IDField,
+    idField: IDField = "id" as IDField,
 ): string[] | undefined => {
     const disconnected: string[] = [];
     for (const originalItem of original) {
@@ -145,35 +145,35 @@ const findDisconnectedItems = <
         if (!updatedItem) disconnected.push(originalItem[idField as string]);
     }
     return disconnected.length > 0 ? disconnected : undefined;
-}
+};
 
 const asArray = <T>(value: T | T[]): T[] => {
     if (Array.isArray(value)) return value;
     return [value];
-}
+};
 
-type RelationshipType = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Update';
+type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 
 // Array if isOneToOne is false, otherwise single
-type MaybeArray<T extends 'object' | 'id', IsOneToOne extends 'one' | 'many'> =
-    T extends 'object' ?
-    IsOneToOne extends 'one' ? any : any[] :
-    IsOneToOne extends 'one' ? string : string[]
+type MaybeArray<T extends "object" | "id", IsOneToOne extends "one" | "many"> =
+    T extends "object" ?
+    IsOneToOne extends "one" ? any : any[] :
+    IsOneToOne extends "one" ? string : string[]
 
 // Array if isOneToOne is false, otherwise boolean
-type MaybeArrayBoolean<IsOneToOne extends 'one' | 'many'> =
-    IsOneToOne extends 'one' ? boolean : string[]
+type MaybeArrayBoolean<IsOneToOne extends "one" | "many"> =
+    IsOneToOne extends "one" ? boolean : string[]
 
 type UpdateRelOutput<
-    IsOneToOne extends 'one' | 'many',
+    IsOneToOne extends "one" | "many",
     RelTypes extends string,
     FieldName extends string,
 > = (
-        ({ [x in `${FieldName}Connect`]: 'Connect' extends RelTypes ? MaybeArray<'id', IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Create`]: 'Create' extends RelTypes ? MaybeArray<'object', IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Delete`]: 'Delete' extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Disconnect`]: 'Disconnect' extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Update`]: 'Update' extends RelTypes ? MaybeArray<'object', IsOneToOne> : never })
+        ({ [x in `${FieldName}Connect`]: "Connect" extends RelTypes ? MaybeArray<"id", IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Create`]: "Create" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Delete`]: "Delete" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Disconnect`]: "Disconnect" extends RelTypes ? MaybeArrayBoolean<IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Update`]: "Update" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never })
     )
 
 /**
@@ -187,20 +187,20 @@ type UpdateRelOutput<
  * @returns The shaped object, ready to be passed to the mutation endpoint
  */
 export const updateRel = <
-    Item extends (IsOneToOne extends 'one' ?
+    Item extends (IsOneToOne extends "one" ?
         { [x in FieldName]?: {} | null | undefined } :
         { [x in FieldName]?: {}[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
     // Shape object only required when RelTypes includes 'Create' or 'Update'
-    Shape extends ('Create' extends RelTypes[number] ?
-        'Update' extends RelTypes[number] ?
+    Shape extends ("Create" extends RelTypes[number] ?
+        "Update" extends RelTypes[number] ?
         ShapeModel<any, {}, {}> :
         ShapeModel<any, {}, null> :
-        'Update' extends RelTypes[number] ?
+        "Update" extends RelTypes[number] ?
         ShapeModel<any, null, {}> :
         never),
-    IsOneToOne extends 'one' | 'many',
+    IsOneToOne extends "one" | "many",
 >(
     original: Item,
     updated: Item,
@@ -211,7 +211,7 @@ export const updateRel = <
     preShape?: (item: Record<string, any>, originalOrUpdated: Record<string, any>) => any,
 ): UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if shape is required
-    if (relTypes.includes('Create') || relTypes.includes('Update')) {
+    if (relTypes.includes("Create") || relTypes.includes("Update")) {
         if (!shape) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
     // Find relation data in item
@@ -222,7 +222,7 @@ export const updateRel = <
         return createRel(
             updated,
             relation,
-            relTypes.filter(x => x === 'Create' || x === 'Connect') as any,
+            relTypes.filter(x => x === "Create" || x === "Connect") as any,
             isOneToOne,
             shape as any,
         ) as any;
@@ -232,52 +232,52 @@ export const updateRel = <
     // If updated is null, treat as delete/disconnect. 
     // We do this by removing connect/create/update from relTypes
     const filteredRelTypes = updatedRelationData === null ?
-        relTypes.filter(x => x !== 'Create' && x !== 'Connect' && x !== 'Update') as any :
+        relTypes.filter(x => x !== "Create" && x !== "Connect" && x !== "Update") as any :
         relTypes;
     // Initialize result
     const result: { [x: string]: any } = {};
-    const idField = (shape as ShapeModel<any, any, any> | undefined)?.idField ?? 'id';
+    const idField = (shape as ShapeModel<any, any, any> | undefined)?.idField ?? "id";
     // Loop through relation types
     for (const t of filteredRelTypes) {
         // If type is connect, add IDs to result
-        if (t === 'Connect') {
+        if (t === "Connect") {
             const shaped = findConnectedItems(
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
                 idField);
-            result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
+            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
-        else if (t === 'Create') {
+        else if (t === "Create") {
             const shaped = findCreatedItems(
                 original as any,
                 updated as any,
                 relation,
                 shape as ShapeModel<any, {}, null>,
                 preShape as any);
-            result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
+            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
-        else if (t === 'Delete') {
+        else if (t === "Delete") {
             const shaped = findDeletedItems(
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
                 idField);
-            result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
+            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
-        else if (t === 'Disconnect') {
+        else if (t === "Disconnect") {
             const shaped = findDisconnectedItems(
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
                 idField);
-            result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
+            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
-        else if (t === 'Update') {
+        else if (t === "Update") {
             const shaped = findUpdatedItems(
                 original as any,
                 updated as any,
                 relation,
                 shape as ShapeModel<any, null, {}>,
                 preShape as any);
-            result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
+            result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
     }
     // Return result

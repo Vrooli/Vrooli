@@ -1,25 +1,24 @@
-import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success } from '@shared/consts';
-import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
-import { ReportButton } from 'components/buttons/ReportButton/ReportButton';
-import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
-import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
-import { TextLoading } from 'components/lists/TextLoading/TextLoading';
-import { OwnerLabel } from 'components/text/OwnerLabel/OwnerLabel';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { getCurrentUser } from 'utils/authentication/session';
-import { getYou } from 'utils/display/listTools';
-import { displayDate } from 'utils/display/stringTools';
-import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
-import { ObjectType } from 'utils/navigation/openObject';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { CommentThreadItemProps } from '../types';
+import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, DeleteType, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportButton } from "components/buttons/ReportButton/ReportButton";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { VoteButton } from "components/buttons/VoteButton/VoteButton";
+import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
+import { getYou } from "utils/display/listTools";
+import { displayDate } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { ObjectType } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { CommentThreadItemProps } from "../types";
 
 export function CommentThreadItem({
     data,
@@ -52,24 +51,24 @@ export function CommentThreadItem({
         if (!data) return;
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: 'DeleteCommentConfirm',
+            messageKey: "DeleteCommentConfirm",
             buttons: [
                 {
-                    labelKey: 'Yes', onClick: () => {
+                    labelKey: "Yes", onClick: () => {
                         mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
-                            successMessage: () => ({ key: 'CommentDeleted' }),
+                            successMessage: () => ({ messageKey: "CommentDeleted" }),
                             onSuccess: () => {
                                 handleCommentRemove(data);
                             },
-                            errorMessage: () => ({ key: 'DeleteCommentFailed' }),
-                        })
-                    }
+                            errorMessage: () => ({ messageKey: "DeleteCommentFailed" }),
+                        });
+                    },
                 },
-                { labelKey: 'Cancel' },
-            ]
+                { labelKey: "Cancel" },
+            ],
         });
     }, [data, deleteMutation, handleCommentRemove]);
 
@@ -77,11 +76,11 @@ export function CommentThreadItem({
     const [commentToUpdate, setCommentToUpdate] = useState<Comment | undefined>(undefined);
     const handleUpsertCommentOpen = useCallback((comment?: Comment) => {
         comment && setCommentToUpdate(comment);
-        setIsUpsertCommentOpen(true)
+        setIsUpsertCommentOpen(true);
     }, []);
     const handleUpsertCommentClose = useCallback(() => {
         setCommentToUpdate(undefined);
-        setIsUpsertCommentOpen(false)
+        setIsUpsertCommentOpen(false);
     }, []);
 
     return (
@@ -90,8 +89,8 @@ export function CommentThreadItem({
                 id={`comment-${data?.id}`}
                 disablePadding
                 sx={{
-                    display: 'flex',
-                    background: 'transparent',
+                    display: "flex",
+                    background: "transparent",
                 }}
             >
                 <Stack
@@ -99,8 +98,8 @@ export function CommentThreadItem({
                     spacing={1}
                     pl={2}
                     sx={{
-                        width: '-webkit-fill-available',
-                        display: 'grid',
+                        width: "-webkit-fill-available",
+                        display: "grid",
                     }}
                 >
                     {/* Username and time posted */}
@@ -108,7 +107,7 @@ export function CommentThreadItem({
                         {/* Username and role */}
                         {
                             <Stack direction="row" spacing={1} sx={{
-                                overflow: 'auto',
+                                overflow: "auto",
                             }}>
                                 {objectType && <OwnerLabel
                                     objectType={objectType as unknown as ObjectType}
@@ -116,23 +115,23 @@ export function CommentThreadItem({
                                     sxs={{
                                         label: {
                                             color: palette.background.textPrimary,
-                                            fontWeight: 'bold',
-                                        }
+                                            fontWeight: "bold",
+                                        },
                                     }} />}
                                 {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
-                                    primary={`(Can Edit)`}
+                                    primary={"(Can Edit)"}
                                     sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                        display: "flex",
+                                        alignItems: "center",
+                                        color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
                                     }}
                                 />}
                                 {data?.owner?.id && data.owner.id === getCurrentUser(session).id && <ListItemText
-                                    primary={`(You)`}
+                                    primary={"(You)"}
                                     sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                        display: "flex",
+                                        alignItems: "center",
+                                        color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
                                     }}
                                 />}
                             </Stack>
@@ -141,8 +140,8 @@ export function CommentThreadItem({
                         <ListItemText
                             primary={displayDate(data?.created_at, false)}
                             sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                             }}
                         />
                     </Stack>
@@ -156,27 +155,28 @@ export function CommentThreadItem({
                             direction="row"
                             disabled={!canReact}
                             emoji={reaction}
-                            objectId={data?.id ?? ''}
+                            objectId={data?.id ?? ""}
                             voteFor={ReactionFor.Comment}
                             score={data?.score}
                             onChange={() => { }}
                         />
                         {canBookmark && <BookmarkButton
-                            objectId={data?.id ?? ''}
+                            objectId={data?.id ?? ""}
                             bookmarkFor={BookmarkFor.Comment}
                             isBookmarked={isBookmarked ?? false}
                             showBookmarks={false}
+                            zIndex={zIndex}
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
-                                onClick={() => { handleUpsertCommentOpen() }}
+                                onClick={() => { handleUpsertCommentOpen(); }}
                             >
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>}
                         <ShareButton object={object} zIndex={zIndex} />
                         {canReport && <ReportButton
-                            forId={data?.id ?? ''}
+                            forId={data?.id ?? ""}
                             reportFor={objectType as any as ReportFor}
                             zIndex={zIndex}
                         />}
@@ -205,5 +205,5 @@ export function CommentThreadItem({
                 </Stack>
             </ListItem>
         </>
-    )
+    );
 }

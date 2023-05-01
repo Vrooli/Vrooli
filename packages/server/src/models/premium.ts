@@ -1,13 +1,13 @@
+import { MaxObjects, Premium } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Premium } from '@shared/consts';
 import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
-const __typename = 'Premium' as const;
+const __typename = "Premium" as const;
 const suppFields = [] as const;
 export const PremiumModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +18,8 @@ export const PremiumModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.premiumUpsertArgs['create'],
-    PrismaUpdate: Prisma.premiumUpsertArgs['update'],
+    PrismaCreate: Prisma.premiumUpsertArgs["create"],
+    PrismaUpdate: Prisma.premiumUpsertArgs["update"],
     PrismaModel: Prisma.premiumGetPayload<SelectWrap<Prisma.premiumSelect>>,
     PrismaSelect: Prisma.premiumSelect,
     PrismaWhere: Prisma.premiumWhereInput,
@@ -30,9 +30,9 @@ export const PremiumModel: ModelLogic<{
         select: () => ({ id: true, customPlan: true }),
         label: (select, languages) => {
             const lng = languages[0];
-            if (select.customPlan) return i18next.t(`common:PaymentPlanCustom`, { lng });
-            return i18next.t(`common:PaymentPlanBasic`, { lng });
-        }
+            if (select.customPlan) return i18next.t("common:PaymentPlanCustom", { lng });
+            return i18next.t("common:PaymentPlanBasic", { lng });
+        },
     },
     format: {
         gqlRelMap: {
@@ -40,8 +40,8 @@ export const PremiumModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         },
         countFields: {},
     },
@@ -57,8 +57,8 @@ export const PremiumModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         }),
         visibility: {
             private: {},
@@ -67,8 +67,8 @@ export const PremiumModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

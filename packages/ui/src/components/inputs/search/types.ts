@@ -1,9 +1,9 @@
-import { InputProps } from '@mui/material';
-import { CommonKey } from '@shared/translations';
-import { AutocompleteOption } from 'types';
-import { SearchItem } from 'utils/search/siteToSearch';
+import { CommonKey } from "@local/shared";
+import { InputProps } from "@mui/material";
+import { AutocompleteOption } from "types";
+import { SearchItem } from "utils/search/siteToSearch";
 
-export type SiteSearchBarProps = InputProps & {
+export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> & {
     debounce?: number;
     id?: string;
     loading?: boolean;
@@ -14,6 +14,7 @@ export type SiteSearchBarProps = InputProps & {
     showSecondaryLabel?: boolean;
     value: string;
     sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
+    zIndex: number;
 }
 
 export type SettingsSearchBarProps = InputProps & {

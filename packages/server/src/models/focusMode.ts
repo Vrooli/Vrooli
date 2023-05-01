@@ -1,13 +1,12 @@
+import { FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, focusModeValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, MaxObjects } from '@shared/consts';
-import { focusModeValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 
-const __typename = 'FocusMode' as const;
+const __typename = "FocusMode" as const;
 const suppFields = [] as const;
 export const FocusModeModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +17,8 @@ export const FocusModeModel: ModelLogic<{
     GqlSearch: FocusModeSearchInput,
     GqlSort: FocusModeSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.focus_modeUpsertArgs['create'],
-    PrismaUpdate: Prisma.focus_modeUpsertArgs['update'],
+    PrismaCreate: Prisma.focus_modeUpsertArgs["create"],
+    PrismaUpdate: Prisma.focus_modeUpsertArgs["update"],
     PrismaModel: Prisma.focus_modeGetPayload<SelectWrap<Prisma.focus_modeSelect>>,
     PrismaSelect: Prisma.focus_modeSelect,
     PrismaWhere: Prisma.focus_modeWhereInput,
@@ -33,22 +32,22 @@ export const FocusModeModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            filters: 'FocusModeFilter',
-            labels: 'Label',
-            reminderList: 'ReminderList',
-            schedule: 'Schedule',
+            filters: "FocusModeFilter",
+            labels: "Label",
+            reminderList: "ReminderList",
+            schedule: "Schedule",
         },
         prismaRelMap: {
             __typename,
-            reminderList: 'ReminderList',
-            resourceList: 'ResourceList',
-            user: 'User',
-            labels: 'Label',
-            filters: 'FocusModeFilter',
-            schedule: 'Schedule',
+            reminderList: "ReminderList",
+            resourceList: "ResourceList",
+            user: "User",
+            labels: "Label",
+            filters: "FocusModeFilter",
+            schedule: "Schedule",
         },
         countFields: {},
-        joinMap: { labels: 'label' },
+        joinMap: { labels: "label" },
     },
     mutate: {
         shape: {
@@ -57,21 +56,21 @@ export const FocusModeModel: ModelLogic<{
                 name: data.name,
                 description: noNull(data.description),
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'FocusModeFilter', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'schedule', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'Schedule', parentRelationshipName: 'focusModes', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'FocusMode', relation: 'labels', data, ...rest })),
+                ...(await shapeHelper({ relation: "filters", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "FocusModeFilter", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: false, objectType: "ReminderList", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "focusModes", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "FocusMode", relation: "labels", data, ...rest })),
 
             }),
             update: async ({ data, ...rest }) => ({
                 name: noNull(data.name),
                 description: noNull(data.description),
-                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'FocusModeFilter', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Disconnect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'focusMode', data, ...rest })),
-                ...(await shapeHelper({ relation: 'schedule', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'Schedule', parentRelationshipName: 'focusModes', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'FocusMode', relation: 'labels', data, ...rest })),
+                ...(await shapeHelper({ relation: "filters", relTypes: ["Create", "Delete"], isOneToOne: false, isRequired: false, objectType: "FocusModeFilter", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "reminderList", relTypes: ["Connect", "Disconnect", "Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ReminderList", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "focusMode", data, ...rest })),
+                ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "focusModes", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "FocusMode", relation: "labels", data, ...rest })),
             }),
         },
         yup: focusModeValidation,
@@ -83,17 +82,15 @@ export const FocusModeModel: ModelLogic<{
             createdTimeFrame: true,
             scheduleStartTimeFrame: true,
             scheduleEndTimeFrame: true,
-            recurrStartTimeFrame: true,
-            recurrEndTimeFrame: true,
             labelsIds: true,
             timeZone: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-                'nameWrapped',
-            ]
+                "descriptionWrapped",
+                "nameWrapped",
+            ],
         }),
     },
     validate: {
@@ -107,7 +104,7 @@ export const FocusModeModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         visibility: {
             private: {},
@@ -117,4 +114,4 @@ export const FocusModeModel: ModelLogic<{
             }),
         },
     },
-})
+});

@@ -1,4 +1,4 @@
-import { isObject } from "@shared/utils";
+import { isObject } from "@local/shared";
 import { ObjectMap } from "../models";
 import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";

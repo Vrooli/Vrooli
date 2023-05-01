@@ -1,55 +1,54 @@
-import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { Translate, TranslateInput } from '@shared/consts';
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from '@shared/icons';
-import { translateTranslate } from 'api/generated/endpoints/translate_translate';
-import { useCustomLazyQuery } from 'api/hooks';
-import { queryWrapper } from 'api/utils';
-import { MouseEvent, useCallback, useContext, useMemo, useState } from 'react';
-import { FixedSizeList } from 'react-window';
-import { AllLanguages, getLanguageSubtag, getUserLanguages } from 'utils/display/translationTools';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { ListMenu } from '../ListMenu/ListMenu';
-import { MenuTitle } from '../MenuTitle/MenuTitle';
-import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { translateTranslate } from "api/generated/endpoints/translate_translate";
+import { useCustomLazyQuery } from "api/hooks";
+import { queryWrapper } from "api/utils";
+import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
+import { FixedSizeList } from "react-window";
+import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { ListMenu } from "../ListMenu/ListMenu";
+import { MenuTitle } from "../MenuTitle/MenuTitle";
+import { ListMenuItemData, SelectLanguageMenuProps } from "../types";
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
  * These are sorted by popularity (as best as I could).
  */
 const autoTranslateLanguages = [
-    'zh', // Chinese
-    'es', // Spanish
-    'en', // English
-    'hi', // Hindi
-    'pt', // Portuguese
-    'ru', // Russian
-    'ja', // Japanese
-    'ko', // Korean
-    'tr', // Turkish
-    'fr', // French
-    'de', // German
-    'it', // Italian
-    'ar', // Arabic
-    'id', // Indonesian
-    'fa', // Persian
-    'pl', // Polish
-    'uk', // Ukrainian
-    'nl', // Dutch
-    'da', // Danish
-    'fi', // Finnish
-    'az', // Azerbaijani
-    'el', // Greek
-    'hu', // Hungarian
-    'cs', // Czech
-    'sk', // Slovak
-    'ga', // Irish
-    'sv', // Swedish
-    'he', // Hebrew
-    'eo', // Esperanto
+    "zh", // Chinese
+    "es", // Spanish
+    "en", // English
+    "hi", // Hindi
+    "pt", // Portuguese
+    "ru", // Russian
+    "ja", // Japanese
+    "ko", // Korean
+    "tr", // Turkish
+    "fr", // French
+    "de", // German
+    "it", // Italian
+    "ar", // Arabic
+    "id", // Indonesian
+    "fa", // Persian
+    "pl", // Polish
+    "uk", // Ukrainian
+    "nl", // Dutch
+    "da", // Danish
+    "fi", // Finnish
+    "az", // Azerbaijani
+    "el", // Greek
+    "hu", // Hungarian
+    "cs", // Czech
+    "sk", // Slovak
+    "ga", // Irish
+    "sv", // Swedish
+    "he", // Hebrew
+    "eo", // Esperanto
 ] as const;
 
-const titleId = 'select-language-dialog-title';
+const titleId = "select-language-dialog-title";
 
 export const SelectLanguageMenu = ({
     currentLanguage,
@@ -63,7 +62,7 @@ export const SelectLanguageMenu = ({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
 
-    const [searchString, setSearchString] = useState('');
+    const [searchString, setSearchString] = useState("");
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
     }, []);
@@ -74,7 +73,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: 'Error' })
+            PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
         queryWrapper<Translate, TranslateInput>({
@@ -83,13 +82,13 @@ export const SelectLanguageMenu = ({
             onSuccess: (data) => {
                 // Try parse
                 if (data) {
-                    console.log('TODO')
+                    console.log("TODO");
                 } else {
-                    PubSub.get().publishSnack({ messageKey: 'FailedToTranslate', severity: 'Error' });
+                    PubSub.get().publishSnack({ messageKey: "FailedToTranslate", severity: "Error" });
                 }
             },
-            errorMessage: () => ({ key: 'FailedToTranslate' }),
-        })
+            errorMessage: () => ({ messageKey: "FailedToTranslate" }),
+        });
     }, [getAutoTranslation, languages]);
 
     // Menu for selecting language to auto-translate from
@@ -110,13 +109,13 @@ export const SelectLanguageMenu = ({
         }
         // Otherwise, open menu to select source language
         else {
-            console.log('openTranslateSource', targetLanguage);
-            setTranslateSourceAnchor(ev.currentTarget)
+            console.log("openTranslateSource", targetLanguage);
+            setTranslateSourceAnchor(ev.currentTarget);
         }
     }, [autoTranslate, translateSourceOptions]);
     const closeTranslateSource = useCallback(() => setTranslateSourceAnchor(null), []);
     const handleTranslateSourceSelect = useCallback((path: string) => {
-        console.log('TODO')
+        console.log("TODO");
     }, []);
 
     const languageOptions = useMemo<Array<[string, string]>>(() => {
@@ -164,8 +163,8 @@ export const SelectLanguageMenu = ({
     }, [currentLanguage, handleCurrent]);
     const onClose = useCallback(() => {
         // Chear text field
-        setSearchString('');
-        setAnchorEl(null)
+        setSearchString("");
+        setAnchorEl(null);
     }, []);
 
     const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
@@ -178,7 +177,7 @@ export const SelectLanguageMenu = ({
         <>
             {/* Select auto-translate source popover */}
             <ListMenu
-                id={`auto-translate-from-menu`}
+                id={"auto-translate-from-menu"}
                 anchorEl={translateSourceAnchor}
                 title='Translate from...'
                 data={translateSourceOptions}
@@ -194,45 +193,45 @@ export const SelectLanguageMenu = ({
                 aria-labelledby={titleId}
                 sx={{
                     zIndex: zIndex + 1,
-                    '& .MuiPopover-paper': {
-                        background: 'transparent',
-                        border: 'none',
+                    "& .MuiPopover-paper": {
+                        background: "transparent",
+                        border: "none",
                         paddingBottom: 1,
-                    }
+                    },
                 }}
                 anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
+                    vertical: "bottom",
+                    horizontal: "center",
                 }}
                 transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
+                    vertical: "top",
+                    horizontal: "center",
                 }}
             >
                 {/* Title */}
                 <MenuTitle
                     ariaLabel={titleId}
-                    title={'Select Language'}
+                    title={"Select Language"}
                     onClose={onClose}
                 />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{
-                    width: 'min(100vw, 400px)',
-                    maxHeight: 'min(100vh, 600px)',
-                    maxWidth: '100%',
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
+                    width: "min(100vw, 400px)",
+                    maxHeight: "min(100vh, 600px)",
+                    maxWidth: "100%",
+                    overflowX: "auto",
+                    overflowY: "hidden",
                     background: palette.background.default,
-                    borderRadius: '8px',
-                    padding: '8px',
+                    borderRadius: "8px",
+                    padding: "8px",
                     "&::-webkit-scrollbar": {
                         width: 10,
                     },
                     "&::-webkit-scrollbar-track": {
-                        backgroundColor: '#dae5f0',
+                        backgroundColor: "#dae5f0",
                     },
                     "&::-webkit-scrollbar-thumb": {
-                        borderRadius: '100px',
+                        borderRadius: "100px",
                         backgroundColor: "#409590",
                     },
                 }}>
@@ -253,9 +252,9 @@ export const SelectLanguageMenu = ({
                         itemCount={languageOptions.length}
                         overscanCount={5}
                         style={{
-                            scrollbarColor: '#409590 #dae5f0',
-                            scrollbarWidth: 'thin',
-                            maxWidth: '100%',
+                            scrollbarColor: "#409590 #dae5f0",
+                            scrollbarWidth: "thin",
+                            maxWidth: "100%",
                         }}
                     >
                         {(props) => {
@@ -279,9 +278,9 @@ export const SelectLanguageMenu = ({
                                     sx={{
                                         background: isCurrent ? palette.secondary.light : palette.background.default,
                                         color: isCurrent ? palette.secondary.contrastText : palette.background.textPrimary,
-                                        '&:hover': {
+                                        "&:hover": {
                                             background: isCurrent ? palette.secondary.light : palette.background.default,
-                                            filter: 'brightness(105%)',
+                                            filter: "brightness(105%)",
                                         },
                                     }}
                                 >
@@ -290,9 +289,9 @@ export const SelectLanguageMenu = ({
                                         <CompleteIcon fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary} />
                                     )}
                                     <Typography variant="body2" style={{
-                                        display: 'block',
-                                        marginRight: 'auto',
-                                        marginLeft: isSelected ? '8px' : '0',
+                                        display: "block",
+                                        marginRight: "auto",
+                                        marginLeft: isSelected ? "8px" : "0",
                                     }}>{option[1]}</Typography>
                                     {/* Delete icon */}
                                     {canDelete && (
@@ -323,35 +322,35 @@ export const SelectLanguageMenu = ({
                 </Stack>
             </Popover>
             {/* Selected language label */}
-            <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
+            <Tooltip title={AllLanguages[currentLanguage] ?? ""} placement="top">
                 <Stack direction="row" spacing={0} onClick={onOpen} sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    borderRadius: '50px',
-                    cursor: 'pointer',
-                    background: '#4e7d31',
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: "50px",
+                    cursor: "pointer",
+                    background: "#4e7d31",
                     boxShadow: 4,
-                    '&:hover': {
-                        filter: 'brightness(120%)',
+                    "&:hover": {
+                        filter: "brightness(120%)",
                     },
-                    transition: 'all 0.2s ease-in-out',
-                    width: 'fit-content',
+                    transition: "all 0.2s ease-in-out",
+                    width: "fit-content",
                     ...(sxs?.root ?? {}),
                 }}>
-                    <IconButton size="large" sx={{ padding: '4px' }}>
-                        <LanguageIcon fill={'white'} />
+                    <IconButton size="large" sx={{ padding: "4px" }}>
+                        <LanguageIcon fill={"white"} />
                     </IconButton>
                     {/* Only show language code when editing to save space. You'll know what language you're reading just by reading */}
-                    {isEditing && <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
+                    {isEditing && <Typography variant="body2" sx={{ color: "white", marginRight: "8px" }}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>}
                     {/* Drop down or drop up icon */}
-                    <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>
-                        {open ? <ArrowDropUpIcon fill={'white'} /> : <ArrowDropDownIcon fill={'white'} />}
+                    <IconButton size="large" aria-label="language-select" sx={{ padding: "4px", marginLeft: "-8px" }}>
+                        {open ? <ArrowDropUpIcon fill={"white"} /> : <ArrowDropDownIcon fill={"white"} />}
                     </IconButton>
                 </Stack>
             </Tooltip>
         </>
-    )
-}
+    );
+};

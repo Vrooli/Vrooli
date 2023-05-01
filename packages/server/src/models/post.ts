@@ -1,6 +1,5 @@
+import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, postValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
-import { postValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -8,7 +7,7 @@ import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper } from "..
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 
-const __typename = 'Post' as const;
+const __typename = "Post" as const;
 const suppFields = [] as const;
 export const PostModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +18,8 @@ export const PostModel: ModelLogic<{
     GqlSearch: PostSearchInput,
     GqlSort: PostSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.postUpsertArgs['create'],
-    PrismaUpdate: Prisma.postUpsertArgs['update'],
+    PrismaCreate: Prisma.postUpsertArgs["create"],
+    PrismaUpdate: Prisma.postUpsertArgs["update"],
     PrismaModel: Prisma.postGetPayload<SelectWrap<Prisma.postSelect>>,
     PrismaSelect: Prisma.postSelect,
     PrismaWhere: Prisma.postWhereInput,
@@ -29,36 +28,36 @@ export const PostModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.post,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            comments: 'Comment',
+            comments: "Comment",
             owner: {
-                user: 'User',
-                organization: 'Organization',
+                user: "User",
+                organization: "Organization",
             },
-            reports: 'Report',
-            repostedFrom: 'Post',
-            reposts: 'Post',
-            resourceList: 'ResourceList',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
+            reports: "Report",
+            repostedFrom: "Post",
+            reposts: "Post",
+            resourceList: "ResourceList",
+            bookmarkedBy: "User",
+            tags: "Tag",
         },
         prismaRelMap: {
             __typename,
-            organization: 'Organization',
-            user: 'User',
-            repostedFrom: 'Post',
-            reposts: 'Post',
-            resourceList: 'ResourceList',
-            comments: 'Comment',
-            bookmarkedBy: 'User',
-            reactions: 'Reaction',
-            viewedBy: 'View',
-            reports: 'Report',
-            tags: 'Tag',
+            organization: "Organization",
+            user: "User",
+            repostedFrom: "Post",
+            reposts: "Post",
+            resourceList: "ResourceList",
+            comments: "Comment",
+            bookmarkedBy: "User",
+            reactions: "Reaction",
+            viewedBy: "View",
+            reports: "Report",
+            tags: "Tag",
         },
         countFields: {
             commentsCount: true,
@@ -73,24 +72,24 @@ export const PostModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
                 user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
-                ...(await shapeHelper({ relation: 'repostedFrom', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'reposts', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Post', relation: 'tags', data, ...rest })),
+                ...(await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "reposts", data, ...rest })),
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Post", relation: "tags", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPinned: noNull(data.isPinned),
                 isPrivate: noNull(data.isPrivate),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Post', relation: 'tags', data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "resourceList", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Post", relation: "tags", data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
                 await onCommonPlain({
                     ...params,
                     objectType: __typename,
-                    ownerOrganizationField: 'organization',
-                    ownerUserField: 'user',
+                    ownerOrganizationField: "organization",
+                    ownerUserField: "user",
                 });
             },
         },
@@ -116,9 +115,9 @@ export const PostModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-                'nameWrapped',
-            ]
+                "descriptionWrapped",
+                "nameWrapped",
+            ],
         }),
     },
     validate: {
@@ -135,8 +134,8 @@ export const PostModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         }),
         visibility: {
             private: { isPrivate: true, isDeleted: false },
@@ -145,8 +144,8 @@ export const PostModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

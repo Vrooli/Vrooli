@@ -15,20 +15,20 @@ export const BannerChicken = () => {
 
     const adFrequency = useMemo(() => {
         const user = getCurrentUser(session);
-        if (!user) return 'full';
-        if (user.hasPremium) return 'none';
-        if (session?.isLoggedIn) return 'half';
-        return 'full';
-    }, [session])
+        if (!user) return "full";
+        if (user.hasPremium) return "none";
+        if (session?.isLoggedIn) return "half";
+        return "full";
+    }, [session]);
 
     const shouldDisplayAd = useMemo(() => {
-        if (adFrequency === 'none') return false;
-        if (adFrequency === 'full') return true;
+        if (adFrequency === "none") return false;
+        if (adFrequency === "full") return true;
         // Pick a random number between 0 and 1
         const random = Math.random();
         // If the random number is less than 0.5, display the ad
         return random < 0.5;
-    }, [adFrequency])
+    }, [adFrequency]);
 
     if (!shouldDisplayAd) return null;
     return (
@@ -36,20 +36,20 @@ export const BannerChicken = () => {
             {/* AdSense script */}
             <script
                 async
-                src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7109871095821789"
+                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${import.meta.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
                 crossOrigin="anonymous"
                 onLoad={() => setAdDisplayed(true)}
                 onError={() => setAdDisplayed(false)}
             ></script>
             <ins className="adsbygoogle"
-                style={{ display: 'block' }}
+                style={{ display: "block" }}
                 // Disable ads for local development. Ads only work on live domains. 
                 // You can use a test domain to test ads before deploying.
-                data-adtest={window.location.host.includes('localhost')}
-                data-ad-client="ca-pub-7109871095821789"
+                data-adtest={window.location.host.includes("localhost")}
+                data-ad-client={`ca-${import.meta.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
                 data-ad-slot="9649766873"
                 data-ad-format="auto"
                 data-full-width-responsive="true"></ins>
         </>
-    )
-}
+    );
+};

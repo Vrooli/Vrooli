@@ -1,6 +1,5 @@
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, runRoutineValidation, RunRoutineYou } from "@local/shared";
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou } from '@shared/consts';
-import { runRoutineValidation } from "@shared/validation";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
@@ -10,9 +9,9 @@ import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 
-const __typename = 'RunRoutine' as const;
-type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
-const suppFields = ['you'] as const;
+const __typename = "RunRoutine" as const;
+type Permissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
+const suppFields = ["you"] as const;
 export const RunRoutineModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -22,8 +21,8 @@ export const RunRoutineModel: ModelLogic<{
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.run_routineUpsertArgs['create'],
-    PrismaUpdate: Prisma.run_routineUpsertArgs['update'],
+    PrismaCreate: Prisma.run_routineUpsertArgs["create"],
+    PrismaUpdate: Prisma.run_routineUpsertArgs["update"],
     PrismaModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
     PrismaSelect: Prisma.run_routineSelect,
     PrismaWhere: Prisma.run_routineWhereInput,
@@ -33,30 +32,30 @@ export const RunRoutineModel: ModelLogic<{
         /**
          * Anonymizes all public runs associated with a user or organization
          */
-        async anonymize(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<void> {
+        async anonymize(prisma: PrismaType, owner: { __typename: "User" | "Organization", id: string }): Promise<void> {
             await prisma.run_routine.updateMany({
                 where: {
-                    userId: owner.__typename === 'User' ? owner.id : undefined,
-                    organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
                     isPrivate: false,
                 },
                 data: {
                     userId: null,
                     organizationId: null,
-                }
+                },
             });
         },
         /**
          * Deletes all runs associated with a user or organization
          */
-        async deleteAll(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<Count> {
+        async deleteAll(prisma: PrismaType, owner: { __typename: "User" | "Organization", id: string }): Promise<Count> {
             return prisma.run_routine.deleteMany({
                 where: {
-                    userId: owner.__typename === 'User' ? owner.id : undefined,
-                    organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
-                }
-            }).then(({ count }) => ({ __typename: 'Count' as const, count })) as any;
-        }
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
+                },
+            }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
+        },
     },
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: {
@@ -66,23 +65,23 @@ export const RunRoutineModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            inputs: 'RunRoutineInput',
-            organization: 'Organization',
-            routineVersion: 'RoutineVersion',
-            runProject: 'RunProject',
-            schedule: 'Schedule',
-            steps: 'RunRoutineStep',
-            user: 'User',
+            inputs: "RunRoutineInput",
+            organization: "Organization",
+            routineVersion: "RoutineVersion",
+            runProject: "RunProject",
+            schedule: "Schedule",
+            steps: "RunRoutineStep",
+            user: "User",
         },
         prismaRelMap: {
             __typename,
-            inputs: 'RunRoutineInput',
-            organization: 'Organization',
-            routineVersion: 'Routine',
-            runProject: 'RunProject',
-            schedule: 'Schedule',
-            steps: 'RunRoutineStep',
-            user: 'User',
+            inputs: "RunRoutineInput",
+            organization: "Organization",
+            routineVersion: "Routine",
+            runProject: "RunProject",
+            schedule: "Schedule",
+            steps: "RunRoutineStep",
+            user: "User",
         },
         countFields: {
             inputsCount: true,
@@ -90,14 +89,14 @@ export const RunRoutineModel: ModelLogic<{
         },
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
-            dbFields: ['name'],
+            dbFields: ["name"],
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -119,7 +118,7 @@ export const RunRoutineModel: ModelLogic<{
                     // steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
                     // name: data.name,
                     // userId: userData.id,
-                } as any
+                } as any;
             },
             update: async ({ data, prisma, userData }) => {
                 return {
@@ -129,7 +128,7 @@ export const RunRoutineModel: ModelLogic<{
                     // steps: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
                     // inputs: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'inputs', objectType: 'RunRoutineInput', prisma, userData }),
                 } as any;
-            }
+            },
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
@@ -144,17 +143,17 @@ export const RunRoutineModel: ModelLogic<{
                 for (let i = 0; i < updated.length; i++) {
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && updateInput[i].hasOwnProperty('status')) {
+                    if (updated[i].status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && updateInput[i].hasOwnProperty('status')) {
+                    if (updated[i].status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && updateInput[i].hasOwnProperty('status')) {
+                    if (updated[i].status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInput[i], "status")) {
                         Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
                     }
                 }
@@ -181,10 +180,10 @@ export const RunRoutineModel: ModelLogic<{
                         AND: [
                             { userId: userData.id },
                             { id: input.id },
-                        ]
-                    }
-                })
-                if (!run) throw new CustomError('0180', 'NotFound', userData.languages);
+                        ],
+                    },
+                });
+                if (!run) throw new CustomError("0180", "NotFound", userData.languages);
                 const { timeElapsed, contextSwitches, completedComplexity } = run;
                 // Update object
                 run = await prisma.run_routine.update({
@@ -198,7 +197,7 @@ export const RunRoutineModel: ModelLogic<{
                         steps: {
                             create: input.finalStepCreate ? {
                                 order: input.finalStepCreate.order ?? 1,
-                                name: input.finalStepCreate.name ?? '',
+                                name: input.finalStepCreate.name ?? "",
                                 contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
                                 timeElapsed: input.finalStepCreate.timeElapsed,
                                 status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
@@ -209,13 +208,13 @@ export const RunRoutineModel: ModelLogic<{
                                 timeElapsed: input.finalStepUpdate.timeElapsed,
                                 status: input.finalStepUpdate.status ?? (input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed),
                             } as any : undefined,
-                        }
+                        },
                         //TODO
                         // inputs: {
                         //     create: input.finalInputCreate ? {
                         // }
                     },
-                    ...selectHelper(partial)
+                    ...selectHelper(partial),
                 });
             } else {
                 // Create new run
@@ -228,12 +227,12 @@ export const RunRoutineModel: ModelLogic<{
                         contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
                         routineVersionId: input.id,
                         status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
-                        name: input.name ?? '',
+                        name: input.name ?? "",
                         userId: userData.id,
                         steps: {
                             create: input.finalStepCreate ? {
                                 order: input.finalStepCreate.order ?? 1,
-                                name: input.finalStepCreate.name ?? '',
+                                name: input.finalStepCreate.name ?? "",
                                 contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
                                 timeElapsed: input.finalStepCreate.timeElapsed,
                                 status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
@@ -243,10 +242,10 @@ export const RunRoutineModel: ModelLogic<{
                                 timeElapsed: input.finalStepUpdate.timeElapsed,
                                 status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
                             } : undefined,
-                        }
+                        },
                         //TODO inputs
                     },
-                    ...selectHelper(partial)
+                    ...selectHelper(partial),
                 });
             }
             // Convert to GraphQL
@@ -266,22 +265,22 @@ export const RunRoutineModel: ModelLogic<{
             // Convert info to partial
             const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
             // Find in database
-            let object = await prisma.run_routine.findFirst({
+            const object = await prisma.run_routine.findFirst({
                 where: {
                     AND: [
                         { userId: userData.id },
                         { id: input.id },
-                    ]
-                }
-            })
-            if (!object) throw new CustomError('0182', 'NotFound', userData.languages);
+                    ],
+                },
+            });
+            if (!object) throw new CustomError("0182", "NotFound", userData.languages);
             // Update object
             const updated = await prisma.run_routine.update({
                 where: { id: input.id },
                 data: {
                     status: RunStatus.Cancelled,
                 },
-                ...selectHelper(partial)
+                ...selectHelper(partial),
             });
             // Convert to GraphQL
             let converted: any = modelToGql(updated, partial);
@@ -299,17 +298,18 @@ export const RunRoutineModel: ModelLogic<{
             createdTimeFrame: true,
             excludeIds: true,
             routineVersionId: true,
+            scheduleEndTimeFrame: true,
+            scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'nameWrapped',
+                "nameWrapped",
                 { routineVersion: RunRoutineModel.search!.searchStringQuery() },
-            ]
-        })
+            ],
+        }),
     },
     validate: {
         isTransferable: false,
@@ -317,9 +317,9 @@ export const RunRoutineModel: ModelLogic<{
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: 'Organization',
-            routineVersion: 'Routine',
-            user: 'User',
+            organization: "Organization",
+            routineVersion: "Routine",
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
@@ -327,11 +327,11 @@ export const RunRoutineModel: ModelLogic<{
             User: data.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages,) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
-            ['organization', 'Organization'],
-            ['user', 'User'],
+        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+            ["organization", "Organization"],
+            ["user", "User"],
         ], languages),
-        profanityFields: ['name'],
+        profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
@@ -339,8 +339,8 @@ export const RunRoutineModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

@@ -1,4 +1,4 @@
-import { SvgProps } from "@shared/icons";
+import { SvgProps } from "@local/shared";
 
 export interface DiagonalWaveLoaderProps {
     size?: number;
@@ -6,7 +6,7 @@ export interface DiagonalWaveLoaderProps {
     sx?: { [key: string]: any };
 }
 
-export type PageTab<T extends any> = {
+export type PageTab<T> = {
     color?: string,
     href?: string,
     /**
@@ -18,11 +18,11 @@ export type PageTab<T extends any> = {
     value: T
 };
 
-export interface PageTabsProps<T extends any> {
+export interface PageTabsProps<T> {
     ariaLabel: string,
     currTab: PageTab<T>,
     fullWidth?: boolean,
-    onChange: (event: React.ChangeEvent<{}>, value: any) => void,
+    onChange: (event: React.ChangeEvent<unknown>, value: any) => void,
     tabs: PageTab<T>[],
 }
 

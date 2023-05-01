@@ -1,30 +1,20 @@
-import {
-    Button,
-    Checkbox,
-    FormControlLabel,
-    Grid,
-    Link, TextField,
-    Typography,
-    useTheme
-} from '@mui/material';
-import { CSSProperties } from '@mui/styles';
-import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { emailSignUpFormValidation } from '@shared/validation';
-import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
-import { useCustomMutation } from 'api/hooks';
-import { hasErrorCode, mutationWrapper } from 'api/utils';
-import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { Field, Formik } from 'formik';
-import { BaseForm } from 'forms/BaseForm/BaseForm';
-import { useTranslation } from 'react-i18next';
-import { clickSize } from 'styles';
-import { Forms } from 'utils/consts';
-import { PubSub } from 'utils/pubsub';
-import { setupPush } from 'utils/push';
-import { formNavLink, formPaper, formSubmit } from '../../styles';
-import { SignUpFormProps } from '../../types';
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, LINKS, Session, useLocation } from "@local/shared";
+import { Button, Checkbox, FormControlLabel, Grid, Link, TextField, Typography, useTheme } from "@mui/material";
+import { CSSProperties } from "@mui/styles";
+import { authEmailSignUp } from "api/generated/endpoints/auth_emailSignUp";
+import { useCustomMutation } from "api/hooks";
+import { hasErrorCode, mutationWrapper } from "api/utils";
+import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Field, Formik } from "formik";
+import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useTranslation } from "react-i18next";
+import { clickSize } from "styles";
+import { Forms } from "utils/consts";
+import { PubSub } from "utils/pubsub";
+import { setupPush } from "utils/push";
+import { formNavLink, formPaper, formSubmit } from "../../styles";
+import { SignUpFormProps } from "../../types";
 
 export const SignUpForm = ({
     onClose,
@@ -44,16 +34,16 @@ export const SignUpForm = ({
                 display="dialog"
                 onClose={onClose}
                 titleData={{
-                    titleKey: 'SignUp',
+                    titleKey: "SignUp",
                 }}
             />
             <Formik
                 initialValues={{
                     marketingEmails: true,
-                    name: '',
-                    email: '',
-                    password: '',
-                    confirmPassword: ''
+                    name: "",
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Session, EmailSignUpInput>({
@@ -61,35 +51,35 @@ export const SignUpForm = ({
                         input: {
                             ...values,
                             marketingEmails: Boolean(values.marketingEmails),
-                            theme: theme.palette.mode ?? 'light',
+                            theme: theme.palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
-                            PubSub.get().publishSession(data)
+                            PubSub.get().publishSession(data);
                             PubSub.get().publishAlertDialog({
-                                messageKey: 'WelcomeVerifyEmail',
+                                messageKey: "WelcomeVerifyEmail",
                                 messageVariables: { appName: BUSINESS_NAME },
                                 buttons: [{
-                                    labelKey: 'Ok', onClick: () => {
+                                    labelKey: "Ok", onClick: () => {
                                         setLocation(LINKS.Welcome);
                                         // Set up push notifications
                                         setupPush();
-                                    }
-                                }]
+                                    },
+                                }],
                             });
                         },
                         onError: (response) => {
-                            if (hasErrorCode(response, 'EmailInUse')) {
+                            if (hasErrorCode(response, "EmailInUse")) {
                                 PubSub.get().publishAlertDialog({
-                                    messageKey: 'EmailInUseWrongPassword',
+                                    messageKey: "EmailInUseWrongPassword",
                                     buttons: [
-                                        { labelKey: 'Yes', onClick: () => onFormChange(Forms.ForgotPassword) },
-                                        { labelKey: 'No' }
-                                    ]
+                                        { labelKey: "Yes", onClick: () => onFormChange(Forms.ForgotPassword) },
+                                        { labelKey: "No" },
+                                    ],
                                 });
                             }
                             helpers.setSubmitting(false);
-                        }
-                    })
+                        },
+                    });
                 }}
                 validationSchema={emailSignUpFormValidation}
             >
@@ -97,7 +87,7 @@ export const SignUpForm = ({
                     dirty={formik.dirty}
                     isLoading={loading}
                     style={{
-                        display: 'block',
+                        display: "block",
                         ...formPaper,
                     }}
                 >
@@ -107,7 +97,7 @@ export const SignUpForm = ({
                                 fullWidth
                                 autoComplete="name"
                                 name="name"
-                                label={t('Name')}
+                                label={t("Name")}
                                 as={TextField}
                             />
                         </Grid>
@@ -116,7 +106,7 @@ export const SignUpForm = ({
                                 fullWidth
                                 autoComplete="email"
                                 name="email"
-                                label={t('Email', { count: 1 })}
+                                label={t("Email", { count: 1 })}
                                 as={TextField}
                             />
                         </Grid>
@@ -125,7 +115,7 @@ export const SignUpForm = ({
                                 fullWidth
                                 name="password"
                                 autoComplete="new-password"
-                                label={t('Password')}
+                                label={t("Password")}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -133,7 +123,7 @@ export const SignUpForm = ({
                                 fullWidth
                                 name="confirmPassword"
                                 autoComplete="new-password"
-                                label={t('PasswordConfirm')}
+                                label={t("PasswordConfirm")}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -159,7 +149,7 @@ export const SignUpForm = ({
                         color="secondary"
                         sx={{ ...formSubmit }}
                     >
-                        {t('SignUp')}
+                        {t("SignUp")}
                     </Button>
                     <Grid container spacing={2}>
                         <Grid item xs={6}>
@@ -170,7 +160,7 @@ export const SignUpForm = ({
                                         ...formNavLink,
                                     } as CSSProperties}
                                 >
-                                    {t('AlreadyHaveAccountLogIn')}
+                                    {t("AlreadyHaveAccountLogIn")}
                                 </Typography>
                             </Link>
                         </Grid>
@@ -180,10 +170,10 @@ export const SignUpForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                        flexDirection: 'row-reverse',
+                                        flexDirection: "row-reverse",
                                     } as CSSProperties}
                                 >
-                                    {t('ForgotPassword')}
+                                    {t("ForgotPassword")}
                                 </Typography>
                             </Link>
                         </Grid>
@@ -192,4 +182,4 @@ export const SignUpForm = ({
             </Formik>
         </>
     );
-}
+};

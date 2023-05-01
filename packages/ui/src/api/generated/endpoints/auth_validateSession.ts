@@ -1,5 +1,5 @@
-import gql from 'graphql-tag';
-import { Schedule_common } from '../fragments/Schedule_common';
+import gql from "graphql-tag";
+import { Schedule_common } from "../fragments/Schedule_common";
 
 export const authValidateSession = gql`${Schedule_common}
 

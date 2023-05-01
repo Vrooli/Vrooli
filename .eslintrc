@@ -1,3 +1,65 @@
 {
-    "root": true
+    "root": true,
+    "ignorePatterns": [
+        "dist/",
+        "server/src/auth/message_signing/",
+        "vite.config.ts",
+        "graphqlTypes.ts"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "env": {
+        "node": true,
+        "es6": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module",
+        "project": [
+            "./packages/server/tsconfig.json",
+            "./packages/shared/tsconfig.json",
+            "./packages/ui/tsconfig.json"
+        ]
+    },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "rules": {
+        "quotes": [
+            "error",
+            "double"
+        ],
+        "comma-dangle": [
+            "error",
+            "always-multiline"
+        ],
+        "semi": [
+            "error",
+            "always"
+        ],
+        "space-infix-ops": "error",
+        "keyword-spacing": "error",
+        "arrow-spacing": "error",
+        "prefer-const": "error",
+        "no-var": "error",
+        "no-empty-function": "off",
+        "object-shorthand": "error",
+        "eol-last": "error",
+        "padding-line-between-statements": [
+            "error",
+            {
+                "blankLine": "always",
+                "prev": "import",
+                "next": "*"
+            },
+            {
+                "blankLine": "never",
+                "prev": "import",
+                "next": "import"
+            }
+        ]
+    }
 }

@@ -1,14 +1,14 @@
-import { Box, Button, DialogContent, ListItem, Stack, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { getInstalledWalletProviders } from 'utils/authentication/walletIntegration';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { WalletSelectDialogProps } from '../types';
+import { Box, Button, DialogContent, ListItem, Stack, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { getInstalledWalletProviders } from "utils/authentication/walletIntegration";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { WalletSelectDialogProps } from "../types";
 
 const helpText =
-    `All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet.`
+    "All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet.";
 
-const titleId = 'wallet-select-dialog-title';
+const titleId = "wallet-select-dialog-title";
 
 export const WalletSelectDialog = ({
     handleOpenInstall,
@@ -22,7 +22,7 @@ export const WalletSelectDialog = ({
 
     const handleClose = () => {
         onClose(null);
-    }
+    };
 
     return (
         <LargeDialog
@@ -35,7 +35,7 @@ export const WalletSelectDialog = ({
             <DialogTitle
                 id={titleId}
                 helpText={helpText}
-                title={'Installed Wallets'}
+                title={"Installed Wallets"}
                 onClose={handleClose}
             />
             <DialogContent>
@@ -46,21 +46,21 @@ export const WalletSelectDialog = ({
                             button
                             onClick={() => onClose(walletProvider)}
                         >
-                            <Typography variant="h6" textAlign="center" sx={{ marginLeft: 'auto', marginRight: '10px' }}>
+                            <Typography variant="h6" textAlign="center" sx={{ marginLeft: "auto", marginRight: "10px" }}>
                                 {name}
                             </Typography>
                             <Box sx={{
-                                marginRight: 'auto',
-                                width: '48px',
-                                height: '48px',
+                                marginRight: "auto",
+                                width: "48px",
+                                height: "48px",
                             }}>
-                                <img src={icon} alt={name} style={{ width: '100%', height: '100%' }} />
+                                <img src={icon} alt={name} style={{ width: "100%", height: "100%" }} />
                             </Box>
                         </ListItem>
                     ))}
                     {walletsInfo.length === 0 && (
                         <Typography variant="h6" textAlign="center">
-                            {t('NoWalletsInstalled')}
+                            {t("NoWalletsInstalled")}
                         </Typography>
                     )}
                     {/* Install new button */}
@@ -69,10 +69,10 @@ export const WalletSelectDialog = ({
                         fullWidth
                         onClick={handleOpenInstall}
                     >
-                        {t('InstallWallet')}
+                        {t("InstallWallet")}
                     </Button>
                 </Stack>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

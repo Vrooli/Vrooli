@@ -1,7 +1,7 @@
 const Order = {
-    Asc: 'asc',
-    Desc: 'desc',
-} as const
+    Asc: "asc",
+    Desc: "desc",
+} as const;
 
 /**
  * Maps any object's sortBy enum to a partial Prisma query. 
@@ -43,10 +43,6 @@ export const SortMap = {
     DirectoryListingsDesc: { directoryListings: { _count: Order.Desc } },
     EndTimeAsc: { endTime: Order.Asc },
     EndTimeDesc: { endTime: Order.Desc },
-    EventStartAsc: { eventStart: Order.Asc },
-    EventStartDesc: { eventStart: Order.Desc },
-    EventEndAsc: { eventEnd: Order.Asc },
-    EventEndDesc: { eventEnd: Order.Desc },
     ForksAsc: { forks: { _count: Order.Asc } },
     ForksDesc: { forks: { _count: Order.Desc } },
     IndexAsc: { index: Order.Asc },
@@ -83,10 +79,6 @@ export const SortMap = {
     QuestionsDesc: { questions: { _count: Order.Desc } },
     QuizzesAsc: { quizzes: { _count: Order.Asc } },
     QuizzesDesc: { quizzes: { _count: Order.Desc } },
-    RecurrStartAsc: { recurrStart: Order.Asc },
-    RecurrStartDesc: { recurrStart: Order.Desc },
-    RecurrEndAsc: { recurrEnd: Order.Asc },
-    RecurrEndDesc: { recurrEnd: Order.Desc },
     ReportsAsc: { reports: { _count: Order.Asc } },
     ReportsDesc: { reports: { _count: Order.Desc } },
     RepostsAsc: { reposts: { _count: Order.Asc } },
@@ -123,4 +115,4 @@ export const SortMap = {
     WindowEndDesc: { windowEnd: Order.Desc },
     WindowStartAsc: { windowStart: Order.Asc },
     WindowStartDesc: { windowStart: Order.Desc },
-}
+};

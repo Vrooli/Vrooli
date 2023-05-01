@@ -1,17 +1,16 @@
-import { COOKIE } from '@shared/consts';
-import { uuidValidate } from '@shared/uuid';
-import { NextFunction, Request, Response } from 'express';
-import fs from 'fs';
-import jwt from 'jsonwebtoken';
-import { CustomError } from '../events/error';
-import { logger } from '../events/logger';
-import { ApiToken, BasicToken, RecursivePartial, SessionToken, SessionUserToken } from '../types';
-import { isSafeOrigin } from '../utils';
+import { COOKIE, uuidValidate } from "@local/shared";
+import { NextFunction, Request, Response } from "express";
+import fs from "fs";
+import jwt from "jsonwebtoken";
+import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
+import { ApiToken, BasicToken, RecursivePartial, SessionToken, SessionUserToken } from "../types";
+import { isSafeOrigin } from "../utils";
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
-const privateKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_priv.pem`, 'utf8');
-const publicKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_pub.pem`, 'utf8');
+const privateKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_priv.pem`, "utf8");
+const publicKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_pub.pem`, "utf8");
 
 /**
  * Parses a request's accept-language header
@@ -19,13 +18,13 @@ const publicKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_pub.pem`, 'utf
  * @returns A list of languages without any subtags
  */
 const parseAcceptLanguage = (req: Request): string[] => {
-    let acceptString = req.headers['accept-language'];
+    const acceptString = req.headers["accept-language"];
     // Default to english if not found or a wildcard
-    if (!acceptString || acceptString === '*') return ['en'];
+    if (!acceptString || acceptString === "*") return ["en"];
     // Strip q values
-    let acceptValues = acceptString.split(',').map((lang) => lang.split(';')[0]);
+    let acceptValues = acceptString.split(",").map((lang) => lang.split(";")[0]);
     // Remove subtags
-    acceptValues = acceptValues.map((lang) => lang.split('-')[0]);
+    acceptValues = acceptValues.map((lang) => lang.split("-")[0]);
     return acceptValues;
 };
 
@@ -51,29 +50,29 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         if (token === null || token === undefined) {
             // If from unsafe origin, deny access.
             let error: CustomError | undefined;
-            if (!req.fromSafeOrigin) error = new CustomError('0247', 'UnsafeOriginNoApiToken', req.languages);
+            if (!req.fromSafeOrigin) error = new CustomError("0247", "UnsafeOriginNoApiToken", req.languages);
             next(error);
             return;
         }
         // Verify that the session token is valid
-        jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
+        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
             try {
                 if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
                     // If from unsafe origin, deny access.
                     let error: CustomError | undefined;
-                    if (!req.fromSafeOrigin) error = new CustomError('0248', 'UnsafeOriginNoApiToken', req.languages);
+                    if (!req.fromSafeOrigin) error = new CustomError("0248", "UnsafeOriginNoApiToken", req.languages);
                     next(error);
                     return;
                 }
                 // Now, set token and role variables for other middleware to use
                 req.apiToken = payload.apiToken ?? false;
                 req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-                req.timeZone = payload.timeZone ?? 'UTC';
+                req.timeZone = payload.timeZone ?? "UTC";
                 // Users, but make sure they all have unique ids
                 req.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
                 // Find preferred languages for first user. Combine with languages in request header
                 if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
-                    let languages: string[] = req.users[0].languages
+                    let languages: string[] = req.users[0].languages;
                     languages.push(...req.languages);
                     languages = [...new Set(languages)];
                     req.languages = languages;
@@ -81,14 +80,14 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
                 req.validToken = true;
                 next();
             } catch (error) {
-                logger.error('Error verifying token', { trace: '0450', error });
+                logger.error("Error verifying token", { trace: "0450", error });
                 // Remove the cookie
                 res.clearCookie(COOKIE.Jwt);
                 next(error);
             }
-        })
+        });
     } catch (error) {
-        logger.error('Error authenticating request', { trace: '0451', error });
+        logger.error("Error authenticating request", { trace: "0451", error });
         next(error);
     }
 }
@@ -98,9 +97,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
  */
 const basicToken = (): BasicToken => ({
     iat: Date.now(),
-    iss: `https://vrooli.com/`,
+    iss: "https://vrooli.com/",
     exp: Date.now() + SESSION_MILLI,
-})
+});
 
 /**
  * Generates a JSON Web Token (JWT) for user authentication (including guest access).
@@ -111,7 +110,7 @@ const basicToken = (): BasicToken => ({
  */
 export async function generateSessionJwt(
     res: Response,
-    session: RecursivePartial<Pick<Request, 'isLoggedIn' | 'languages' | 'timeZone' | 'users'>>
+    session: RecursivePartial<Pick<Request, "isLoggedIn" | "languages" | "timeZone" | "users">>,
 ): Promise<void> {
     const tokenContents: SessionToken = {
         ...basicToken(),
@@ -131,13 +130,13 @@ export async function generateSessionJwt(
             hasPremium: user.hasPremium ?? false,
             languages: user.languages ?? [],
             name: user.name ?? undefined,
-        }])).values()]
-    }
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
+        }])).values()],
+    };
+    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
     res.cookie(COOKIE.Jwt, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: SESSION_MILLI
+        secure: process.env.NODE_ENV === "production",
+        maxAge: SESSION_MILLI,
     });
 }
 
@@ -151,12 +150,12 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<v
     const tokenContents: ApiToken = {
         ...basicToken(),
         apiToken,
-    }
-    const token = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
+    };
+    const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
     res.cookie(COOKIE.Jwt, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: SESSION_MILLI
+        secure: process.env.NODE_ENV === "production",
+        maxAge: SESSION_MILLI,
     });
 }
 
@@ -169,26 +168,26 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
     const { cookies } = req;
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
-        logger.error('❗️ No session token found', { trace: '0006' });
+        logger.error("❗️ No session token found", { trace: "0006" });
         return;
     }
-    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
+    jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            logger.error('❗️ Session token is invalid', { trace: '0008' });
+            logger.error("❗️ Session token is invalid", { trace: "0008" });
             return;
         }
         const tokenContents: SessionToken = {
             ...payload,
             timeZone,
-        }
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
+        };
+        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
         res.cookie(COOKIE.Jwt, newToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: process.env.NODE_ENV === "production",
             // Max age should be the same as the old token
             maxAge: payload.exp - Date.now(),
         });
-    })
+    });
 }
 
 /**
@@ -199,12 +198,12 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
     const { cookies } = req;
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
-        logger.error('❗️ No session token found', { trace: '0445' });
+        logger.error("❗️ No session token found", { trace: "0445" });
         return;
     }
-    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
+    jwt.verify(token, publicKey, { algorithms: ["RS256"] }, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            logger.error('❗️ Session token is invalid', { trace: '0447' });
+            logger.error("❗️ Session token is invalid", { trace: "0447" });
             return;
         }
         const tokenContents: SessionToken = {
@@ -222,17 +221,17 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
                     hasPremium: user.hasPremium ?? false,
                     languages: user.languages ?? [],
                     name: user.name ?? undefined,
-                }
+                },
             }, ...payload.users.slice(1)] : [],
-        }
-        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
+        };
+        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
         res.cookie(COOKIE.Jwt, newToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: process.env.NODE_ENV === "production",
             // Max age should be the same as the old token
             maxAge: payload.exp - Date.now(),
         });
-    })
+    });
 }
 
 /**
@@ -240,7 +239,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
  */
 export async function requireLoggedIn(req: Request, _: any, next: any) {
     let error: CustomError | undefined;
-    if (!req.isLoggedIn) error = new CustomError('0018', 'NotLoggedIn', req.languages);
+    if (!req.isLoggedIn) error = new CustomError("0018", "NotLoggedIn", req.languages);
     next(error);
 }
 
@@ -249,11 +248,11 @@ export async function requireLoggedIn(req: Request, _: any, next: any) {
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
-export const getUser = (req: { users?: Request['users'] }): SessionUserToken | null => {
+export const getUser = (req: { users?: Request["users"] }): SessionUserToken | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
     const user = req.users[0];
-    return typeof user.id === 'string' && uuidValidate(user.id) ? user : null;
-}
+    return typeof user.id === "string" && uuidValidate(user.id) ? user : null;
+};
 
 export type RequestConditions = {
     /**
@@ -289,20 +288,20 @@ export const assertRequestFrom = <Conditions extends RequestConditions>(req: Req
     // Check isApiRoot condition
     if (conditions.isApiRoot !== undefined) {
         const isApiRoot = hasApiToken && !hasUserData;
-        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError('0265', 'MustUseApiToken', req.languages);
-        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError('0266', 'MustNotUseApiToken', req.languages);
+        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError("0265", "MustUseApiToken", req.languages);
+        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError("0266", "MustNotUseApiToken", req.languages);
     }
     // Check isUser condition
     if (conditions.isUser !== undefined) {
-        const isUser = hasUserData && (hasApiToken || req.fromSafeOrigin === true)
-        if (conditions.isUser === true && !isUser) throw new CustomError('0267', 'NotLoggedIn', req.languages);
-        if (conditions.isUser === false && isUser) throw new CustomError('0268', 'NotLoggedIn', req.languages);
+        const isUser = hasUserData && (hasApiToken || req.fromSafeOrigin === true);
+        if (conditions.isUser === true && !isUser) throw new CustomError("0267", "NotLoggedIn", req.languages);
+        if (conditions.isUser === false && isUser) throw new CustomError("0268", "NotLoggedIn", req.languages);
     }
     // Check isOfficialUser condition
     if (conditions.isOfficialUser !== undefined) {
         const isOfficialUser = hasUserData && !hasApiToken && req.fromSafeOrigin === true;
-        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError('0269', 'NotLoggedInOfficial', req.languages);
-        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError('0270', 'NotLoggedInOfficial', req.languages);
+        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError("0269", "NotLoggedInOfficial", req.languages);
+        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError("0270", "NotLoggedInOfficial", req.languages);
     }
     return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
-}
+};

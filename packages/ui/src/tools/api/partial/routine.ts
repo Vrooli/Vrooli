@@ -1,9 +1,9 @@
-import { Routine, RoutineYou } from "@shared/consts";
+import { Routine, RoutineYou } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 
 export const routineYou: GqlPartial<RoutineYou> = {
-    __typename: 'RoutineYou',
+    __typename: "RoutineYou",
     common: {
         canComment: true,
         canDelete: true,
@@ -17,16 +17,16 @@ export const routineYou: GqlPartial<RoutineYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const routine: GqlPartial<Routine> = {
-    __typename: 'Routine',
+    __typename: "Routine",
     common: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'nav'),
-            1: async () => rel((await import('./user')).user, 'nav'),
-            2: async () => rel((await import('./tag')).tag, 'list'),
-            3: async () => rel((await import('./label')).label, 'list'),
+            0: async () => rel((await import("./organization")).organization, "nav"),
+            1: async () => rel((await import("./user")).user, "nav"),
+            2: async () => rel((await import("./tag")).tag, "list"),
+            3: async () => rel((await import("./label")).label, "list"),
         },
         id: true,
         created_at: true,
@@ -39,7 +39,7 @@ export const routine: GqlPartial<Routine> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -48,19 +48,19 @@ export const routine: GqlPartial<Routine> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => rel(routineYou, 'full'),
+        you: () => rel(routineYou, "full"),
     },
     full: {
-        parent: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
-        versions: async () => rel((await import('./routineVersion')).routineVersion, 'full', { omit: 'root' }),
-        stats: async () => rel((await import('./statsRoutine')).statsRoutine, 'full'),
+        parent: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
+        versions: async () => rel((await import("./routineVersion")).routineVersion, "full", { omit: "root" }),
+        stats: async () => rel((await import("./statsRoutine")).statsRoutine, "full"),
     },
     list: {
-        versions: async () => rel((await import('./routineVersion')).routineVersion, 'list', { omit: 'root' }),
+        versions: async () => rel((await import("./routineVersion")).routineVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,
         isInternal: true,
         isPrivate: true,
-    }
-}
+    },
+};

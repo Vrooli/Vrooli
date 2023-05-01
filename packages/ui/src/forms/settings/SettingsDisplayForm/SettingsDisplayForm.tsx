@@ -25,21 +25,21 @@ export const SettingsDisplayForm = ({
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
             <Subheader
-                help={t('DisplayAccountHelp')}
-                title={t('DisplayAccount')} />
+                help={t("DisplayAccountHelp")}
+                title={t("DisplayAccount")} />
             <Stack direction="column" spacing={2} p={1}>
                 <LanguageSelector />
                 <FocusModeSelector />
             </Stack>
             <Subheader
-                help={t('DisplayDeviceHelp')}
-                title={t('DisplayDevice')} />
+                help={t("DisplayDeviceHelp")}
+                title={t("DisplayDevice")} />
             <Stack direction="column" spacing={2} p={1}>
                 <ThemeSwitch />
                 <TextSizeButtons />
@@ -55,5 +55,5 @@ export const SettingsDisplayForm = ({
                 onSubmit={props.handleSubmit}
             />
         </BaseForm>
-    )
-}
+    );
+};

@@ -1,8 +1,8 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSortBy } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { FindManyResult, GQLEndpoint } from '../types';
+import { Award, AwardCategory, AwardSearchInput, AwardSortBy } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { FindManyResult, GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum AwardSortBy {
@@ -74,9 +74,9 @@ export const typeDef = gql`
     extend type Query {
         awards(input: AwardSearchInput!): AwardSearchResult!
     }
-`
+`;
 
-const objectType = 'Award';
+const objectType = "Award";
 export const resolvers: {
     AwardCategory: typeof AwardCategory;
     AwardSortBy: typeof AwardSortBy;
@@ -92,4 +92,4 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
-}
+};

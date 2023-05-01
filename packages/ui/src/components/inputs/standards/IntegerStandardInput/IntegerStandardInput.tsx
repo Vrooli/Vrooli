@@ -1,7 +1,7 @@
-import { Grid } from '@mui/material';
-import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
-import { useTranslation } from 'react-i18next';
-import { IntegerStandardInputProps } from '../types';
+import { Grid } from "@mui/material";
+import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
+import { useTranslation } from "react-i18next";
+import { IntegerStandardInputProps } from "../types";
 
 /**
  * Input for entering (and viewing format of) IntegerInput data that 
@@ -17,7 +17,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
-                    label={t('DefaultValue')}
+                    label={t("DefaultValue")}
                     name="defaultValue"
                     tooltip="The default value of the input"
                 />
@@ -25,7 +25,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
-                    label={t('Min')}
+                    label={t("Min")}
                     name="min"
                     tooltip="The minimum value of the integer"
                 />
@@ -33,7 +33,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
-                    label={t('Max')}
+                    label={t("Max")}
                     name="max"
                     tooltip="The maximum value of the integer"
                 />
@@ -41,11 +41,11 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
-                    label={t('Step')}
+                    label={t("Step")}
                     name="step"
                     tooltip="How much to increment/decrement by"
                 />
             </Grid>
         </Grid>
     );
-}
+};

@@ -1,7 +1,6 @@
+import { LINKS, useLocation } from "@local/shared";
 import { Box } from "@mui/material";
-import { LINKS } from "@shared/consts";
-import { useLocation } from "@shared/route";
-import termsMarkdown from 'assets/policy/terms.md';
+import termsMarkdown from "assets/policy/terms.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -17,7 +16,7 @@ enum TabOptions {
 }
 
 export const TermsView = ({
-    display = 'page',
+    display = "page",
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -29,7 +28,7 @@ export const TermsView = ({
         label: t(option as TabOptions),
         value: option as TabOptions,
     })), [t]);
-    const currTab = useMemo(() => tabs[1], [tabs])
+    const currTab = useMemo(() => tabs[1], [tabs]);
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
         setLocation(LINKS[tab.value], { replace: true });
@@ -40,7 +39,7 @@ export const TermsView = ({
             display={display}
             onClose={() => { }}
             titleData={{
-                titleKey: 'Terms',
+                titleKey: "Terms",
             }}
             below={<PageTabs
                 ariaLabel="privacy policy and terms tabs"

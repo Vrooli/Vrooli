@@ -1,8 +1,7 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
+import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, reportResponseValidation, ReportResponseYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou} from "@shared/consts";
-import { reportResponseValidation } from "@shared/validation";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
@@ -11,8 +10,8 @@ import { getSingleTypePermissions } from "../validators";
 import { ReportModel } from "./report";
 import { ModelLogic } from "./types";
 
-const __typename = 'ReportResponse' as const;
-type Permissions = Pick<ReportResponseYou, 'canDelete' | 'canUpdate'>;
+const __typename = "ReportResponse" as const;
+type Permissions = Pick<ReportResponseYou, "canDelete" | "canUpdate">;
 const suppFields = [] as const;
 export const ReportResponseModel: ModelLogic<{
     IsTransferable: false,
@@ -23,8 +22,8 @@ export const ReportResponseModel: ModelLogic<{
     GqlSearch: ReportResponseSearchInput,
     GqlSort: ReportResponseSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.report_responseUpsertArgs['create'],
-    PrismaUpdate: Prisma.report_responseUpsertArgs['update'],
+    PrismaCreate: Prisma.report_responseUpsertArgs["create"],
+    PrismaUpdate: Prisma.report_responseUpsertArgs["update"],
     PrismaModel: Prisma.report_responseGetPayload<SelectWrap<Prisma.report_responseSelect>>,
     PrismaSelect: Prisma.report_responseSelect,
     PrismaWhere: Prisma.report_responseWhereInput,
@@ -36,27 +35,27 @@ export const ReportResponseModel: ModelLogic<{
             id: true,
             report: selPad(ReportModel.display.select),
         }),
-        label: (select, languages) => i18next.t('common:ReportResponseLabel', { report: ReportModel.display.label(select.report as any, languages) }),
+        label: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label(select.report as any, languages) }),
     },
     format: {
-        gqlRelMap: { 
+        gqlRelMap: {
             __typename,
-            report: 'Report',
+            report: "Report",
         },
-        prismaRelMap: { 
+        prismaRelMap: {
             __typename,
-            report: 'Report',
+            report: "Report",
         },
-        hiddenFields: ['createdById'], // Always hide report creator
+        hiddenFields: ["createdById"], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['createdById'],
+            dbFields: ["createdById"],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
         countFields: {
@@ -71,7 +70,7 @@ export const ReportResponseModel: ModelLogic<{
                 details: noNull(data.details),
                 language: noNull(data.language),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'report', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Report', parentRelationshipName: 'responses', data, ...rest })),
+                ...(await shapeHelper({ relation: "report", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Report", parentRelationshipName: "responses", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 actionSuggested: noNull(data.actionSuggested),
@@ -83,4 +82,4 @@ export const ReportResponseModel: ModelLogic<{
     },
     search: {} as any,
     validate: {} as any,
-})
+});

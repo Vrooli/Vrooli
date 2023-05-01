@@ -1,6 +1,4 @@
-import { Session } from "@shared/consts";
-import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
-import { getReactionScore } from "@shared/utils";
+import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, getReactionScore, ReplyIcon, ReportIcon, SearchIcon, Session, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getYou, ListObjectType } from "utils/display/listTools";
@@ -9,9 +7,9 @@ import { getYou, ListObjectType } from "utils/display/listTools";
  * All available actions an object can possibly have
  */
 export enum ObjectAction {
-    Bookmark = 'Bookmark',
-    BookmarkUndo = 'BookmarkUndo',
-    Comment = 'Comment',
+    Bookmark = "Bookmark",
+    BookmarkUndo = "BookmarkUndo",
+    Comment = "Comment",
     Delete = "Delete",
     Donate = "Donate",
     Edit = "Edit",
@@ -29,15 +27,15 @@ export enum ObjectAction {
  * Basically any action that requires updating state or navigating to a new page.
  */
 export enum ObjectActionComplete {
-    Bookmark = 'Bookmark',
-    BookmarkUndo = 'BookmarkUndo',
-    Delete = 'Delete',
-    EditComplete = 'EditComplete',
-    EditCancel = 'EditCanel',
-    Fork = 'Fork',
-    Report = 'Report',
-    VoteDown = 'VoteDown',
-    VoteUp = 'VoteUp',
+    Bookmark = "Bookmark",
+    BookmarkUndo = "BookmarkUndo",
+    Delete = "Delete",
+    EditComplete = "EditComplete",
+    EditCancel = "EditCanel",
+    Fork = "Fork",
+    Report = "Report",
+    VoteDown = "VoteDown",
+    VoteUp = "VoteUp",
 }
 
 /**
@@ -49,9 +47,9 @@ export enum ObjectActionComplete {
  */
 export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
-    console.log('action getavailableactions', session)
+    console.log("action getavailableactions", session);
     const isLoggedIn = checkIfLoggedIn(session);
-    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object)
+    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object);
     let options: ObjectAction[] = [];
     // Check edit
     if (isLoggedIn && canUpdate) {
@@ -96,30 +94,30 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
         options = options.filter((action) => !exclude.includes(action));
     }
     return options;
-}
+};
 
 /**
  * Maps an ObjectAction to [label, Icon, iconColor, preview]
  */
 const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
-    [ObjectAction.Bookmark]: ['Bookmark', BookmarkOutlineIcon, "#cbae30", false],
-    [ObjectAction.BookmarkUndo]: ['Unstar', BookmarkFilledIcon, "#cbae30", false],
-    [ObjectAction.Comment]: ['Comment', ReplyIcon, 'default', false],
-    [ObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
-    [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
-    [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],
-    [ObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
-    [ObjectAction.Fork]: ['Fork', BranchIcon, "default", false],
-    [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
-    [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
-    [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
-    [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
-})
+    [ObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
+    [ObjectAction.BookmarkUndo]: ["Unstar", BookmarkFilledIcon, "#cbae30", false],
+    [ObjectAction.Comment]: ["Comment", ReplyIcon, "default", false],
+    [ObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],
+    [ObjectAction.Donate]: ["Donate", DonateIcon, "default", true],
+    [ObjectAction.Edit]: ["Edit", EditIcon, "default", false],
+    [ObjectAction.FindInPage]: ["Find...", SearchIcon, "default", false],
+    [ObjectAction.Fork]: ["Fork", BranchIcon, "default", false],
+    [ObjectAction.Report]: ["Report", ReportIcon, "default", false],
+    [ObjectAction.Share]: ["Share", ShareIcon, "default", false],
+    [ObjectAction.Stats]: ["Stats", StatsIcon, "default", true],
+    [ObjectAction.VoteDown]: ["Downvote", DownvoteWideIcon, "default", false],
+    [ObjectAction.VoteUp]: ["Upvote", UpvoteWideIcon, "default", false],
+});
 
-export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<any>, 'Icon' | 'iconColor' | 'label' | 'preview' | 'value'>[] => {
+export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<any>, "Icon" | "iconColor" | "label" | "preview" | "value">[] => {
     return actions.map((action) => {
         const [label, Icon, iconColor, preview] = allOptionsMap[action];
         return { label, Icon, iconColor, preview, value: action };
     });
-}
+};

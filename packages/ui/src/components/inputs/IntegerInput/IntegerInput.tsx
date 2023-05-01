@@ -1,5 +1,5 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
-import { MinusIcon, PlusIcon } from "@shared/icons";
+import { MinusIcon, PlusIcon } from "@local/shared";
+import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from "formik";
 import { useCallback, useEffect, useRef } from "react";
@@ -7,8 +7,8 @@ import { IntegerInputProps } from "../types";
 
 const buttonProps = {
     minWidth: 30,
-    width: '20%',
-}
+    width: "20%",
+};
 
 // Time for a button press to become a hold
 const HOLD_DELAY = 750;
@@ -25,12 +25,12 @@ export const IntegerInput = ({
     disabled = false,
     key,
     initial = 0,
-    label = 'Number',
+    label = "Number",
     max = 2097151,
     min = -2097151,
     name,
     step = 1,
-    tooltip = '',
+    tooltip = "",
     ...props
 }: IntegerInputProps) => {
     const { palette } = useTheme();
@@ -41,10 +41,10 @@ export const IntegerInput = ({
         speed: 1,
         timeout: null,
         value: field.value,
-    })
+    });
     useEffect(() => {
-        holdRefs.current.value = field.value
-    }, [field.value])
+        holdRefs.current.value = field.value;
+    }, [field.value]);
 
     const updateValue = useCallback((quantity) => {
         if (quantity > max) quantity = max;
@@ -65,13 +65,13 @@ export const IntegerInput = ({
     }, [updateValue]);
 
     const handleMinusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 - step)
+        updateValue(holdRefs.current.value * 1 - step);
         holdRefs.current.which = false;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
 
     const handlePlusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 + step)
+        updateValue(holdRefs.current.value * 1 + step);
         holdRefs.current.which = true;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
@@ -80,13 +80,13 @@ export const IntegerInput = ({
         if (holdRefs.current.timeout) clearTimeout(holdRefs.current.timeout);
         holdRefs.current.which = null;
         holdRefs.current.speed = 1;
-    }
+    };
 
     return (
         <Tooltip title={tooltip}>
             <Box key={key} {...props} sx={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
                 ...props?.sx ?? {},
             }}>
                 <ColorIconButton
@@ -100,26 +100,26 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
-                        borderRadius: '5px 0 0 5px',
-                        maxWidth: '48px',
+                        borderRadius: "5px 0 0 5px",
+                        maxWidth: "48px",
                     }}>
                     <MinusIcon />
                 </ColorIconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
-                    width: '60%',
-                    maxWidth: `12ch`,
-                    height: '100%',
-                    display: 'grid',
+                    width: "60%",
+                    maxWidth: "12ch",
+                    height: "100%",
+                    display: "grid",
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
                         display: "none",
-                    }
+                    },
                 }} error={meta.touched && !!meta.error}>
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
                         sx={{
                             color: palette.background.textSecondary,
-                            paddingTop: '10px'
+                            paddingTop: "10px",
                         }}
                     >{label}</InputLabel>
                     <Input
@@ -154,12 +154,12 @@ export const IntegerInput = ({
                     onContextMenu={(e) => e.preventDefault()}
                     sx={{
                         ...buttonProps,
-                        borderRadius: '0 5px 5px 0',
-                        maxWidth: '48px',
+                        borderRadius: "0 5px 5px 0",
+                        maxWidth: "48px",
                     }}>
                     <PlusIcon />
                 </ColorIconButton>
             </Box>
         </Tooltip>
     );
-}
+};

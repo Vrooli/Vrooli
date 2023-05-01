@@ -1,7 +1,5 @@
+import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkFor, FindVersionInput, SmartContractVersion } from "@shared/consts";
-import { EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -19,7 +17,7 @@ import { SessionContext } from "utils/SessionContext";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: SmartContractViewProps) => {
@@ -62,7 +60,7 @@ export const SmartContractView = ({
 
     const actionData = useObjectActions({
         object: smartContractVersion,
-        objectType: 'SmartContractVersion',
+        objectType: "SmartContractVersion",
         setLocation,
         setObject: setSmartContractVersion,
     });
@@ -78,14 +76,14 @@ export const SmartContractView = ({
             mt={3}
             bgcolor={palette.background.paper}
             sx={{
-                borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: 12 },
-                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+                borderRadius: { xs: "0", sm: 2 },
+                boxShadow: { xs: "none", sm: 12 },
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
+                width={"min(100px, 25vw)"}
+                height={"min(100px, 25vw)"}
                 borderRadius='100%'
                 position='absolute'
                 display='flex'
@@ -94,9 +92,9 @@ export const SmartContractView = ({
                 left='50%'
                 top="-55px"
                 sx={{
-                    border: `1px solid black`,
+                    border: "1px solid black",
                     backgroundColor: profileColors[0],
-                    transform: 'translateX(-50%)',
+                    transform: "translateX(-50%)",
                 }}
             >
                 <SmartContractIcon fill={profileColors[1]} width='80%' height='80%' />
@@ -107,8 +105,8 @@ export const SmartContractView = ({
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
-                        display: 'block',
-                        marginLeft: 'auto',
+                        display: "block",
+                        marginLeft: "auto",
                         marginRight: 1,
                     }}
                 >
@@ -119,7 +117,7 @@ export const SmartContractView = ({
                 {/* Title */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : permissions.canUpdate ? (
@@ -129,7 +127,7 @@ export const SmartContractView = ({
                                 <IconButton
                                     aria-label="Edit smartContractVersion"
                                     size="small"
-                                    onClick={() => actionData.onActionStart('Edit')}
+                                    onClick={() => actionData.onActionStart("Edit")}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -150,12 +148,12 @@ export const SmartContractView = ({
                 {/* Bio */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? 'No description set'}</Typography>
+                        <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? "No description set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -163,11 +161,12 @@ export const SmartContractView = ({
                     <ReportsLink object={smartContractVersion} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        objectId={smartContractVersion?.id ?? ''}
+                        objectId={smartContractVersion?.id ?? ""}
                         bookmarkFor={BookmarkFor.SmartContract}
                         isBookmarked={smartContractVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={smartContractVersion?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
@@ -180,7 +179,7 @@ export const SmartContractView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'SmartContract',
+                    titleKey: "SmartContract",
                 }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -192,15 +191,15 @@ export const SmartContractView = ({
                 zIndex={zIndex + 1}
             />
             <Box sx={{
-                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
-                display: 'flex',
+                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                display: "flex",
                 paddingTop: 5,
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
                 position: "relative",
             }}>
                 {/* Language display/select */}
                 <Box sx={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 8,
                     right: 8,
                 }}>
@@ -215,5 +214,5 @@ export const SmartContractView = ({
             </Box>
             {/* TODO */}
         </>
-    )
-}
+    );
+};

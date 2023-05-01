@@ -1,16 +1,15 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { AddIcon } from '@shared/icons';
-import { uuid } from '@shared/uuid';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
-import { useTranslation } from 'react-i18next';
-import { updateArray } from 'utils/shape/general';
-import { RoutineVersionInputShape } from 'utils/shape/models/routineVersionInput';
-import { RoutineVersionOutputShape } from 'utils/shape/models/routineVersionOutput';
-import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { InputOutputContainerProps } from '../types';
+import { AddIcon, uuid } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { useTranslation } from "react-i18next";
+import { updateArray } from "utils/shape/general";
+import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
+import { InputOutputListItem } from "../InputOutputListItem/InputOutputListItem";
+import { InputOutputContainerProps } from "../types";
 
 interface AddButtonProps {
     index: number;
@@ -23,26 +22,26 @@ interface AddButtonProps {
 const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
     <Tooltip placement="top" title="Add">
         <ColorIconButton
-            id={`add-${isInput ? 'input' : 'output'}-item-${index}`}
+            id={`add-${isInput ? "input" : "output"}-item-${index}`}
             color="inherit"
             onClick={() => handleAdd(index, {} as any)}
             aria-label="add item"
             background="#6daf72"
             sx={{
                 zIndex: 1,
-                width: 'fit-content',
-                margin: '5px auto !important',
-                padding: '0',
-                marginBottom: '16px !important',
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: '100%',
+                width: "fit-content",
+                margin: "5px auto !important",
+                padding: "0",
+                marginBottom: "16px !important",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "100%",
             }}
         >
             <AddIcon fill='white' />
         </ColorIconButton>
     </Tooltip>
-)
+);
 
 export const InputOutputContainer = ({
     handleUpdate,
@@ -61,7 +60,7 @@ export const InputOutputContainer = ({
         //return list.sort((a, b) => a. - b.index);
     }, [list]);
 
-    const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
+    const type = useMemo(() => isInput ? "input" : "output", [isInput]);
     // Store open/close state of each sortedList item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
@@ -89,15 +88,15 @@ export const InputOutputContainer = ({
         newIsOpenArray[Math.min(index + 1, sortedList.length)] = true;
         setIsOpenArray(newIsOpenArray);
         const newList = [...sortedList];
-        let newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
+        const newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
             ...newItem,
             id: uuid(),
-            name: newItem.name || t(`${isInput ? 'Input' : 'Output'}NameDefault`, { number: sortedList.length + 1 }),
+            name: newItem.name || t(`${isInput ? "Input" : "Output"}NameDefault`, { number: sortedList.length + 1 }),
             standardVersion: newItem.standardVersion || null,
             translations: newItem.translations ? newItem.translations : [{
                 id: uuid(),
                 language,
-                description: ''
+                description: "",
             }] as any,
         };
         if (isInput && (newItem as RoutineVersionInputShape).isRequired !== true && (newItem as RoutineVersionInputShape).isRequired !== false) (newItemFormatted as RoutineVersionInputShape).isRequired = true;
@@ -132,12 +131,12 @@ export const InputOutputContainer = ({
             <DragDropContext onDragEnd={onDragEnd}>
                 <ContentCollapse
                     id={`${type}-container`}
-                    helpText={t(`${isInput ? 'Input' : 'Output'}ContainerHelp`)}
-                    title={isInput ? 'Inputs' : 'Outputs'}
+                    helpText={t(`${isInput ? "Input" : "Output"}ContainerHelp`)}
+                    title={isInput ? "Inputs" : "Outputs"}
                     sxs={{
                         titleContainer: {
-                            display: 'flex',
-                            justifyContent: 'center'
+                            display: "flex",
+                            justifyContent: "center",
                         },
                         root: {
                             background: palette.primary.dark,
@@ -145,8 +144,8 @@ export const InputOutputContainer = ({
                             boxShadow: 2,
                             borderRadius: 2,
                             padding: 0,
-                            overflow: 'overlay',
-                        }
+                            overflow: "overlay",
+                        },
                     }}
                 >
                     <Droppable droppableId="inputOutputItems">
@@ -200,5 +199,5 @@ export const InputOutputContainer = ({
                 </ContentCollapse>
             </DragDropContext>
         </>
-    )
-}
+    );
+};

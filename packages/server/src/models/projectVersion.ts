@@ -1,6 +1,5 @@
+import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, projectVersionValidation, VersionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, VersionYou } from '@shared/consts';
-import { projectVersionValidation } from "@shared/validation";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -10,9 +9,9 @@ import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
 import { ModelLogic } from "./types";
 
-const __typename = 'ProjectVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
-const suppFields = ['you'] as const;
+const __typename = "ProjectVersion" as const;
+type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
+const suppFields = ["you"] as const;
 export const ProjectVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -22,8 +21,8 @@ export const ProjectVersionModel: ModelLogic<{
     GqlSearch: ProjectVersionSearchInput,
     GqlSort: ProjectVersionSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.project_versionUpsertArgs['create'],
-    PrismaUpdate: Prisma.project_versionUpsertArgs['update'],
+    PrismaCreate: Prisma.project_versionUpsertArgs["create"],
+    PrismaUpdate: Prisma.project_versionUpsertArgs["update"],
     PrismaModel: Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>,
     PrismaSelect: Prisma.project_versionSelect,
     PrismaWhere: Prisma.project_versionWhereInput,
@@ -32,35 +31,35 @@ export const ProjectVersionModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.project_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            comments: 'Comment',
-            directories: 'ProjectVersionDirectory',
-            directoryListings: 'ProjectVersionDirectory',
-            forks: 'Project',
-            pullRequest: 'PullRequest',
-            reports: 'Report',
-            root: 'Project',
+            comments: "Comment",
+            directories: "ProjectVersionDirectory",
+            directoryListings: "ProjectVersionDirectory",
+            forks: "Project",
+            pullRequest: "PullRequest",
+            reports: "Report",
+            root: "Project",
             // 'runs.project': 'RunProject', //TODO
         },
         prismaRelMap: {
             __typename,
-            comments: 'Comment',
-            directories: 'ProjectVersionDirectory',
-            directoryListings: 'ProjectVersionDirectory',
-            pullRequest: 'PullRequest',
-            reports: 'Report',
-            resourceList: 'ResourceList',
-            root: 'Project',
-            forks: 'Project',
-            runProjects: 'RunProject',
-            suggestedNextByProject: 'ProjectVersion',
+            comments: "Comment",
+            directories: "ProjectVersionDirectory",
+            directoryListings: "ProjectVersionDirectory",
+            pullRequest: "PullRequest",
+            reports: "Report",
+            resourceList: "ResourceList",
+            root: "Project",
+            forks: "Project",
+            runProjects: "RunProject",
+            suggestedNextByProject: "ProjectVersion",
         },
         joinMap: {
-            suggestedNextByProject: 'toProjectVersion',
+            suggestedNextByProject: "toProjectVersion",
         },
         countFields: {
             commentsCount: true,
@@ -80,17 +79,17 @@ export const ProjectVersionModel: ModelLogic<{
                     // can associate runs with their project
                     const runPartial: PartialGraphQLInfo = {
                         ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
-                        projectVersionId: true
-                    }
+                        projectVersionId: true,
+                    };
                     // Query runs made by user
                     let runs: any[] = await prisma.run_project.findMany({
                         where: {
                             AND: [
                                 { projectVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userData.id } }
-                            ]
+                                { user: { id: userData.id } },
+                            ],
                         },
-                        ...selectHelper(runPartial)
+                        ...selectHelper(runPartial),
                     });
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGql(r, runPartial));
@@ -104,10 +103,10 @@ export const ProjectVersionModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         runs: await runs(),
-                    }
-                }
+                    },
+                };
             },
-        }
+        },
     },
     mutate: {
         shape: {
@@ -121,7 +120,7 @@ export const ProjectVersionModel: ModelLogic<{
                     userData,
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
+                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -129,23 +128,23 @@ export const ProjectVersionModel: ModelLogic<{
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directories', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directories', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
+                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
+                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });
-            }
+            },
         },
         yup: projectVersionValidation,
     },
@@ -162,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<{
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
     //         const partial = toPartialGqlInfo(info, {
-    //             __typename: 'ProjectVersionContentsSearchResult',
+    //             __typename: "ProjectVersionContentsSearchResult",
     //             meetings: 'Meeting',
     //             notes: 'Note',
     //             reminders: 'Reminder',
@@ -180,8 +179,10 @@ export const ProjectVersionModel: ModelLogic<{
     //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
     //             }
     //         }
+    // Create query for visibility
+    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: input.visibility ?? VisibilityType.Public });
     //         // Combine queries
-    //         const where = combineQueries([searchQuery, ...customQueries]);
+    //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
     //         // Make sure sort field is valid
     //         const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
@@ -200,7 +201,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         });
     //         // If there are no results
     //         if (searchResults.length === 0) return {
-    //             __typename: 'CommentSearchResult' as const,
+    //             __typename: "CommentSearchResult" as const,
     //             totalThreads: 0,
     //             threads: [],
     //         }
@@ -240,7 +241,7 @@ export const ProjectVersionModel: ModelLogic<{
     //                 const children = shapeThreads(thread.childThreads);
     //                 // Add thread to result
     //                 result.push({
-    //                     __typename: 'CommentThread' as const,
+    //                     __typename: "CommentThread" as const,
     //                     comment,
     //                     childThreads: children,
     //                     endCursor: thread.endCursor,
@@ -252,7 +253,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         const threads = shapeThreads(childThreads);
     //         // Return result
     //         return {
-    //             __typename: 'CommentSearchResult' as const,
+    //             __typename: "CommentSearchResult" as const,
     //             totalThreads: totalInThread,
     //             threads,
     //             endCursor,
@@ -287,15 +288,14 @@ export const ProjectVersionModel: ModelLogic<{
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'transNameWrapped',
-                { root: 'tagsWrapped' },
-                { root: 'labelsWrapped' },
-            ]
+                "transDescriptionWrapped",
+                "transNameWrapped",
+                { root: "tagsWrapped" },
+                { root: "labelsWrapped" },
+            ],
         }),
     },
     validate: {
@@ -310,7 +310,7 @@ export const ProjectVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: ['Project', ['versions']],
+            root: ["Project", ["versions"]],
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
@@ -320,7 +320,7 @@ export const ProjectVersionModel: ModelLogic<{
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
-                ]
+                ],
             },
             public: {
                 isDeleted: false,
@@ -328,11 +328,11 @@ export const ProjectVersionModel: ModelLogic<{
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },
-                ]
+                ],
             },
             owner: (userId) => ({
                 root: ProjectModel.validate!.visibility.owner(userId),
             }),
         },
     },
-})
+});

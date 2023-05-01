@@ -1,10 +1,9 @@
-import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
-import { LINKS } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { accountSettingsData, displaySettingsData } from 'views/settings';
+import { LINKS, useLocation } from "@local/shared";
+import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { accountSettingsData, displaySettingsData } from "views/settings";
 
 export const SettingsList = () => {
     const { breakpoints, palette } = useTheme();
@@ -27,8 +26,8 @@ export const SettingsList = () => {
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{
-                    transition: 'brightness 0.2s ease-in-out',
-                    background: isSelected(link) ? palette.primary.main : 'transparent',
+                    transition: "brightness 0.2s ease-in-out",
+                    background: isSelected(link) ? palette.primary.main : "transparent",
                     color: isSelected(link) ? palette.primary.contrastText : palette.background.textPrimary,
                 }}
             >
@@ -37,7 +36,7 @@ export const SettingsList = () => {
                 </ListItemIcon>
                 <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
-        ))
+        ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
 
     const [displayListOpen, setDisplayListOpen] = useState(false);
@@ -50,8 +49,8 @@ export const SettingsList = () => {
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{
-                    transition: 'brightness 0.2s ease-in-out',
-                    background: isSelected(link) ? palette.primary.main : 'transparent',
+                    transition: "brightness 0.2s ease-in-out",
+                    background: isSelected(link) ? palette.primary.main : "transparent",
                     color: isSelected(link) ? palette.primary.contrastText : palette.background.textPrimary,
                 }}
             >
@@ -60,7 +59,7 @@ export const SettingsList = () => {
                 </ListItemIcon>
                 <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
-        ))
+        ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
 
 
@@ -68,26 +67,26 @@ export const SettingsList = () => {
     return (
         // Full width on mobile, and 500px on desktop. 
         <Box sx={{
-            width: 'min(100%, 300px)',
-            marginLeft: 'auto',
-            borderRight: { xs: 'none', md: '1px solid' },
+            width: "min(100%, 300px)",
+            marginLeft: "auto",
+            borderRight: { xs: "none", md: "1px solid" },
         }}>
             <List>
                 {/* Account-related items */}
                 <ListItem onClick={toggleAccountList}>
-                    <ListItemText primary={t(`Account`)} />
+                    <ListItemText primary={t("Account")} />
                 </ListItem>
                 <List component="div">
                     {accountList}
                 </List>
                 {/* Display-related items */}
                 <ListItem onClick={toggleDisplayList}>
-                    <ListItemText primary={t(`Display`)} />
+                    <ListItemText primary={t("Display")} />
                 </ListItem>
                 <List component="div">
                     {displayList}
                 </List>
             </List>
         </Box>
-    )
-}
+    );
+};

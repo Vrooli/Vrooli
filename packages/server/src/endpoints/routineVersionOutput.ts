@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input RoutineVersionOutputCreateInput {
@@ -48,9 +48,9 @@ export const typeDef = gql`
         description: String
         helpText: String
     }
-`
+`;
 
-const objectType = 'RoutineVersionOutput';
+const objectType = "RoutineVersionOutput";
 export const resolvers: {
 } = {
-}
+};

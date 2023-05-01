@@ -5,18 +5,18 @@
  * each have their own cron job. These are used to calculate line graphs on the frontend, 
  * by combining all matching period rows within a periodStart and periodEnd.
  */
-import cron from 'node-cron';
-import { logger } from '../../events';
-import { PeriodType } from '@prisma/client';
-import { logApiStats } from './api';
-import { logOrganizationStats } from './organization';
-import { logProjectStats } from './project';
-import { logQuizStats } from './quiz';
-import { logRoutineStats } from './routine';
-import { logSiteStats } from './site';
-import { logSmartContractStats } from './smartContract';
-import { logStandardStats } from './standard';
-import { logUserStats } from './user';
+import { PeriodType } from "@prisma/client";
+import cron from "node-cron";
+import { logger } from "../../events";
+import { logApiStats } from "./api";
+import { logOrganizationStats } from "./organization";
+import { logProjectStats } from "./project";
+import { logQuizStats } from "./quiz";
+import { logRoutineStats } from "./routine";
+import { logSiteStats } from "./site";
+import { logSmartContractStats } from "./smartContract";
+import { logStandardStats } from "./standard";
+import { logUserStats } from "./user";
 
 
 /**
@@ -59,23 +59,23 @@ export const periodCron = {
     /**
      * Hourly, at minute 3
      */
-    [PeriodType.Hourly]: '3 * * * *',
+    [PeriodType.Hourly]: "3 * * * *",
     /**
      * Daily, at 5:07am (UTC)
      */
-    [PeriodType.Daily]: '7 5 * * *',
+    [PeriodType.Daily]: "7 5 * * *",
     /**
      * Weekly, at 5:11am (UTC) on Sunday
      */
-    [PeriodType.Weekly]: '11 5 * * 0',
+    [PeriodType.Weekly]: "11 5 * * 0",
     /**
      * Monthly, at 5:17am (UTC) on the 1st
      */
-    [PeriodType.Monthly]: '17 5 1 * *',
+    [PeriodType.Monthly]: "17 5 1 * *",
     /**
      * Yearly, at 5:21am (UTC) on January 1st
      */
-    [PeriodType.Yearly]: '21 5 1 1 *',
+    [PeriodType.Yearly]: "21 5 1 1 *",
 } as const;
 
 /**
@@ -84,12 +84,12 @@ export const periodCron = {
  * See https://crontab.guru/ for more information on cron jobs.
  */
 export const initStatsCronJobs = () => {
-    logger.info('Initializing stats cron jobs.', { trace: '0209' });
+    logger.info("Initializing stats cron jobs.", { trace: "0209" });
     try {
         // Start cron for each period
         for (const [period, schedule] of Object.entries(periodCron)) {
             cron.schedule(schedule, () => {
-                logger.info(`Starting ${period} stats cron job.`, { trace: '0216' });
+                logger.info(`Starting ${period} stats cron job.`, { trace: "0216" });
                 // Find start and end of period
                 const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
                 const periodEnd = new Date().toISOString();
@@ -106,12 +106,12 @@ export const initStatsCronJobs = () => {
                     logStandardStats(...params),
                     logUserStats(...params),
                 ]).then(() => {
-                    logger.info(`✅ ${period} stats cron job completed.`, { trace: '0217' });
+                    logger.info(`✅ ${period} stats cron job completed.`, { trace: "0217" });
                 });
             });
         }
-        logger.info('✅ Stats cron jobs initialized');
+        logger.info("✅ Stats cron jobs initialized");
     } catch (error) {
-        logger.error('❌ Failed to initialize stats cron jobs.', { trace: '0382', error });
+        logger.error("❌ Failed to initialize stats cron jobs.", { trace: "0382", error });
     }
 };

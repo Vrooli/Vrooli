@@ -1,20 +1,20 @@
-import { ShapeModel } from 'types';
+import { ShapeModel } from "types";
 
-type RelationshipType = 'Connect' | 'Create';
+type RelationshipType = "Connect" | "Create";
 
 // Array if isOneToOne is false, otherwise single
-type MaybeArray<T extends 'object' | 'id', IsOneToOne extends 'one' | 'many'> =
-    T extends 'object' ?
-    IsOneToOne extends 'one' ? any : any[] :
-    IsOneToOne extends 'one' ? string : string[]
+type MaybeArray<T extends "object" | "id", IsOneToOne extends "one" | "many"> =
+    T extends "object" ?
+    IsOneToOne extends "one" ? any : any[] :
+    IsOneToOne extends "one" ? string : string[]
 
 type CreateRelOutput<
-    IsOneToOne extends 'one' | 'many',
+    IsOneToOne extends "one" | "many",
     RelTypes extends string,
     FieldName extends string,
 > = (
-        ({ [x in `${FieldName}Connect`]: 'Connect' extends RelTypes ? MaybeArray<'id', IsOneToOne> : never }) &
-        ({ [x in `${FieldName}Create`]: 'Create' extends RelTypes ? MaybeArray<'object', IsOneToOne> : never })
+        ({ [x in `${FieldName}Connect`]: "Connect" extends RelTypes ? MaybeArray<"id", IsOneToOne> : never }) &
+        ({ [x in `${FieldName}Create`]: "Create" extends RelTypes ? MaybeArray<"object", IsOneToOne> : never })
     )
 
 /**
@@ -28,16 +28,16 @@ type CreateRelOutput<
  * @returns The shaped object, ready to be passed to the mutation endpoint
  */
 export const createRel = <
-    Item extends (IsOneToOne extends 'one' ?
+    Item extends (IsOneToOne extends "one" ?
         { [x in FieldName]?: {} | null | undefined } :
         { [x in FieldName]?: {}[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
     // Shape object only required when RelTypes includes 'Create' or 'Update'
-    Shape extends ('Create' extends RelTypes[number] ?
+    Shape extends ("Create" extends RelTypes[number] ?
         ShapeModel<any, {}, null> :
         never),
-    IsOneToOne extends 'one' | 'many',
+    IsOneToOne extends "one" | "many",
 >(
     item: Item,
     relation: FieldName,
@@ -47,7 +47,7 @@ export const createRel = <
     preShape?: (item: any) => any,
 ): CreateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if shape is required
-    if (relTypes.includes('Create')) {
+    if (relTypes.includes("Create")) {
         if (!shape) throw new Error(`Model is required if relTypes includes "Create": ${relation}`);
     }
     // Find relation data in item
@@ -65,23 +65,26 @@ export const createRel = <
     // Loop through relation types
     for (const t of relTypes) {
         // If type is connect, add IDs to result
-        if (t === 'Connect') {
+        if (t === "Connect") {
             // If create is an option, ignore items which have more than just an ID (or __typename), since they must be creates instead
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            filteredRelationData = relTypes.includes('Create') ?
-                filteredRelationData.filter((x) => Object.keys(x).every((k) => ['id', '__typename'].includes(k))) :
-                filteredRelationData;
+            if (relTypes.includes("Create")) {
+                filteredRelationData = filteredRelationData.filter((x) => {
+                    const filteredObj = Object.fromEntries(Object.entries(x).filter(([_, v]) => v !== undefined));
+                    return Object.keys(filteredObj).every((k) => ["id", "__typename"].includes(k));
+                });
+            }
             if (filteredRelationData.length === 0) continue;
-            result[`${relation}${t}`] = isOneToOne === 'one' ?
-                (relationData as any)[shape?.idField ?? 'id'] :
-                (relationData as any).map((x: any) => x[shape?.idField ?? 'id']);
+            result[`${relation}${t}`] = isOneToOne === "one" ?
+                (relationData as any)[shape?.idField ?? "id"] :
+                (relationData as any).map((x: any) => x[shape?.idField ?? "id"]);
         }
-        else if (t === 'Create') {
+        else if (t === "Create") {
             // Ignore items which only have an ID (or __typename), since they must be connects instead
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            filteredRelationData = filteredRelationData.filter((x) => Object.keys(x).some((k) => !['id', '__typename'].includes(k)));
+            filteredRelationData = filteredRelationData.filter((x) => Object.keys(x).some((k) => !["id", "__typename"].includes(k)));
             if (filteredRelationData.length === 0) continue;
-            result[`${relation}${t}`] = isOneToOne === 'one' ?
+            result[`${relation}${t}`] = isOneToOne === "one" ?
                 shape!.create(preShaper(relationData)) :
                 (relationData as any).map((x: any) => shape!.create(preShaper(x)));
         }

@@ -1,5 +1,4 @@
-import { GqlModelType } from '@shared/consts';
-import { getDotNotationValue, setDotNotationValue } from "@shared/utils";
+import { getDotNotationValue, GqlModelType, setDotNotationValue } from "@local/shared";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";
 import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
@@ -20,7 +19,7 @@ function getKeyPaths(obj: object, parentKey?: string): string[] {
         // Construct the current key path by concatenating the parent key and the current key, if the parent key is provided
         const currentKey = parentKey ? `${parentKey}.${key}` : key;
         // If the property is an object and not an array, recurse into it
-        if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+        if (typeof obj[key] === "object" && !Array.isArray(obj[key])) {
             keys = keys.concat(getKeyPaths(obj[key], currentKey));
         } else {
             // If the property is not an object, add the current key path to the list of keys
@@ -65,4 +64,4 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
         }
     }
     return objects;
-}
+};

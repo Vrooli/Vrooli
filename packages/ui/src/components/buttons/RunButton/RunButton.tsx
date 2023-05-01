@@ -1,8 +1,5 @@
+import { GqlModelType, parseSearchParams, PlayIcon, ProjectVersion, RoutineVersion, RunProject, RunRoutine, setSearchParams, useLocation, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
-import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } from "@shared/consts";
-import { PlayIcon } from "@shared/icons";
-import { parseSearchParams, setSearchParams, useLocation } from "@shared/route";
-import { uuidValidate } from "@shared/uuid";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
@@ -42,7 +39,7 @@ export const RunButton = ({
 
     const [isRunOpen, setIsRunOpen] = useState(() => {
         const params = parseSearchParams();
-        return typeof params.run === 'string' && uuidValidate(params.run);
+        return typeof params.run === "string" && uuidValidate(params.run);
     });
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
@@ -50,7 +47,7 @@ export const RunButton = ({
         if (!run) {
             setSearchParams(setLocation, {
                 run: "test",
-                step: [1]
+                step: [1],
             });
         }
         // Otherwise, open routine where last left off in run
@@ -69,7 +66,7 @@ export const RunButton = ({
         if (isEditing) {
             setSearchParams(setLocation, {
                 run: "test",
-                step: [1]
+                step: [1],
             });
             setIsRunOpen(true);
         }
@@ -82,7 +79,7 @@ export const RunButton = ({
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
     const openError = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         ev.preventDefault();
-        setErrorAnchorEl(ev.currentTarget ?? ev.target)
+        setErrorAnchorEl(ev.currentTarget ?? ev.target);
     }, []);
     const closeError = useCallback(() => {
         setErrorAnchorEl(null);
@@ -97,11 +94,11 @@ export const RunButton = ({
         // If incomplete, confirm user wants to run
         else if (status === Status.Incomplete) {
             PubSub.get().publishAlertDialog({
-                messageKey: 'RunInvalidRoutineConfirm',
+                messageKey: "RunInvalidRoutineConfirm",
                 buttons: [
-                    { labelKey: 'Yes', onClick: () => { startRun(e) } },
-                    { labelKey: 'Cancel', onClick: () => { } },
-                ]
+                    { labelKey: "Yes", onClick: () => { startRun(e); } },
+                    { labelKey: "Cancel", onClick: () => { } },
+                ],
             });
         }
         // Otherwise, run
@@ -112,7 +109,7 @@ export const RunButton = ({
 
     const runStop = () => {
         setLocation(window.location.pathname, { replace: true });
-        setIsRunOpen(false)
+        setIsRunOpen(false);
     };
 
     return (
@@ -157,8 +154,8 @@ export const RunButton = ({
                         background={palette.secondary.main}
                         sx={{
                             padding: 0,
-                            width: '54px',
-                            height: '54px',
+                            width: "54px",
+                            height: "54px",
                         }}
                     >
                         <PlayIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -166,5 +163,5 @@ export const RunButton = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

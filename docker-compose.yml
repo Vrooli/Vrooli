@@ -18,6 +18,7 @@ services:
       VITE_SITE_IP: "${SITE_IP}"
       VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VITE_STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
+      VITE_GOOGLE_ADSENSE_PUBLISHER_ID: "${GOOGLE_ADSENSE_PUBLISHER_ID}"
       PROJECT_DIR: "${PROJECT_DIR}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PATH: "/"
@@ -128,6 +129,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  docs:
+    build:
+      context: ./packages/docs
+      dockerfile: Dockerfile
+    container_name: docs
+    volumes:
+      - ./packages/docs:/docs
+    ports:
+      - "${PORT_DOCS}:${PORT_DOCS}"
+    command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
+    environment:
+      VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
+      VIRTUAL_PORT: "${PORT_DOCS}"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9

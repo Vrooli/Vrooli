@@ -1,12 +1,7 @@
-import {
-    Card,
-    CardContent,
-    Typography,
-    useTheme
-} from '@mui/material';
-import { LineGraph } from 'components/graphs/LineGraph/LineGraph';
-import { useDimensions } from 'utils/hooks/useDimensions';
-import { LineGraphCardProps } from '../types';
+import { Card, CardContent, Typography, useTheme } from "@mui/material";
+import { LineGraph } from "components/graphs/LineGraph/LineGraph";
+import { useDimensions } from "utils/hooks/useDimensions";
+import { LineGraphCardProps } from "../types";
 
 export const LineGraphCard = ({
     title,
@@ -18,17 +13,17 @@ export const LineGraphCard = ({
 
     return (
         <Card ref={ref} sx={{
-            width: '100%',
-            height: '100%',
+            width: "100%",
+            height: "100%",
             boxShadow: 6,
             background: palette.primary.light,
             color: palette.primary.contrastText,
-            borderRadius: '16px',
+            borderRadius: "16px",
             margin: 0,
         }}>
             <CardContent
                 sx={{
-                    display: 'contents',
+                    display: "contents",
                 }}
             >
                 <Typography
@@ -50,4 +45,4 @@ export const LineGraphCard = ({
             </CardContent>
         </Card>
     );
-}
+};

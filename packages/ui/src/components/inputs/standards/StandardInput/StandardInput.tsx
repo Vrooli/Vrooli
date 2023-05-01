@@ -1,5 +1,5 @@
+import { BuildIcon, VisibleIcon } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { BuildIcon, VisibleIcon } from "@shared/icons";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";

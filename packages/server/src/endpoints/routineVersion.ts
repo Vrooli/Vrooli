@@ -1,8 +1,8 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum RoutineVersionSortBy {
@@ -226,9 +226,9 @@ export const typeDef = gql`
         routineVersionCreate(input: RoutineVersionCreateInput!): RoutineVersion!
         routineVersionUpdate(input: RoutineVersionUpdateInput!): RoutineVersion!
     }
-`
+`;
 
-const objectType = 'RoutineVersion';
+const objectType = "RoutineVersion";
 export const resolvers: {
     RoutineVersionSortBy: typeof RoutineVersionSortBy;
     Query: {
@@ -260,5 +260,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

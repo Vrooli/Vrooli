@@ -45,19 +45,20 @@ for arg in "$@"; do
     esac
 done
 
+# Extract the current version number from the package.json file
+CURRENT_VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
 # Ask for version number, if not supplied in arguments
 if [ -z "$VERSION" ]; then
-    prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
+    prompt "What version number do you want to deploy? (current is ${CURRENT_VERSION}). Leave blank if keeping the same version number."
     warning "WARNING: Keeping the same version number will overwrite the previous build AND database backup."
-    read -r VERSION
-    # If no version number was entered, use the version number found in the package.json files
-    if [ -z "$VERSION" ]; then
-        info "No version number entered. Using version number found in package.json files."
-        VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-        info "Version number found in package.json files: ${VERSION}"
+    read -r ENTERED_VERSION
+    # If version entered, set version
+    if [ ! -z "$ENTERED_VERSION" ]; then
+        VERSION=$ENTERED_VERSION
+    else
+        VERSION=$CURRENT_VERSION
     fi
 fi
-
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"

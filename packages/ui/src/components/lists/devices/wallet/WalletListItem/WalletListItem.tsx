@@ -1,13 +1,13 @@
-import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { WalletListItemProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback, useMemo } from 'react';
-import { CompleteIcon, DeleteIcon } from '@shared/icons';
+import { CompleteIcon, DeleteIcon } from "@local/shared";
+import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { useCallback, useMemo } from "react";
+import { multiLineEllipsis } from "styles";
+import { WalletListItemProps } from "../types";
 
 const Status = {
-    NotVerified: '#a71c2d', // Red
-    Verified: '#19972b', // Green
-}
+    NotVerified: "#a71c2d", // Red
+    Verified: "#19972b", // Green
+};
 
 export function WalletListItem({
     handleDelete,
@@ -31,7 +31,7 @@ export function WalletListItem({
      * Shortens staking address to first 2 letters, an ellipsis, and last 6 letters
      */
     const shortenedAddress = useMemo(() => {
-        if (!data.stakingAddress) return '';
+        if (!data.stakingAddress) return "";
         return `${data.stakingAddress.substring(0, 2)}...${data.stakingAddress.substring(data.stakingAddress.length - 6)}`;
     }, [data.stakingAddress]);
 
@@ -39,12 +39,12 @@ export function WalletListItem({
         <ListItem
             disablePadding
             sx={{
-                display: 'flex',
+                display: "flex",
                 padding: 1,
             }}
         >
             {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: 'auto' }}>
+            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
                 <Stack direction="row" spacing={1}>
                     {/* Name (or publich address if not name) */}
                     <ListItemText
@@ -62,13 +62,13 @@ export function WalletListItem({
                     borderRadius: 1,
                     border: `2px solid ${data.verified ? Status.Verified : Status.NotVerified}`,
                     color: data.verified ? Status.Verified : Status.NotVerified,
-                    height: 'fit-content',
-                    fontWeight: 'bold',
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                    textAlign: 'center',
+                    height: "fit-content",
+                    fontWeight: "bold",
+                    marginTop: "auto",
+                    marginBottom: "auto",
+                    textAlign: "center",
                     padding: 0.25,
-                    width: 'fit-content',
+                    width: "fit-content",
                 }}>
                     {data.verified ? "Verified" : "Not Verified"}
                 </Box>
@@ -91,5 +91,5 @@ export function WalletListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

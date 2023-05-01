@@ -1,14 +1,13 @@
+import { MaxObjects, Phone, PhoneCreateInput, phoneValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Phone, PhoneCreateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { OrganizationModel } from "./organization";
-import { defaultPermissions } from "../utils";
-import { phoneValidation } from "@shared/validation";
 import { Trigger } from "../events";
+import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
-const __typename = 'Phone' as const;
+const __typename = "Phone" as const;
 const suppFields = [] as const;
 export const PhoneModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +18,8 @@ export const PhoneModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.phoneUpsertArgs['create'],
-    PrismaUpdate: Prisma.phoneUpsertArgs['update'],
+    PrismaCreate: Prisma.phoneUpsertArgs["create"],
+    PrismaUpdate: Prisma.phoneUpsertArgs["update"],
     PrismaModel: Prisma.phoneGetPayload<SelectWrap<Prisma.phoneSelect>>,
     PrismaSelect: Prisma.phoneSelect,
     PrismaWhere: Prisma.phoneWhereInput,
@@ -32,9 +31,9 @@ export const PhoneModel: ModelLogic<{
         // Only display last 4 digits of phone number
         label: (select) => {
             // Make sure number is at least 4 digits long
-            if (select.phoneNumber.length < 4) return select.phoneNumber
-            return `...${select.phoneNumber.slice(-4)}`
-        }
+            if (select.phoneNumber.length < 4) return select.phoneNumber;
+            return `...${select.phoneNumber.slice(-4)}`;
+        },
     },
     format: {
         gqlRelMap: {
@@ -42,7 +41,7 @@ export const PhoneModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            user: 'User',
+            user: "User",
         },
         countFields: {},
     },
@@ -60,10 +59,10 @@ export const PhoneModel: ModelLogic<{
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
-                        owner: { id: userData.id, __typename: 'User' },
+                        owner: { id: userData.id, __typename: "User" },
                         objectId,
                         objectType: __typename,
-                    })
+                    });
                 }
             },
         },
@@ -81,8 +80,8 @@ export const PhoneModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         }),
         visibility: {
             private: {},
@@ -91,8 +90,8 @@ export const PhoneModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

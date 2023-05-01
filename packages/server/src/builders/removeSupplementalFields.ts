@@ -1,9 +1,9 @@
-import { GqlModelType } from "@shared/consts";
-import { omit } from "@shared/utils";
-import pkg from 'lodash';
+import { GqlModelType, omit } from "@local/shared";
+import pkg from "lodash";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+
 const { merge } = pkg;
 
 
@@ -31,4 +31,4 @@ export const removeSupplementalFields = (objectType: `${GqlModelType}`, partial:
         return merge(withoutGqlSupp, dbSupp);
     }
     return withoutGqlSupp;
-}
+};

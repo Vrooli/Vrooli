@@ -1,4 +1,4 @@
-import { Member, MemberUpdateInput } from "@shared/consts";
+import { Member, MemberUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

@@ -1,6 +1,5 @@
+import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, questionValidation, QuestionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from '@shared/consts';
-import { questionValidation } from "@shared/validation";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -10,19 +9,19 @@ import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
 
-const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs['create'] } = {
-    Api: 'api',
-    Note: 'note',
-    Organization: 'organization',
-    Project: 'project',
-    Routine: 'routine',
-    SmartContract: 'smartContract',
-    Standard: 'standard',
-}
+const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
+    Api: "api",
+    Note: "note",
+    Organization: "organization",
+    Project: "project",
+    Routine: "routine",
+    SmartContract: "smartContract",
+    Standard: "standard",
+};
 
-const __typename = 'Question' as const;
-type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
-const suppFields = ['you'] as const;
+const __typename = "Question" as const;
+type Permissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
+const suppFields = ["you"] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -32,8 +31,8 @@ export const QuestionModel: ModelLogic<{
     GqlSearch: QuestionSearchInput,
     GqlSort: QuestionSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.questionUpsertArgs['create'],
-    PrismaUpdate: Prisma.questionUpsertArgs['update'],
+    PrismaCreate: Prisma.questionUpsertArgs["create"],
+    PrismaUpdate: Prisma.questionUpsertArgs["update"],
     PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,
     PrismaSelect: Prisma.questionSelect,
     PrismaWhere: Prisma.questionWhereInput,
@@ -42,46 +41,46 @@ export const QuestionModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.question,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            createdBy: 'User',
-            answers: 'QuestionAnswer',
-            comments: 'Comment',
+            createdBy: "User",
+            answers: "QuestionAnswer",
+            comments: "Comment",
             forObject: {
-                api: 'Api',
-                note: 'Note',
-                organization: 'Organization',
-                project: 'Project',
-                routine: 'Routine',
-                smartContract: 'SmartContract',
-                standard: 'Standard',
+                api: "Api",
+                note: "Note",
+                organization: "Organization",
+                project: "Project",
+                routine: "Routine",
+                smartContract: "SmartContract",
+                standard: "Standard",
             },
-            reports: 'Report',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
+            reports: "Report",
+            bookmarkedBy: "User",
+            tags: "Tag",
         },
         prismaRelMap: {
             __typename,
-            createdBy: 'User',
-            api: 'Api',
-            note: 'Note',
-            organization: 'Organization',
-            project: 'Project',
-            routine: 'Routine',
-            smartContract: 'SmartContract',
-            standard: 'Standard',
-            comments: 'Comment',
-            answers: 'QuestionAnswer',
-            reports: 'Report',
-            tags: 'Tag',
-            bookmarkedBy: 'User',
-            reactions: 'Reaction',
-            viewedBy: 'User',
+            createdBy: "User",
+            api: "Api",
+            note: "Note",
+            organization: "Organization",
+            project: "Project",
+            routine: "Routine",
+            smartContract: "SmartContract",
+            standard: "Standard",
+            comments: "Comment",
+            answers: "QuestionAnswer",
+            reports: "Report",
+            tags: "Tag",
+            bookmarkedBy: "User",
+            reactions: "Reaction",
+            viewedBy: "User",
         },
-        joinMap: { bookmarkedBy: 'user', tags: 'tag' },
+        joinMap: { bookmarkedBy: "user", tags: "tag" },
         countFields: {
             answersCount: true,
             commentsCount: true,
@@ -97,7 +96,7 @@ export const QuestionModel: ModelLogic<{
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
-                }
+                };
             },
         },
     },
@@ -108,8 +107,8 @@ export const QuestionModel: ModelLogic<{
                 referencing: noNull(data.referencing),
                 createdBy: { connect: { id: rest.userData.id } },
                 ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Question", relation: "tags", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 ...(data.acceptedAnswerConnect ? {
@@ -120,16 +119,16 @@ export const QuestionModel: ModelLogic<{
                         },
                     },
                 } : {}),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Question', relation: 'tags', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-            })
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Question", relation: "tags", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
                 await onCommonPlain({
                     ...params,
                     objectType: __typename,
-                    ownerUserField: 'createdBy',
+                    ownerUserField: "createdBy",
                 });
             },
         },
@@ -159,9 +158,9 @@ export const QuestionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'transNameWrapped',
-            ]
+                "transDescriptionWrapped",
+                "transNameWrapped",
+            ],
         }),
     },
     validate: {
@@ -175,14 +174,14 @@ export const QuestionModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            createdBy: 'User',
+            createdBy: "User",
         }),
         visibility: {
-            private: { isPrivate: true, },
+            private: { isPrivate: true },
             public: { isPrivate: false },
             owner: (userId) => ({
                 createdBy: { id: userId },
             }),
         },
     },
-})
+});

@@ -1,4 +1,4 @@
-import { SmartContractVersion } from "@shared/consts";
+import { SmartContractVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
 export interface SmartContractUpsertProps extends UpsertProps<SmartContractVersion> { }

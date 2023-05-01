@@ -1,8 +1,5 @@
+import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, UserIcon } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { GqlModelType, LINKS } from "@shared/consts";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { CommonKey } from "@shared/translations";
 import { ShareSiteDialog } from "components/dialogs/ShareSiteDialog/ShareSiteDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -31,64 +28,64 @@ type BaseParams = {
 // Data for each tab
 const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Routine,
     tabType: SearchPageTabOption.Routines,
     where: { isInternal: false },
 }, {
     Icon: ProjectIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Project,
     tabType: SearchPageTabOption.Projects,
     where: {},
 }, {
     Icon: HelpIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Invite",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
     Icon: NoteIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Note,
     tabType: SearchPageTabOption.Notes,
     where: {},
 }, {
     Icon: OrganizationIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Organization,
     tabType: SearchPageTabOption.Organizations,
     where: {},
 }, {
     Icon: UserIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
+    popupTitleKey: "Invite",
+    popupTooltipKey: "InviteTooltip",
     searchType: SearchType.User,
     tabType: SearchPageTabOption.Users,
     where: {},
 }, {
     Icon: StandardIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
     Icon: ApiIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.Api,
     tabType: SearchPageTabOption.Apis,
     where: {},
 }, {
     Icon: SmartContractIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
+    popupTitleKey: "Add",
+    popupTooltipKey: "AddTooltip",
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
     where: {},
@@ -98,7 +95,7 @@ const tabParams: BaseParams[] = [{
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
-    display = 'page',
+    display = "page",
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -133,21 +130,21 @@ export const SearchView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
     const { popupTitleKey, popupTooltipKey, searchType, where } = useMemo<BaseParams>(() => {
         // Update tab title
-        document.title = `${t(`Search`)} | ${currTab.label}`;
+        document.title = `${t("Search")} | ${currTab.label}`;
         return tabParams[currTab.index];
     }, [currTab.index, currTab.label, t]);
 
     const onAddClick = useCallback((ev: any) => {
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
             setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
             return;
         }
@@ -161,7 +158,7 @@ export const SearchView = ({
         }
         // Otherwise, navigate to add page
         else {
-            setLocation(addUrl)
+            setLocation(addUrl);
         }
     }, [searchType, session, setLocation]);
 
@@ -171,9 +168,9 @@ export const SearchView = ({
         } else {
             onAddClick(ev);
         }
-    }, [currTab.value, onAddClick])
+    }, [currTab.value, onAddClick]);
 
-    const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
+    const handleScrolledFar = useCallback(() => { setPopupButton(true); }, []);
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
             <Tooltip title={t(popupTooltipKey)}>
@@ -182,13 +179,13 @@ export const SearchView = ({
                     size="large"
                     sx={{
                         zIndex: 100,
-                        minWidth: 'min(100%, 200px)',
-                        height: '48px',
+                        minWidth: "min(100%, 200px)",
+                        height: "48px",
                         borderRadius: 3,
-                        position: 'fixed',
-                        bottom: 'calc(5em + env(safe-area-inset-bottom))',
-                        transform: popupButton ? 'translateY(0)' : 'translateY(calc(10em + env(safe-area-inset-bottom)))',
-                        transition: 'transform 1s ease-in-out',
+                        position: "fixed",
+                        bottom: "calc(5em + env(safe-area-inset-bottom))",
+                        transform: popupButton ? "translateY(0)" : "translateY(calc(10em + env(safe-area-inset-bottom)))",
+                        transition: "transform 1s ease-in-out",
                     }}
                 >
                     {t(popupTitleKey)}
@@ -197,7 +194,7 @@ export const SearchView = ({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
-    console.log('search typeeee', searchType, currTab)
+    console.log("search typeeee", searchType, currTab);
 
     return (
         <>
@@ -206,7 +203,7 @@ export const SearchView = ({
                 onClose={() => { }}
                 titleData={{
                     hideOnDesktop: true,
-                    titleKey: 'Search',
+                    titleKey: "Search",
                 }}
                 below={<PageTabs
                     ariaLabel="search-tabs"
@@ -245,5 +242,5 @@ export const SearchView = ({
             />}
             {popupButtonContainer}
         </>
-    )
-}
+    );
+};

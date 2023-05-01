@@ -5,7 +5,7 @@ import { StatsCompactPropsObject } from "components/text/types";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { StatsDialogProps } from "../types";
 
-const titleId = 'stats-object-dialog-title';
+const titleId = "stats-object-dialog-title";
 
 /**
  * Displays basic stats about an object, in a short format.
@@ -29,7 +29,7 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{ titleId, titleKey: 'Share' }}
+                titleData={{ titleId, titleKey: "Share" }}
             />
             <Box sx={{ padding: 2 }}>
                 {/* Bookmarks, votes, and other info */}
@@ -42,5 +42,5 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                 {/* TODO */}
             </Box>
         </LargeDialog>
-    )
-}
+    );
+};

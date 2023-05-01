@@ -1,6 +1,5 @@
+import { Node, NodeLink, NodeType, OpenInNewIcon } from "@local/shared";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import { Node, NodeLink, NodeType } from "@shared/consts";
-import { OpenInNewIcon } from "@shared/icons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useContext, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
@@ -16,7 +15,7 @@ type Decision = {
 
 export const DecisionView = ({
     data,
-    display = 'page',
+    display = "page",
     handleDecisionSelect,
     nodes,
     zIndex,
@@ -32,7 +31,7 @@ export const DecisionView = ({
             const node = nodes.find(n => n.id === link.to.id);
             let color = palette.primary.dark;
             if (node?.nodeType === NodeType.End) {
-                color = node.end?.wasSuccessful === false ? '#7c262a' : '#387e30'
+                color = node.end?.wasSuccessful === false ? "#7c262a" : "#387e30";
             }
             return { node, link, color } as Decision;
         });
@@ -53,8 +52,8 @@ export const DecisionView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Decision',
-                    helpKey: 'DecisionHelp',
+                    titleKey: "Decision",
+                    helpKey: "DecisionHelp",
                 }}
             />
             <Stack direction="column" spacing={4} p={2}>
@@ -64,7 +63,7 @@ export const DecisionView = ({
                     justifyContent="center"
                     alignItems="center"
                 >
-                    <Typography variant="h4" sx={{ textAlign: 'center' }}>What would you like to do next?</Typography>
+                    <Typography variant="h4" sx={{ textAlign: "center" }}>What would you like to do next?</Typography>
                 </Stack>
                 {/* Each decision as its own ListItem, with name and description */}
                 {decisions.map((decision, index) => {
@@ -74,21 +73,21 @@ export const DecisionView = ({
                         disablePadding
                         onClick={() => { toDecision(index); }}
                         sx={{
-                            display: 'flex',
+                            display: "flex",
                             background: decision.color,
-                            color: 'white',
+                            color: "white",
                             boxShadow: 12,
-                            borderRadius: '12px',
+                            borderRadius: "12px",
                         }}
                     >
                         <ListItemButton component="div" onClick={() => { toDecision(index); }}>
-                            <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available', alignItems: 'center' }}>
+                            <Stack direction="column" spacing={1} pl={2} sx={{ width: "-webkit-fill-available", alignItems: "center" }}>
                                 {/* Name/Title */}
                                 <ListItemText
                                     primary={name}
                                     sx={{
                                         ...multiLineEllipsis(1),
-                                        fontWeight: 'bold',
+                                        fontWeight: "bold",
                                     }}
                                 />
                                 {/* Bio/Description */}
@@ -101,9 +100,9 @@ export const DecisionView = ({
                             </Stack>
                             <OpenInNewIcon fill="white" />
                         </ListItemButton>
-                    </ListItem>)
+                    </ListItem>);
                 })}
             </Stack>
         </>
-    )
-}
+    );
+};

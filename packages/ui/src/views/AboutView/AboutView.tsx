@@ -1,7 +1,6 @@
+import { GitHubIcon, openLink, OrganizationIcon, TwitterIcon, useLocation, WebsiteIcon } from "@local/shared";
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
-import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@shared/icons";
-import { openLink, useLocation } from "@shared/route";
-import MattProfilePic from 'assets/img/profile-matt.jpg';
+import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { slideTitle, textPop } from "styles";
 import { AboutViewProps } from "views/types";
@@ -33,38 +32,38 @@ const wave = keyframes`
   }
 `;
 const RotatedBox = styled("div")({
-    display: 'inline-block',
-    animation: `${wave} 3s infinite ease`
+    display: "inline-block",
+    animation: `${wave} 3s infinite ease`,
 });
 
 const memberButtonProps = {
-    background: 'transparent',
-    border: '0',
-    '&:hover': {
-        background: 'transparent',
-        filter: 'brightness(1.2)',
-        transform: 'scale(1.2)',
+    background: "transparent",
+    border: "0",
+    "&:hover": {
+        background: "transparent",
+        filter: "brightness(1.2)",
+        transform: "scale(1.2)",
     },
-    transition: 'all 0.2s ease',
-}
+    transition: "all 0.2s ease",
+};
 
 const teamMembers: MemberData[] = [
     {
-        fullName: 'Matt Halloran',
-        role: 'Leader/developer',
+        fullName: "Matt Halloran",
+        role: "Leader/developer",
         photo: MattProfilePic,
         socials: {
-            website: 'https://matthalloran.info',
-            twitter: 'https://twitter.com/mdhalloran',
-            github: 'https://github.com/MattHalloran',
-        }
+            website: "https://matthalloran.info",
+            twitter: "https://twitter.com/mdhalloran",
+            github: "https://github.com/MattHalloran",
+        },
     },
-]
+];
 
-const joinTeamLink = 'https://github.com/Vrooli/Vrooli#-join-the-team';
+const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
 export const AboutView = ({
-    display = 'page',
+    display = "page",
 }: AboutViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -75,14 +74,14 @@ export const AboutView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'AboutUs',
+                    titleKey: "AboutUs",
                     hideOnDesktop: true,
                 }}
             />
             <Stack mt={4} spacing={4}>
                 <Box>
                     <Typography variant="h4" gutterBottom>
-                        Hello there! <RotatedBox sx={{ display: 'inline-block' }}>👋</RotatedBox>
+                        Hello there! <RotatedBox sx={{ display: "inline-block" }}>👋</RotatedBox>
                     </Typography>
                     <Typography variant="body1">
                         Welcome to Vrooli, a platform designed to tackle the challenges of transparency and reliability in autonomous systems. We're passionate about creating a cooperative organizational layer that fosters collaboration between humans and digital actors in a decentralized manner. Our top priority is developing systems that are both ethical and beneficial to society, instead of just chasing profit or power.
@@ -143,28 +142,28 @@ export const AboutView = ({
                 {teamMembers.map((member, key) => (
                     <Box
                         sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            height: '300px',
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            height: "300px",
                             boxShadow: 12,
                             backgroundColor: palette.primary.dark,
                             borderRadius: 2,
                             padding: 2,
-                            overflow: 'overlay',
+                            overflow: "overlay",
                         }}
                     >
                         {/* Image, positioned to left */}
                         <Box component="img" src={member.photo} alt={`${member.fullName} profile picture`} sx={{
-                            maxWidth: 'min(300px, 40%)',
-                            maxHeight: '200px',
-                            objectFit: 'contain',
-                            borderRadius: '100%',
+                            maxWidth: "min(300px, 40%)",
+                            maxHeight: "200px",
+                            objectFit: "contain",
+                            borderRadius: "100%",
                         }} />
                         {/* Name, role, and links */}
                         <Box sx={{
-                            width: 'min(300px, 50%)',
-                            height: 'fit-content',
+                            width: "min(300px, 50%)",
+                            height: "fit-content",
                         }}>
                             <Typography variant='h4' mb={1} sx={{ ...textPop }}>{member.fullName}</Typography>
                             <Typography variant='h6' mb={2} sx={{ ...textPop }}>{member.role}</Typography>
@@ -208,5 +207,5 @@ export const AboutView = ({
                 </Stack>
             </Stack>
         </Box>
-    )
-}
+    );
+};

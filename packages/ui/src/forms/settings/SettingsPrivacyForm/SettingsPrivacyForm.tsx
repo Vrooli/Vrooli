@@ -1,4 +1,5 @@
 import { Typography, useTheme } from "@mui/material";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { useField } from "formik";
@@ -17,23 +18,25 @@ export const SettingsPrivacyForm = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [isPrivateField] = useField<boolean>('isPrivate');
+    const [isPrivateField] = useField<boolean>("isPrivate");
 
     return (
         <BaseForm
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
+                paddingLeft: "env(safe-area-inset-left)",
+                paddingRight: "env(safe-area-inset-right)",
             }}
         >
             {/* Overall notifications toggle */}
             <ListContainer>
                 <SettingsToggleListItem
-                    title={t('PrivateAccount')}
-                    description={t('PushNotificationToggleDescription')}
+                    title={t("PrivateAccount")}
+                    description={t("PushNotificationToggleDescription")}
                     name="isPrivate"
                 />
             </ListContainer>
@@ -47,38 +50,47 @@ export const SettingsPrivacyForm = ({
                     All of your content is private. Turn off private mode to change specific settings.
                 </Typography>
             )}
-            <ListContainer>
+            <ListContainer sx={{ marginBottom: 4 }}>
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateApis')}
+                    title={t("PrivateApis")}
                     name="isPrivateApis"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateBookmarks')}
+                    title={t("PrivateBookmarks")}
                     name="isPrivateBookmarks"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateProjects')}
+                    title={t("PrivateProjects")}
                     name="isPrivateProjects"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateRoutines')}
+                    title={t("PrivateRoutines")}
                     name="isPrivateRoutines"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateSmartContracts')}
+                    title={t("PrivateSmartContracts")}
                     name="isPrivateSmartContracts"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateStandards')}
+                    title={t("PrivateStandards")}
                     name="isPrivateStandards"
                 />
             </ListContainer>
+            <GridSubmitButtons
+                display={display}
+                errors={props.errors}
+                isCreate={false}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </BaseForm>
-    )
-}
+    );
+};

@@ -1,6 +1,5 @@
+import { FocusModeFilter, FocusModeFilterCreateInput, focusModeFilterValidation, FocusModeSearchInput, FocusModeSortBy, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, MaxObjects } from '@shared/consts';
-import { focusModeFilterValidation } from "@shared/validation";
 import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -9,7 +8,7 @@ import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 
-const __typename = 'FocusModeFilter' as const;
+const __typename = "FocusModeFilter" as const;
 const suppFields = [] as const;
 export const FocusModeFilterModel: ModelLogic<{
     IsTransferable: false,
@@ -20,8 +19,8 @@ export const FocusModeFilterModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: FocusModeSearchInput,
     GqlSort: FocusModeSortBy,
-    PrismaCreate: Prisma.focus_mode_filterUpsertArgs['create'],
-    PrismaUpdate: Prisma.focus_mode_filterUpsertArgs['update'],
+    PrismaCreate: Prisma.focus_mode_filterUpsertArgs["create"],
+    PrismaUpdate: Prisma.focus_mode_filterUpsertArgs["update"],
     PrismaModel: Prisma.focus_mode_filterGetPayload<SelectWrap<Prisma.focus_mode_filterSelect>>,
     PrismaSelect: Prisma.focus_mode_filterSelect,
     PrismaWhere: Prisma.focus_mode_filterWhereInput,
@@ -30,18 +29,18 @@ export const FocusModeFilterModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.focus_mode_filter,
     display: {
         select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
-        label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
+        label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : "",
     },
     format: {
         gqlRelMap: {
             __typename,
-            focusMode: 'FocusMode',
-            tag: 'Tag',
+            focusMode: "FocusMode",
+            tag: "Tag",
         },
         prismaRelMap: {
             __typename,
-            focusMode: 'FocusMode',
-            tag: 'Tag',
+            focusMode: "FocusMode",
+            tag: "Tag",
         },
         countFields: {},
     },
@@ -50,9 +49,9 @@ export const FocusModeFilterModel: ModelLogic<{
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 filterType: data.filterType,
-                // ...(await shapeHelper({ relation: 'focusMode', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
+                // ...(await shapeHelper({ relation: "focusMode", relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
                 // Can't use tagShapeHelper because in this case there isn't a join table between them
-                ...(await shapeHelper({ relation: 'tag', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Tag', parentRelationshipName: 'scheduleFilters', data, ...rest })),
+                ...(await shapeHelper({ relation: "tag", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Tag", parentRelationshipName: "scheduleFilters", data, ...rest })),
             }) as any,
         },
         yup: focusModeFilterValidation,
@@ -66,7 +65,7 @@ export const FocusModeFilterModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            focusMode: 'FocusMode',
+            focusMode: "FocusMode",
         }),
         visibility: {
             private: {},
@@ -76,4 +75,4 @@ export const FocusModeFilterModel: ModelLogic<{
             }),
         },
     },
-})
+});

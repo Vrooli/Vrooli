@@ -1,5 +1,5 @@
+import { ReactionFor } from "@local/shared";
 import { Stack } from "@mui/material";
-import { ReactionFor } from "@shared/consts";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { useMemo } from "react";
@@ -17,7 +17,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
     object,
 }: StatsCompactProps<T>) => {
     const you = useMemo(() => getYou(object as any), [object]);
-    const counts = useMemo(() => getCounts(object as any), [object])
+    const counts = useMemo(() => getCounts(object as any), [object]);
 
     return (
         <Stack
@@ -25,13 +25,13 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             sx={{
                 marginTop: 1,
                 marginBottom: 1,
-                display: 'flex',
-                alignItems: 'center',
+                display: "flex",
+                alignItems: "center",
                 // Space items out, with first item having less space than the rest
-                '& > *:not(:first-child)': {
+                "& > *:not(:first-child)": {
                     marginLeft: 1,
                 },
-                '& > *:nth-child(3)': {
+                "& > *:nth-child(3)": {
                     marginLeft: 2,
                 },
             }}
@@ -57,5 +57,5 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             {/* Reports */}
             {object?.id && <ReportsLink object={object as any} />}
         </Stack>
-    )
-}
+    );
+};

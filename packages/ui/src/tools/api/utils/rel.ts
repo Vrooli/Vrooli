@@ -1,9 +1,10 @@
-import { exists } from "@shared/utils";
+import { exists } from "@local/shared";
+import pkg from "lodash";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
-import { removeValuesUsingDot } from "./removeValuesUsingDot";
 import { findSelection } from "./findSelection";
 import { partialShape } from "./partialShape";
-import pkg from 'lodash';
+import { removeValuesUsingDot } from "./removeValuesUsingDot";
+
 const { merge } = pkg;
 
 /**
@@ -14,24 +15,24 @@ const { merge } = pkg;
  */
 export const rel = async <
     Partial extends GqlPartial<any>,
-    Selection extends 'common' | 'full' | 'list' | 'nav',
+    Selection extends "common" | "full" | "list" | "nav",
     OmitField extends string | number | symbol,
 >(
     partial: Partial,
     selectionType: Selection,
-    exceptions?: { omit: OmitField | OmitField[] }
+    exceptions?: { omit: OmitField | OmitField[] },
 ): Promise<DeepPartialBooleanWithFragments<any>> => {
-    const hasExceptions = exists(exceptions) && exists(exceptions.omit)
+    const hasExceptions = exists(exceptions) && exists(exceptions.omit);
     // Find correct selection to use
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
-    let selectionData = {...partial[actualSelectionType]!};
+    let selectionData = { ...partial[actualSelectionType]! };
     // Remove all exceptions. Supports dot notation.
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
     // Shape selection data
     selectionData = await partialShape(selectionData);
     // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
-    if (['full', 'list'].includes(actualSelectionType) && exists(partial.common)) {
+    if (["full", "list"].includes(actualSelectionType) && exists(partial.common)) {
         let commonData = partial.common;
         // Remove exceptions from common selection
         hasExceptions && removeValuesUsingDot(commonData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
@@ -41,4 +42,4 @@ export const rel = async <
         selectionData = merge(selectionData, commonData);
     }
     return { __typename: partial.__typename, __selectionType: actualSelectionType, ...selectionData } as any;
-}
+};

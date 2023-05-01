@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { Trigger } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
@@ -15,7 +15,7 @@ export const onCommonPlain = async ({
     ownerUserField,
     prisma,
     updated,
-    userData
+    userData,
 }: {
     created: { id: string }[],
     deletedIds: string[],
@@ -27,11 +27,11 @@ export const onCommonPlain = async ({
     userData: SessionUserToken,
 }) => {
     // Find owners of created and updated items
-    const ownerMap: { [key: string]: { id: string, __typename: 'User' | 'Organization' } } = {};
+    const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
     const createAndUpdateIds = [...created.map(c => c.id), ...updated.map(u => u.id)];
-    const { delegate } = getLogic(['delegate'], objectType, userData.languages, 'onCommonPlain');
+    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "onCommonPlain");
     // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
-    let select = { id: true };
+    const select = { id: true };
     if (ownerOrganizationField) {
         select[ownerOrganizationField] = { select: { id: true } };
     }
@@ -41,7 +41,7 @@ export const onCommonPlain = async ({
     const ownersData = await delegate(prisma).findMany({
         where: { id: { in: createAndUpdateIds } },
         select,
-    })
+    });
     // Loop through created and updated ids. Don't assume 
     // that ownersData is in the same order as createAndUpdateIds
     for (let i = 0; i < createAndUpdateIds.length; i++) {
@@ -49,10 +49,10 @@ export const onCommonPlain = async ({
         const owner = ownersData.find(o => o.id === id);
         if (owner) {
             if (ownerOrganizationField && owner[ownerOrganizationField]) {
-                ownerMap[id] = { id: owner[ownerOrganizationField].id, __typename: 'Organization' };
+                ownerMap[id] = { id: owner[ownerOrganizationField].id, __typename: "Organization" };
             }
             if (ownerUserField && owner[ownerUserField]) {
-                ownerMap[id] = { id: owner[ownerUserField].id, __typename: 'User' };
+                ownerMap[id] = { id: owner[ownerUserField].id, __typename: "User" };
             }
         }
     }
@@ -90,4 +90,4 @@ export const onCommonPlain = async ({
             objectType,
         });
     }
-}
+};

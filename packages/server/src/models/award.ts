@@ -1,14 +1,13 @@
+import { Award, AwardKey, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
-import { Award, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
-import i18next from "i18next";
-import { AwardKey } from "@shared/translations";
 
-const __typename = 'Award' as const;
-const suppFields = ['title', 'description'] as const;
+const __typename = "Award" as const;
+const suppFields = ["title", "description"] as const;
 export const AwardModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -32,8 +31,8 @@ export const AwardModel: ModelLogic<{
             // Find name of highest tier achieved
             const { name, nameVariables } = awardNames[select.category](select.progress);
             // If key is not found, return empty string
-            if (!name) return '';
-            return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) })
+            if (!name) return "";
+            return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
         },
     },
     format: {
@@ -42,11 +41,11 @@ export const AwardModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            user: 'User',
+            user: "User",
         },
         countFields: {},
         supplemental: {
-            dbFields: ['category', 'progress'],
+            dbFields: ["category", "progress"],
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, prisma, userData }) => {
                 // Find name and description of highest tier achieved
@@ -62,7 +61,7 @@ export const AwardModel: ModelLogic<{
                 return {
                     title: titles,
                     description: descriptions,
-                }
+                };
             },
         },
     },
@@ -88,7 +87,7 @@ export const AwardModel: ModelLogic<{
         }),
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
@@ -99,4 +98,4 @@ export const AwardModel: ModelLogic<{
             }),
         },
     },
-})
+});

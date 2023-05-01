@@ -1,0 +1,89 @@
+site_name: Vrooli Docs
+site_description: >-
+  Learn all about Vrooli, how it works, and how to use its API for your own projects.
+  Vrooli is a decentralized, collaborative automation platform designed to minimize
+  the time between the inception of an idea and its development into a
+  fully-functional product.
+site_url: https://docs.vrooli.com
+site_author: Vrooli
+nav:
+  - About:
+      - Overview: about/overview.md
+      - Background: about/background.md
+      - Resources: about/resources.md
+  - Valyxa:
+      - Introduction: valyxa/introduction.md
+  - API Reference:
+      - Overview: api_reference/overview.md
+      - Getting Access: api_reference/getting_access.md
+      - Authorization: api_reference/authorization.md
+  - Setup:
+      - Getting Started: setup/getting_started.md
+      - Understanding the Design:
+          - Directory Structure: setup/understanding_the_design/directory_structure.md
+          - Database Design: setup/understanding_the_design/database_design.md
+  - Testing:
+      - Overview: testing/overview.md
+      - Routine Complexity: testing/routine_complexity.md
+  - Upgrades:
+      - Overview: upgrades/overview.md
+      - Migrate: upgrades/migrate.md
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.ico
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      primary: indigo
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue-grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+plugins:
+  - search
+  - social
+  - offline
+  - macros
+extra:
+  repo_code: "https://github.com/Vrooli/Vrooli/tree/master"
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Vrooli/Vrooli
+      name: Source Code
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/VrooliOfficial
+      name: Follow us on Twitter
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/VyrDFzbmmF
+      name: Join our Discord
+    - icon: fontawesome/solid/envelope
+      link: mailto:official@vrooli.com
+      name: Email us
+repo_name: Vrooli
+repo_url: https://github.com/Vrooli/Vrooli
+extra_css:
+  - assets/css/custom.css
+extra_javascript:
+  - assets/js/custom.js

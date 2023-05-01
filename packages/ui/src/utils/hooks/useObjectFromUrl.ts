@@ -1,6 +1,5 @@
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
-import { ParseSearchParamsResult } from "@shared/route";
-import { exists } from "@shared/utils";
+import { exists, ParseSearchParamsResult } from "@local/shared";
 import { useCustomLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
@@ -8,6 +7,7 @@ import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/l
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { useDisplayApolloError } from "./useDisplayApolloError";
+import { useStableObject } from "./useStableObject";
 
 type UseObjectFromUrlProps<
     TData extends ListObjectType,
@@ -45,22 +45,24 @@ export function useObjectFromUrl<
     // Get URL params
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
+    const stableOnInvalidUrlParams = useStableObject(onInvalidUrlParams);
+
     // Fetch data
-    const [getData, { data, error, loading: isLoading }] = useCustomLazyQuery<TData, TVariables>(query, { errorPolicy: 'all' } as any);
+    const [getData, { data, error, loading: isLoading }] = useCustomLazyQuery<TData, TVariables>(query, { errorPolicy: "all" } as any);
     const [object, setObject] = useState<TData | null | undefined>(null);
     useDisplayApolloError(error);
     useEffect(() => {
-        console.log('parseSingleItemUrl', urlParams)
+        console.log("parseSingleItemUrl", urlParams);
         // Objects can be found using a few different unique identifiers
-        if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any })
-        else if (exists(urlParams.handleRoot)) getData({ variables: { handleRoot: urlParams.handleRoot } as any })
-        else if (exists(urlParams.id)) getData({ variables: { id: urlParams.id } as any })
-        else if (exists(urlParams.idRoot)) getData({ variables: { idRoot: urlParams.idRoot } as any })
-        else if (exists(idFallback)) getData({ variables: { id: idFallback } as any })
+        if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any });
+        else if (exists(urlParams.handleRoot)) getData({ variables: { handleRoot: urlParams.handleRoot } as any });
+        else if (exists(urlParams.id)) getData({ variables: { id: urlParams.id } as any });
+        else if (exists(urlParams.idRoot)) getData({ variables: { idRoot: urlParams.idRoot } as any });
+        else if (exists(idFallback)) getData({ variables: { id: idFallback } as any });
         // If no valid identifier found, show error or call onInvalidUrlParams
-        else if (exists(onInvalidUrlParams)) onInvalidUrlParams(urlParams);
-        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
-    }, [getData, idFallback, onInvalidUrlParams, urlParams]);
+        else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
+        else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
+    }, [getData, idFallback, stableOnInvalidUrlParams, urlParams]);
     useEffect(() => {
         setObject(data ?? partialData as any);
     }, [data, partialData]);

@@ -1,10 +1,10 @@
-import pkg, { ReportStatus } from '@prisma/client';
-import { GqlModelType, ReportSuggestedAction } from "@shared/consts";
-import { uppercaseFirstLetter } from '@shared/utils';
+import { GqlModelType, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
+import pkg, { ReportStatus } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 // Constants for calculating when a moderation action for a report should be accepted
@@ -15,7 +15,7 @@ const MIN_REP: { [key in ReportSuggestedAction]: number } = {
     HideUntilFixed: 100,
     NonIssue: 100,
     SuspendUser: 2500,
-}
+};
 // If report does not meet the minimum reputation for any of the above actions, this is the timeout before 
 // the highest voted action is accepted
 const DEFAULT_TIMEOUT = 1000 * 60 * 60 * 24 * 7; // 1 week
@@ -64,7 +64,7 @@ const bestAction = (list: [ReportSuggestedAction, number][]): ReportSuggestedAct
     });
     // Return the least severe action
     return sortedSeverities[0];
-}
+};
 
 /**
  * Maps ReportSuggestedAction to ReportStatus
@@ -82,28 +82,28 @@ const actionToStatus = (action: ReportSuggestedAction): ReportStatus => {
         case ReportSuggestedAction.SuspendUser:
             return ReportStatus.ClosedSuspended;
     }
-}
+};
 
 /**
  * Types that can be soft-deleted
  */
 const softDeletableTypes = [
-    'ApiVersion',
-    'NoteVersion',
-    'Post',
-    'ProjectVersion',
-    'RoutineVersion',
-    'SmartContractVersion',
-    'StandardVersion'
+    "ApiVersion",
+    "NoteVersion",
+    "Post",
+    "ProjectVersion",
+    "RoutineVersion",
+    "SmartContractVersion",
+    "StandardVersion",
 ];
 
 /**
  * Types that don't support being hidden (i.e. don't have "isPrivate" field)
  */
 const nonHideableTypes = [
-    'Comment',
-    'Issue',
-    'Tag',
+    "Comment",
+    "Issue",
+    "Tag",
 ];
 
 /**
@@ -150,60 +150,60 @@ const moderateReport = async (
         // Find the object that was reported.
         // Must capitalize the first letter of the object type to match the __typename
         const [objectField, objectData] = findFirstRel(report, [
-            'apiVersion',
-            'comment',
-            'issue',
-            'noteVersion',
-            'organization',
-            'post',
-            'projectVersion',
-            'question',
-            'routineVersion',
-            'smartContractVersion',
-            'standardVersion',
-            'tag',
-            'user'
-        ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ''), data]) as [string, any];
+            "apiVersion",
+            "comment",
+            "issue",
+            "noteVersion",
+            "organization",
+            "post",
+            "projectVersion",
+            "question",
+            "routineVersion",
+            "smartContractVersion",
+            "standardVersion",
+            "tag",
+            "user",
+        ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ""), data]) as [string, any];
         if (!objectField || !objectData) {
-            logger.error('Failed to complete report moderation. Object likely deleted', { trace: '0409', reportId: report.id, objectField, objectData })
+            logger.error("Failed to complete report moderation. Object likely deleted", { trace: "0409", reportId: report.id, objectField, objectData });
             return;
         }
         const objectType = uppercaseFirstLetter(objectField);
         // Find the object's owner
-        let objectOwner: { __typename: 'Organization' | 'User', id: string } | null = null;
-        if (objectType.endsWith('Version')) {
+        let objectOwner: { __typename: "Organization" | "User", id: string } | null = null;
+        if (objectType.endsWith("Version")) {
             if (objectData.root.ownedByOrganization) {
-                objectOwner = { __typename: 'Organization', id: objectData.root.ownedByOrganization.id };
+                objectOwner = { __typename: "Organization", id: objectData.root.ownedByOrganization.id };
             }
             else if (objectData.root.ownedByUser) {
-                objectOwner = { __typename: 'User', id: objectData.root.ownedByUser.id };
+                objectOwner = { __typename: "User", id: objectData.root.ownedByUser.id };
             }
         }
-        else if (['Post'].includes(objectType)) {
+        else if (["Post"].includes(objectType)) {
             if (objectData.organization) {
-                objectOwner = { __typename: 'Organization', id: objectData.organization.id };
+                objectOwner = { __typename: "Organization", id: objectData.organization.id };
             }
             else if (objectData.user) {
-                objectOwner = { __typename: 'User', id: objectData.user.id };
+                objectOwner = { __typename: "User", id: objectData.user.id };
             }
         }
-        else if (['Issue', 'Question', 'Tag'].includes(objectType)) {
+        else if (["Issue", "Question", "Tag"].includes(objectType)) {
             if (objectData.createdBy) {
-                objectOwner = { __typename: 'User', id: objectData.owner.id };
+                objectOwner = { __typename: "User", id: objectData.owner.id };
             }
         }
-        else if (['Organization'].includes(objectType)) {
-            objectOwner = { __typename: 'Organization', id: objectData.id };
+        else if (["Organization"].includes(objectType)) {
+            objectOwner = { __typename: "Organization", id: objectData.id };
         }
-        else if (['User'].includes(objectType)) {
-            objectOwner = { __typename: 'User', id: objectData.id };
+        else if (["User"].includes(objectType)) {
+            objectOwner = { __typename: "User", id: objectData.id };
         }
         if (!objectOwner) {
-            logger.error('Failed to complete report moderation. Owner not found', { trace: '0410', reportId: report.id, objectType, objectData })
+            logger.error("Failed to complete report moderation. Owner not found", { trace: "0410", reportId: report.id, objectType, objectData });
             return;
         }
         // Trigger activity
-        await Trigger(prisma, ['en']).reportActivity({
+        await Trigger(prisma, ["en"]).reportActivity({
             objectId: objectData.id,
             objectType: objectType as GqlModelType,
             objectOwner,
@@ -212,9 +212,9 @@ const moderateReport = async (
             reportId: report.id,
             reportStatus: status,
             userUpdatingReportId: null,
-        })
+        });
         // Get Prisma delegate for the object type
-        const { delegate } = getLogic(['delegate'], objectType as GqlModelType, ['en'], 'moderateReport');
+        const { delegate } = getLogic(["delegate"], objectType as GqlModelType, ["en"], "moderateReport");
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:
@@ -224,7 +224,7 @@ const moderateReport = async (
                 if (softDeletableTypes.includes(objectType)) {
                     await delegate(prisma).update({
                         where: { id: objectData.id },
-                        data: { isDeleted: true }
+                        data: { isDeleted: true },
                     });
                 }
                 else {
@@ -237,7 +237,7 @@ const moderateReport = async (
             case ReportSuggestedAction.HideUntilFixed:
                 // Make sure the object can be hidden
                 if (nonHideableTypes.includes(objectType)) {
-                    logger.error('Failed to complete report moderation. Object cannot be hidden', { trace: '0411', reportId: report.id, objectType, objectData })
+                    logger.error("Failed to complete report moderation. Object cannot be hidden", { trace: "0411", reportId: report.id, objectType, objectData });
                     return;
                 }
                 // Hide the object
@@ -257,7 +257,7 @@ const moderateReport = async (
                 break;
         }
     }
-}
+};
 
 /**
  * Partial query to get data for a versioned object
@@ -267,13 +267,13 @@ const versionedObjectQuery = {
     root: {
         select: {
             ownedByOrganization: {
-                select: { id: true }
+                select: { id: true },
             },
             ownedByUser: {
-                select: { id: true }
+                select: { id: true },
             },
-        }
-    }
+        },
+    },
 } as const;
 
 /**
@@ -282,10 +282,10 @@ const versionedObjectQuery = {
 const nonVersionedObjectQuery = {
     id: true,
     ownedByOrganization: {
-        select: { id: true }
+        select: { id: true },
     },
     ownedByUser: {
-        select: { id: true }
+        select: { id: true },
     },
 } as const;
 
@@ -296,10 +296,10 @@ const nonVersionedObjectQuery = {
 const nonVersionedObjectQuery2 = {
     id: true,
     organization: {
-        select: { id: true }
+        select: { id: true },
     },
     user: {
-        select: { id: true }
+        select: { id: true },
     },
 } as const;
 
@@ -364,10 +364,10 @@ export const checkReportResponses = async () => {
                         id: true,
                         actionSuggested: true,
                         createdBy: {
-                            select: { reputation: true }
-                        }
-                    }
-                }
+                            select: { reputation: true },
+                        },
+                    },
+                },
             },
             skip,
             take: batchSize,
@@ -383,4 +383,4 @@ export const checkReportResponses = async () => {
     } while (currentBatchSize === batchSize);
     // Close the Prisma client
     await prisma.$disconnect();
-}
+};

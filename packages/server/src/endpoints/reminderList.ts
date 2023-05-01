@@ -1,8 +1,8 @@
-import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     input ReminderListCreateInput {
@@ -29,9 +29,9 @@ export const typeDef = gql`
         reminderListCreate(input: ReminderListCreateInput!): ReminderList!
         reminderListUpdate(input: ReminderListUpdateInput!): ReminderList!
     }
-`
+`;
 
-const objectType = 'ReminderList';
+const objectType = "ReminderList";
 export const resolvers: {
     Mutation: {
         reminderListCreate: GQLEndpoint<ReminderListCreateInput, CreateOneResult<ReminderList>>;
@@ -47,5 +47,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

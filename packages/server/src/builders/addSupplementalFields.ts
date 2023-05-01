@@ -1,5 +1,5 @@
-import { GqlModelType } from '@shared/consts';
-import pkg from 'lodash';
+import { GqlModelType } from "@local/shared";
+import pkg from "lodash";
 import { getLogic } from "../getters";
 import { ObjectMap } from "../models";
 import { PrismaType, SessionUserToken, SingleOrArray } from "../types";
@@ -7,6 +7,7 @@ import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
 import { PartialGraphQLInfo } from "./types";
+
 const { merge } = pkg;
 
 /**
@@ -26,7 +27,7 @@ export const addSupplementalFields = async (
 ): Promise<{ [x: string]: any }[]> => {
     if (data.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier
-    let { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);
+    const { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);
     // Dictionary to store supplemental data
     const supplementsByObjectId: { [x: string]: any } = {};
 
@@ -34,9 +35,9 @@ export const addSupplementalFields = async (
     for (const [type, ids] of Object.entries(objectTypesIdsDict)) {
         // Find the supplemental data for each object id in ids
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
-        const { format } = getLogic(['format'], type as keyof typeof ObjectMap, userData?.languages ?? ['en'], 'addSupplementalFields');
+        const { format } = getLogic(["format"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields");
         const valuesWithSupplements = format?.supplemental ?
-            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ['en'], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 
         // Add each value to supplementsByObjectId
@@ -48,6 +49,6 @@ export const addSupplementalFields = async (
         }
     }
     // Convert supplementsByObjectId dictionary back into shape of data
-    let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, supplementsByObjectId));
-    return result
-}
+    const result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, supplementsByObjectId));
+    return result;
+};

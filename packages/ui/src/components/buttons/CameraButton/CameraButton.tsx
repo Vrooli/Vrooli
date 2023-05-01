@@ -1,6 +1,6 @@
-import { useTheme } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { CameraButtonProps } from '../types';
+import { useTheme } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { CameraButtonProps } from "../types";
 
 /**
  * A microphone icon that can be used to trigger speech recognition
@@ -49,5 +49,5 @@ export const CameraButton = ({
     //         </Tooltip>
     //     </Box>
     // )
-    return {} as any
-}
+    return {} as any;
+};

@@ -1,4 +1,4 @@
-import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
+import { LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption } from "types";

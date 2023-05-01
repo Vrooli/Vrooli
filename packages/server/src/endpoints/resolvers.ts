@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 
 /**
@@ -12,6 +12,6 @@ export const resolveUnion = (object: any): `${GqlModelType}` => {
     if (object.__typename) {
         return object.__typename;
     } else {
-        throw new CustomError('0364', 'InternalError', ['en']);
+        throw new CustomError("0364", "InternalError", ["en"]);
     }
-}
+};

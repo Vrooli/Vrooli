@@ -1,8 +1,8 @@
-import { StatsStandard } from "@shared/consts";
+import { StatsStandard } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsStandard: GqlPartial<StatsStandard> = {
-    __typename: 'StatsStandard',
+    __typename: "StatsStandard",
     full: {
         id: true,
         periodStart: true,
@@ -11,4 +11,4 @@ export const statsStandard: GqlPartial<StatsStandard> = {
         linksToInputs: true,
         linksToOutputs: true,
     },
-}
+};

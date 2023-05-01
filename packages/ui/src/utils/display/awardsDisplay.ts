@@ -1,4 +1,4 @@
-import { Award, awardNames } from "@shared/consts";
+import { Award, awardNames } from "@local/shared";
 import { AwardDisplay } from "types";
 
 /**

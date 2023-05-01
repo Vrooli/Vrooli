@@ -1,6 +1,5 @@
+import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, transferValidation, TransferYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
-import { transferValidation } from "@shared/validation";
 import { GraphQLResolveInfo } from "graphql";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { noNull, permissionsSelectHelper, selPad } from "../builders";
@@ -12,20 +11,20 @@ import { PrismaType, SessionUserToken } from "../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
 import { ModelLogic } from "./types";
 
-const __typename = 'Transfer' as const;
-type Permissions = Pick<TransferYou, 'canDelete' | 'canUpdate'>;
+const __typename = "Transfer" as const;
+type Permissions = Pick<TransferYou, "canDelete" | "canUpdate">;
 const suppFields = [] as const;
 
 /**
  * Maps a transferable object type to its field name in the database
  */
 export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
-    Api: 'api',
-    Note: 'note',
-    Project: 'project',
-    Routine: 'routine',
-    SmartContract: 'smartContract',
-    Standard: 'standard',
+    Api: "api",
+    Note: "note",
+    Project: "project",
+    Routine: "routine",
+    SmartContract: "smartContract",
+    Standard: "standard",
 };
 
 /**
@@ -46,17 +45,17 @@ export const transfer = (prisma: PrismaType) => ({
      * List is in same order as owners list.
      */
     checkTransferRequests: async (
-        owners: { id: string, __typename: 'Organization' | 'User' }[],
+        owners: { id: string, __typename: "Organization" | "User" }[],
         userData: SessionUserToken,
     ): Promise<boolean[]> => {
         // Grab all create organization IDs
-        const orgIds = owners.filter(o => o.__typename === 'Organization').map(o => o.id);
+        const orgIds = owners.filter(o => o.__typename === "Organization").map(o => o.id);
         // Check if user is an admin of each organization
         const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
         // Create return list
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
-            if (o.__typename === 'User') return o.id !== userData.id;
+            if (o.__typename === "User") return o.id !== userData.id;
             // If owner is an organization, transfer is required if user is not an admin
             const orgIdIndex = orgIds.indexOf(o.id);
             return !isAdmins[orgIdIndex];
@@ -73,7 +72,7 @@ export const transfer = (prisma: PrismaType) => ({
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const { delegate, validate } = getLogic(["delegate", "validate"], object.__typename, userData.languages, "Transfer.request-object");
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -81,9 +80,9 @@ export const transfer = (prisma: PrismaType) => ({
         const owner = permissionData && validate.owner(permissionData, userData.id);
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
-            throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
+            throw new CustomError("0286", "NotAuthorizedToTransfer", userData.languages);
         // Get 'to' data
-        const toType = input.toOrganizationConnect ? 'Organization' : 'User';
+        const toType = input.toOrganizationConnect ? "Organization" : "User";
         const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
         // Create transfer request
         const request = await prisma.transfer.create({
@@ -91,16 +90,16 @@ export const transfer = (prisma: PrismaType) => ({
                 fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
                 fromOrganization: owner.Organization ? { connect: { id: owner.Organization.id } } : undefined,
                 [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
-                toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
-                toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
-                status: 'Pending',
+                toUser: toType === "User" ? { connect: { id: toId } } : undefined,
+                toOrganization: toType === "Organization" ? { connect: { id: toId } } : undefined,
+                status: "Pending",
                 message: input.message,
             },
-            select: { id: true }
+            select: { id: true },
         });
         // Notify user/org that is receiving the object
         const pushNotification = Notify(prisma, userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
-        if (toType === 'User') await pushNotification.toUser(toId);
+        if (toType === "User") await pushNotification.toUser(toId);
         else await pushNotification.toOrganization(toId);
         // Return the transfer request ID
         return request.id;
@@ -113,7 +112,7 @@ export const transfer = (prisma: PrismaType) => ({
         input: TransferRequestReceiveInput,
         userData: SessionUserToken,
     ): Promise<string> => {
-        return '';//TODO
+        return "";//TODO
     },
     /**
      * Cancels a transfer request that you initiated
@@ -131,26 +130,26 @@ export const transfer = (prisma: PrismaType) => ({
                 toOrganizationId: true,
                 toUserId: true,
                 status: true,
-            }
+            },
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError('0293', 'TransferNotFound', userData.languages);
-        if (transfer.status === 'Accepted')
-            throw new CustomError('0294', 'TransferAlreadyAccepted', userData.languages);
-        if (transfer.status === 'Denied')
-            throw new CustomError('0295', 'TransferAlreadyRejected', userData.languages);
+            throw new CustomError("0293", "TransferNotFound", userData.languages);
+        if (transfer.status === "Accepted")
+            throw new CustomError("0294", "TransferAlreadyAccepted", userData.languages);
+        if (transfer.status === "Denied")
+            throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
-            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.cancel');
+            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.cancel");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
-                throw new CustomError('0300', 'TransferRejectNotAuthorized', userData.languages);
+                throw new CustomError("0300", "TransferRejectNotAuthorized", userData.languages);
         } else if (transfer.fromUserId !== userData.id) {
-            throw new CustomError('0301', 'TransferRejectNotAuthorized', userData.languages);
+            throw new CustomError("0301", "TransferRejectNotAuthorized", userData.languages);
         }
         // Delete transfer request
         await prisma.transfer.delete({
@@ -169,40 +168,40 @@ export const transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not accepted or rejected
         if (!transfer)
-            throw new CustomError('0287', 'TransferNotFound', userData.languages);
-        if (transfer.status === 'Accepted')
-            throw new CustomError('0288', 'TransferAlreadyAccepted', userData.languages);
-        if (transfer.status === 'Denied')
-            throw new CustomError('0289', 'TransferAlreadyRejected', userData.languages);
+            throw new CustomError("0287", "TransferNotFound", userData.languages);
+        if (transfer.status === "Accepted")
+            throw new CustomError("0288", "TransferAlreadyAccepted", userData.languages);
+        if (transfer.status === "Denied")
+            throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.accept');
+            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.accept");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
-                throw new CustomError('0302', 'TransferAcceptNotAuthorized', userData.languages);
+                throw new CustomError("0302", "TransferAcceptNotAuthorized", userData.languages);
         } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError('0303', 'TransferAcceptNotAuthorized', userData.languages);
+            throw new CustomError("0303", "TransferAcceptNotAuthorized", userData.languages);
         }
         // Transfer object, then mark transfer request as accepted
         // Find the object type, based on which relation is not null
-        const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
+        const typeField = ["apiId", "noteId", "projectId", "routineId", "smartContractId", "standardId"].find((field) => transfer[field] !== null);
         if (!typeField)
-            throw new CustomError('0290', 'TransferMissingData', userData.languages);
-        const type = typeField.replace('Id', '');
+            throw new CustomError("0290", "TransferMissingData", userData.languages);
+        const type = typeField.replace("Id", "");
         await prisma.transfer.update({
             where: { id: transferId },
             data: {
-                status: 'Accepted',
+                status: "Accepted",
                 [type]: {
                     update: {
                         ownerId: transfer.toUserId,
                         organizationId: transfer.toOrganizationId,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
         //TODO update object's hasBeenTransferred flag
         // TODO Notify user/org that sent the transfer request
@@ -223,42 +222,42 @@ export const transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError('0320', 'TransferNotFound', userData.languages);
-        if (transfer.status === 'Accepted')
-            throw new CustomError('0291', 'TransferAlreadyAccepted', userData.languages);
-        if (transfer.status === 'Denied')
-            throw new CustomError('0292', 'TransferAlreadyRejected', userData.languages);
+            throw new CustomError("0320", "TransferNotFound", userData.languages);
+        if (transfer.status === "Accepted")
+            throw new CustomError("0291", "TransferAlreadyAccepted", userData.languages);
+        if (transfer.status === "Denied")
+            throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.reject');
+            const { validate } = getLogic(["validate"], "Organization", userData.languages, "Transfer.reject");
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
-                throw new CustomError('0312', 'TransferRejectNotAuthorized', userData.languages);
+                throw new CustomError("0312", "TransferRejectNotAuthorized", userData.languages);
         } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError('0313', 'TransferRejectNotAuthorized', userData.languages);
+            throw new CustomError("0313", "TransferRejectNotAuthorized", userData.languages);
         }
         // Find the object type, based on which relation is not null
-        const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
+        const typeField = ["apiId", "noteId", "projectId", "routineId", "smartContractId", "standardId"].find((field) => transfer[field] !== null);
         if (!typeField)
-            throw new CustomError('0290', 'TransferMissingData', userData.languages);
-        const type = typeField.replace('Id', '');
+            throw new CustomError("0290", "TransferMissingData", userData.languages);
+        const type = typeField.replace("Id", "");
         // Deny the transfer
         await prisma.transfer.update({
             where: { id: transferId },
             data: {
-                status: 'Denied',
+                status: "Denied",
                 denyReason: reason,
-            }
+            },
         });
         // Notify user/org that sent the transfer request
         //const pushNotification = Notify(prisma, userData.languages).pushTransferRejected(transfer.objectTitle, type, transferId);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
     },
-})
+});
 
 export const TransferModel: ModelLogic<{
     IsTransferable: false,
@@ -269,8 +268,8 @@ export const TransferModel: ModelLogic<{
     GqlSearch: TransferSearchInput,
     GqlSort: TransferSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.transferUpsertArgs['create'],
-    PrismaUpdate: Prisma.transferUpsertArgs['update'],
+    PrismaCreate: Prisma.transferUpsertArgs["create"],
+    PrismaUpdate: Prisma.transferUpsertArgs["update"],
     PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
     PrismaSelect: Prisma.transferSelect,
     PrismaWhere: Prisma.transferWhereInput,
@@ -294,41 +293,41 @@ export const TransferModel: ModelLogic<{
             if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
             if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
             if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-            return '';
-        }
+            return "";
+        },
     },
     format: {
         gqlRelMap: {
             __typename,
             fromOwner: {
-                fromUser: 'User',
-                fromOrganization: 'Organization',
+                fromUser: "User",
+                fromOrganization: "Organization",
             },
             object: {
-                api: 'Api',
-                note: 'Note',
-                project: 'Project',
-                routine: 'Routine',
-                smartContract: 'SmartContract',
-                standard: 'Standard',
+                api: "Api",
+                note: "Note",
+                project: "Project",
+                routine: "Routine",
+                smartContract: "SmartContract",
+                standard: "Standard",
             },
             toOwner: {
-                toUser: 'User',
-                toOrganization: 'Organization',
+                toUser: "User",
+                toOrganization: "Organization",
             },
         },
         prismaRelMap: {
             __typename,
-            fromUser: 'User',
-            fromOrganization: 'Organization',
-            toUser: 'User',
-            toOrganization: 'Organization',
-            api: 'Api',
-            note: 'Note',
-            project: 'Project',
-            routine: 'Routine',
-            smartContract: 'SmartContract',
-            standard: 'Standard',
+            fromUser: "User",
+            fromOrganization: "Organization",
+            toUser: "User",
+            toOrganization: "Organization",
+            api: "Api",
+            note: "Note",
+            project: "Project",
+            routine: "Routine",
+            smartContract: "SmartContract",
+            standard: "Standard",
         },
         countFields: {},
         supplemental: {
@@ -337,8 +336,8 @@ export const TransferModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -346,10 +345,10 @@ export const TransferModel: ModelLogic<{
         shape: {
             update: async ({ data }) => ({
                 message: noNull(data.message),
-            })
+            }),
         },
         yup: transferValidation,
     },
     transfer,
     validate: {} as any,
-})
+});

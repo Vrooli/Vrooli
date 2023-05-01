@@ -1,10 +1,6 @@
 {
     "extends": [
+        "../../.eslintrc",
         "react-app"
     ],
-    "ignorePatterns": [
-        "build/",
-        "dist/",
-        "node_modules/"
-    ]
 }

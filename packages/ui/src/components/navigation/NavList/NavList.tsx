@@ -1,26 +1,24 @@
-import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { LINKS } from '@shared/consts';
-import { LogInIcon, ProfileIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
-import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
-import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
-import React, { useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { checkIfLoggedIn, getCurrentUser } from 'utils/authentication/session';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
-import { SessionContext } from 'utils/SessionContext';
-import { ContactInfo } from '../ContactInfo/ContactInfo';
+import { LINKS, LogInIcon, openLink, ProfileIcon, useLocation } from "@local/shared";
+import { Button, Container, IconButton, Palette, useTheme } from "@mui/material";
+import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
+import { AccountMenu } from "components/dialogs/AccountMenu/AccountMenu";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
+import { SessionContext } from "utils/SessionContext";
+import { ContactInfo } from "../ContactInfo/ContactInfo";
 
 const navItemStyle = (palette: Palette) => ({
-    background: 'transparent',
+    background: "transparent",
     color: palette.primary.contrastText,
-    textTransform: 'none',
-    fontSize: '1.4em',
-    '&:hover': {
+    textTransform: "none",
+    fontSize: "1.4em",
+    "&:hover": {
         color: palette.secondary.light,
     },
-})
+});
 
 export const NavList = () => {
     const session = useContext(SessionContext);
@@ -36,24 +34,24 @@ export const NavList = () => {
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
     const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
         ev.stopPropagation();
-        setAccountMenuAnchor(ev.currentTarget)
+        setAccountMenuAnchor(ev.currentTarget);
     }, [setAccountMenuAnchor]);
     const closeAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
         ev.stopPropagation();
-        setAccountMenuAnchor(null)
+        setAccountMenuAnchor(null);
     }, []);
 
     return (
         <Container sx={{
-            display: 'flex',
-            height: '100%',
-            paddingBottom: '0',
-            paddingRight: '0 !important',
-            right: '0',
+            display: "flex",
+            height: "100%",
+            paddingBottom: "0",
+            paddingRight: "0 !important",
+            right: "0",
         }}>
             {/* Contact menu */}
             {!isMobile && !getCurrentUser(session).id && <PopupMenu
-                text={t(`Contact`)}
+                text={t("Contact")}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}
@@ -75,21 +73,21 @@ export const NavList = () => {
             {!checkIfLoggedIn(session) && (
                 <Button
                     href={LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start) }}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start); }}
                     startIcon={<LogInIcon />}
                     sx={{
-                        background: '#387e30',
-                        borderRadius: '10px',
-                        whiteSpace: 'nowrap',
+                        background: "#387e30",
+                        borderRadius: "10px",
+                        whiteSpace: "nowrap",
                         // Hide text on small screens, and remove start icon's padding
-                        fontSize: { xs: '0px', sm: '1em', md: '1.4em' },
-                        '& .MuiButton-startIcon': {
-                            marginLeft: { xs: '0px', sm: '-4px' },
-                            marginRight: { xs: '0px', sm: '8px' },
+                        fontSize: { xs: "0px", sm: "1em", md: "1.4em" },
+                        "& .MuiButton-startIcon": {
+                            marginLeft: { xs: "0px", sm: "-4px" },
+                            marginRight: { xs: "0px", sm: "8px" },
                         },
                     }}
                 >
-                    {t('LogIn')}
+                    {t("LogIn")}
                 </Button>
             )}
             {/* Profile icon */}
@@ -104,4 +102,4 @@ export const NavList = () => {
             )}
         </Container>
     );
-}
+};

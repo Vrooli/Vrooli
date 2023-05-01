@@ -1,10 +1,10 @@
-import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, IssueUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { CustomError } from '../events';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { resolveUnion } from './resolvers';
+import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, IssueUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum IssueSortBy {
@@ -168,9 +168,9 @@ export const typeDef = gql`
         issueUpdate(input: IssueUpdateInput!): Issue!
         issueClose(input: IssueCloseInput!): Issue!
     }
-`
+`;
 
-const objectType = 'Issue';
+const objectType = "Issue";
 export const resolvers: {
     IssueSortBy: typeof IssueSortBy;
     IssueStatus: typeof IssueStatus;
@@ -189,29 +189,29 @@ export const resolvers: {
     IssueSortBy,
     IssueStatus,
     IssueFor,
-    IssueTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    IssueTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         issue: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         issues: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         issueCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         issueUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         issueClose: async (_, { input }, { prisma, req }, info) => {
-            throw new CustomError('0000', 'NotImplemented', ['en'])
+            throw new CustomError("0000", "NotImplemented", ["en"]);
             // TODO make sure to set hasBeenClosedOrRejected to true
         },
-    }
-}
+    },
+};

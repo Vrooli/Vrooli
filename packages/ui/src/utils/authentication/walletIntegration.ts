@@ -2,12 +2,12 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { ApolloError } from '@apollo/client';
-import { WalletComplete } from '@shared/consts';
-import { authWalletComplete } from 'api/generated/endpoints/auth_walletComplete';
-import { authWalletInit } from 'api/generated/endpoints/auth_walletInit';
-import { errorToCode, initializeApollo } from 'api/utils';
-import { PubSub } from 'utils/pubsub';
+import { ApolloError } from "@apollo/client";
+import { WalletComplete } from "@local/shared";
+import { authWalletComplete } from "api/generated/endpoints/auth_walletComplete";
+import { authWalletInit } from "api/generated/endpoints/auth_walletInit";
+import { errorToCode, initializeApollo } from "api/utils";
+import { PubSub } from "utils/pubsub";
 
 /**
  * Object returned from await window.cardano[providerKey].enable()
@@ -38,20 +38,20 @@ export type WalletProviderInfo = {
 export const walletDownloadUrls: { [x: string]: [string, string] } = {
     // 'cardwallet': ['Card Wallet', 'https://chrome.google.com/webstore/detail/cwallet/apnehcjmnengpnmccpaibjmhhoadaico'],
     //'eternl': ['eternl (CCVault.io)', 'https://chrome.google.com/webstore/detail/eternl/kmhcihpebfmpgmihbkipmjlmmioameka'],
-    'flint': ['Flint', 'https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj'],
+    "flint": ["Flint", "https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj"],
     // 'gero': ['Gero', 'https://chrome.google.com/webstore/detail/gerowallet/bgpipimickeadkjlklgciifhnalhdjhe'],
-    'nami': ['Nami', 'https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo'],
-    'nufi': ['NuFi', 'https://chrome.google.com/webstore/detail/nufi/gpnihlnnodeiiaakbikldcihojploeca'],
+    "nami": ["Nami", "https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo"],
+    "nufi": ["NuFi", "https://chrome.google.com/webstore/detail/nufi/gpnihlnnodeiiaakbikldcihojploeca"],
     // 'yoroi': 'https://chrome.google.com/webstore/detail/yoroi/ffnbelfdoeiohenkjibnmadjiehjhajb',
-}
+};
 
 /**
  * Maps network names to their ids
  */
 const Network = {
     Mainnet: 1,
-    Testnet: 0
-}
+    Testnet: 0,
+};
 
 /**
  * Checks is a wallet extension is installed
@@ -70,16 +70,16 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         return [];
     }
     // Extensions that don't work for some reason (TODO)
-    const exclude = ['eternl', 'gero', 'cardwallet'];
+    const exclude = ["eternl", "gero", "cardwallet"];
     // Filter out all entries that don't match the WalletProviderInfo shape
     let providers = Object.entries(window.cardano).filter(([key, value]) => {
-        if (typeof value !== 'object') return false;
+        if (typeof value !== "object") return false;
         const obj = value as { [x: string]: any };
-        if (!obj.hasOwnProperty('apiVersion')) return false;
-        if (!obj.hasOwnProperty('enable')) return false;
-        if (!obj.hasOwnProperty('name')) return false;
-        if (!obj.hasOwnProperty('icon')) return false;
-        if (!obj.hasOwnProperty('isEnabled')) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "apiVersion")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "enable")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "name")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "icon")) return false;
+        if (!Object.prototype.hasOwnProperty.call(obj, "isEnabled")) return false;
         return true;
     }) as [string, WalletProviderInfo][];
     // Filter out duplicate names and excluded
@@ -89,7 +89,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         return !nextName && !exclude.includes(key);
     });
     return providers;
-}
+};
 
 /**
  * Connects to wallet provider
@@ -99,7 +99,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
 const connectWallet = async (key: string): Promise<any> => {
     if (!hasWalletExtension(key)) return false;
     return await window.cardano[key].enable();
-}
+};
 
 /**
  * Initiates handshake to verify wallet with backend.
@@ -111,13 +111,13 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: authWalletInit,
-        variables: { input: { stakingAddress } }
+        variables: { input: { stakingAddress } },
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
-    })
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
+    });
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
-}
+};
 
 /**
  * Completes handshake to verify wallet with backend
@@ -130,13 +130,13 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: authWalletComplete,
-        variables: { input: { stakingAddress, signedPayload } }
+        variables: { input: { stakingAddress, signedPayload } },
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
-    })
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
+    });
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;
-}
+};
 
 /**
  * Signs payload received from walletInit
@@ -149,11 +149,11 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
 const signPayload = async (key: string, walletActions: WalletActions, stakingAddress: string, payload: string): Promise<any> => {
     if (!hasWalletExtension(key)) return null;
     // As of 2022-02-05, new Nami endpoint is not fully working. So the old method is used for now
-    if (key === 'nami')
+    if (key === "nami")
         return await window.cardano.signData(stakingAddress, payload);
     // For all other providers, we use the new method
     return await walletActions.signData(stakingAddress, payload);
-}
+};
 
 /**
  * Establish trust between a user's wallet and the backend
@@ -168,10 +168,10 @@ export const validateWallet = async (key: string): Promise<WalletComplete | null
         if (!walletActions) return null;
         // Check if wallet is mainnet or testnet
         const network = await walletActions.getNetworkId();
-        if (network !== Network.Mainnet) throw new Error('Wallet is not on mainnet');
+        if (network !== Network.Mainnet) throw new Error("Wallet is not on mainnet");
         // Find wallet address
         const stakingAddresses = await walletActions.getRewardAddresses();
-        if (!stakingAddresses || stakingAddresses.length === 0) throw new Error('Could not find staking address');
+        if (!stakingAddresses || stakingAddresses.length === 0) throw new Error("Could not find staking address");
         // Request payload from backend
         const payload = await walletInit(stakingAddresses[0]);
         if (!payload) return null;
@@ -181,12 +181,12 @@ export const validateWallet = async (key: string): Promise<WalletComplete | null
         // Send signed payload to backend for verification
         result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {
-        console.error('Caught error completing wallet validation', error);
+        console.error("Caught error completing wallet validation", error);
         PubSub.get().publishAlertDialog({
-            messageKey: 'WalletErrorUnknown',
-            buttons: [{ labelKey: 'Ok' }],
+            messageKey: "WalletErrorUnknown",
+            buttons: [{ labelKey: "Ok" }],
         });
     } finally {
         return result;
     }
-}
+};

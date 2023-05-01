@@ -1,12 +1,10 @@
+import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from '@shared/consts';
-import { AddIcon, DeleteIcon, EditIcon } from "@shared/icons";
-import { useLocation } from "@shared/route";
 import { mutationWrapper } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCustomMutation } from "api/hooks";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FocusModeDialog } from "components/dialogs/FocusModeDialog/FocusModeDialog";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { t } from "i18next";
@@ -15,10 +13,11 @@ import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
-    display = 'page',
+    display = "page",
 }: SettingsFocusModesViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -42,28 +41,28 @@ export const SettingsFocusModesView = ({
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
         if (focusModes.length === 1) {
-            PubSub.get().publishSnack({ messageKey: 'MustHaveFocusMode', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "MustHaveFocusMode", severity: "Error" });
             return;
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            messageKey: 'DeleteFocusModeConfirm',
+            messageKey: "DeleteFocusModeConfirm",
             buttons: [
                 {
-                    labelKey: 'Yes', onClick: () => {
+                    labelKey: "Yes", onClick: () => {
                         mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
                             input: { id: focusMode.id, objectType: DeleteType.FocusMode },
                             successCondition: (data) => data.success,
-                            successMessage: () => ({ key: 'FocusModeDeleted' }),
+                            successMessage: () => ({ messageKey: "FocusModeDeleted" }),
                             onSuccess: () => {
                                 setFocusModes((prevFocusModes) => prevFocusModes.filter((prevFocusMode) => prevFocusMode.id !== focusMode.id));
                             },
-                        })
-                    }
+                        });
+                    },
                 },
-                { labelKey: 'Cancel' },
-            ]
+                { labelKey: "Cancel" },
+            ],
         });
     }, [deleteMutation, focusModes.length]);
 
@@ -106,10 +105,10 @@ export const SettingsFocusModesView = ({
             // If you don't have premium, open premium page
             if (!hasPremium) {
                 setLocation(LINKS.Premium);
-                PubSub.get().publishSnack({ message: 'Upgrade to increase limit', severity: 'Info' });
+                PubSub.get().publishSnack({ message: "Upgrade to increase limit", severity: "Info" });
             }
             // Otherwise, show error message
-            else PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
+            else PubSub.get().publishSnack({ message: "Max reached", severity: "Error" });
             return;
         }
         setIsDialogOpen(true);
@@ -121,43 +120,69 @@ export const SettingsFocusModesView = ({
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
     };
-    const handleCreated = (newFocusMode: FocusMode) => {
+    const handleCompleted = useCallback((focusMode: FocusMode) => {
+        let updatedFocusModes: FocusMode[];
+        // Check if focus mode is already in list (i.e. updated instead of created)
+        const existingFocusMode = focusModes.find((existingFocusMode) => existingFocusMode.id === focusMode.id);
+        if (existingFocusMode) {
+            updatedFocusModes = focusModes.map((existingFocusMode) => existingFocusMode.id === focusMode.id ? focusMode : existingFocusMode);
+            setFocusModes(updatedFocusModes);
+        }
+        // Otherwise, add to list
+        else {
+            updatedFocusModes = [...focusModes, focusMode];
+            setFocusModes(updatedFocusModes);
+        }
+        // Publish updated focus mode list. This should also update the active focus mode, if necessary.
+        const currentUser = getCurrentUser(session);
+        const users: SessionUser[] = [
+            ...session!.users!.filter((user) => user.id !== currentUser.id),
+            {
+                ...currentUser,
+                focusModes: updatedFocusModes,
+            } as SessionUser,
+        ];
+        PubSub.get().publishSession({ users } as any);
+        // Close dialog
         setIsDialogOpen(false);
-        PubSub.get().publishFocusMode({
-            __typename: 'ActiveFocusMode' as const,
-            mode: newFocusMode,
-            stopCondition: FocusModeStopCondition.NextBegins,
-        })
-    }
+    }, [focusModes, session]);
 
     return (
         <>
-            {/* Dialog to create a new focus mode */}
-            <FocusModeDialog
-                isCreate={editingFocusMode === null}
-                isOpen={isDialogOpen}
+            {/* Dialog to create/update focus modes */}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseDialog}
-                onCreated={handleCreated}
-                onUpdated={() => { }}
+                isOpen={isDialogOpen}
+                titleId={""}
                 zIndex={1000}
-            />
+            >
+                <FocusModeUpsert
+                    display="dialog"
+                    isCreate={editingFocusMode === null}
+                    onCancel={handleCloseDialog}
+                    onCompleted={handleCompleted}
+                    partialData={editingFocusMode ?? undefined}
+                    zIndex={1000}
+                />
+            </LargeDialog>
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'FocusMode',
+                    titleKey: "FocusMode",
                     titleVariables: { count: 2 },
                 }}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Stack direction="column" sx={{
-                    margin: 'auto',
-                    display: 'block',
+                    margin: "auto",
+                    display: "block",
                 }}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                        <Typography component="h2" variant="h4">{t('FocusMode', { count: 2 })}</Typography>
-                        <Tooltip title={canAdd ? "Add new" : 'Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode.'} placement="top">
+                        <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
+                        <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
                             <IconButton
                                 size="medium"
                                 onClick={handleAdd}
@@ -170,9 +195,9 @@ export const SettingsFocusModesView = ({
                         </Tooltip>
                     </Stack>
                     <ListContainer
-                        emptyText={t(`NoFocusModes`, { ns: 'error' })}
+                        emptyText={t("NoFocusModes", { ns: "error" })}
                         isEmpty={focusModes.length === 0}
-                        sx={{ maxWidth: '500px' }}
+                        sx={{ maxWidth: "500px" }}
                     >
                         {focusModes.map((focusMode) => (
                             <ListItem key={focusMode.id}>
@@ -181,9 +206,9 @@ export const SettingsFocusModesView = ({
                                     spacing={1}
                                     pl={2}
                                     sx={{
-                                        width: '-webkit-fill-available',
-                                        display: 'grid',
-                                        pointerEvents: 'none',
+                                        width: "-webkit-fill-available",
+                                        display: "grid",
+                                        pointerEvents: "none",
                                     }}
                                 >
                                     {/* Name */}
@@ -191,23 +216,23 @@ export const SettingsFocusModesView = ({
                                         primary={focusMode.name}
                                         sx={{
                                             ...multiLineEllipsis(1),
-                                            lineBreak: 'anywhere',
-                                            pointerEvents: 'none',
+                                            lineBreak: "anywhere",
+                                            pointerEvents: "none",
                                         }}
                                     />
                                     {/* Description */}
                                     <ListItemText
                                         primary={focusMode.description}
-                                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: 'none' }}
+                                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
                                     />
                                 </Stack>
                                 <Stack
                                     direction="column"
                                     spacing={1}
                                     sx={{
-                                        pointerEvents: 'none',
-                                        justifyContent: 'center',
-                                        alignItems: 'start',
+                                        pointerEvents: "none",
+                                        justifyContent: "center",
+                                        alignItems: "start",
                                     }}
                                 >
                                     {/* Edit */}
@@ -215,12 +240,12 @@ export const SettingsFocusModesView = ({
                                         component="a"
                                         onClick={() => handleUpdate(focusMode)}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <EditIcon fill={palette.secondary.main} />
                                     </Box>
@@ -229,12 +254,12 @@ export const SettingsFocusModesView = ({
                                         component="a"
                                         onClick={() => handleDelete(focusMode)}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <DeleteIcon fill={palette.secondary.main} />
                                     </Box>}
@@ -245,5 +270,5 @@ export const SettingsFocusModesView = ({
                 </Stack>
             </Stack>
         </>
-    )
-}
+    );
+};

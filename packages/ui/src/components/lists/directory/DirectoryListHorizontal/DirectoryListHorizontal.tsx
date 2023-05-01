@@ -1,22 +1,21 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Box, CircularProgress, Tooltip, useTheme } from '@mui/material';
-import { Count, DeleteManyInput } from '@shared/consts';
-import { LinkIcon } from '@shared/icons';
-import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
-import { CardGrid } from 'components/lists/CardGrid/CardGrid';
-import { cardRoot } from 'components/lists/styles';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { getDisplay } from 'utils/display/listTools';
-import { getUserLanguages } from 'utils/display/translationTools';
-import { PubSub } from 'utils/pubsub';
-import { SessionContext } from 'utils/SessionContext';
-import { DirectoryCard } from '../DirectoryCard/DirectoryCard';
-import { DirectoryListItemContextMenu } from '../DirectoryListItemContextMenu/DirectoryListItemContextMenu';
-import { DirectoryItem, DirectoryListHorizontalProps } from '../types';
+import { Count, DeleteManyInput, LinkIcon } from "@local/shared";
+import { Box, CircularProgress, Tooltip, useTheme } from "@mui/material";
+import { deleteOneOrManyDeleteMany } from "api/generated/endpoints/deleteOneOrMany_deleteMany";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { CardGrid } from "components/lists/CardGrid/CardGrid";
+import { cardRoot } from "components/lists/styles";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { DirectoryCard } from "../DirectoryCard/DirectoryCard";
+import { DirectoryListItemContextMenu } from "../DirectoryListItemContextMenu/DirectoryListItemContextMenu";
+import { DirectoryItem, DirectoryListHorizontalProps } from "../types";
 
 export const DirectoryListHorizontal = ({
     canUpdate = true,
@@ -66,37 +65,37 @@ export const DirectoryListHorizontal = ({
 
     // Add item dialog
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); }, []);
 
     const onAdd = useCallback((item: DirectoryItem) => {
-        console.log('directoryyy onAdd', item)
+        console.log("directoryyy onAdd", item);
         if (!directory) return;
         // Dont add duplicates
         if (list.some(r => r.id === item.id)) {
-            PubSub.get().publishSnack({ message: 'Item already added', severity: 'Warning' });
+            PubSub.get().publishSnack({ message: "Item already added", severity: "Warning" });
             return;
         }
         if (handleUpdate) {
-            console.log('directoryyy handleUpdate', {
+            console.log("directoryyy handleUpdate", {
                 ...directory,
-                childApiVersions: item.__typename === 'ApiVersion' ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
-                childNoteVersions: item.__typename === 'NoteVersion' ? [...directory.childNoteVersions, item] : directory.childNoteVersions as any[],
-                childOrganizations: item.__typename === 'Organization' ? [...directory.childOrganizations, item] : directory.childOrganizations as any[],
-                childProjectVersions: item.__typename === 'ProjectVersion' ? [...directory.childProjectVersions, item] : directory.childProjectVersions as any[],
-                childRoutineVersions: item.__typename === 'RoutineVersion' ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
-                childSmartContractVersions: item.__typename === 'SmartContractVersion' ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
-                childStandardVersions: item.__typename === 'StandardVersion' ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
-            })
+                childApiVersions: item.__typename === "ApiVersion" ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
+                childNoteVersions: item.__typename === "NoteVersion" ? [...directory.childNoteVersions, item] : directory.childNoteVersions as any[],
+                childOrganizations: item.__typename === "Organization" ? [...directory.childOrganizations, item] : directory.childOrganizations as any[],
+                childProjectVersions: item.__typename === "ProjectVersion" ? [...directory.childProjectVersions, item] : directory.childProjectVersions as any[],
+                childRoutineVersions: item.__typename === "RoutineVersion" ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
+                childSmartContractVersions: item.__typename === "SmartContractVersion" ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
+                childStandardVersions: item.__typename === "StandardVersion" ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
+            });
             handleUpdate({
                 ...directory,
-                childApiVersions: item.__typename === 'ApiVersion' ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
-                childNoteVersions: item.__typename === 'NoteVersion' ? [...directory.childNoteVersions, item] : directory.childNoteVersions as any[],
-                childOrganizations: item.__typename === 'Organization' ? [...directory.childOrganizations, item] : directory.childOrganizations as any[],
-                childProjectVersions: item.__typename === 'ProjectVersion' ? [...directory.childProjectVersions, item] : directory.childProjectVersions as any[],
-                childRoutineVersions: item.__typename === 'RoutineVersion' ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
-                childSmartContractVersions: item.__typename === 'SmartContractVersion' ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
-                childStandardVersions: item.__typename === 'StandardVersion' ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
+                childApiVersions: item.__typename === "ApiVersion" ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
+                childNoteVersions: item.__typename === "NoteVersion" ? [...directory.childNoteVersions, item] : directory.childNoteVersions as any[],
+                childOrganizations: item.__typename === "Organization" ? [...directory.childOrganizations, item] : directory.childOrganizations as any[],
+                childProjectVersions: item.__typename === "ProjectVersion" ? [...directory.childProjectVersions, item] : directory.childProjectVersions as any[],
+                childRoutineVersions: item.__typename === "RoutineVersion" ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
+                childSmartContractVersions: item.__typename === "SmartContractVersion" ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
+                childStandardVersions: item.__typename === "StandardVersion" ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
             });
         }
         closeDialog();
@@ -114,28 +113,28 @@ export const DirectoryListHorizontal = ({
                     if (handleUpdate) {
                         handleUpdate({
                             ...directory,
-                            childApiVersions: item.__typename === 'ApiVersion' ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions as any[],
-                            childNoteVersions: item.__typename === 'NoteVersion' ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions as any[],
-                            childOrganizations: item.__typename === 'Organization' ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations as any[],
-                            childProjectVersions: item.__typename === 'ProjectVersion' ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions as any[],
-                            childRoutineVersions: item.__typename === 'RoutineVersion' ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions as any[],
-                            childSmartContractVersions: item.__typename === 'SmartContractVersion' ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions as any[],
-                            childStandardVersions: item.__typename === 'StandardVersion' ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions as any[],
+                            childApiVersions: item.__typename === "ApiVersion" ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions as any[],
+                            childNoteVersions: item.__typename === "NoteVersion" ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions as any[],
+                            childOrganizations: item.__typename === "Organization" ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations as any[],
+                            childProjectVersions: item.__typename === "ProjectVersion" ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions as any[],
+                            childRoutineVersions: item.__typename === "RoutineVersion" ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions as any[],
+                            childSmartContractVersions: item.__typename === "SmartContractVersion" ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions as any[],
+                            childStandardVersions: item.__typename === "StandardVersion" ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions as any[],
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
                 ...directory,
-                childApiVersions: item.__typename === 'ApiVersion' ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions as any[],
-                childNoteVersions: item.__typename === 'NoteVersion' ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions as any[],
-                childOrganizations: item.__typename === 'Organization' ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations as any[],
-                childProjectVersions: item.__typename === 'ProjectVersion' ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions as any[],
-                childRoutineVersions: item.__typename === 'RoutineVersion' ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions as any[],
-                childSmartContractVersions: item.__typename === 'SmartContractVersion' ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions as any[],
-                childStandardVersions: item.__typename === 'StandardVersion' ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions as any[],
+                childApiVersions: item.__typename === "ApiVersion" ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions as any[],
+                childNoteVersions: item.__typename === "NoteVersion" ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions as any[],
+                childOrganizations: item.__typename === "Organization" ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations as any[],
+                childProjectVersions: item.__typename === "ProjectVersion" ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions as any[],
+                childRoutineVersions: item.__typename === "RoutineVersion" ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions as any[],
+                childSmartContractVersions: item.__typename === "SmartContractVersion" ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions as any[],
+                childStandardVersions: item.__typename === "StandardVersion" ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions as any[],
             });
         }
     }, [deleteMutation, directory, handleUpdate, list, mutate]);
@@ -174,17 +173,17 @@ export const DirectoryListHorizontal = ({
                         data={c}
                         onContextMenu={openContext}
                         onDelete={onDelete}
-                        aria-owns={Boolean(selectedIndex) ? contextId : undefined}
+                        aria-owns={selectedIndex ? contextId : undefined}
                     />
                 )) as any}
                 {
                     loading && (
                         <CircularProgress sx={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                            color: palette.mode === "light" ? palette.secondary.light : "white",
                         }} />
                     )
                 }
@@ -196,13 +195,13 @@ export const DirectoryListHorizontal = ({
                         sx={{
                             ...cardRoot,
                             background: palette.primary.light,
-                            width: '120px',
-                            minWidth: '120px',
-                            height: '120px',
-                            minHeight: '120px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            width: "120px",
+                            minWidth: "120px",
+                            height: "120px",
+                            minHeight: "120px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                         }}
                     >
                         <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
@@ -210,5 +209,5 @@ export const DirectoryListHorizontal = ({
                 </Tooltip> : null) as any}
             </CardGrid>
         </>
-    )
-}
+    );
+};

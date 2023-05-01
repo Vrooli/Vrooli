@@ -1,22 +1,15 @@
-import {
-    Box,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme
-} from '@mui/material';
-import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { multiLineEllipsis, noSelect } from 'styles';
-import { getDisplay } from 'utils/display/listTools';
-import { getUserLanguages } from 'utils/display/translationTools';
-import usePress from 'utils/hooks/usePress';
-import { getObjectUrl } from 'utils/navigation/openObject';
-import { SessionContext } from 'utils/SessionContext';
-import { DirectoryCardProps } from '../types';
+import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, useLocation } from "@local/shared";
+import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { multiLineEllipsis, noSelect } from "styles";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import usePress from "utils/hooks/usePress";
+import { getObjectUrl } from "utils/navigation/openObject";
+import { SessionContext } from "utils/SessionContext";
+import { DirectoryCardProps } from "../types";
 
 /**
  * Unlike ResourceCard, these aren't draggable. This is because the objects 
@@ -40,21 +33,21 @@ export const DirectoryCard = ({
 
     const Icon = useMemo(() => {
         if (!data || !data.__typename) return HelpIcon;
-        if (data.__typename === 'ApiVersion') return ApiIcon;
-        if (data.__typename === 'NoteVersion') return NoteIcon;
-        if (data.__typename === 'Organization') return OrganizationIcon;
-        if (data.__typename === 'ProjectVersion') return ProjectIcon;
-        if (data.__typename === 'RoutineVersion') return RoutineIcon;
-        if (data.__typename === 'SmartContractVersion') return SmartContractIcon;
-        if (data.__typename === 'StandardVersion') return StandardIcon;
+        if (data.__typename === "ApiVersion") return ApiIcon;
+        if (data.__typename === "NoteVersion") return NoteIcon;
+        if (data.__typename === "Organization") return OrganizationIcon;
+        if (data.__typename === "ProjectVersion") return ProjectIcon;
+        if (data.__typename === "RoutineVersion") return RoutineIcon;
+        if (data.__typename === "SmartContractVersion") return SmartContractIcon;
+        if (data.__typename === "StandardVersion") return StandardIcon;
         return HelpIcon;
     }, [data]);
 
-    const href = useMemo(() => data ? getObjectUrl(data as any) : '#', [data]);
+    const href = useMemo(() => data ? getObjectUrl(data as any) : "#", [data]);
     const handleClick = useCallback((target: EventTarget) => {
         // Check if delete button was clicked
         const targetId: string | undefined = target.id;
-        if (targetId && targetId.startsWith('delete-')) {
+        if (targetId && targetId.startsWith("delete-")) {
             onDelete?.(index);
         }
         else {
@@ -72,7 +65,7 @@ export const DirectoryCard = ({
         }
     }, [canUpdate]);
 
-    const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
+    const handleHoverEnd = useCallback(() => { setShowIcons(false); }, []);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -84,7 +77,7 @@ export const DirectoryCard = ({
     });
 
     return (
-        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${href}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + " - " : ""}${href}`}>
             <Box
                 {...pressEvents}
                 component="a"
@@ -95,29 +88,29 @@ export const DirectoryCard = ({
                     boxShadow: 8,
                     background: palette.primary.light,
                     color: palette.secondary.contrastText,
-                    borderRadius: '16px',
+                    borderRadius: "16px",
                     margin: 0,
                     padding: 1,
-                    cursor: 'pointer',
-                    width: '120px',
-                    minWidth: '120px',
-                    minHeight: '120px',
-                    height: '120px',
-                    position: 'relative',
-                    '&:hover': {
-                        filter: `brightness(120%)`,
-                        transition: 'filter 0.2s',
+                    cursor: "pointer",
+                    width: "120px",
+                    minWidth: "120px",
+                    minHeight: "120px",
+                    height: "120px",
+                    position: "relative",
+                    "&:hover": {
+                        filter: "brightness(120%)",
+                        transition: "filter 0.2s",
                     },
                 } as any}
             >
                 {/* delete icon, only visible on hover */}
                 {showIcons && (
                     <>
-                        <Tooltip title={t('Delete')}>
+                        <Tooltip title={t("Delete")}>
                             <ColorIconButton
                                 id='delete-icon-button'
                                 background={palette.error.main}
-                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                                sx={{ position: "absolute", top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
                             </ColorIconButton>
@@ -130,9 +123,9 @@ export const DirectoryCard = ({
                     justifyContent="center"
                     alignItems="center"
                     sx={{
-                        height: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
+                        height: "100%",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                     }}
                 >
                     <Icon fill="white" />
@@ -142,8 +135,8 @@ export const DirectoryCard = ({
                         component="h3"
                         sx={{
                             ...multiLineEllipsis(3),
-                            textAlign: 'center',
-                            lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
+                            textAlign: "center",
+                            lineBreak: title ? "auto" : "anywhere", // Line break anywhere only if showing link
                         }}
                     >
                         {title}
@@ -151,5 +144,5 @@ export const DirectoryCard = ({
                 </Stack>
             </Box>
         </Tooltip>
-    )
-}
+    );
+};

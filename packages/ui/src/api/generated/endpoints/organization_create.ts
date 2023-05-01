@@ -1,5 +1,5 @@
-import gql from 'graphql-tag';
-import { Tag_list } from '../fragments/Tag_list';
+import gql from "graphql-tag";
+import { Tag_list } from "../fragments/Tag_list";
 
 export const organizationCreate = gql`${Tag_list}
 

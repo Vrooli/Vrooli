@@ -1,11 +1,11 @@
-import { ProjectVersionSortBy } from "@shared/consts";
+import { ProjectVersionSortBy } from "@local/shared";
 import { projectVersionFindMany } from "api/generated/endpoints/projectVersion_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
 export const projectVersionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchProjectVersion'),
+    formLayout: searchFormLayout("SearchProjectVersion"),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
@@ -21,7 +21,7 @@ export const projectVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
-export const projectVersionSearchParams = () => toParams(projectVersionSearchSchema(), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc)
+export const projectVersionSearchParams = () => toParams(projectVersionSearchSchema(), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc);

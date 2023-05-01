@@ -1,10 +1,10 @@
-import { PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { updateHelper } from '../actions';
-import { assertRequestFrom } from '../auth';
-import { rateLimit } from '../middleware';
-import { Notify } from '../notify';
-import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
+import { PushDeviceCreateInput, PushDeviceUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { updateHelper } from "../actions";
+import { assertRequestFrom } from "../auth";
+import { rateLimit } from "../middleware";
+import { Notify } from "../notify";
+import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     input PushDeviceKeysInput {
@@ -37,9 +37,9 @@ export const typeDef = gql`
         pushDeviceCreate(input: PushDeviceCreateInput!): PushDevice!
         pushDeviceUpdate(input: PushDeviceUpdateInput!): PushDevice!
     }
-`
+`;
 
-const objectType = 'PushDevice';
+const objectType = "PushDevice";
 export const resolvers: {
     Query: {
         pushDevices: GQLEndpoint<never, RecursivePartial<any>>;
@@ -55,8 +55,8 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return prisma.push_device.findMany({
                 where: { userId: id },
-                select: { id: true, name: true, expires: true }
-            })
+                select: { id: true, name: true, expires: true },
+            });
         },
     },
     Mutation: {
@@ -74,7 +74,7 @@ export const resolvers: {
         },
         pushDeviceUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 10, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

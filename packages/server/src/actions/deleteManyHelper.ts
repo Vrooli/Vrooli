@@ -1,4 +1,4 @@
-import { Count } from '@shared/consts';
+import { Count } from "@local/shared";
 import { assertRequestFrom } from "../auth/request";
 import { CustomError } from "../events";
 import { cudHelper } from "./cudHelper";
@@ -18,6 +18,6 @@ export async function deleteManyHelper({
     // Delete objects. cudHelper will check permissions and handle triggers
     const { deleted } = await cudHelper({ deleteMany: input.ids, objectType, partialInfo: {}, prisma, userData });
     if (!deleted)
-        throw new CustomError('0037', 'InternalError', userData.languages);
-    return deleted
+        throw new CustomError("0037", "InternalError", userData.languages);
+    return deleted;
 }

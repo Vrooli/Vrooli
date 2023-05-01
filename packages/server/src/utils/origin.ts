@@ -1,31 +1,31 @@
-import { Request } from 'express';
+import { Request } from "express";
 
 /**
  * Origins which are allowed to make requests without an API key.
  * @returns An array of strings and regular expressions
  */
 export const safeOrigins = (): Array<string | RegExp> => {
-    let origins: Array<string | RegExp> = ['https://cardano-mainnet.blockfrost.io'];
-    if (process.env.VITE_SERVER_LOCATION === 'local') {
+    const origins: Array<string | RegExp> = ["https://cardano-mainnet.blockfrost.io"];
+    if (process.env.VITE_SERVER_LOCATION === "local") {
         origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
-            'https://studio.apollographql.com',
+            "https://studio.apollographql.com",
             new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
-        )
+        );
     }
     else {
         // Parse URLs from process.env.VIRTUAL_HOST
-        const domains = (process.env.VIRTUAL_HOST ?? '').split(',');
+        const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
         for (const domain of domains) {
             origins.push(new RegExp(`^http(s)?:\/\/${domain}$`));
         }
         origins.push(
             new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
-        )
+        );
     }
     return origins;
-}
+};
 
 /**
  * Checks if a request comes from a safe origin.
@@ -35,7 +35,7 @@ export const safeOrigins = (): Array<string | RegExp> => {
 export const isSafeOrigin = (req: Request): boolean => {
     // Allow all on development. This ensures that graphql-generate and other 
     // dev tools work properly.
-    if (process.env.NODE_ENV === 'development') return true;
+    if (process.env.NODE_ENV === "development") return true;
     const origins = safeOrigins();
     const origin = req.headers.origin;
     if (origin === undefined) {
@@ -52,4 +52,4 @@ export const isSafeOrigin = (req: Request): boolean => {
         }
     }
     return false;
-}
+};

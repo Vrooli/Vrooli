@@ -1,7 +1,5 @@
+import { CommentFor, EditIcon, FindVersionInput, StandardVersion, useLocation } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, StandardVersion } from "@shared/consts";
-import { EditIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -32,14 +30,14 @@ const containerProps = (palette: Palette) => ({
     boxShadow: 1,
     background: palette.background.paper,
     borderRadius: 1,
-    overflow: 'overlay',
+    overflow: "overlay",
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const StandardView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: StandardViewProps) => {
@@ -74,7 +72,7 @@ export const StandardView = ({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: 'Standard',
+        objectType: "Standard",
         openAddCommentDialog,
         setLocation,
         setObject: setStandardVersion,
@@ -90,36 +88,36 @@ export const StandardView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Standard',
+                    titleKey: "Standard",
                 }}
             />
             <Box sx={{
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                width: 'min(100%, 700px)',
+                marginLeft: "auto",
+                marginRight: "auto",
+                width: "min(100%, 700px)",
                 padding: 2,
             }}>
                 {/* Edit button, positioned at bottom corner of screen */}
                 <Stack direction="row" spacing={2} sx={{
-                    position: 'fixed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    position: "fixed",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     zIndex: zIndex + 2,
                     bottom: 0,
                     right: 0,
                     // Accounts for BottomNav
                     marginBottom: {
-                        xs: 'calc(56px + 16px + env(safe-area-inset-bottom))',
-                        md: 'calc(16px + env(safe-area-inset-bottom))'
+                        xs: "calc(56px + 16px + env(safe-area-inset-bottom))",
+                        md: "calc(16px + env(safe-area-inset-bottom))",
                     },
-                    marginLeft: 'calc(16px + env(safe-area-inset-left))',
-                    marginRight: 'calc(16px + env(safe-area-inset-right))',
-                    height: 'calc(64px + env(safe-area-inset-bottom))',
+                    marginLeft: "calc(16px + env(safe-area-inset-left))",
+                    marginRight: "calc(16px + env(safe-area-inset-right))",
+                    height: "calc(64px + env(safe-area-inset-bottom))",
                 }}>
                     {/* Edit button */}
                     {permissions.canUpdate ? (
-                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                             <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                         </ColorIconButton>
                     ) : null}
@@ -136,12 +134,12 @@ export const StandardView = ({
                 {/* Relationships */}
                 <RelationshipList
                     isEditing={false}
-                    objectType={'Routine'}
+                    objectType={"Routine"}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
                 {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
-                    title={'Resources'}
+                    title={"Resources"}
                     list={resourceList as any}
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
@@ -163,7 +161,7 @@ export const StandardView = ({
                 {/* Tags */}
                 {Array.isArray(tags) && tags!.length > 0 && <TagList
                     maxCharacters={30}
-                    parentId={existing?.id ?? ''}
+                    parentId={existing?.id ?? ""}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -199,7 +197,7 @@ export const StandardView = ({
                     <CommentContainer
                         forceAddCommentOpen={isAddCommentOpen}
                         language={language}
-                        objectId={existing?.id ?? ''}
+                        objectId={existing?.id ?? ""}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
                         zIndex={zIndex}
@@ -207,5 +205,5 @@ export const StandardView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

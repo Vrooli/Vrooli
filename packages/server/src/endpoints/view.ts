@@ -1,11 +1,11 @@
-import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { GraphQLResolveInfo } from 'graphql';
-import { readManyHelper } from '../actions';
-import { assertRequestFrom } from '../auth/request';
-import { Context, rateLimit } from '../middleware';
-import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from '../types';
-import { resolveUnion } from './resolvers';
+import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { GraphQLResolveInfo } from "graphql";
+import { readManyHelper } from "../actions";
+import { assertRequestFrom } from "../auth/request";
+import { Context, rateLimit } from "../middleware";
+import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum ViewSortBy {
@@ -45,9 +45,9 @@ export const typeDef = gql`
     extend type Query {
         views(input: ViewSearchInput!): ViewSearchResult!
     }
-`
+`;
 
-const objectType = 'View';
+const objectType = "View";
 export const resolvers: {
     ViewSortBy: typeof ViewSortBy;
     ViewTo: UnionResolver;
@@ -56,7 +56,7 @@ export const resolvers: {
     },
 } = {
     ViewSortBy,
-    ViewTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    ViewTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             const userData = assertRequestFrom(req, { isUser: true });
@@ -64,4 +64,4 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { byId: userData.id } });
         },
     },
-}
+};

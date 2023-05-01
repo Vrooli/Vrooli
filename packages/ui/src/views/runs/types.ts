@@ -1,4 +1,4 @@
-import { Node, ProjectVersion, RoutineVersion, RunRoutine } from "@shared/consts";
+import { Node, ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
 import { DecisionStep } from "types";
 import { ViewProps } from "views/objects/types";
 import { BaseViewProps } from "views/types";

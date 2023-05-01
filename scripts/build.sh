@@ -68,23 +68,28 @@ check_var SERVER_URL
 check_var SITE_IP
 check_var VAPID_PUBLIC_KEY
 
+# Extract the current version number from the package.json file
+CURRENT_VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
 # Ask for version number, if not supplied in arguments
-AUTO_DETECT_VERSION=false
+SHOULD_UPDATE_VERSION=false
 if [ -z "$VERSION" ]; then
-    prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
+    prompt "What version number do you want to deploy? (current is ${CURRENT_VERSION}). Leave blank if keeping the same version number."
     warning "WARNING: Keeping the same version number will overwrite the previous build."
-    read -r VERSION
-    # If no version number was entered, use the version number found in the package.json files
-    if [ -z "$VERSION" ]; then
-        info "No version number entered. Using version number found in package.json files."
-        VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
-        info "Version number found in package.json files: ${VERSION}"
-        AUTO_DETECT_VERSION=true
+    read -r ENTERED_VERSION
+    # If version entered, set version
+    if [ ! -z "$ENTERED_VERSION" ]; then
+        VERSION=$ENTERED_VERSION
+        SHOULD_UPDATE_VERSION=true
+    else
+        info "Keeping the same version number."
+        VERSION=$CURRENT_VERSION
     fi
+else
+    SHOULD_UPDATE_VERSION=true
 fi
 
-# Update package.json files for every package, if version number was not auto-detected
-if [ "${AUTO_DETECT_VERSION}" = false ]; then
+# Update package.json files for every package, if necessary
+if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
     cd ${HERE}/../packages
     # Find every directory containing a package.json file, up to 3 levels deep
     for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
@@ -123,6 +128,7 @@ echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
 echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
 echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
+echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>.env
 # Set trap to remove .env file on exit
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
@@ -147,13 +153,6 @@ info "Building React app..."
 yarn build
 if [ $? -ne 0 ]; then
     error "Failed to build React app"
-    exit 1
-fi
-
-# Use production icons
-mv dist/prod/* dist/
-if [ $? -ne 0 ]; then
-    error "Failed to move production icons"
     exit 1
 fi
 
@@ -186,6 +185,16 @@ else
     mkdir dist/.well-known
     cd ${HERE}/../packages/ui/dist/.well-known
     echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" >assetlinks.json
+    cd ../..
+fi
+
+# Create ads.txt file for Google AdSense
+if [ -z "${GOOGLE_ADSENSE_PUBLISHER_ID}" ]; then
+    error "GOOGLE_ADSENSE_PUBLISHER_ID is not set. Not creating dist/ads.txt file for Google AdSense."
+else
+    info "Creating dist/ads.txt file for Google AdSense..."
+    cd ${HERE}/../packages/ui/dist
+    echo "google.com, ${GOOGLE_ADSENSE_PUBLISHER_ID}, DIRECT, f08c47fec0942fa0" >ads.txt
     cd ../..
 fi
 

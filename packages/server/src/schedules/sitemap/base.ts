@@ -4,14 +4,14 @@
  * 
  * A cron job is triggered to run this every day at 4:43am (UTC).
  */
-import cron from 'node-cron';
-import { logger } from '../../events';
-import { genSitemap, genSitemapIfNotExists } from './genSitemap';
+import cron from "node-cron";
+import { logger } from "../../events";
+import { genSitemap, genSitemapIfNotExists } from "./genSitemap";
 
 // Cron syntax created using this website: https://crontab.guru/
 // NOTE: Cron job starts at a weird time so it runs when there is less activity.
 // This cron job is run every day at 4:43am (UTC)
-const sitemapCron = '43 4 * * *';
+const sitemapCron = "43 4 * * *";
 
 /**
  * Initializes cron jobs for sitemap creation 
@@ -19,20 +19,20 @@ const sitemapCron = '43 4 * * *';
  * See https://crontab.guru/ for more information on cron jobs.
  */
 export const initSitemapCronJob = () => {
-    logger.info('Initializing sitemap cron job.', { trace: '0398' });
+    logger.info("Initializing sitemap cron job.", { trace: "0398" });
     try {
         // Generate sitemaps right away if they don't already exist
         genSitemapIfNotExists().then(() => {
             // Start cron for sitemap generation
             cron.schedule(sitemapCron, () => {
-                logger.info('Starting stiemap cron job.', { trace: '0400' });
+                logger.info("Starting stiemap cron job.", { trace: "0400" });
                 genSitemap().then(() => {
-                    logger.info(`✅ Sitemap cron job completed.`, { trace: '0399' });
-                })
+                    logger.info("✅ Sitemap cron job completed.", { trace: "0399" });
+                });
             });
         });
-        logger.info('✅ Sitemap cron job initialized');
+        logger.info("✅ Sitemap cron job initialized");
     } catch (error) {
-        logger.error('❌ Failed to initialize sitemap cron job.', { trace: '0401', error });
+        logger.error("❌ Failed to initialize sitemap cron job.", { trace: "0401", error });
     }
 };

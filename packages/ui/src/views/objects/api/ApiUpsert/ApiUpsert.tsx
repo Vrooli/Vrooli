@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
 import { mutationWrapper } from "api";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
@@ -16,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -27,7 +27,7 @@ export const ApiUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindVersionInput>(apiVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => apiInitialValues(session), [session]);
@@ -42,7 +42,7 @@ export const ApiUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateApi' : 'UpdateApi',
+                    titleKey: isCreate ? "CreateApi" : "UpdateApi",
                 }}
             />
             <Formik
@@ -50,15 +50,15 @@ export const ApiUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<ApiVersion, ApiVersionCreateInput | ApiVersionUpdateInput>({
                         mutation,
                         input: transformApiValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateApiValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const ApiUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

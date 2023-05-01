@@ -1,11 +1,11 @@
-import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { assertRequestFrom } from '../auth/request';
-import { CustomError } from '../events/error';
-import { rateLimit } from '../middleware';
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { parseICalFile } from '../utils';
+import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { assertRequestFrom } from "../auth/request";
+import { CustomError } from "../events/error";
+import { rateLimit } from "../middleware";
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
+import { parseICalFile } from "../utils";
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -228,13 +228,13 @@ export const typeDef = gql`
         exportCalendar: String!
         exportData: String!
     }
-`
+`;
 
-const objectType = 'User';
+const objectType = "User";
 export const resolvers: {
     UserSortBy: typeof UserSortBy;
     Query: {
-        profile: GQLEndpoint<{}, FindOneResult<User>>;
+        profile: GQLEndpoint<Record<string, never>, FindOneResult<User>>;
         user: GQLEndpoint<FindByIdOrHandleInput, FindOneResult<User>>;
         users: GQLEndpoint<UserSearchInput, FindManyResult<User>>;
     },
@@ -244,8 +244,8 @@ export const resolvers: {
         userDeleteOne: GQLEndpoint<UserDeleteInput, Success>;
         importCalendar: GQLEndpoint<any, Success>;
         // importUserData: GQLEndpoint<ImportUserDataInput, Success>;
-        exportCalendar: GQLEndpoint<{}, string>;
-        exportData: GQLEndpoint<{}, string>;
+        exportCalendar: GQLEndpoint<Record<string, never>, string>;
+        exportData: GQLEndpoint<Record<string, never>, string>;
     }
 } = {
     UserSortBy,
@@ -268,20 +268,20 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 250, req });
             // Add user id to input, since IDs are required for validation checks
             const { id } = assertRequestFrom(req, { isUser: true });
-            return updateHelper({ info, input: { ...input, id }, objectType, prisma, req })
+            return updateHelper({ info, input: { ...input, id }, objectType, prisma, req });
         },
         profileEmailUpdate: async (_, { input }, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
+            throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
             // await rateLimit({ info, maxUser: 100, req });
             // // Update object
             // const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
             // if (!updated)
-            //     throw new CustomError('0162', 'ErrorUnknown', req.languages);
+            //     throw new CustomError("0162", "ErrorUnknown", req.languages);
             // return updated;
         },
         userDeleteOne: async (_, { input }, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
+            throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
             // await rateLimit({ info, maxUser: 5, req });
             // // TODO anonymize public data
@@ -290,20 +290,20 @@ export const resolvers: {
         importCalendar: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 25, req });
             await parseICalFile(input.file);
-            throw new CustomError('0999', 'NotImplemented', ['en']);
+            throw new CustomError("0999", "NotImplemented", ["en"]);
         },
         exportCalendar: async (_p, _d, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
+            throw new CustomError("0999", "NotImplemented", ["en"]);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
          * @returns JSON of all user data
          */
         exportData: async (_p, _d, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
+            throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
             // await rateLimit({ info, maxUser: 5, req });
             // return await ProfileModel.port(prisma).exportData(userData.id);
-        }
-    }
-}
+        },
+    },
+};

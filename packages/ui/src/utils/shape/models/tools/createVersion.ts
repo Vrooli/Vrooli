@@ -1,4 +1,4 @@
-import { ShapeModel } from 'types';
+import { ShapeModel } from "types";
 
 /**
  * Shapes versioning relation data for a GraphQL create input
@@ -23,7 +23,7 @@ export const createVersion = <
     return {
         versionsCreate: [shape.create(preShaper({
             ...root.versionInfo,
-            versionLabel: root.versionInfo.versionLabel ?? '0.0.1',
-        }))]
+            versionLabel: root.versionInfo.versionLabel ?? "0.0.1",
+        }))],
     } as any;
 };

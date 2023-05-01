@@ -1,23 +1,15 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { assertRequestFrom, focusModeSelect, updateSessionCurrentUser } from '../auth';
-import { CustomError } from '../events';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { assertRequestFrom, focusModeSelect, updateSessionCurrentUser } from "../auth";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum FocusModeSortBy {
         NameAsc
         NameDesc
-        EventStartAsc
-        EventStartDesc
-        EventEndAsc
-        EventEndDesc
-        RecurrStartAsc
-        RecurrStartDesc
-        RecurrEndAsc
-        RecurrEndDesc
     }
 
     enum FocusModeStopCondition {
@@ -85,8 +77,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        recurrStartTimeFrame: TimeFrame
-        recurrEndTimeFrame: TimeFrame
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
         searchString: String
@@ -117,9 +107,9 @@ export const typeDef = gql`
         focusModeUpdate(input: FocusModeUpdateInput!): FocusMode!
         setActiveFocusMode(input: SetActiveFocusModeInput!): ActiveFocusMode!
     }
-`
+`;
 
-const objectType = 'FocusMode';
+const objectType = "FocusMode";
 export const resolvers: {
     FocusModeSortBy: typeof FocusModeSortBy;
     FocusModeStopCondition: typeof FocusModeStopCondition;
@@ -138,21 +128,21 @@ export const resolvers: {
     Query: {
         focusMode: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         focusModes: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         focusModeCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         focusModeUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         setActiveFocusMode: async (_, { input }, { prisma, req, res }) => {
             // Unlink other objects, active focus mode is only stored in the user's session. 
@@ -165,20 +155,20 @@ export const resolvers: {
             const focusMode = await prisma.focus_mode.findFirst({
                 where: {
                     id: input.id,
-                    user: { id: userData.id }
+                    user: { id: userData.id },
                 },
                 select: focusModeSelect(startDate, endDate),
-            })
-            if (!focusMode) throw new CustomError('0448', 'NotFound', userData.languages);
+            });
+            if (!focusMode) throw new CustomError("0448", "NotFound", userData.languages);
             const activeFocusMode = {
-                __typename: 'ActiveFocusMode' as const,
+                __typename: "ActiveFocusMode" as const,
                 mode: focusMode as any as FocusMode,
                 stopCondition: input.stopCondition,
                 stopTime: input.stopTime,
-            }
+            };
             // Set active focus mode in user's session token
             updateSessionCurrentUser(req, res, { activeFocusMode });
             return activeFocusMode;
         },
-    }
-}
+    },
+};

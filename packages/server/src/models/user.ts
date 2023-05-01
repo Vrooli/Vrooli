@@ -1,6 +1,5 @@
+import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, userValidation, UserYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, UserYou } from "@shared/consts";
-import { userValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -10,9 +9,9 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 
-const __typename = 'User' as const;
-type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
-const suppFields = ['you'] as const;
+const __typename = "User" as const;
+type Permissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
+const suppFields = ["you"] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -22,8 +21,8 @@ export const UserModel: ModelLogic<{
     GqlSearch: UserSearchInput,
     GqlSort: UserSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.userUpsertArgs['create'],
-    PrismaUpdate: Prisma.userUpsertArgs['update'],
+    PrismaCreate: Prisma.userUpsertArgs["create"],
+    PrismaUpdate: Prisma.userUpsertArgs["update"],
     PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
     PrismaSelect: Prisma.userSelect,
     PrismaWhere: Prisma.userWhereInput,
@@ -32,73 +31,73 @@ export const UserModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.user,
     display: {
         select: () => ({ id: true, name: true }),
-        label: (select) => select.name ?? '',
+        label: (select) => select.name ?? "",
     },
     format: {
         gqlRelMap: {
             __typename,
-            comments: 'Comment',
-            emails: 'Email',
-            focusModes: 'FocusMode',
-            labels: 'Label',
+            comments: "Comment",
+            emails: "Email",
+            focusModes: "FocusMode",
+            labels: "Label",
             // phones: 'Phone',
-            projects: 'Project',
-            pushDevices: 'PushDevice',
-            bookmarkedBy: 'User',
-            reportsCreated: 'Report',
-            reportsReceived: 'Report',
-            routines: 'Routine',
+            projects: "Project",
+            pushDevices: "PushDevice",
+            bookmarkedBy: "User",
+            reportsCreated: "Report",
+            reportsReceived: "Report",
+            routines: "Routine",
         },
         prismaRelMap: {
             __typename,
-            apis: 'Api',
-            apiKeys: 'ApiKey',
-            comments: 'Comment',
-            emails: 'Email',
-            organizationsCreated: 'Organization',
-            phones: 'Phone',
-            posts: 'Post',
-            focusModes: 'FocusMode',
-            invitedByUser: 'User',
-            invitedUsers: 'User',
-            issuesCreated: 'Issue',
-            issuesClosed: 'Issue',
-            labels: 'Label',
-            meetingsAttending: 'Meeting',
-            meetingsInvited: 'MeetingInvite',
-            pushDevices: 'PushDevice',
-            notifications: 'Notification',
-            memberships: 'Member',
-            projectsCreated: 'Project',
-            projects: 'Project',
-            pullRequests: 'PullRequest',
-            questionAnswered: 'QuestionAnswer',
-            questionsAsked: 'Question',
-            quizzesCreated: 'Quiz',
-            quizzesTaken: 'QuizAttempt',
-            reportsCreated: 'Report',
-            reportsReceived: 'Report',
-            reportResponses: 'ReportResponse',
-            routinesCreated: 'Routine',
-            routines: 'Routine',
-            runProjects: 'RunProject',
-            runRoutines: 'RunRoutine',
-            smartContractsCreated: 'SmartContract',
-            smartContracts: 'SmartContract',
-            standardsCreated: 'Standard',
-            standards: 'Standard',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
-            transfersIncoming: 'Transfer',
-            transfersOutgoing: 'Transfer',
-            notesCreated: 'Note',
-            notes: 'Note',
-            wallets: 'Wallet',
-            stats: 'StatsUser',
+            apis: "Api",
+            apiKeys: "ApiKey",
+            comments: "Comment",
+            emails: "Email",
+            organizationsCreated: "Organization",
+            phones: "Phone",
+            posts: "Post",
+            focusModes: "FocusMode",
+            invitedByUser: "User",
+            invitedUsers: "User",
+            issuesCreated: "Issue",
+            issuesClosed: "Issue",
+            labels: "Label",
+            meetingsAttending: "Meeting",
+            meetingsInvited: "MeetingInvite",
+            pushDevices: "PushDevice",
+            notifications: "Notification",
+            memberships: "Member",
+            projectsCreated: "Project",
+            projects: "Project",
+            pullRequests: "PullRequest",
+            questionAnswered: "QuestionAnswer",
+            questionsAsked: "Question",
+            quizzesCreated: "Quiz",
+            quizzesTaken: "QuizAttempt",
+            reportsCreated: "Report",
+            reportsReceived: "Report",
+            reportResponses: "ReportResponse",
+            routinesCreated: "Routine",
+            routines: "Routine",
+            runProjects: "RunProject",
+            runRoutines: "RunRoutine",
+            smartContractsCreated: "SmartContract",
+            smartContracts: "SmartContract",
+            standardsCreated: "Standard",
+            standards: "Standard",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            transfersIncoming: "Transfer",
+            transfersOutgoing: "Transfer",
+            notesCreated: "Note",
+            notes: "Note",
+            wallets: "Wallet",
+            stats: "StatsUser",
         },
         joinMap: {
-            meetingsAttending: 'user',
-            bookmarkedBy: 'user',
+            meetingsAttending: "user",
+            bookmarkedBy: "user",
         },
         countFields: {
             apisCount: true,
@@ -119,8 +118,8 @@ export const UserModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -151,8 +150,8 @@ export const UserModel: ModelLogic<{
                 isPrivateVotes: noNull(data.isPrivateVotes),
                 notificationSettings: data.notificationSettings ?? null,
                 // languages: TODO!!!
-                ...(await shapeHelper({ relation: 'focusModes', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'FocusMode', parentRelationshipName: 'user', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
         },
         yup: userValidation,
@@ -171,10 +170,10 @@ export const UserModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transBioWrapped',
-                'nameWrapped',
-                'handleWrapped',
-            ]
+                "transBioWrapped",
+                "nameWrapped",
+                "handleWrapped",
+            ],
         }),
     },
     validate: {
@@ -189,7 +188,7 @@ export const UserModel: ModelLogic<{
         owner: (data) => ({ User: data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
-        profanityFields: ['name', 'handle'],
+        profanityFields: ["name", "handle"],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
@@ -197,4 +196,4 @@ export const UserModel: ModelLogic<{
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     },
-})
+});

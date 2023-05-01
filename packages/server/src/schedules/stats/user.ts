@@ -1,6 +1,7 @@
-import pkg, { PeriodType, QuizAttemptStatus } from '@prisma/client';
-import { logger } from '../../events';
-import { PrismaType } from '../../types';
+import pkg, { PeriodType, QuizAttemptStatus } from "@prisma/client";
+import { logger } from "../../events";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 type BatchApisResult = Record<string, {
@@ -102,7 +103,7 @@ const batchApis = async (
         });
     } while (currentBatchSize === batchSize);
     return result;
-}
+};
 
 /**
  * Batch collects organization stats for a list of users
@@ -151,7 +152,7 @@ const batchOrganizations = async (
         });
     } while (currentBatchSize === batchSize);
     return result;
-}
+};
 
 /**
  * Batch collects project stats for a list of users
@@ -185,7 +186,7 @@ const batchProjects = async (
                 OR: [
                     { created_at: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
@@ -208,7 +209,7 @@ const batchProjects = async (
             result[userId].projectsCreated += 1;
             if (project.hasCompleteVersion) {
                 result[userId].projectsCompleted += 1;
-                if (project.completedAt) result[userId].projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime())
+                if (project.completedAt) result[userId].projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime());
             }
         });
     } while (currentBatchSize === batchSize);
@@ -220,7 +221,7 @@ const batchProjects = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Batch collects quiz stats for a list of users
@@ -276,7 +277,7 @@ const batchQuizzes = async (
         });
     } while (currentBatchSize === batchSize);
     return result;
-}
+};
 
 /**
  * Batch collects routine stats for a list of users
@@ -310,7 +311,7 @@ const batchRoutines = async (
                 OR: [
                     { created_at: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
@@ -333,7 +334,7 @@ const batchRoutines = async (
             result[userId].routinesCreated += 1;
             if (routine.hasCompleteVersion) {
                 result[userId].routinesCompleted += 1;
-                if (routine.completedAt) result[userId].routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime())
+                if (routine.completedAt) result[userId].routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime());
             }
         });
     } while (currentBatchSize === batchSize);
@@ -345,7 +346,7 @@ const batchRoutines = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Batch collects run project stats for a list of users
@@ -379,12 +380,12 @@ const batchRunProjects = async (
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
                 user: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 completedAt: true,
                 contextSwitches: true,
@@ -401,7 +402,7 @@ const batchRunProjects = async (
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId || !result[userId]) { return }
+            if (!userId || !result[userId]) { return; }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[userId].runProjectsStarted += 1;
@@ -423,7 +424,7 @@ const batchRunProjects = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Batch collects run routine stats for a list of users
@@ -457,12 +458,12 @@ const batchRunRoutines = async (
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
                 user: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 completedAt: true,
                 contextSwitches: true,
@@ -479,7 +480,7 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId || !result[userId]) { return }
+            if (!userId || !result[userId]) { return; }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[userId].runRoutinesStarted += 1;
@@ -501,7 +502,7 @@ const batchRunRoutines = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Batch collects smart contract stats for a list of users
@@ -535,7 +536,7 @@ const batchSmartContracts = async (
                 OR: [
                     { created_at: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
@@ -558,7 +559,7 @@ const batchSmartContracts = async (
             result[userId].smartContractsCreated += 1;
             if (smartContract.hasCompleteVersion) {
                 result[userId].smartContractsCompleted += 1;
-                if (smartContract.completedAt) result[userId].smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime())
+                if (smartContract.completedAt) result[userId].smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime());
             }
         });
     } while (currentBatchSize === batchSize);
@@ -570,7 +571,7 @@ const batchSmartContracts = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Batch collects standard stats for a list of users
@@ -604,7 +605,7 @@ const batchStandards = async (
                 OR: [
                     { created_at: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
@@ -627,7 +628,7 @@ const batchStandards = async (
             result[userId].standardsCreated += 1;
             if (standard.hasCompleteVersion) {
                 result[userId].standardsCompleted += 1;
-                if (standard.completedAt) result[userId].standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime())
+                if (standard.completedAt) result[userId].standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime());
             }
         });
     } while (currentBatchSize === batchSize);
@@ -639,7 +640,7 @@ const batchStandards = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Creates periodic stats for all users
@@ -705,13 +706,13 @@ export const logUserStats = async (
                     ...runRoutineStats[user.id],
                     ...smartContractStats[user.id],
                     ...standardStats[user.id],
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging user statistics', { trace: '0426', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging user statistics", { trace: "0426", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

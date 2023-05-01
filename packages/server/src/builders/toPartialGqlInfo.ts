@@ -25,28 +25,28 @@ export const toPartialGqlInfo = <
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)
-            throw new CustomError('0345', 'InternalError', languages);
+            throw new CustomError("0345", "InternalError", languages);
         return undefined as any;
     }
     // Find select fields in info object
     let select;
-    const isGraphQLResolveInfo = info.hasOwnProperty('fieldNodes') && info.hasOwnProperty('returnType');
+    const isGraphQLResolveInfo = Object.prototype.hasOwnProperty.call(info, "fieldNodes") && Object.prototype.hasOwnProperty.call(info, "returnType");
     if (isGraphQLResolveInfo) {
         select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
     } else {
         select = info;
     }
     // If fields are in the shape of a paginated search query, convert to a Prisma select object
-    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
+    if (Object.prototype.hasOwnProperty.call(select, "pageInfo") && Object.prototype.hasOwnProperty.call(select, "edges")) {
         select = select.edges.node;
     }
     // If fields are in the shape of a comment thread search query, convert to a Prisma select object
-    else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
-        select = select.threads.comment
+    else if (Object.prototype.hasOwnProperty.call(select, "endCursor") && Object.prototype.hasOwnProperty.call(select, "totalThreads") && Object.prototype.hasOwnProperty.call(select, "threads")) {
+        select = select.threads.comment;
     }
     // Inject type fields
     select = injectTypenames(select, gqlRelMap);
     if (!select)
-        throw new CustomError('0346', 'InternalError', languages);
+        throw new CustomError("0346", "InternalError", languages);
     return select;
-}
+};

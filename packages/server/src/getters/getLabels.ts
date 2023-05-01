@@ -1,4 +1,4 @@
-import { GqlModelType } from "@shared/consts";
+import { GqlModelType } from "@local/shared";
 import { CustomError, logger } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType } from "../types";
@@ -20,34 +20,34 @@ export async function getLabels(
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
-    const model = ObjectMap[objectType]
+    const model = ObjectMap[objectType];
     if (!model) {
-        throw new CustomError('0347', 'InvalidArgs', languages, { errorTrace, objectType });
+        throw new CustomError("0347", "InvalidArgs", languages, { errorTrace, objectType });
     }
     if (objects.length <= 0) return [];
-    const objectsWithLanguages = typeof objects[0] === 'string' ? objects.map(id => ({ id, languages })) : objects;
+    const objectsWithLanguages = typeof objects[0] === "string" ? objects.map(id => ({ id, languages })) : objects;
     // Query for labels data
     let where: any;
     let select: any;
     let labelsData: any[];
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
-        select = typeof model.display.select === 'function' ? model.display.select() : model.display.select;
+        select = typeof model.display.select === "function" ? model.display.select() : model.display.select;
         labelsData = await model.delegate(prisma).findMany({
             where,
             select,
-        })
+        });
     } catch (error) {
-        logger.error('readManyHelper: Failed to find searchResults', { trace: '0385', error, objectType, where, select });
-        throw new CustomError('0387', 'InternalError', languages, { objectType });
+        logger.error("readManyHelper: Failed to find searchResults", { trace: "0385", error, objectType, where, select });
+        throw new CustomError("0387", "InternalError", languages, { objectType });
     }
     // If no data, return empty strings
-    if (!labelsData || labelsData.length <= 0) return new Array(objectsWithLanguages.length).fill('');
+    if (!labelsData || labelsData.length <= 0) return new Array(objectsWithLanguages.length).fill("");
     // For each object, find the label
     const labels = objectsWithLanguages.map(object => {
         const data = labelsData.find(x => x.id === object.id);
-        if (!data) return '';
+        if (!data) return "";
         return model.display.label(data, object.languages);
-    })
+    });
     return labels;
 }

@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 /* global importScripts workbox */
 // Import the necessary Workbox scripts using importScripts
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.3.0/workbox-sw.js');
+importScripts("https://storage.googleapis.com/workbox-cdn/releases/6.3.0/workbox-sw.js");
 
 // This service worker can be customized!
 // See https://developers.google.com/web/tools/workbox/modules
@@ -16,8 +16,8 @@ const { createHandlerBoundToURL, precacheAndRoute } = (workbox.precaching);
 const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
-const CACHE_NAME = 'vrooli-cache';
-const CURRENT_CACHE_VERSION = '2023-04-13.n'; // Change this value to force a cache update
+const CACHE_NAME = "vrooli-cache";
+const CURRENT_CACHE_VERSION = "2023-04-13.n"; // Change this value to force a cache update
 
 clientsClaim();
 
@@ -31,13 +31,13 @@ precacheAndRoute(precache);
 // Set up App Shell-style routing, so that all navigation requests
 // are fulfilled with your index.html shell. Learn more at
 // https://developers.google.com/web/fundamentals/architecture/app-shell
-const fileExtensionRegexp = new RegExp('/[^/?]+\\.[^/]+$');
+const fileExtensionRegexp = new RegExp("/[^/?]+\\.[^/]+$");
 registerRoute(
     ({ request, url }) => {
-        if (request.mode !== 'navigate') {
+        if (request.mode !== "navigate") {
             return false;
         }
-        if (url.pathname.startsWith('/_')) {
+        if (url.pathname.startsWith("/_")) {
             return false;
         }
         if (url.pathname.match(fileExtensionRegexp)) {
@@ -47,7 +47,7 @@ registerRoute(
     },
     async ({ url, event }) => {
         try {
-            const handler = createHandlerBoundToURL(self.location.origin + '/index.html');
+            const handler = createHandlerBoundToURL(self.location.origin + "/index.html");
             const response = await handler({ event });
 
             const clonedResponse = response.clone();
@@ -62,7 +62,7 @@ registerRoute(
             console.error(`Error in custom routing function: ${error}`);
             return Response.error();
         }
-    }
+    },
 );
 
 registerRoute(
@@ -75,13 +75,13 @@ registerRoute(
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
             }),
         ],
-    })
+    }),
 );
 
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "SKIP_WAITING") {
         self.skipWaiting();
     }
 });
@@ -99,19 +99,19 @@ self.addEventListener('message', (event) => {
 //     event.waitUntil(self.skipWaiting());
 // });
 
-self.addEventListener('install', (event) => {
-    console.log('Service worker installing...', event);
+self.addEventListener("install", (event) => {
+    console.log("Service worker installing...", event);
     event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SW_UPDATE_CHECK') {
-        console.log('post received from client: SW_UPDATE_CHECK')
-        event.source.postMessage({ type: 'SW_UPDATE_START' });
+self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "SW_UPDATE_CHECK") {
+        console.log("post received from client: SW_UPDATE_CHECK");
+        event.source.postMessage({ type: "SW_UPDATE_START" });
     }
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -120,16 +120,16 @@ self.addEventListener('activate', (event) => {
                         console.log(`Deleting old cache: ${cacheName}`);
                         return caches.delete(cacheName);
                     }
-                })
+                }),
             );
         }).then(() => {
             self.clients.claim();
-        })
+        }),
     );
 });
 
 // Handle push notifications
-self.addEventListener('push', (event) => {
+self.addEventListener("push", (event) => {
     const data = event.data.json();
     const options = {
         body: data.body,
@@ -147,23 +147,23 @@ self.addEventListener('push', (event) => {
 
     event.waitUntil(self.registration.showNotification(data.title, options));
 });
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener("notificationclick", (event) => {
     event.notification.close(); // Close the notification when clicked
 
     // Determine what action to take based on the clicked action or the notification click itself
     if (event.action) {
         // Handle specific action clicks
         // Example: if (event.action === 'some-action') { /* handle 'some-action' */}
-        console.log('Notification action clicked: ', event.action)
+        console.log("Notification action clicked: ", event.action);
     } else {
         // Handle the notification click when no specific action is defined
         event.waitUntil(
-            clients.matchAll({ type: 'window' }).then((clientList) => {
-                const urlToOpen = new URL('/', location.origin).href;
+            clients.matchAll({ type: "window" }).then((clientList) => {
+                const urlToOpen = new URL("/", location.origin).href;
 
                 for (let i = 0; i < clientList.length; i++) {
                     const client = clientList[i];
-                    if (client.url === urlToOpen && 'focus' in client) {
+                    if (client.url === urlToOpen && "focus" in client) {
                         return client.focus();
                     }
                 }
@@ -171,20 +171,20 @@ self.addEventListener('notificationclick', (event) => {
                 if (clients.openWindow) {
                     return clients.openWindow(urlToOpen);
                 }
-            })
+            }),
         );
     }
 });
 
-self.addEventListener('periodicsync', (event) => {
-    console.log('periodicsync', event);
+self.addEventListener("periodicsync", (event) => {
+    console.log("periodicsync", event);
     // if (event.tag === UPDATE_CHECK) {
     //     event.waitUntil(checkForUpdates());
     // }
 });
 
-self.addEventListener('message', (event) => {
-    console.log('message', event);
+self.addEventListener("message", (event) => {
+    console.log("message", event);
     // if (event.data === UPDATE_CHECK) {
     //     event.waitUntil(checkForUpdates());
     // }

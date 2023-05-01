@@ -1,1 +1,3 @@
-export * from './BookmarkListView/BookmarkListView';
+export * from "./BookmarkListUpsert/BookmarkListUpsert";
+export * from "./BookmarkListView/BookmarkListView";
+

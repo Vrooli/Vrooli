@@ -1,18 +1,10 @@
-import {
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    useTheme
-} from '@mui/material';
-import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
-import { useMemo } from 'react';
-import { MenuTitle } from '../MenuTitle/MenuTitle';
-import { ListMenuProps } from '../types';
+import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useMemo } from "react";
+import { MenuTitle } from "../MenuTitle/MenuTitle";
+import { ListMenuProps } from "../types";
 
-const titleId = 'list-menu-title';
+const titleId = "list-menu-title";
 
 export function ListMenu<T>({
     id,
@@ -28,13 +20,13 @@ export function ListMenu<T>({
     const open = Boolean(anchorEl);
 
     const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, preview, helpData }, index) => {
-        const itemText = <ListItemText primary={label} secondary={preview ? 'Coming Soon' : null} sx={{
+        const itemText = <ListItemText primary={label} secondary={preview ? "Coming Soon" : null} sx={{
             // Style secondary
-            '& .MuiListItemText-secondary': {
-                color: 'red',
+            "& .MuiListItemText-secondary": {
+                color: "red",
             },
         }} />;
-        const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textSecondary : iconColor;
+        const fill = !iconColor || ["default", "unset"].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
                 <Icon fill={fill} />
@@ -51,8 +43,8 @@ export function ListMenu<T>({
                 {itemText}
                 {helpIcon}
             </ListItem>
-        )
-    }), [data, onClose, onSelect, palette.background.textSecondary])
+        );
+    }), [data, onClose, onSelect, palette.background.textSecondary]);
 
     return (
         <Menu
@@ -62,32 +54,32 @@ export function ListMenu<T>({
             open={open}
             anchorEl={anchorEl}
             anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
+                vertical: "bottom",
+                horizontal: "center",
             }}
             transformOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
+                vertical: "top",
+                horizontal: "center",
             }}
-            onClose={(e) => { onClose() }}
+            onClose={(e) => { onClose(); }}
             sx={{
                 zIndex,
-                '& .MuiMenu-paper': {
-                    background: palette.background.default
+                "& .MuiMenu-paper": {
+                    background: palette.background.default,
                 },
-                '& .MuiMenu-list': {
-                    paddingTop: '0',
-                }
+                "& .MuiMenu-list": {
+                    paddingTop: "0",
+                },
             }}
         >
             {title && <MenuTitle
                 ariaLabel={titleId}
                 title={title}
-                onClose={() => { onClose() }}
+                onClose={() => { onClose(); }}
             />}
             <List>
                 {items}
             </List>
         </Menu>
-    )
+    );
 }

@@ -1,7 +1,7 @@
-import { Grid, TextField } from '@mui/material';
-import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
-import { useTranslation } from 'react-i18next';
-import { TextFieldStandardInputProps } from '../types';
+import { Grid, TextField } from "@mui/material";
+import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
+import { useTranslation } from "react-i18next";
+import { TextFieldStandardInputProps } from "../types";
 
 /**
  * Input for entering (and viewing format of) TextField data that 
@@ -38,11 +38,11 @@ export const TextFieldStandardInput = ({
             <Grid item xs={12}>
                 <IntegerInput
                     disabled={!isEditing}
-                    label={t('MaxRows')}
+                    label={t("MaxRows")}
                     name="maxRows"
                     tooltip="The maximum number of rows to display"
                 />
             </Grid>
         </Grid>
     );
-}
+};

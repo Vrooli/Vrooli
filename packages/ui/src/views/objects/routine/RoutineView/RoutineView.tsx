@@ -1,8 +1,5 @@
+import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, LINKS, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag } from "@shared/consts";
-import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
-import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
-import { exists, setDotNotationValue } from "@shared/utils";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
 import { useCustomMutation } from "api/hooks";
@@ -13,7 +10,6 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
-import { UpTransition } from "components/dialogs/transitions";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -24,6 +20,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
@@ -45,20 +42,20 @@ import { BuildView } from "views/BuildView/BuildView";
 import { RoutineViewProps } from "../types";
 
 const statsHelpText =
-    `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
+    "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
     background: palette.background.paper,
     borderRadius: 1,
-    overflow: 'overlay',
+    overflow: "overlay",
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const RoutineView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: RoutineViewProps) => {
@@ -72,7 +69,7 @@ export const RoutineView = ({
         query: routineVersionFindOne,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
-            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
+            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
         },
         partialData,
     });
@@ -94,21 +91,21 @@ export const RoutineView = ({
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     const viewGraph = useCallback(() => {
-        setSearchParams(setLocation, { build: true })
+        setSearchParams(setLocation, { build: true });
         setIsBuildOpen(true);
     }, [setLocation]);
     const stopBuild = useCallback(() => {
-        setIsBuildOpen(false)
+        setIsBuildOpen(false);
     }, []);
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, 'you.runs', existing.you.runs.filter(r => r.id !== run.id)));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you.runs.filter(r => r.id !== run.id)));
     }, [existing, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, 'you.runs', [run, ...existing.you.runs]));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...existing.you.runs]));
     }, [existing, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -117,7 +114,7 @@ export const RoutineView = ({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: 'Routine',
+        objectType: "Routine",
         openAddCommentDialog,
         setLocation,
         setObject: setRoutineVersion,
@@ -135,7 +132,7 @@ export const RoutineView = ({
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? '',
+                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
@@ -147,7 +144,7 @@ export const RoutineView = ({
     }, [existing, session]);
     const formik = useFormik({
         initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
-            acc[key] = value.props.defaultValue ?? '';
+            acc[key] = value.props.defaultValue ?? "";
             return acc;
         }, {}),
         enableReinitialize: true,
@@ -162,15 +159,15 @@ export const RoutineView = ({
             input: {
                 id: existing.id,
                 exists: false,
-                name: name ?? 'Unnamed Routine',
+                name: name ?? "Unnamed Routine",
                 ...runInputsCreate(formikToRunInputs(formik.values), existing.id),
             },
-            successMessage: () => ({ key: 'RoutineCompleted' }),
+            successMessage: () => ({ messageKey: "RoutineCompleted" }),
             onSuccess: () => {
                 PubSub.get().publishCelebration();
-                setLocation(LINKS.Home)
+                setLocation(LINKS.Home);
             },
-        })
+        });
     }, [formik.values, existing, runComplete, setLocation, name]);
 
     /**
@@ -181,9 +178,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
+            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "InputEmpty", severity: "Error" });
         }
     }, [formik]);
 
@@ -191,13 +188,15 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
+    console.log("formik values", formik.values);
+
     return (
         <>
             <TopBar
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Routine',
+                    titleKey: "Routine",
                 }}
             />
             <Formik
@@ -206,9 +205,9 @@ export const RoutineView = ({
                 onSubmit={() => { }}
             >
                 {(formik) => <Stack direction="column" spacing={4} sx={{
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                    width: 'min(100%, 700px)',
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    width: "min(100%, 700px)",
                     padding: 2,
                 }}>
                     {/* Dialog for building routine */}
@@ -251,12 +250,12 @@ export const RoutineView = ({
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
-                        objectType={'Routine'}
+                        objectType={"Routine"}
                         zIndex={zIndex}
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        title={'Resources'}
+                        title={"Resources"}
                         list={resourceList as ResourceList}
                         canUpdate={false}
                         handleUpdate={() => { }} // Intentionally blank
@@ -264,12 +263,12 @@ export const RoutineView = ({
                         zIndex={zIndex}
                     />}
                     {/* Box with description and instructions */}
-                    <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                         {/* Description */}
                         <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                         {/* Instructions */}
                         <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
-                    </Stack>
+                    </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
                     {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
@@ -293,7 +292,7 @@ export const RoutineView = ({
                                 onClick={markAsComplete}
                                 color="secondary"
                                 sx={{ marginTop: 2 }}
-                            >{t(`MarkAsComplete`)}</Button>}
+                            >{t("MarkAsComplete")}</Button>}
                         </ContentCollapse>
                     </Box>}
                     {/* "View Graph" button if this is a multi-step routine */}
@@ -301,7 +300,7 @@ export const RoutineView = ({
                     {/* Tags */}
                     {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}
-                        parentId={existing?.id ?? ''}
+                        parentId={existing?.id ?? ""}
                         tags={tags as Tag[]}
                         sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                     />}
@@ -337,7 +336,7 @@ export const RoutineView = ({
                         <CommentContainer
                             forceAddCommentOpen={isAddCommentOpen}
                             language={language}
-                            objectId={existing?.id ?? ''}
+                            objectId={existing?.id ?? ""}
                             objectType={CommentFor.RoutineVersion}
                             onAddCommentClose={closeAddCommentDialog}
                             zIndex={zIndex}
@@ -348,13 +347,13 @@ export const RoutineView = ({
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
-                display={isBuildOpen ? 'dialog' : display}
+                display={isBuildOpen ? "dialog" : display}
                 zIndex={zIndex + 2}
-                sx={{ position: 'fixed' }}
+                sx={{ position: "fixed" }}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
@@ -370,5 +369,5 @@ export const RoutineView = ({
                 /> : null}
             </SideActionButtons>
         </>
-    )
-}
+    );
+};

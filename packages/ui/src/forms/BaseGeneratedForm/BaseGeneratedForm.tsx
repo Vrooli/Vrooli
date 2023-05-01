@@ -1,11 +1,11 @@
 // Converts JSON into a MUI form
-import { useTheme } from '@mui/material';
-import { GeneratedGrid } from 'components/inputs/generated';
-import { useFormik } from 'formik';
-import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { FieldData } from 'forms/types';
-import { useCallback, useMemo, useState } from 'react';
-import { BaseGeneratedFormProps } from '../types';
+import { useTheme } from "@mui/material";
+import { GeneratedGrid } from "components/inputs/generated";
+import { useFormik } from "formik";
+import { generateDefaultProps, generateYupSchema } from "forms/generators";
+import { FieldData } from "forms/types";
+import { useCallback, useMemo, useState } from "react";
+import { BaseGeneratedFormProps } from "../types";
 
 /**
  * Form component that is generated from a JSON schema
@@ -22,12 +22,12 @@ export const BaseGeneratedForm = ({
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
-        let values: { [x: string]: any } = {};
+        const values: { [x: string]: any } = {};
         fieldInputs.forEach((field) => {
             values[field.fieldName] = field.props.defaultValue;
         });
         return values;
-    }, [fieldInputs])
+    }, [fieldInputs]);
 
     // Generate yup schema from overall schema
     const validationSchema = useMemo(() => generateYupSchema(schema), [schema]);
@@ -68,4 +68,4 @@ export const BaseGeneratedForm = ({
             />}
         </form>
     );
-}
+};

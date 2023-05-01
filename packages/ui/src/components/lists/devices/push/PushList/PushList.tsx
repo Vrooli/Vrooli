@@ -1,25 +1,23 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { Button, Stack, useTheme } from '@mui/material';
-import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
-import { AddIcon } from '@shared/icons';
-import { pushDeviceValidation } from '@shared/validation';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { pushDeviceCreate } from 'api/generated/endpoints/pushDevice_create';
-import { pushDeviceUpdate } from 'api/generated/endpoints/pushDevice_update';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { ListContainer } from 'components/containers/ListContainer/ListContainer';
-import { useFormik } from 'formik';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getDeviceInfo } from 'utils/display/device';
-import { PubSub } from 'utils/pubsub';
-import { setupPush } from 'utils/push';
-import { updateArray } from 'utils/shape/general';
-import { PushListItem } from '../PushListItem/PushListItem';
-import { PushListProps } from '../types';
+import { AddIcon, DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
+import { Button, Stack, useTheme } from "@mui/material";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { pushDeviceCreate } from "api/generated/endpoints/pushDevice_create";
+import { pushDeviceUpdate } from "api/generated/endpoints/pushDevice_update";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { useFormik } from "formik";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { getDeviceInfo } from "utils/display/device";
+import { PubSub } from "utils/pubsub";
+import { setupPush } from "utils/push";
+import { updateArray } from "utils/shape/general";
+import { PushListItem } from "../PushListItem/PushListItem";
+import { PushListProps } from "../types";
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({
@@ -33,11 +31,11 @@ export const PushList = ({
     const [addMutation, { loading: loadingAdd }] = useCustomMutation<PushDevice, PushDeviceCreateInput>(pushDeviceCreate);
     const formik = useFormik({
         initialValues: {
-            endpoint: '',
-            expires: '',
+            endpoint: "",
+            expires: "",
             keys: {
-                auth: '',
-                p256dh: '',
+                auth: "",
+                p256dh: "",
             },
         },
         enableReinitialize: true,
@@ -53,12 +51,12 @@ export const PushList = ({
                     name: getDeviceInfo().deviceName,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
+                    PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
-            })
+            });
         },
     });
 
@@ -74,7 +72,7 @@ export const PushList = ({
             onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedDevice));
             },
-        })
+        });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -84,17 +82,17 @@ export const PushList = ({
             mutation: deleteMutation,
             input: { id: device.id, objectType: DeleteType.Email },
             onSuccess: () => {
-                handleUpdate([...list.filter(w => w.id !== device.id)])
+                handleUpdate([...list.filter(w => w.id !== device.id)]);
             },
-        })
+        });
     }, [deleteMutation, handleUpdate, list, loadingDelete]);
 
     return (
         <form onSubmit={formik.handleSubmit}>
             <ListContainer
-                emptyText={t(`NoPushDevices`, { ns: 'error' })}
+                emptyText={t("NoPushDevices", { ns: "error" })}
                 isEmpty={list.length === 0}
-                sx={{ maxWidth: '500px' }}
+                sx={{ maxWidth: "500px" }}
             >
                 {/* Push device list */}
                 {list.map((device: PushDevice, index) => (
@@ -109,8 +107,8 @@ export const PushList = ({
             </ListContainer>
             {/* Add new push-device */}
             <Stack direction="row" sx={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
                 paddingTop: 2,
                 paddingBottom: 6,
             }}>
@@ -119,8 +117,8 @@ export const PushList = ({
                     fullWidth
                     onClick={setupPush}
                     startIcon={<AddIcon />}
-                >{t('AddThisDevice')}</Button>
+                >{t("AddThisDevice")}</Button>
             </Stack>
         </form>
-    )
-}
+    );
+};

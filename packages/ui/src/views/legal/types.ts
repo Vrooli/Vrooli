@@ -1,5 +1,4 @@
 import { BaseViewProps } from "views/types";
 
-export interface PrivacyPolicyViewProps extends BaseViewProps {}
-
-export interface TermsViewProps extends BaseViewProps {}
+export type PrivacyPolicyViewProps = BaseViewProps
+export type TermsViewProps = BaseViewProps

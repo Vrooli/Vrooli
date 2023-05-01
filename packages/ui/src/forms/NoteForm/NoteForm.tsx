@@ -1,8 +1,5 @@
+import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionValidation, orDefault, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { NoteVersion, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { noteVersionTranslationValidation, noteVersionValidation } from "@shared/validation";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -13,7 +10,7 @@ import { NoteFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -22,45 +19,43 @@ import { OwnerShape } from "utils/shape/models/types";
 
 export const noteInitialValues = (
     session: Session | undefined,
-    existing?: NoteVersion | null | undefined
+    existing?: NoteVersion | null | undefined,
 ): NoteVersionShape => ({
-    __typename: 'NoteVersion' as const,
+    __typename: "NoteVersion" as const,
     id: DUMMY_ID,
     directoryListings: [],
     isPrivate: true,
     root: {
         id: DUMMY_ID,
         isPrivate: true,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! } as OwnerShape,
+        owner: { __typename: "User", id: getCurrentUser(session)?.id! } as OwnerShape,
         parent: null,
         tags: [],
     },
-    versionLabel: existing?.versionLabel ?? '1.0.0',
+    versionLabel: existing?.versionLabel ?? "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'NoteVersionTranslation' as const,
+        __typename: "NoteVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        name: '',
-        text: '',
+        description: "",
+        name: "",
+        text: "",
     }]),
 });
 
 export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {
     return existing === undefined
         ? shapeNoteVersion.create(values)
-        : shapeNoteVersion.update(existing, values)
+        : shapeNoteVersion.update(existing, values);
 }
 
 export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
     const transformedValues = transformNoteValues(values, existing);
-    const validationSchema = existing === undefined
-        ? noteVersionValidation.create({})
-        : noteVersionValidation.update({});
+    const validationSchema = noteVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const NoteForm = forwardRef<any, NoteFormProps>(({
     display,
@@ -82,8 +77,8 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'name', 'text'],
-        validationSchema: noteVersionTranslationValidation.update({}),
+        fields: ["description", "name", "text"],
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -92,7 +87,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 <EllipsisActionButton>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Note'}
+                        objectType={"Note"}
                         zIndex={zIndex}
                     />
                 </EllipsisActionButton>
@@ -102,18 +97,18 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(100vw - 16px, 700px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(100vw - 16px, 700px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
-                    placeholder={t(`PleaseBeNice`)}
+                    placeholder={t("PleaseBeNice")}
                     minRows={3}
                     sxs={{
                         bar: {
@@ -122,18 +117,15 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                         },
                         textArea: {
                             borderRadius: 0,
-                            resize: 'none',
-                            minHeight: '100vh',
+                            resize: "none",
+                            minHeight: "100vh",
                             background: palette.background.paper,
-                        }
+                        },
                     }}
                 />
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
@@ -142,5 +134,5 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

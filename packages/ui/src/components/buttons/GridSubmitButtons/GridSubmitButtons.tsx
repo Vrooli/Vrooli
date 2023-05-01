@@ -1,14 +1,13 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { Box, Button, CircularProgress, Grid } from '@mui/material';
-import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
-import { exists } from '@shared/utils';
-import { useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useErrorPopover } from 'utils/hooks/useErrorPopover';
-import { GridActionButtons } from '../GridActionButtons/GridActionButtons';
-import { GridSubmitButtonsProps } from '../types';
+import { CancelIcon, CreateIcon, exists, SaveIcon } from "@local/shared";
+import { Box, Button, CircularProgress, Grid } from "@mui/material";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { useErrorPopover } from "utils/hooks/useErrorPopover";
+import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
+import { GridSubmitButtonsProps } from "../types";
 
 export const GridSubmitButtons = ({
     disabledCancel,
@@ -33,7 +32,7 @@ export const GridSubmitButtons = ({
     const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         // If formik invalid, display errors in popup
         if (hasErrors) openPopover(ev);
-        else if (!disabledSubmit && typeof onSubmit === 'function') onSubmit();
+        else if (!disabledSubmit && typeof onSubmit === "function") onSubmit();
     }, [hasErrors, openPopover, disabledSubmit, onSubmit]);
 
     return (
@@ -45,8 +44,8 @@ export const GridSubmitButtons = ({
                     <Button
                         disabled={isSubmitDisabled}
                         fullWidth
-                        startIcon={loading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : (isCreate ? <CreateIcon /> : <SaveIcon />)}
-                    >{t(isCreate ? 'Create' : 'Save')}</Button>
+                        startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : (isCreate ? <CreateIcon /> : <SaveIcon />)}
+                    >{t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
             </Grid>
             {/* Cancel button */}
@@ -56,8 +55,8 @@ export const GridSubmitButtons = ({
                     fullWidth
                     onClick={onCancel}
                     startIcon={<CancelIcon />}
-                >{t('Cancel')}</Button>
+                >{t("Cancel")}</Button>
             </Grid>
         </GridActionButtons>
-    )
-}
+    );
+};

@@ -1,5 +1,4 @@
-import { GqlModelType } from "@shared/consts";
-import { calculateVersionsFromString } from "@shared/validation";
+import { calculateVersionsFromString, GqlModelType } from "@local/shared";
 import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 

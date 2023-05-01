@@ -1,4 +1,4 @@
-import { Tag } from "@shared/consts";
+import { Tag } from "@local/shared";
 import { TagSelectorBase } from "components/inputs/TagSelectorBase/TagSelectorBase";
 import { useField } from "formik";
 import { TagShape } from "utils/shape/models/tag";
@@ -8,8 +8,9 @@ export const GeneratedTagSelector = ({
     disabled,
     fieldData,
     index,
+    zIndex,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering tag selector');
+    console.log("rendering tag selector");
 
     const [field, , helpers] = useField<(Tag | TagShape)[]>(fieldData.fieldName);
 
@@ -18,6 +19,7 @@ export const GeneratedTagSelector = ({
             disabled={disabled}
             handleTagsUpdate={helpers.setValue}
             tags={field.value}
+            zIndex={zIndex}
         />
     );
-}
+};

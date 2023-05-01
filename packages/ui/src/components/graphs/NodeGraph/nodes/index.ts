@@ -1,9 +1,9 @@
-export * from './DraggableNode/DraggableNode';
-export * from './EndNode/EndNode';
-export * from './RedirectNode/RedirectNode';
-export * from './RoutineListNode/RoutineListNode';
-export * from './SubroutineNode/SubroutineNode';
-export * from './StartNode/StartNode';
+export * from "./DraggableNode/DraggableNode";
+export * from "./EndNode/EndNode";
+export * from "./RedirectNode/RedirectNode";
+export * from "./RoutineListNode/RoutineListNode";
+export * from "./StartNode/StartNode";
+export * from "./SubroutineNode/SubroutineNode";
 
 /**
  * Calculates the width/height of a node, using an exponential function.
@@ -12,6 +12,6 @@ export * from './StartNode/StartNode';
  * @param doubleEvery - the increase/decrease in scale required to double/halve the size
  * @returns the width/height of the node
  */
-export const calculateNodeSize = (initialSize: number, scale: number, doubleEvery: number = 1): number => {
+export const calculateNodeSize = (initialSize: number, scale: number, doubleEvery = 1): number => {
     return initialSize * Math.pow(2, scale / doubleEvery);
-}
+};

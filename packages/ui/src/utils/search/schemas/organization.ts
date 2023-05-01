@@ -1,11 +1,11 @@
-import { OrganizationSortBy } from "@shared/consts";
+import { OrganizationSortBy } from "@local/shared";
 import { organizationFindMany } from "api/generated/endpoints/organization_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, yesNoDontCare } from "./common";
+import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common";
 
 export const organizationSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchOrganization'),
+    formLayout: searchFormLayout("SearchOrganization"),
     containers: [
         { totalItems: 1 },
         bookmarksContainer(),
@@ -21,7 +21,7 @@ export const organizationSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const organizationSearchParams = () => toParams(organizationSearchSchema(), organizationFindMany, OrganizationSortBy, OrganizationSortBy.BookmarksDesc);

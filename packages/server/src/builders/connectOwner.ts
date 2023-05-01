@@ -1,4 +1,4 @@
-import { SessionUser } from '@shared/consts';
+import { SessionUser } from "@local/shared";
 
 type ConnectOwnerInput = {
     userConnect?: string | null | undefined;
@@ -14,12 +14,12 @@ type ConnectOwnerInput = {
 export const connectOwner = <T extends ConnectOwnerInput>(createInput: T, session: SessionUser) => {
     // If organization is specified, connect to that
     if (createInput.organizationConnect) {
-        return ({ ownedByOrganization: { connect: { id: createInput.organizationConnect } } })
+        return ({ ownedByOrganization: { connect: { id: createInput.organizationConnect } } });
     }
     // If user is specified, connect to that
     if (createInput.userConnect) {
-        return ({ ownedByUser: { connect: { id: createInput.userConnect } } })
+        return ({ ownedByUser: { connect: { id: createInput.userConnect } } });
     }
     // If neither is specified, connect to the current user
-    return ({ ownedByUser: { connect: { id: session.id } } })
-}
+    return ({ ownedByUser: { connect: { id: session.id } } });
+};

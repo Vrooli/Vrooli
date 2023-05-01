@@ -1,4 +1,4 @@
-import { exists } from "@shared/utils";
+import { exists } from "@local/shared";
 
 /**
  * Returns the first non-null value from the list of 

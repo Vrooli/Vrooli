@@ -1,9 +1,8 @@
+import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, FocusMode, focusModeValidation, HeartFilledIcon, InvisibleIcon, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
-import { Schedule } from "@shared/consts";
-import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "@shared/icons";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Subheader } from "components/text/Subheader/Subheader";
@@ -12,6 +11,47 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
+import { ScheduleUpsert } from "views/objects/schedule";
+
+export const focusModeInitialValues = (
+    session: Session | undefined,
+    existing?: FocusMode | null | undefined,
+): FocusModeShape => ({
+    __typename: "FocusMode" as const,
+    id: DUMMY_ID,
+    description: "",
+    name: "",
+    reminderList: {
+        __typename: "ReminderList" as const,
+        id: DUMMY_ID,
+        reminders: [],
+    },
+    resourceList: {
+        __typename: "ResourceList" as const,
+        id: DUMMY_ID,
+        resources: [],
+    },
+    filters: [],
+    schedule: null,
+    ...existing,
+});
+
+export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
+    console.log("transformFocusModeValues", values, shapeFocusMode.create(values));
+    return existing === undefined
+        ? shapeFocusMode.create(values)
+        : shapeFocusMode.update(existing, values);
+}
+
+export const validateFocusModeValues = async (values: FocusModeShape, existing?: FocusModeShape) => {
+    const transformedValues = transformFocusModeValues(values, existing);
+    const validationSchema = focusModeValidation[existing === undefined ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
 
 export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
     display,
@@ -28,48 +68,56 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
     const { t } = useTranslation();
 
     // Handle scheduling
-    const [scheduleField, scheduleMeta, scheduleHelpers] = useField<Schedule | null>('schedule');
+    const [scheduleField, _, scheduleHelpers] = useField<Schedule | null>("schedule");
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true) };
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
     const handleUpdateSchedule = () => {
         setEditingSchedule(scheduleField.value);
         setIsScheduleDialogOpen(true);
     };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false) };
-    const handleScheduleCreated = (created: Schedule) => {
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
+    const handleScheduleCompleted = (created: Schedule) => {
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
     };
-    const handleScheduleUpdated = (updated: Schedule) => {
-        scheduleHelpers.setValue(updated);
-        setIsScheduleDialogOpen(false);
-    };
-    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null) };
+    const handleDeleteSchedule = () => { scheduleHelpers.setValue(null); };
 
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <ScheduleDialog
-                isCreate={editingSchedule === null}
-                isMutate={false}
-                isOpen={isScheduleDialogOpen}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseScheduleDialog}
-                onCreated={handleScheduleCreated}
-                onUpdated={handleScheduleUpdated}
+                isOpen={isScheduleDialogOpen}
+                titleId={""}
                 zIndex={zIndex + 1}
-            />
+            >
+                <ScheduleUpsert
+                    canChangeTab={false}
+                    canSetScheduleFor={false}
+                    defaultTab={CalendarPageTabOption.FocusModes}
+                    display="dialog"
+                    handleDelete={handleDeleteSchedule}
+                    isCreate={editingSchedule === null}
+                    isMutate={false}
+                    onCancel={handleCloseScheduleDialog}
+                    onCompleted={handleScheduleCompleted}
+                    partialData={editingSchedule ?? undefined}
+                    zIndex={zIndex + 1}
+                />
+            </LargeDialog>
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(600px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(600px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
@@ -77,13 +125,13 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         <Field
                             fullWidth
                             name="name"
-                            label={t('Name')}
+                            label={t("Name")}
                             as={TextField}
                         />
                         <Field
                             fullWidth
                             name="description"
-                            label={t('Description')}
+                            label={t("Description")}
                             as={TextField}
                         />
                     </Stack>
@@ -93,8 +141,8 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
                             sx={{
-                                display: 'flex',
-                                margin: 'auto',
+                                display: "flex",
+                                margin: "auto",
                             }}
                         >{"Add schedule"}</Button>
                     )}
@@ -108,9 +156,9 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                     spacing={1}
                                     pl={2}
                                     sx={{
-                                        width: '-webkit-fill-available',
-                                        display: 'grid',
-                                        pointerEvents: 'none',
+                                        width: "-webkit-fill-available",
+                                        display: "grid",
+                                        pointerEvents: "none",
                                     }}
                                 >
                                     {/* TODO */}
@@ -119,9 +167,9 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                     direction="column"
                                     spacing={1}
                                     sx={{
-                                        pointerEvents: 'none',
-                                        justifyContent: 'center',
-                                        alignItems: 'start',
+                                        pointerEvents: "none",
+                                        justifyContent: "center",
+                                        alignItems: "start",
                                     }}
                                 >
                                     {/* Edit */}
@@ -129,12 +177,12 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                         component="a"
                                         onClick={handleUpdateSchedule}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <EditIcon fill={palette.secondary.main} />
                                     </Box>
@@ -143,12 +191,12 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                         component="a"
                                         onClick={handleDeleteSchedule}
                                         sx={{
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            pointerEvents: 'all',
-                                            paddingBottom: '4px',
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            pointerEvents: "all",
+                                            paddingBottom: "4px",
                                         }}>
                                         <DeleteIcon fill={palette.secondary.main} />
                                     </Box>
@@ -162,16 +210,22 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                     />
                     <Subheader
                         Icon={HeartFilledIcon}
-                        title={t('TopicsFavorite')}
-                        help={t('TopicsFavoriteHelp')}
+                        title={t("TopicsFavorite")}
+                        help={t("TopicsFavoriteHelp")}
                     />
-                    <TagSelector name="favorites" />
+                    <TagSelector
+                        name="favorites"
+                        zIndex={zIndex}
+                    />
                     <Subheader
                         Icon={InvisibleIcon}
-                        title={t('TopicsHidden')}
-                        help={t('TopicsHiddenHelp')}
+                        title={t("TopicsHidden")}
+                        help={t("TopicsHiddenHelp")}
                     />
-                    <TagSelector name="hidden" />
+                    <TagSelector
+                        name="hidden"
+                        zIndex={zIndex}
+                    />
                 </Stack>
             </BaseForm>
             <GridSubmitButtons
@@ -184,5 +238,5 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

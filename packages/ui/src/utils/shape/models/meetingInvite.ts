@@ -1,4 +1,4 @@
-import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput } from "@shared/consts";
+import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

@@ -1,4 +1,4 @@
-import { isObject } from "@shared/utils";
+import { isObject } from "@local/shared";
 import { filterFields } from "./filterFields";
 
 /**
@@ -20,7 +20,7 @@ import { filterFields } from "./filterFields";
  * @param excludes The fields to exclude from the shape
  * @param isOneToOne Whether the data is one-to-one (i.e. a single object)
  */
-export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneToOne: boolean = false): any => {
+export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneToOne = false): any => {
     const shapeAsMany = (data: any): any => {
         if (Array.isArray(data)) {
             return data.map(e => {
@@ -35,7 +35,7 @@ export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneT
         } else {
             return [{ id: data }];
         }
-    }
+    };
     // Shape as if "isOneToOne" is fasel
     let result = shapeAsMany(data);
     // Then if "isOneToOne" is true, return the first element
@@ -47,4 +47,4 @@ export const shapeRelationshipData = (data: any, excludes: string[] = [], isOneT
         }
     }
     return result;
-}
+};

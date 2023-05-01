@@ -1,7 +1,5 @@
+import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@shared/consts";
-import { uppercaseFirstLetter } from "@shared/utils";
-import { resourceListValidation } from "@shared/validation";
 import { findFirstRel, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
@@ -17,7 +15,7 @@ import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
 
-const __typename = 'ResourceList' as const;
+const __typename = "ResourceList" as const;
 const suppFields = [] as const;
 export const ResourceListModel: ModelLogic<{
     IsTransferable: false,
@@ -28,8 +26,8 @@ export const ResourceListModel: ModelLogic<{
     GqlSearch: ResourceListSearchInput,
     GqlSort: ResourceListSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.resource_listUpsertArgs['create'],
-    PrismaUpdate: Prisma.resource_listUpsertArgs['update'],
+    PrismaCreate: Prisma.resource_listUpsertArgs["create"],
+    PrismaUpdate: Prisma.resource_listUpsertArgs["update"],
     PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
     PrismaSelect: Prisma.resource_listSelect,
     PrismaWhere: Prisma.resource_listWhereInput,
@@ -38,32 +36,32 @@ export const ResourceListModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            resources: 'Resource',
-            apiVersion: 'ApiVersion',
-            organization: 'Organization',
-            post: 'Post',
-            projectVersion: 'ProjectVersion',
-            routineVersion: 'RoutineVersion',
-            smartContractVersion: 'SmartContractVersion',
-            standardVersion: 'StandardVersion',
-            focusMode: 'FocusMode',
+            resources: "Resource",
+            apiVersion: "ApiVersion",
+            organization: "Organization",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
+            focusMode: "FocusMode",
         },
         prismaRelMap: {
             __typename,
-            resources: 'Resource',
-            apiVersion: 'ApiVersion',
-            organization: 'Organization',
-            post: 'Post',
-            projectVersion: 'ProjectVersion',
-            routineVersion: 'RoutineVersion',
-            smartContractVersion: 'SmartContractVersion',
-            standardVersion: 'StandardVersion',
-            focusMode: 'FocusMode',
+            resources: "Resource",
+            apiVersion: "ApiVersion",
+            organization: "Organization",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
+            focusMode: "FocusMode",
         },
         countFields: {},
     },
@@ -71,20 +69,20 @@ export const ResourceListModel: ModelLogic<{
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'post', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'focusMode', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'FocusMode', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "apiVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "ApiVersion", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "post", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "ProjectVersion", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "FocusMode", parentRelationshipName: "resourceList", data, ...rest })),
+                ...(await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "resources", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
         },
         yup: resourceListValidation,
@@ -107,9 +105,9 @@ export const ResourceListModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'transNameWrapped',
-            ]
+                "transDescriptionWrapped",
+                "transNameWrapped",
+            ],
         }),
     },
     validate: {
@@ -117,40 +115,40 @@ export const ResourceListModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            apiVersion: 'ApiVersion',
-            organization: 'Organization',
-            post: 'Post',
-            projectVersion: 'ProjectVersion',
-            routineVersion: 'RoutineVersion',
-            smartContractVersion: 'SmartContractVersion',
-            standardVersion: 'StandardVersion',
-            focusMode: 'FocusMode',
+            apiVersion: "ApiVersion",
+            organization: "Organization",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
+            focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => {
             const [resourceOnType, resourceOnData] = findFirstRel(data, [
-                'apiVersion',
-                'focusMode',
-                'organization',
-                'post',
-                'projectVersion',
-                'routineVersion',
-                'smartContractVersion',
-                'standardVersion',
-            ])
-            const { validate } = getLogic(['validate'], uppercaseFirstLetter(resourceOnType!) as any, ['en'], 'ResourceListModel.validate.owner');
+                "apiVersion",
+                "focusMode",
+                "organization",
+                "post",
+                "projectVersion",
+                "routineVersion",
+                "smartContractVersion",
+                "standardVersion",
+            ]);
+            const { validate } = getLogic(["validate"], uppercaseFirstLetter(resourceOnType!) as any, ["en"], "ResourceListModel.validate.owner");
             return validate.owner(resourceOnData, userId);
         },
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
-            ['apiVersion', 'Api'],
-            ['focusMode', 'FocusMode'],
-            ['organization', 'Organization'],
-            ['post', 'Post'],
-            ['projectVersion', 'Project'],
-            ['routineVersion', 'Routine'],
-            ['smartContractVersion', 'SmartContract'],
-            ['standardVersion', 'Standard'],
+            ["apiVersion", "Api"],
+            ["focusMode", "FocusMode"],
+            ["organization", "Organization"],
+            ["post", "Post"],
+            ["projectVersion", "Project"],
+            ["routineVersion", "Routine"],
+            ["smartContractVersion", "SmartContract"],
+            ["standardVersion", "Standard"],
         ], languages),
         visibility: {
             private: {},
@@ -165,8 +163,8 @@ export const ResourceListModel: ModelLogic<{
                     { routineVersion: RoutineModel.validate!.visibility.owner(userId) },
                     { smartContractVersion: SmartContractModel.validate!.visibility.owner(userId) },
                     { standardVersion: StandardModel.validate!.visibility.owner(userId) },
-                ]
+                ],
             }),
-        }
+        },
     },
-})
+});

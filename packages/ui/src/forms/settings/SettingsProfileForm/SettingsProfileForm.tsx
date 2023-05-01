@@ -1,10 +1,7 @@
-import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
-import { FindHandlesInput } from "@shared/consts";
-import { RefreshIcon } from "@shared/icons";
-import { userTranslationValidation } from "@shared/validation";
+import { FindHandlesInput, userTranslationValidation } from "@local/shared";
+import { Grid, TextField, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
@@ -12,7 +9,7 @@ import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -41,35 +38,35 @@ export const SettingsProfileForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio'],
+        fields: ["bio"],
         validationSchema: userTranslationValidation.update({}),
     });
 
     // Handle handles
-    const [handlesField, , handlesHelpers] = useField('handle');
+    const [handlesField, , handlesHelpers] = useField("handle");
     const [findHandles, { data: handlesData, loading: handlesLoading }] = useCustomLazyQuery<string[], FindHandlesInput>(walletFindHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         if (numVerifiedWallets > 0) {
             findHandles({ variables: {} }); // Intentionally empty
         } else {
-            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: 'Error' })
+            PubSub.get().publishSnack({ messageKey: "NoVerifiedWallets", severity: "Error" });
         }
     }, [numVerifiedWallets, findHandles]);
     useEffect(() => {
         if (handlesData) {
             setHandles(handlesData);
         }
-    }, [handlesData])
+    }, [handlesData]);
 
     return (
         <BaseForm
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
             <Grid container spacing={2} sx={{
@@ -88,7 +85,7 @@ export const SettingsProfileForm = ({
                         zIndex={200}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                {/* <Grid item xs={12}>
                     <Stack direction="row" spacing={0}>
                         <Autocomplete
                             disablePortal
@@ -96,39 +93,39 @@ export const SettingsProfileForm = ({
                             loading={handlesLoading}
                             options={handles}
                             onOpen={fetchHandles}
-                            onChange={(_, value) => { handlesHelpers.setValue(value) }}
+                            onChange={(_, value) => { handlesHelpers.setValue(value); }}
                             renderInput={(params) => <TextField
                                 {...params}
                                 label="(ADA) Handle"
                                 sx={{
-                                    '& .MuiInputBase-root': {
-                                        borderRadius: '5px 0 0 5px',
-                                    }
+                                    "& .MuiInputBase-root": {
+                                        borderRadius: "5px 0 0 5px",
+                                    },
                                 }}
                             />}
                             value={handlesField.value}
                             sx={{
-                                width: '100%',
+                                width: "100%",
                             }}
                         />
                         <ColorIconButton
                             aria-label='fetch-handles'
                             background={palette.secondary.main}
                             onClick={fetchHandles}
-                            sx={{ borderRadius: '0 5px 5px 0' }}
+                            sx={{ borderRadius: "0 5px 5px 0" }}
                         >
                             <RefreshIcon />
                         </ColorIconButton>
                     </Stack>
-                </Grid>
+                </Grid> */}
                 <Grid item xs={12}>
-                    <Field fullWidth name="name" label={t('Name')} as={TextField} />
+                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
                 </Grid>
                 <Grid item xs={12}>
                     <TranslatedTextField
                         fullWidth
                         name="bio"
-                        label={t('Bio')}
+                        label={t("Bio")}
                         language={language}
                         multiline
                         minRows={4}
@@ -138,10 +135,7 @@ export const SettingsProfileForm = ({
             </Grid>
             <GridSubmitButtons
                 display={display}
-                errors={{
-                    ...props.errors,
-                    ...translationErrors,
-                }}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}
@@ -149,5 +143,5 @@ export const SettingsProfileForm = ({
                 onSubmit={props.handleSubmit}
             />
         </BaseForm>
-    )
-}
+    );
+};

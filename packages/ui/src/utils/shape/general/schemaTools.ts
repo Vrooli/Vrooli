@@ -1,4 +1,4 @@
-import { StandardVersion } from "@shared/consts";
+import { StandardVersion } from "@local/shared";
 import { FieldData } from "forms/types";
 
 export interface StandardVersionToFieldDataProps {

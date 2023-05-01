@@ -1,9 +1,9 @@
-import { Checkbox, Stack, Typography } from '@mui/material';
-import { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { noSelect } from 'styles';
-import { getCookieIsLeftHanded } from 'utils/cookies';
-import { PubSub } from 'utils/pubsub';
+import { Checkbox, Stack, Typography } from "@mui/material";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { noSelect } from "styles";
+import { getCookieIsLeftHanded } from "utils/cookies";
+import { PubSub } from "utils/pubsub";
 
 /**
  * Updates the font size of the entire app
@@ -22,9 +22,9 @@ export function LeftHandedCheckbox() {
         <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
             <Typography variant="body1" sx={{
                 ...noSelect,
-                marginRight: 'auto',
+                marginRight: "auto",
             }}>
-                {t(`LeftHandedQuestion`)}
+                {t("LeftHandedQuestion")}
             </Typography>
             <Checkbox
                 id="leftHandedCheckbox"
@@ -34,5 +34,5 @@ export function LeftHandedCheckbox() {
                 onChange={handleToggle}
             />
         </Stack>
-    )
+    );
 }

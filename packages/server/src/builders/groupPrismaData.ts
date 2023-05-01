@@ -1,9 +1,9 @@
-import { GqlModelType } from "@shared/consts";
-import { isObject } from "@shared/utils";
-import pkg from 'lodash';
+import { GqlModelType, isObject } from "@local/shared";
+import pkg from "lodash";
 import { SingleOrArray } from "../types";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
+
 const { merge } = pkg;
 
 type GroupPrismaDataReturn = {
@@ -20,7 +20,7 @@ type GroupPrismaDataReturn = {
  */
 const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn): GroupPrismaDataReturn => {
     // Initialize result
-    let result: GroupPrismaDataReturn = dict1;
+    const result: GroupPrismaDataReturn = dict1;
     // Update objectTypesIdsDict
     for (const [childType, childObjects] of Object.entries(dict2.objectTypesIdsDict)) {
         result.objectTypesIdsDict[childType] = result.objectTypesIdsDict[childType] ?? [];
@@ -31,7 +31,7 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
     // Update objectIdsDataDict
     result.objectIdsDataDict = merge(result.objectIdsDataDict, dict2.objectIdsDataDict);
     return result;
-}
+};
 
 /**
  * Combines fields from a Prisma object with arbitrarily nested relationships. Used to get 
@@ -46,20 +46,20 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  */
 export const groupPrismaData = (
     data: SingleOrArray<{ [x: string]: any }>,
-    partialInfo: SingleOrArray<PartialGraphQLInfo>
+    partialInfo: SingleOrArray<PartialGraphQLInfo>,
 ): GroupPrismaDataReturn => {
     // Check for valid input
     if (!data || !partialInfo) return {
         objectTypesIdsDict: {},
         selectFieldsDict: {},
         objectIdsDataDict: {},
-    }
+    };
     // Initialize dictionaries
     let result: GroupPrismaDataReturn = {
         objectTypesIdsDict: {},
         selectFieldsDict: {},
         objectIdsDataDict: {},
-    }
+    };
     // If data is an array, loop through each element
     if (Array.isArray(data)) {
         for (let i = 0; i < data.length; i++) {
@@ -106,7 +106,7 @@ export const groupPrismaData = (
             result = combineDicts(result, childDicts);
         }
         // If key is 'id'
-        else if (key === 'id' && (partialInfo as PartialGraphQLInfo).__typename) {
+        else if (key === "id" && (partialInfo as PartialGraphQLInfo).__typename) {
             const type = (partialInfo as PartialGraphQLInfo).__typename as `${GqlModelType}`;
             // Add to objectTypesIdsDict
             result.objectTypesIdsDict[type] = result.objectTypesIdsDict[type] ?? [];
@@ -128,4 +128,4 @@ export const groupPrismaData = (
     }
     // Return dictionaries
     return result;
-}
+};

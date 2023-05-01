@@ -1,6 +1,5 @@
+import { exists, getReactionScore, ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, removeModifiers } from "@local/shared";
 import { Prisma, reaction_summary } from "@prisma/client";
-import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy } from '@shared/consts';
-import { exists, getReactionScore, removeModifiers } from "@shared/utils";
 import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { onlyValidIds, selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
@@ -9,22 +8,22 @@ import { PrismaType, SessionUserToken } from "../types";
 import { ModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {
-    Api: 'api',
-    ChatMessage: 'chatMessage',
-    Comment: 'comment',
-    Issue: 'issue',
-    Note: 'note',
-    Post: 'post',
-    Project: 'project',
-    Question: 'question',
-    QuestionAnswer: 'questionAnswer',
-    Quiz: 'quiz',
-    Routine: 'routine',
-    SmartContract: 'smartContract',
-    Standard: 'standard',
-}
+    Api: "api",
+    ChatMessage: "chatMessage",
+    Comment: "comment",
+    Issue: "issue",
+    Note: "note",
+    Post: "post",
+    Project: "project",
+    Question: "question",
+    QuestionAnswer: "questionAnswer",
+    Quiz: "quiz",
+    Routine: "routine",
+    SmartContract: "smartContract",
+    Standard: "standard",
+};
 
-const __typename = 'Reaction' as const;
+const __typename = "Reaction" as const;
 const suppFields = [] as const;
 export const ReactionModel: ModelLogic<{
     IsTransferable: true,
@@ -35,8 +34,8 @@ export const ReactionModel: ModelLogic<{
     GqlSearch: ReactionSearchInput,
     GqlSort: ReactionSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.reactionUpsertArgs['create'],
-    PrismaUpdate: Prisma.reactionUpsertArgs['update'],
+    PrismaCreate: Prisma.reactionUpsertArgs["create"],
+    PrismaUpdate: Prisma.reactionUpsertArgs["update"],
     PrismaModel: Prisma.reactionGetPayload<SelectWrap<Prisma.reactionSelect>>,
     PrismaSelect: Prisma.reactionSelect,
     PrismaWhere: Prisma.reactionWhereInput,
@@ -74,45 +73,45 @@ export const ReactionModel: ModelLogic<{
             if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
             if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
             if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-            return '';
-        }
+            return "";
+        },
     },
     format: {
         gqlRelMap: {
             __typename,
-            by: 'User',
+            by: "User",
             to: {
-                api: 'Api',
-                chatMessage: 'ChatMessage',
-                comment: 'Comment',
-                issue: 'Issue',
-                note: 'Note',
-                post: 'Post',
-                project: 'Project',
-                question: 'Question',
-                questionAnswer: 'QuestionAnswer',
-                quiz: 'Quiz',
-                routine: 'Routine',
-                smartContract: 'SmartContract',
-                standard: 'Standard',
-            }
+                api: "Api",
+                chatMessage: "ChatMessage",
+                comment: "Comment",
+                issue: "Issue",
+                note: "Note",
+                post: "Post",
+                project: "Project",
+                question: "Question",
+                questionAnswer: "QuestionAnswer",
+                quiz: "Quiz",
+                routine: "Routine",
+                smartContract: "SmartContract",
+                standard: "Standard",
+            },
         },
         prismaRelMap: {
             __typename,
-            by: 'User',
-            api: 'Api',
-            chatMessage: 'ChatMessage',
-            comment: 'Comment',
-            issue: 'Issue',
-            note: 'Note',
-            post: 'Post',
-            project: 'Project',
-            question: 'Question',
-            questionAnswer: 'QuestionAnswer',
-            quiz: 'Quiz',
-            routine: 'Routine',
-            smartContract: 'SmartContract',
-            standard: 'Standard',
+            by: "User",
+            api: "Api",
+            chatMessage: "ChatMessage",
+            comment: "Comment",
+            issue: "Issue",
+            note: "Note",
+            post: "Post",
+            project: "Project",
+            question: "Question",
+            questionAnswer: "QuestionAnswer",
+            quiz: "Quiz",
+            routine: "Routine",
+            smartContract: "SmartContract",
+            standard: "Standard",
         },
         countFields: {},
     },
@@ -124,7 +123,7 @@ export const ReactionModel: ModelLogic<{
             prisma: PrismaType,
             userId: string | null | undefined,
             ids: string[],
-            reactionFor: keyof typeof ReactionFor
+            reactionFor: keyof typeof ReactionFor,
         ): Promise<Array<string | null>> {
             // Create result array that is the same length as ids
             const result = new Array(ids.length).fill(null);
@@ -164,12 +163,12 @@ export const ReactionModel: ModelLogic<{
                         id: true,
                         emoji: true,
                         count: true,
-                    }
+                    },
                 },
-            }
+            },
         });
         if (!reactingFor)
-            throw new CustomError('0118', 'NotFound', userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
+            throw new CustomError("0118", "NotFound", userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
         // Find sentiment of current and new reaction
         const isRemove = !exists(input.emoji);
         const feelingNew = getReactionScore(input.emoji!);
@@ -177,9 +176,9 @@ export const ReactionModel: ModelLogic<{
         const reaction = await prisma.reaction.findFirst({
             where: {
                 byId: userData.id,
-                [`${forMapper[input.reactionFor]}Id`]: input.forConnect
-            }
-        })
+                [`${forMapper[input.reactionFor]}Id`]: input.forConnect,
+            },
+        });
         // If reaction already existed
         if (reaction) {
             const feelingExisting = getReactionScore(reaction.emoji);
@@ -188,38 +187,38 @@ export const ReactionModel: ModelLogic<{
             if (isSame) return true;
             // If removing reaction, delete it
             if (isRemove) {
-                await prisma.reaction.delete({ where: { id: reaction.id } })
+                await prisma.reaction.delete({ where: { id: reaction.id } });
                 // Update the corresponding reaction summary table
                 const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === reaction.emoji);
                 if (summaryTable) {
                     await prisma.reaction_summary.update({
                         where: { id: summaryTable.id },
-                        data: { count: Math.max(0, summaryTable.count - 1) }
-                    })
+                        data: { count: Math.max(0, summaryTable.count - 1) },
+                    });
                 }
             }
             // Otherwise, update the reaction
             else {
                 await prisma.reaction.update({
                     where: { id: reaction.id },
-                    data: { emoji: input.emoji! }
-                })
+                    data: { emoji: input.emoji! },
+                });
                 // Upsert the corresponding reaction summary table
                 const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === input.emoji);
                 if (summaryTable) {
                     await prisma.reaction_summary.update({
                         where: { id: summaryTable.id },
-                        data: { count: summaryTable.count + 1 }
-                    })
+                        data: { count: summaryTable.count + 1 },
+                    });
                 }
                 else {
                     await prisma.reaction_summary.create({
                         data: {
                             emoji: input.emoji!,
                             count: 1,
-                            [`${forMapper[input.reactionFor]}Id`]: input.forConnect
-                        }
-                    })
+                            [`${forMapper[input.reactionFor]}Id`]: input.forConnect,
+                        },
+                    });
                 }
             }
             // Handle trigger
@@ -228,8 +227,8 @@ export const ReactionModel: ModelLogic<{
             const deltaVoteCount = feelingNew - feelingExisting;
             await prismaFor.update({
                 where: { id: input.forConnect },
-                data: { score: reactingFor.score + deltaVoteCount }
-            })
+                data: { score: reactingFor.score + deltaVoteCount },
+            });
             return true;
         }
         // If reaction did not already exist
@@ -241,34 +240,34 @@ export const ReactionModel: ModelLogic<{
                 data: {
                     byId: userData.id,
                     emoji: input.emoji!,
-                    [`${forMapper[input.reactionFor]}Id`]: input.forConnect
-                }
-            })
+                    [`${forMapper[input.reactionFor]}Id`]: input.forConnect,
+                },
+            });
             // Upsert the corresponding reaction summary table
             const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === input.emoji);
             if (summaryTable) {
                 await prisma.reaction_summary.update({
                     where: { id: summaryTable.id },
-                    data: { count: summaryTable.count + 1 }
-                })
+                    data: { count: summaryTable.count + 1 },
+                });
             }
             else {
                 await prisma.reaction_summary.create({
                     data: {
                         emoji: input.emoji!,
                         count: 1,
-                        [`${forMapper[input.reactionFor]}Id`]: input.forConnect
-                    }
-                })
+                        [`${forMapper[input.reactionFor]}Id`]: input.forConnect,
+                    },
+                });
             }
             // Handle trigger
             await Trigger(prisma, userData.languages).objectReact(null, input.emoji, input.reactionFor, input.forConnect, userData.id);
             // Update the score
             await prismaFor.update({
                 where: { id: input.forConnect },
-                data: { score: reactingFor.score + feelingNew }
-            })
+                data: { score: reactingFor.score + feelingNew },
+            });
             return true;
         }
     },
-})
+});

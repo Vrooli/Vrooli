@@ -1,9 +1,7 @@
-import { LINKS } from "@shared/consts";
-import { SvgComponent } from "@shared/icons";
-import { CommonKey } from "@shared/translations";
+import { CommonKey, LINKS, SvgComponent } from "@local/shared";
 import { BaseViewProps } from "views/types";
 
-export type SettingsPageType = 'Profile' | 'Privacy' | 'Authentication' | 'Display' | 'Notification' | 'FocusMode';
+export type SettingsPageType = "Profile" | "Privacy" | "Authentication" | "Display" | "Notification" | "FocusMode";
 export type SettingsData = {
     title: SettingsPageType,
     description: CommonKey,
@@ -11,11 +9,11 @@ export type SettingsData = {
     Icon: SvgComponent,
 };
 
-export interface SettingsViewProps extends BaseViewProps { }
+export type SettingsViewProps = BaseViewProps
 
-export interface SettingsAuthenticationViewProps extends BaseViewProps { }
-export interface SettingsDisplayViewProps extends BaseViewProps { }
-export interface SettingsNotificationsViewProps extends BaseViewProps { }
-export interface SettingsPrivacyViewProps extends BaseViewProps { }
-export interface SettingsProfileViewProps extends BaseViewProps { }
-export interface SettingsFocusModesViewProps extends BaseViewProps { }
+export type SettingsAuthenticationViewProps = BaseViewProps
+export type SettingsDisplayViewProps = BaseViewProps
+export type SettingsNotificationsViewProps = BaseViewProps
+export type SettingsPrivacyViewProps = BaseViewProps
+export type SettingsProfileViewProps = BaseViewProps
+export type SettingsFocusModesViewProps = BaseViewProps

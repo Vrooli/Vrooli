@@ -14,21 +14,21 @@ export const ListContainer = ({
     return (
         <Box sx={{
             marginTop: 2,
-            maxWidth: '1000px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
+            maxWidth: "1000px",
+            marginLeft: "auto",
+            marginRight: "auto",
             ...(isEmpty ? {} : {
                 boxShadow: 12,
                 background: palette.background.paper,
-                borderRadius: '8px',
-                overflow: 'overlay',
-                display: 'block',
+                borderRadius: "8px",
+                overflow: "overlay",
+                display: "block",
             }),
-            ...(sx ?? {})
+            ...(sx ?? {}),
         }}>
             {isEmpty && (
                 <Typography variant="h6" textAlign="center">
-                    {emptyText ?? t(`NoResults`, { ns: 'error' })}
+                    {emptyText ?? t("NoResults", { ns: "error" })}
                 </Typography>
             )}
             {!isEmpty && (
@@ -37,5 +37,5 @@ export const ListContainer = ({
                 </List>
             )}
         </Box>
-    )
-}
+    );
+};

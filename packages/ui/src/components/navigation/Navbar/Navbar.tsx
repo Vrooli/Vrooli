@@ -1,16 +1,15 @@
-import { AppBar, Box, Stack, useTheme } from '@mui/material';
-import { BUSINESS_NAME, LINKS } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { Header } from 'components/text/Header/Header';
-import { forwardRef, useCallback, useEffect, useMemo } from 'react';
-import { noSelect } from 'styles';
-import { useDimensions } from 'utils/hooks/useDimensions';
-import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { HideOnScroll } from '../HideOnScroll/HideOnScroll';
-import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
-import { NavList } from '../NavList/NavList';
-import { NavbarLogoState, NavbarProps } from '../types';
+import { BUSINESS_NAME, LINKS, useLocation } from "@local/shared";
+import { AppBar, Box, Stack, useTheme } from "@mui/material";
+import { Header } from "components/text/Header/Header";
+import { forwardRef, useCallback, useEffect, useMemo } from "react";
+import { noSelect } from "styles";
+import { useDimensions } from "utils/hooks/useDimensions";
+import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
+import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
+import { NavList } from "../NavList/NavList";
+import { NavbarLogoState, NavbarProps } from "../types";
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -41,12 +40,12 @@ export const Navbar = forwardRef(({
     const { dimensions, ref: dimRef } = useDimensions();
 
     const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
-    const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
+    const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
 
     // Determine display texts and states
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const { logoState } = useMemo(() => {
-        const logoState: NavbarLogoState = (isMobile && title) ? 'icon' : 'full';
+        const logoState: NavbarLogoState = (isMobile && title) ? "icon" : "full";
         return { logoState };
     }, [isMobile, title]);
 
@@ -63,10 +62,10 @@ export const Navbar = forwardRef(({
             onClick={toHome}
             sx={{
                 padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                marginRight: isMobile && isLeftHanded ? 1 : 'auto',
-                marginLeft: isMobile && isLeftHanded ? 'auto' : 1,
+                display: "flex",
+                alignItems: "center",
+                marginRight: isMobile && isLeftHanded ? 1 : "auto",
+                marginLeft: isMobile && isLeftHanded ? "auto" : 1,
             }}
         >
             <NavbarLogo
@@ -85,8 +84,8 @@ export const Navbar = forwardRef(({
                     sx={{
                         ...noSelect,
                         background: palette.primary.dark,
-                        minHeight: '64px!important',
-                        position: 'fixed', // Allows items to be displayed below the navbar
+                        minHeight: "64px!important",
+                        position: "fixed", // Allows items to be displayed below the navbar
                         zIndex: 300,
                     }}>
                     {/* <Toolbar> */}
@@ -97,8 +96,8 @@ export const Navbar = forwardRef(({
                         {/* Logo displayed on left for desktop and right-handed mobile users.
                         Account menu displayed otherwise */}
                         {!(isMobile && isLeftHanded) ? logo : <Box sx={{
-                            marginRight: 'auto',
-                            maxHeight: '100%',
+                            marginRight: "auto",
+                            maxHeight: "100%",
                         }}>
                             <NavList />
                         </Box>}
@@ -106,8 +105,8 @@ export const Navbar = forwardRef(({
                         {/* Title displayed here on mobile */}
                         {isMobile && title && <Header help={help} title={title} />}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
-                            marginLeft: 'auto',
-                            maxHeight: '100%',
+                            marginLeft: "auto",
+                            maxHeight: "100%",
                         }}>
                             <NavList />
                         </Box>}
@@ -126,4 +125,4 @@ export const Navbar = forwardRef(({
             {!isMobile && below}
         </Box>
     );
-})
+});

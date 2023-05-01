@@ -1,4 +1,4 @@
-import { Wallet, WalletUpdateInput } from "@shared/consts";
+import { Wallet, WalletUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 

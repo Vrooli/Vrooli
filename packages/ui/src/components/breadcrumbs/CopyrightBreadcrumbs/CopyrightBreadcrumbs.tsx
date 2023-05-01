@@ -1,7 +1,7 @@
-import { BUSINESS_NAME, LINKS } from '@shared/consts';
-import { useTranslation } from 'react-i18next';
-import { BreadcrumbsBase } from '../BreadcrumbsBase/BreadcrumbsBase';
-import { CopyrightBreadcrumbsProps } from '../types';
+import { BUSINESS_NAME, LINKS } from "@local/shared";
+import { useTranslation } from "react-i18next";
+import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
+import { CopyrightBreadcrumbsProps } from "../types";
 
 export const CopyrightBreadcrumbs = ({
     sx,
@@ -11,16 +11,16 @@ export const CopyrightBreadcrumbs = ({
     return BreadcrumbsBase({
         paths: [
             [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, LINKS.Home],
-            [t(`Privacy`), LINKS.Privacy],
-            [t(`Terms`), LINKS.Terms]
+            [t("Privacy"), LINKS.Privacy],
+            [t("Terms"), LINKS.Terms],
         ].map(row => ({ text: row[0], link: row[1] })),
-        ariaLabel: 'Copyright breadcrumb',
+        ariaLabel: "Copyright breadcrumb",
         sx: {
             ...sx,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
         },
-        ...props
-    })
-}
+        ...props,
+    });
+};

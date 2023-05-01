@@ -1,8 +1,5 @@
+import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Stack, TextField } from "@mui/material";
-import { ApiVersion, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { apiVersionTranslationValidation, apiVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -16,7 +13,7 @@ import { ApiFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -24,51 +21,49 @@ import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion"
 
 export const apiInitialValues = (
     session: Session | undefined,
-    existing?: ApiVersion | null | undefined
+    existing?: ApiVersion | null | undefined,
 ): ApiVersionShape => ({
-    __typename: 'ApiVersion' as const,
+    __typename: "ApiVersion" as const,
     id: DUMMY_ID,
-    callLink: '',
+    callLink: "",
     directoryListings: [],
     isComplete: false,
     isPrivate: false,
     resourceList: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
     root: {
-        __typename: 'Api' as const,
+        __typename: "Api" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         tags: [],
     },
-    versionLabel: '1.0.0',
+    versionLabel: "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'ApiVersionTranslation' as const,
+        __typename: "ApiVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        details: '',
-        name: '',
-        summary: '',
+        details: "",
+        name: "",
+        summary: "",
     }]),
 });
 
 export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersionShape) => {
     return existing === undefined
         ? shapeApiVersion.create(values)
-        : shapeApiVersion.update(existing, values)
-}
+        : shapeApiVersion.update(existing, values);
+};
 
 export const validateApiValues = async (values: ApiVersionShape, existing?: ApiVersionShape) => {
     const transformedValues = transformApiValues(values, existing);
-    const validationSchema = existing === undefined
-        ? apiVersionValidation.create({})
-        : apiVersionValidation.update({});
+    const validationSchema = apiVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const ApiForm = forwardRef<any, ApiFormProps>(({
     display,
@@ -101,8 +96,8 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['details', 'name', 'summary'],
-        validationSchema: apiVersionTranslationValidation.update({}),
+        fields: ["details", "name", "summary"],
+        validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -112,12 +107,12 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -126,7 +121,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 }}>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Api'}
+                        objectType={"Api"}
                         zIndex={zIndex}
                     />
                     <Field
@@ -147,7 +142,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Name')}
+                            label={t("Name")}
                             language={language}
                             name="name"
                         />
@@ -174,7 +169,10 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector name="root.tags" />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}
@@ -182,10 +180,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
@@ -194,5 +189,5 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

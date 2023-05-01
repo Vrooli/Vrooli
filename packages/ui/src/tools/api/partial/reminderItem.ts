@@ -1,9 +1,9 @@
-import { ReminderItem } from "@shared/consts";
-import { rel } from '../utils';
+import { ReminderItem } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const reminderItem: GqlPartial<ReminderItem> = {
-    __typename: 'ReminderItem',
+    __typename: "ReminderItem",
     full: {
         id: true,
         created_at: true,
@@ -13,6 +13,6 @@ export const reminderItem: GqlPartial<ReminderItem> = {
         dueDate: true,
         index: true,
         isComplete: true,
-        reminder: async () => rel((await import('./reminder')).reminder, 'nav', { omit: 'reminderItems' }),
+        reminder: async () => rel((await import("./reminder")).reminder, "nav", { omit: "reminderItems" }),
     },
-}
+};

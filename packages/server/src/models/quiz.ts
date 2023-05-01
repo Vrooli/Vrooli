@@ -1,6 +1,5 @@
+import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, quizValidation, QuizYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
-import { quizValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -12,9 +11,9 @@ import { ReactionModel } from "./reaction";
 import { RoutineModel } from "./routine";
 import { ModelLogic } from "./types";
 
-const __typename = 'Quiz' as const;
-type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
-const suppFields = ['you'] as const;
+const __typename = "Quiz" as const;
+type Permissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
+const suppFields = ["you"] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -24,8 +23,8 @@ export const QuizModel: ModelLogic<{
     GqlSearch: QuizSearchInput,
     GqlSort: QuizSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.quizUpsertArgs['create'],
-    PrismaUpdate: Prisma.quizUpsertArgs['update'],
+    PrismaCreate: Prisma.quizUpsertArgs["create"],
+    PrismaUpdate: Prisma.quizUpsertArgs["update"],
     PrismaModel: Prisma.quizGetPayload<SelectWrap<Prisma.quizSelect>>,
     PrismaSelect: Prisma.quizSelect,
     PrismaWhere: Prisma.quizWhereInput,
@@ -34,28 +33,28 @@ export const QuizModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.quiz,
     display: {
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, 'name', languages)
+        label: (select, languages) => bestLabel(select.translations, "name", languages),
     },
     format: {
         gqlRelMap: {
             __typename,
-            attempts: 'QuizAttempt',
-            createdBy: 'User',
-            project: 'Project',
-            quizQuestions: 'QuizQuestion',
-            routine: 'Routine',
-            bookmarkedBy: 'User',
+            attempts: "QuizAttempt",
+            createdBy: "User",
+            project: "Project",
+            quizQuestions: "QuizQuestion",
+            routine: "Routine",
+            bookmarkedBy: "User",
         },
         prismaRelMap: {
             __typename,
-            attempts: 'QuizAttempt',
-            createdBy: 'User',
-            project: 'Project',
-            quizQuestions: 'QuizQuestion',
-            routine: 'Routine',
-            bookmarkedBy: 'User',
+            attempts: "QuizAttempt",
+            createdBy: "User",
+            project: "Project",
+            quizQuestions: "QuizQuestion",
+            routine: "Routine",
+            bookmarkedBy: "User",
         },
-        joinMap: { bookmarkedBy: 'user' },
+        joinMap: { bookmarkedBy: "user" },
         countFields: {
             attemptsCount: true,
             quizQuestionsCount: true,
@@ -69,8 +68,8 @@ export const QuizModel: ModelLogic<{
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -85,10 +84,10 @@ export const QuizModel: ModelLogic<{
                 timeLimit: noNull(data.timeLimit),
                 pointsToPass: noNull(data.pointsToPass),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, ...rest })),
-                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, ...rest })),
-                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
@@ -98,18 +97,18 @@ export const QuizModel: ModelLogic<{
                 timeLimit: noNull(data.timeLimit),
                 pointsToPass: noNull(data.pointsToPass),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, ...rest })),
-                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, ...rest })),
-                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
-            })
+                ...(await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
                 await onCommonPlain({
                     ...params,
                     objectType: __typename,
-                    ownerUserField: 'createdBy',
+                    ownerUserField: "createdBy",
                 });
             },
         },
@@ -130,20 +129,19 @@ export const QuizModel: ModelLogic<{
             projectId: true,
             userId: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'transNameWrapped',
-            ]
+                "transDescriptionWrapped",
+                "transNameWrapped",
+            ],
         }),
     },
     validate: {
         isDeleted: () => false,
         isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
-            ['project', 'Project'],
-            ['routine', 'Routine'],
+            ["project", "Project"],
+            ["routine", "Routine"],
         ], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
@@ -154,9 +152,9 @@ export const QuizModel: ModelLogic<{
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            createdBy: 'User',
-            project: 'Project',
-            routine: 'Routine',
+            createdBy: "User",
+            project: "Project",
+            routine: "Routine",
         }),
         visibility: {
             private: {
@@ -164,16 +162,16 @@ export const QuizModel: ModelLogic<{
                     { isPrivate: true },
                     { project: ProjectModel.validate!.visibility.private },
                     { routine: RoutineModel.validate!.visibility.private },
-                ]
+                ],
             },
             public: {
                 AND: [
                     { isPrivate: false },
                     { project: ProjectModel.validate!.visibility.public },
                     { routine: RoutineModel.validate!.visibility.public },
-                ]
+                ],
             },
             owner: (userId) => ({ createdBy: { id: userId } }),
-        }
+        },
     },
-})
+});

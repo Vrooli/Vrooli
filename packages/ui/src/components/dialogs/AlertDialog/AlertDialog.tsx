@@ -1,17 +1,11 @@
-import {
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText
-} from '@mui/material';
-import i18next from 'i18next';
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { firstString } from 'utils/display/stringTools';
-import { translateSnackMessage } from 'utils/display/translationTools';
-import { PubSub } from 'utils/pubsub';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
+import i18next from "i18next";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { firstString } from "utils/display/stringTools";
+import { translateSnackMessage } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
 
 interface StateButton {
     label: string;
@@ -25,20 +19,20 @@ export interface AlertDialogState {
 }
 
 const defaultState = (): AlertDialogState => ({
-    buttons: [{ label: i18next.t('Ok') }],
+    buttons: [{ label: i18next.t("Ok") }],
 });
 
-const titleId = 'alert-dialog-title';
-const descriptionAria = 'alert-dialog-description';
+const titleId = "alert-dialog-title";
+const descriptionAria = "alert-dialog-description";
 
 const AlertDialog = () => {
     const { t } = useTranslation();
 
-    const [state, setState] = useState<AlertDialogState>(defaultState())
-    let open = Boolean(state.title) || Boolean(state.message);
+    const [state, setState] = useState<AlertDialogState>(defaultState());
+    const open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
-        let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
+        const dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
             title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
             message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
             buttons: o.buttons.map((b) => ({
@@ -46,8 +40,8 @@ const AlertDialog = () => {
                 onClick: b.onClick,
             })),
         }));
-        return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [t])
+        return () => { PubSub.get().unsubscribe(dialogSub); };
+    }, [t]);
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
         if (action) action(event);
@@ -65,11 +59,11 @@ const AlertDialog = () => {
             aria-describedby={descriptionAria}
             sx={{
                 zIndex: 30000,
-                '& > .MuiDialog-container': {
-                    '& > .MuiPaper-root': {
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
                         zIndex: 30000,
                     },
-                }
+                },
             }}
         >
             <DialogTitle
@@ -79,8 +73,8 @@ const AlertDialog = () => {
             />
             <DialogContent>
                 <DialogContentText id={descriptionAria} sx={{
-                    whiteSpace: 'pre-wrap',
-                    wordWrap: 'break-word',
+                    whiteSpace: "pre-wrap",
+                    wordWrap: "break-word",
                     paddingTop: 2,
                 }}>
                     {state.message}
@@ -98,6 +92,6 @@ const AlertDialog = () => {
             </DialogActions>
         </Dialog >
     );
-}
+};
 
 export { AlertDialog };

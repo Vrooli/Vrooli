@@ -7,7 +7,7 @@ import { CustomError } from "../events/error";
  * @returns The sorted object
  */
 export const sortObjectKeys = (obj: any): any => {
-    if (typeof obj !== 'object' || obj === null || Object.prototype.toString.call(obj) !== '[object Date]') {
+    if (typeof obj !== "object" || obj === null || Object.prototype.toString.call(obj) !== "[object Date]") {
         return obj;
     }
     const sorted: { [x: string]: any } = {};
@@ -15,7 +15,7 @@ export const sortObjectKeys = (obj: any): any => {
         sorted[key] = sortObjectKeys(obj[key]);
     });
     return sorted;
-}
+};
 
 /**
  * Parses JSON string, recursively sorts all keys alphabetically, and restringifies
@@ -28,6 +28,6 @@ export const sortify = (stringified: string, languages: string[]): string => {
         const obj = JSON.parse(stringified);
         return JSON.stringify(sortObjectKeys(obj));
     } catch (error) {
-        throw new CustomError('0210', 'InvalidArgs', languages);
+        throw new CustomError("0210", "InvalidArgs", languages);
     }
-}
+};

@@ -1,9 +1,8 @@
-import { CopyInput, CopyResult, CopyType } from '@shared/consts';
-import { lowercaseFirstLetter } from '@shared/utils';
-import { gql } from 'apollo-server-express';
-import { copyHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint } from '../types';
+import { CopyInput, CopyResult, CopyType, lowercaseFirstLetter } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { copyHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum CopyType {
@@ -35,7 +34,7 @@ export const typeDef = gql`
     extend type Mutation {
         copy(input: CopyInput!): CopyResult!
     }
- `
+ `;
 
 export const resolvers: {
     CopyType: typeof CopyType;
@@ -47,8 +46,8 @@ export const resolvers: {
     Mutation: {
         copy: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
-            const result = await copyHelper({ info, input, objectType: input.objectType, prisma, req })
-            return { __typename: 'CopyResult' as const, [lowercaseFirstLetter(input.objectType)]: result };
-        }
-    }
-}
+            const result = await copyHelper({ info, input, objectType: input.objectType, prisma, req });
+            return { __typename: "CopyResult" as const, [lowercaseFirstLetter(input.objectType)]: result };
+        },
+    },
+};

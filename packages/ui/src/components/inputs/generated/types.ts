@@ -1,5 +1,5 @@
-import { Theme } from '@mui/material';
-import { FieldData, GridContainer, GridContainerBase } from 'forms/types';
+import { Theme } from "@mui/material";
+import { FieldData, GridContainer, GridContainerBase } from "forms/types";
 
 export interface GeneratedGridProps {
     childContainers?: GridContainer[];

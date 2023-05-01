@@ -1,15 +1,15 @@
 import { BaseViewProps } from "views/types";
 
-export interface CreateViewProps extends BaseViewProps { }
+export type CreateViewProps = BaseViewProps
 
-export interface DashboardViewProps extends BaseViewProps { }
+export type DashboardViewProps = BaseViewProps
 
-export interface HomeViewProps extends BaseViewProps { }
+export type HomeViewProps = BaseViewProps
 
-export interface HistoryViewProps extends BaseViewProps { }
+export type HistoryViewProps = BaseViewProps
 
-export interface LandingViewProps extends BaseViewProps { }
+export type LandingViewProps = BaseViewProps
 
-export interface MyStuffViewProps extends BaseViewProps { }
+export type MyStuffViewProps = BaseViewProps
 
-export interface NotificationsViewProps extends BaseViewProps { }
+export type NotificationsViewProps = BaseViewProps

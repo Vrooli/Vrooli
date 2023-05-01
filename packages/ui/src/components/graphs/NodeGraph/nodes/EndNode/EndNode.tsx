@@ -1,14 +1,14 @@
-import { Box, Tooltip, Typography } from '@mui/material';
-import { CSSProperties } from '@mui/styles';
-import { Node, NodeEnd } from '@shared/consts';
-import { useCallback, useMemo, useState } from 'react';
-import { noSelect } from 'styles';
-import { BuildAction } from 'utils/consts';
-import { firstString } from 'utils/display/stringTools';
-import usePress from 'utils/hooks/usePress';
-import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from '../..';
-import { nodeLabel } from '../styles';
-import { EndNodeProps } from '../types';
+import { Node, NodeEnd } from "@local/shared";
+import { Box, Tooltip, Typography } from "@mui/material";
+import { CSSProperties } from "@mui/styles";
+import { useCallback, useMemo, useState } from "react";
+import { noSelect } from "styles";
+import { BuildAction } from "utils/consts";
+import { firstString } from "utils/display/stringTools";
+import usePress from "utils/hooks/usePress";
+import { calculateNodeSize, DraggableNode, NodeContextMenu, NodeEndDialog, NodeWidth } from "../..";
+import { nodeLabel } from "../styles";
+import { EndNodeProps } from "../types";
 
 /**
  * Distance before a click is considered a drag
@@ -21,7 +21,7 @@ export const EndNode = ({
     handleUpdate,
     isEditing,
     isLinked = true,
-    label = 'End',
+    label = "End",
     labelVisible = true,
     language,
     linksIn,
@@ -36,7 +36,7 @@ export const EndNode = ({
      */
     const borderColor = useMemo<string | null>(() => {
         if (!isLinked) return null;
-        if (linksIn.length === 0) return 'red';
+        if (linksIn.length === 0) return "red";
         return null;
     }, [isLinked, linksIn.length]);
 
@@ -45,7 +45,7 @@ export const EndNode = ({
         return {
             innerCircleSize: nodeSize / 2,
             outerCircleSize: nodeSize,
-        }
+        };
     }, [scale]);
 
     const labelObject = useMemo(() => labelVisible && outerCircleSize > 75 ? (
@@ -54,8 +54,8 @@ export const EndNode = ({
             sx={{
                 ...noSelect,
                 ...nodeLabel,
-                pointerEvents: 'none',
-                fontSize: `min(${outerCircleSize / 5}px, 2em)`
+                pointerEvents: "none",
+                fontSize: `min(${outerCircleSize / 5}px, 2em)`,
             } as CSSProperties}
         >
             {label}
@@ -81,7 +81,7 @@ export const EndNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked or not editing
         if (!canDrag || !isLinked || !isEditing) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
@@ -98,7 +98,7 @@ export const EndNode = ({
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id) }}
+                handleSelect={(option) => { handleAction(option, node.id); }}
                 zIndex={zIndex + 1}
             />
             {/* Normal-click menu */}
@@ -116,40 +116,40 @@ export const EndNode = ({
                 canDrag={canDrag}
                 dragThreshold={DRAG_THRESHOLD}
             >
-                <Tooltip placement={'top'} title={isEditing ? `Edit "${firstString(label, 'End')}"` : firstString(label, 'End')}>
+                <Tooltip placement={"top"} title={isEditing ? `Edit "${firstString(label, "End")}"` : firstString(label, "End")}>
                     <Box
-                        id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
+                        id={`${isLinked ? "" : "unlinked-"}node-${node.id}`}
                         aria-owns={contextOpen ? contextId : undefined}
                         {...pressEvents}
                         sx={{
                             width: `max(${outerCircleSize}px, 48px)`,
                             height: `max(${outerCircleSize}px, 48px)`,
-                            position: 'relative',
-                            display: 'block',
-                            backgroundColor: node.end?.wasSuccessful === false ? '#7c262a' : '#387e30',
-                            color: 'white',
-                            borderRadius: '100%',
+                            position: "relative",
+                            display: "block",
+                            backgroundColor: node.end?.wasSuccessful === false ? "#7c262a" : "#387e30",
+                            color: "white",
+                            borderRadius: "100%",
                             boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                            '&:hover': {
-                                filter: `brightness(120%)`,
-                                transform: 'scale(1.1)',
-                                transition: 'all 0.2s',
+                            "&:hover": {
+                                filter: "brightness(120%)",
+                                transform: "scale(1.1)",
+                                transition: "all 0.2s",
                             },
                         }}
                     >
                         <Box
-                            id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
+                            id={`${isLinked ? "" : "unlinked-"}node-end-inner-circle-${node.id}`}
                             sx={{
                                 width: `max(${innerCircleSize}px, 32px)`,
                                 height: `max(${innerCircleSize}px, 32px)`,
-                                position: 'absolute',
-                                display: 'block',
-                                margin: '0',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                borderRadius: '100%',
-                                border: `2px solid ${node.end?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
+                                position: "absolute",
+                                display: "block",
+                                margin: "0",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                borderRadius: "100%",
+                                border: `2px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
                             } as const}
                         >
                         </Box>
@@ -158,5 +158,5 @@ export const EndNode = ({
                 </Tooltip>
             </DraggableNode>
         </>
-    )
-}
+    );
+};

@@ -1,8 +1,8 @@
-import { FindByIdInput, Standard, StandardSortBy, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput, Standard, StandardSortBy, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum StandardSortBy {
@@ -153,9 +153,9 @@ export const typeDef = gql`
         standardCreate(input: StandardCreateInput!): Standard!
         standardUpdate(input: StandardUpdateInput!): Standard!
     }
-`
+`;
 
-const objectType = 'Standard';
+const objectType = "Standard";
 export const resolvers: {
     StandardSortBy: typeof StandardSortBy;
     Query: {
@@ -187,5 +187,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 500, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

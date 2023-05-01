@@ -1,5 +1,4 @@
-import { GqlModelType } from "@shared/consts";
-import { exists } from "@shared/utils";
+import { exists, GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { transfer } from "../models";
@@ -17,7 +16,7 @@ type ObjectTriggerData = {
     hasParent: boolean,
     owner: {
         id: string,
-        __typename: 'User' | 'Organization',
+        __typename: "User" | "Organization",
     }
 }
 
@@ -33,9 +32,9 @@ const originalDataSelect = {
             id: true,
             isComplete: true,
             isPrivate: true,
-        }
-    }
-}
+        },
+    },
+};
 
 /**
  * Used in mutate.shape.pre of root objects. Has three purposes:
@@ -64,7 +63,7 @@ export const preShapeRoot = async ({
     transferMap: Record<string, boolean>,
 }> => {
     // Get prisma delegate
-    const { delegate } = getLogic(['delegate'], objectType, userData.languages, 'preHasPublics');
+    const { delegate } = getLogic(["delegate"], objectType, userData.languages, "preHasPublics");
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};
@@ -75,17 +74,17 @@ export const preShapeRoot = async ({
         versionMap[create.id] = {
             hasCompleteVersion,
             completedAt: hasCompleteVersion ? new Date() : null,
-        }
+        };
         triggerMap[create.id] = {
             wasCompleteAndPublic: true, // Doesn't matter
             hasCompleteAndPublic: !create.isPrivate && (create.versionsCreate?.some(v => v.isComplete && !v.isPrivate) ?? false),
             hasBeenTransferred: false, // Doesn't matter
-            hasParent: typeof create.parentConnect === 'string',
+            hasParent: typeof create.parentConnect === "string",
             owner: {
                 id: create.ownedByUser ?? create.ownedByOrganization,
-                __typename: create.ownedByUser ? 'User' : 'Organization',
+                __typename: create.ownedByUser ? "User" : "Organization",
             },
-        }
+        };
     }
     // For updateList (much more complicated)
     if (updateList.length > 0) {
@@ -98,17 +97,17 @@ export const preShapeRoot = async ({
         for (const update of updateList) {
             // Find original
             const original = originalData.find(r => r.id === update.data.id);
-            if (!original) throw new CustomError('0412', 'InternalError', userData.languages, { id: update?.data?.id });
+            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: update?.data?.id });
             const isRootPrivate = update.data.isPrivate ?? original.isPrivate;
             // Convert original verions to map for easy lookup
-            let updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
+            const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
             // Combine updated versions with original versions
             if (update.data.versionsUpdate) {
                 for (const v of update.data.versionsUpdate) {
                     updatedWithOriginal[v.id] = {
                         ...updatedWithOriginal[v.id],
                         ...v,
-                    }
+                    };
                 }
             }
             // Combine new, updated, and original versions. Then remove deleting versions
@@ -119,7 +118,7 @@ export const preShapeRoot = async ({
             versionMap[update.data.id] = {
                 hasCompleteVersion,
                 completedAt: hasCompleteVersion ? new Date() : null,
-            }
+            };
             triggerMap[update.data.id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: !isRootPrivate && versions.some((v: any) => v.isComplete && !v.isPrivate),
@@ -129,9 +128,9 @@ export const preShapeRoot = async ({
                 // For now, using original owner
                 owner: {
                     id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? 'User' : 'Organization',
-                }
-            }
+                    __typename: original.ownedByUser ? "User" : "Organization",
+                },
+            };
         }
     }
     // For deleteList (fairly simple)
@@ -145,7 +144,7 @@ export const preShapeRoot = async ({
         for (const id of deleteList) {
             // Find original
             const original = originalData.find(r => r.id === id);
-            if (!original) throw new CustomError('0413', 'InternalError', userData.languages, { id });
+            if (!original) throw new CustomError("0413", "InternalError", userData.languages, { id });
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter
@@ -155,9 +154,9 @@ export const preShapeRoot = async ({
                 // For now, using original owner
                 owner: {
                     id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? 'User' : 'Organization',
-                }
-            }
+                    __typename: original.ownedByUser ? "User" : "Organization",
+                },
+            };
         }
     }
     // Finally determine which creates/updates require a transfer request
@@ -172,4 +171,4 @@ export const preShapeRoot = async ({
         transferMap[id] = requireTransfers[i];
     }
     return { versionMap, triggerMap, transferMap };
-}
+};

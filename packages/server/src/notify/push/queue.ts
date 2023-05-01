@@ -1,6 +1,6 @@
-import Bull from 'bull';
-import { HOST, PORT } from '../../redisConn.js';
-import { pushProcess } from './process.js';
+import Bull from "bull";
+import { HOST, PORT } from "../../redisConn.js";
+import { pushProcess } from "./process.js";
 
 export type PushSubscription = {
     endpoint: string;
@@ -17,10 +17,10 @@ export type PushPayload = {
     title: string | null | undefined;
 }
 
-const pushQueue = new Bull('push', { redis: { port: PORT, host: HOST } });
+const pushQueue = new Bull("push", { redis: { port: PORT, host: HOST } });
 pushQueue.process(pushProcess as any);
 
-export function sendPush(subscription: PushSubscription, payload: PushPayload, delay: number = 0) {
+export function sendPush(subscription: PushSubscription, payload: PushPayload, delay = 0) {
     pushQueue.add({
         ...payload,
         ...subscription,

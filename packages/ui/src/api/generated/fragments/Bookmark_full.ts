@@ -5,10 +5,10 @@ to {
         ...Api_list
     }
     ... on Comment {
-        ...Comment_list
+        ...Comment_common
     }
     ... on Issue {
-        ...Issue_list
+        ...Issue_nav
     }
     ... on Note {
         ...Note_list

@@ -1,22 +1,13 @@
-import {
-    Button,
-    DialogContent,
-    Stack,
-    TextField,
-    Typography,
-    useTheme
-} from '@mui/material';
-import { DeleteOneInput, LINKS, Success } from '@shared/consts';
-import { DeleteIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { DeleteDialogProps } from '../types';
+import { DeleteIcon, DeleteOneInput, LINKS, Success, useLocation } from "@local/shared";
+import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { DeleteDialogProps } from "../types";
 
 export const DeleteDialog = ({
     handleClose,
@@ -31,10 +22,10 @@ export const DeleteDialog = ({
     const { t } = useTranslation();
 
     // Stores user-inputted name of object to be deleted
-    const [nameInput, setNameInput] = useState<string>('');
+    const [nameInput, setNameInput] = useState<string>("");
 
     const close = useCallback((wasDeleted?: boolean) => {
-        setNameInput('');
+        setNameInput("");
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
@@ -44,16 +35,16 @@ export const DeleteDialog = ({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
+            successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName } }),
             onSuccess: () => {
                 setLocation(LINKS.Home);
                 close(true);
             },
-            errorMessage: () => ({ key: 'FailedToDelete' }),
+            errorMessage: () => ({ messageKey: "FailedToDelete" }),
             onError: () => {
                 close(false);
-            }
-        })
+            },
+        });
     }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
@@ -65,9 +56,9 @@ export const DeleteDialog = ({
         >
             <TopBar
                 display="dialog"
-                onClose={() => { close() }}
+                onClose={() => { close(); }}
                 titleData={{
-                    titleKey: 'Delete',
+                    titleKey: "Delete",
                 }}
             />
             <DialogContent>
@@ -81,7 +72,7 @@ export const DeleteDialog = ({
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
                         error={nameInput.trim() !== objectName.trim()}
-                        helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
+                        helperText={nameInput.trim() !== objectName.trim() ? "Name does not match" : ""}
                         sx={{ paddingBottom: 2 }}
                     />
                     <Button
@@ -89,9 +80,9 @@ export const DeleteDialog = ({
                         color="secondary"
                         onClick={handleDelete}
                         disabled={nameInput.trim() !== objectName.trim()}
-                    >{t('Delete')}</Button>
+                    >{t("Delete")}</Button>
                 </Stack>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

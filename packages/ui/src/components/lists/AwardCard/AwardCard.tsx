@@ -1,12 +1,6 @@
-import {
-    Card,
-    CardContent,
-    LinearProgress,
-    Typography,
-    useTheme
-} from '@mui/material';
-import { useMemo } from 'react';
-import { AwardCardProps } from '../types';
+import { Card, CardContent, LinearProgress, Typography, useTheme } from "@mui/material";
+import { useMemo } from "react";
+import { AwardCardProps } from "../types";
 
 export const AwardCard = ({
     award,
@@ -19,14 +13,14 @@ export const AwardCard = ({
     const { title, description, level } = useMemo(() => {
         // If not earned, display next tier
         if (!isEarned) {
-            if (award.nextTier) return award.nextTier
+            if (award.nextTier) return award.nextTier;
             // Default to earned tier if no next tier
-            if (award.earnedTier) return award.earnedTier
+            if (award.earnedTier) return award.earnedTier;
         }
         // If earned, display earned tier
-        else if (award.earnedTier) return award.earnedTier
+        else if (award.earnedTier) return award.earnedTier;
         // If here, award invalid
-        return { title: '', description: '', level: 0 }
+        return { title: "", description: "", level: 0 };
     }, [award.earnedTier, award.nextTier, isEarned]);
 
     // Calculate percentage complete
@@ -38,19 +32,20 @@ export const AwardCard = ({
 
     return (
         <Card sx={{
-            width: '100%',
-            height: '100%',
+            width: "100%",
+            height: "100%",
             background: isEarned ? palette.secondary.main : palette.primary.light,
             color: palette.primary.contrastText,
-            borderRadius: '16px',
+            borderRadius: "16px",
             margin: 0,
         }}>
             <CardContent sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                height: '100%',
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "100%",
             }}>
+                {/* TODO add brone, silver, gold, etc. AwardIcon depending on tier */}
                 <Typography
                     variant="h6"
                     component="h2"
@@ -71,8 +66,8 @@ export const AwardCard = ({
                         sx={{
                             margin: 2,
                             marginBottom: 1,
-                            height: '12px',
-                            borderRadius: '12px',
+                            height: "12px",
+                            borderRadius: "12px",
                         }}
                     />
                     <Typography
@@ -86,4 +81,4 @@ export const AwardCard = ({
             </CardContent>
         </Card>
     );
-}
+};

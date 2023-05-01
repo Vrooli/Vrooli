@@ -1,11 +1,10 @@
+import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, runProjectStepValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
-import { runProjectStepValidation } from "@shared/validation";
 
-const __typename = 'RunProjectStep' as const;
+const __typename = "RunProjectStep" as const;
 const suppFields = [] as const;
 export const RunProjectStepModel: ModelLogic<{
     IsTransferable: true,
@@ -16,8 +15,8 @@ export const RunProjectStepModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.run_project_stepUpsertArgs['create'],
-    PrismaUpdate: Prisma.run_project_stepUpsertArgs['update'],
+    PrismaCreate: Prisma.run_project_stepUpsertArgs["create"],
+    PrismaUpdate: Prisma.run_project_stepUpsertArgs["update"],
     PrismaModel: Prisma.run_project_stepGetPayload<SelectWrap<Prisma.run_project_stepSelect>>,
     PrismaSelect: Prisma.run_project_stepSelect,
     PrismaWhere: Prisma.run_project_stepWhereInput,
@@ -31,13 +30,13 @@ export const RunProjectStepModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            directory: 'ProjectVersionDirectory',
-            run: 'RunProject',
+            directory: "ProjectVersionDirectory",
+            run: "RunProject",
         },
         prismaRelMap: {
             __typename,
-            directory: 'ProjectVersionDirectory',
-            runProject: 'RunProject',
+            directory: "ProjectVersionDirectory",
+            runProject: "RunProject",
         },
         countFields: {},
     },
@@ -50,9 +49,9 @@ export const RunProjectStepModel: ModelLogic<{
             update: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
-            } as any)
+            } as any),
         },
         yup: runProjectStepValidation,
     },
     validate: {} as any,
-})
+});

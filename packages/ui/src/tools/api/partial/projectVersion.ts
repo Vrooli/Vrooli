@@ -1,10 +1,10 @@
-import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@shared/consts";
+import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@local/shared";
 import { GqlPartial } from "../types";
-import { rel } from '../utils';
+import { rel } from "../utils";
 import { versionYou } from "./root";
 
 export const projectVersionTranslation: GqlPartial<ProjectVersionTranslation> = {
-    __typename: 'ProjectVersionTranslation',
+    __typename: "ProjectVersionTranslation",
     common: {
         id: true,
         language: true,
@@ -13,10 +13,10 @@ export const projectVersionTranslation: GqlPartial<ProjectVersionTranslation> = 
     },
     full: {},
     list: {},
-}
+};
 
 export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
-    __typename: 'ProjectVersionYou',
+    __typename: "ProjectVersionYou",
     common: {
         canComment: true,
         canCopy: true,
@@ -27,12 +27,12 @@ export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
         canRead: true,
     },
     full: {
-        runs: async () => rel((await import('./runProject')).runProject, 'full', { omit: 'projectVersion' }),
+        runs: async () => rel((await import("./runProject")).runProject, "full", { omit: "projectVersion" }),
     },
-}
+};
 
 export const projectVersion: GqlPartial<ProjectVersion> = {
-    __typename: 'ProjectVersion',
+    __typename: "ProjectVersion",
     common: {
         id: true,
         created_at: true,
@@ -45,18 +45,18 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
         simplicity: true,
         versionIndex: true,
         versionLabel: true,
-        you: () => rel(versionYou, 'full'),
+        you: () => rel(versionYou, "full"),
     },
     full: {
-        directories: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'full', { omit: 'projectVersion ' }),
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
-        root: async () => rel((await import('./project')).project, 'full', { omit: 'versions' }),
-        translations: () => rel(projectVersionTranslation, 'full'),
+        directories: async () => rel((await import("./projectVersionDirectory")).projectVersionDirectory, "full", { omit: "projectVersion " }),
+        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./project")).project, "full", { omit: "versions" }),
+        translations: () => rel(projectVersionTranslation, "full"),
         versionNotes: true,
     },
     list: {
-        root: async () => rel((await import('./project')).project, 'list', { omit: 'versions' }),
-        translations: () => rel(projectVersionTranslation, 'list'),
+        root: async () => rel((await import("./project")).project, "list", { omit: "versions" }),
+        translations: () => rel(projectVersionTranslation, "list"),
     },
     nav: {
         id: true,
@@ -64,7 +64,7 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import('./project')).project, 'nav'),
-        translations: () => rel(projectVersionTranslation, 'list'),
-    }
-}
+        root: async () => rel((await import("./project")).project, "nav"),
+        translations: () => rel(projectVersionTranslation, "list"),
+    },
+};

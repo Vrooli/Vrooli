@@ -1,10 +1,10 @@
-import { ApiVersion, ApiVersionTranslation } from "@shared/consts";
-import { rel } from '../utils';
+import { ApiVersion, ApiVersionTranslation } from "@local/shared";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 import { versionYou } from "./root";
 
 export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
-    __typename: 'ApiVersionTranslation',
+    __typename: "ApiVersionTranslation",
     common: {
         id: true,
         language: true,
@@ -14,10 +14,10 @@ export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const apiVersion: GqlPartial<ApiVersion> = {
-    __typename: 'ApiVersion',
+    __typename: "ApiVersion",
     common: {
         id: true,
         created_at: true,
@@ -31,17 +31,17 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         reportsCount: true,
         versionIndex: true,
         versionLabel: true,
-        you: () => rel(versionYou, 'full'),
+        you: () => rel(versionYou, "full"),
     },
     full: {
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
-        root: async () => rel((await import('./api')).api, 'full', { omit: 'versions' }),
-        translations: () => rel(apiVersionTranslation, 'full'),
+        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./api")).api, "full", { omit: "versions" }),
+        translations: () => rel(apiVersionTranslation, "full"),
         versionNotes: true,
     },
     list: {
-        root: async () => rel((await import('./api')).api, 'list', { omit: 'versions' }),
-        translations: () => rel(apiVersionTranslation, 'list'),
+        root: async () => rel((await import("./api")).api, "list", { omit: "versions" }),
+        translations: () => rel(apiVersionTranslation, "list"),
     },
     nav: {
         id: true,
@@ -49,7 +49,7 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import('./api')).api, 'nav'),
-        translations: () => rel(apiVersionTranslation, 'list'),
-    }
-}
+        root: async () => rel((await import("./api")).api, "nav"),
+        translations: () => rel(apiVersionTranslation, "list"),
+    },
+};

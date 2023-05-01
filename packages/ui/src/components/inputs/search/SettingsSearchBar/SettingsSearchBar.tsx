@@ -1,24 +1,24 @@
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from '@mui/material';
-import { SearchIcon } from '@shared/icons';
-import { ChangeEvent, useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { findSearchResults, SearchItem, shapeSearchText } from 'utils/search/siteToSearch';
-import { SettingsSearchBarProps } from '../types';
+import { SearchIcon } from "@local/shared";
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
+import { ChangeEvent, useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { findSearchResults, SearchItem, shapeSearchText } from "utils/search/siteToSearch";
+import { SettingsSearchBarProps } from "../types";
 
 const FullWidthPopper = function (props) {
     return <Popper {...props} style={{
-        width: 'fit-content',
-        maxWidth: '100%',
+        width: "fit-content",
+        maxWidth: "100%",
     }} placement="bottom-start" />;
 };
 
 export const SettingsSearchBar = ({
     debounce = 200,
-    id = 'search-bar',
+    id = "search-bar",
     options = [],
     onChange,
     onInputChange,
-    placeholder = 'Search...',
+    placeholder = "Search...",
     value,
     ...props
 }: SettingsSearchBarProps) => {
@@ -42,10 +42,10 @@ export const SettingsSearchBar = ({
     }, [onChange]);
 
     const onHighlightChange = useCallback((event: React.SyntheticEvent<Element, Event>, option: SearchItem | null, reason: AutocompleteHighlightChangeReason) => {
-        if (option && option.label && reason === 'keyboard') {
+        if (option && option.label && reason === "keyboard") {
             setHighlightedOption(option);
         }
-    }, [])
+    }, []);
 
     const handleSelect = useCallback((option: SearchItem) => {
         // Trigger onInputChange
@@ -58,15 +58,15 @@ export const SettingsSearchBar = ({
             handleSelect(highlightedOption);
         }
         // Otherwise, don't submit
-    }, [highlightedOption, handleSelect])
+    }, [highlightedOption, handleSelect]);
 
     // On key down, fill search input with highlighted option if right arrow is pressed
     const onKeyDown = useCallback((event: React.KeyboardEvent) => {
-        if (event.key === 'ArrowRight' && highlightedOption) {
+        if (event.key === "ArrowRight" && highlightedOption) {
             // Update state
             setInternalValue(highlightedOption.label);
             // Debounce onChange
-            onChange('');
+            onChange("");
         }
     }, [highlightedOption, onChange]);
 
@@ -79,7 +79,7 @@ export const SettingsSearchBar = ({
             onHighlightChange={onHighlightChange}
             onKeyDown={onKeyDown}
             inputValue={internalValue}
-            getOptionLabel={(option: SearchItem) => option.label ?? ''}
+            getOptionLabel={(option: SearchItem) => option.label ?? ""}
             // Stop default onSubmit, since this reloads the page for some reason
             onSubmit={(event: any) => {
                 event.preventDefault();
@@ -91,7 +91,7 @@ export const SettingsSearchBar = ({
             renderOption={(props, option) => {
                 // Check if any of the keywords matches the search string
                 const shapedSearchString = shapeSearchText(internalValue);
-                let displayedKeyword = '';
+                let displayedKeyword = "";
                 if (option.keywords && shapedSearchString.length > 0) {
                     for (let i = 0; i < option.keywords?.length; i++) {
                         const keyword = option.keywords[i];
@@ -110,7 +110,7 @@ export const SettingsSearchBar = ({
                         {...props}
                         key={option.value}
                         onClick={() => {
-                            const label = option.label ?? '';
+                            const label = option.label ?? "";
                             setInternalValue(label);
                             onChange(label);
                             handleSelect(option);
@@ -118,10 +118,10 @@ export const SettingsSearchBar = ({
                     >
                         {/* Object title */}
                         <ListItemText sx={{
-                            '& .MuiTypography-root': {
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
+                            "& .MuiTypography-root": {
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
                             },
                         }}>
                             {option.label}
@@ -129,26 +129,26 @@ export const SettingsSearchBar = ({
                         {/* If search string matches a keyword, display the first match */}
                         {displayedKeyword && (
                             <ListItemText sx={{
-                                '& .MuiTypography-root': {
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
+                                "& .MuiTypography-root": {
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
                                 },
                             }}>
                                 {displayedKeyword}
                             </ListItemText>
                         )}
                     </MenuItem>
-                )
+                );
             }}
             renderInput={(params) => (
                 <Paper
                     component="form"
                     sx={{
-                        p: '2px 4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        borderRadius: '10px'
+                        p: "2px 4px",
+                        display: "flex",
+                        alignItems: "center",
+                        borderRadius: "10px",
                     }}
                 >
                     <Input
@@ -168,32 +168,32 @@ export const SettingsSearchBar = ({
                             ml: 1,
                             flex: 1,
                             // Drop down/up icon
-                            '& .MuiAutocomplete-endAdornment': {
-                                width: '48px',
-                                height: '48px',
-                                top: '0',
-                                position: 'relative',
-                                '& .MuiButtonBase-root': {
-                                    width: '48px',
-                                    height: '48px',
-                                }
-                            }
+                            "& .MuiAutocomplete-endAdornment": {
+                                width: "48px",
+                                height: "48px",
+                                top: "0",
+                                position: "relative",
+                                "& .MuiButtonBase-root": {
+                                    width: "48px",
+                                    height: "48px",
+                                },
+                            },
                         }}
                     />
                     <IconButton sx={{
-                        width: '48px',
-                        height: '48px',
+                        width: "48px",
+                        height: "48px",
                     }} aria-label="main-search-icon">
                         <SearchIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Paper>
             )}
-            noOptionsText={t(`NoResults`, { ns: 'error' })}
+            noOptionsText={t("NoResults", { ns: "error" })}
             sx={{
-                '& .MuiAutocomplete-inputRoot': {
-                    paddingRight: '0 !important',
+                "& .MuiAutocomplete-inputRoot": {
+                    paddingRight: "0 !important",
                 },
             }}
         />
     );
-}
+};

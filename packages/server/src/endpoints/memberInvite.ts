@@ -1,9 +1,9 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, MemberInviteSortBy, MemberInviteStatus, MemberInvite, MemberInviteSearchInput, MemberInviteCreateInput, MemberInviteUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { CustomError } from '../events';
+import { FindByIdInput, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteStatus, MemberInviteUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum MemberInviteSortBy {
@@ -88,9 +88,9 @@ export const typeDef = gql`
         memberInviteAccept(input: FindByIdInput!): MemberInvite!
         memberInviteDecline(input: FindByIdInput!): MemberInvite!
     }
-`
+`;
 
-const objectType = 'MemberInvite';
+const objectType = "MemberInvite";
 export const resolvers: {
     MemberInviteSortBy: typeof MemberInviteSortBy;
     MemberInviteStatus: typeof MemberInviteStatus;
@@ -105,34 +105,34 @@ export const resolvers: {
         memberInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
     }
 } = {
-    MemberInviteSortBy: MemberInviteSortBy,
-    MemberInviteStatus: MemberInviteStatus,
+    MemberInviteSortBy,
+    MemberInviteStatus,
     Query: {
         memberInvite: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         memberInvites: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         memberInviteCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         memberInviteUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         memberInviteAccept: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            throw new CustomError('0000', 'NotImplemented', ['en']);
+            throw new CustomError("0000", "NotImplemented", ["en"]);
         },
         memberInviteDecline: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            throw new CustomError('0000', 'NotImplemented', ['en']);
-        }
-    }
-}
+            throw new CustomError("0000", "NotImplemented", ["en"]);
+        },
+    },
+};

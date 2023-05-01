@@ -1,6 +1,7 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { logger } from '../../events';
-import { PrismaType } from '../../types';
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 type BatchDirectoryRunCountsResult = Record<string, {
@@ -42,12 +43,12 @@ const batchRunCounts = async (
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
                 routineVersion: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 completedAt: true,
                 contextSwitches: true,
@@ -64,7 +65,7 @@ const batchRunCounts = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const versionId = run.routineVersion?.id;
-            if (!versionId || !result[versionId]) { return }
+            if (!versionId || !result[versionId]) { return; }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[versionId].runsStarted += 1;
@@ -86,7 +87,7 @@ const batchRunCounts = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Creates periodic stats for all routines
@@ -117,7 +118,7 @@ export const logRoutineStats = async (
                 select: {
                     id: true,
                     root: {
-                        select: { id: true }
+                        select: { id: true },
                     },
                 },
                 skip,
@@ -141,13 +142,13 @@ export const logRoutineStats = async (
                     runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
                     runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
                     runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging routine statistics', { trace: '0422', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging routine statistics", { trace: "0422", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

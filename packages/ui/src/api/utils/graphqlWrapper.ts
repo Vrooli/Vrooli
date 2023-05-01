@@ -1,8 +1,7 @@
-import { ApolloError, DocumentNode } from '@apollo/client';
-import { CommonKey, ErrorKey } from "@shared/translations";
-import { exists } from "@shared/utils";
-import { PubSub } from 'utils/pubsub';
-import { errorToCode } from './errorParser';
+import { ApolloError, DocumentNode } from "@apollo/client";
+import { CommonKey, ErrorKey, exists } from "@local/shared";
+import { PubSub } from "utils/pubsub";
+import { errorToCode } from "./errorParser";
 import { initializeApollo } from "./initialize";
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
@@ -10,21 +9,27 @@ import { initializeApollo } from "./initialize";
 // DocumentNode definitions
 type InputType = { input: { [x: string]: any } }
 
+type MessageProps<KeyType> = {
+    autoHideDuration?: number | "persist";
+    buttonClicked?: (event?: any) => any;
+    buttonKey?: CommonKey;
+    buttonVariables?: { [key: string]: string | number };
+    data?: any;
+    id?: string;
+    message?: string;
+    messageKey?: KeyType;
+    messageVariables?: { [key: string]: string | number };
+}
+
 interface BaseWrapperProps<Output extends object> {
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (data: Output) => boolean;
     // Message displayed on success
-    successMessage?: (data: Output) => {
-        key: CommonKey;
-        variables?: { [key: string]: string | number };
-    }
+    successMessage?: (data: Output) => MessageProps<CommonKey>;
     // Callback triggered on success
     onSuccess?: (data: Output) => any;
     // Message displayed on error
-    errorMessage?: (response?: ApolloError | Output) => {
-        key: ErrorKey | CommonKey;
-        variables?: { [key: string]: string | number };
-    }
+    errorMessage?: (response?: ApolloError | Output) => MessageProps<ErrorKey | CommonKey>;
     // If true, display default error snack. Will not display if error message is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
@@ -57,7 +62,7 @@ interface QueryWrapperProps<Output extends object, Input extends Record<string, 
 interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperProps<Output> {
     // useMutation or useLazyQuery function
     call: () => Promise<any>;
-};
+}
 
 /**
  * Wraps an object in "input" key, as all GraphQL inputs follow this pattern.
@@ -65,9 +70,9 @@ interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperPr
  */
 const wrapInput = (input: Record<string, any> | undefined): InputType | undefined => {
     if (!exists(input)) return undefined;
-    if (Object.keys(input).length === 1 && input.hasOwnProperty('input')) return input as InputType;
+    if (Object.keys(input).length === 1 && Object.prototype.hasOwnProperty.call(input, "input")) return input as InputType;
     return { input } as InputType;
-}
+};
 
 
 /**
@@ -82,34 +87,33 @@ export const graphqlWrapperHelper = <Output extends object>({
     errorMessage,
     showDefaultErrorSnack = true,
     onError,
-    spinnerDelay = 1000
+    spinnerDelay = 1000,
 }: GraphqlWrapperHelperProps<Output>) => {
     // Helper function to handle errors
     const handleError = (data?: Output | ApolloError | undefined) => {
         // Stop spinner
         if (spinnerDelay) PubSub.get().publishLoading(false);
         // Determine if error caused by bad response, or caught error
-        const isApolloError: boolean = exists(data) && data.hasOwnProperty('graphQLErrors');
+        const isApolloError: boolean = exists(data) && Object.prototype.hasOwnProperty.call(data, "graphQLErrors");
         // If specific error message is set, display it
-        if (typeof errorMessage === 'function') {
-            const { key, variables } = errorMessage(data);
-            PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: 'Error', data });
+        if (typeof errorMessage === "function") {
+            PubSub.get().publishSnack({ ...(errorMessage(data) as any), severity: "Error", data });
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : 'ErrorUnknown', severity: 'Error', data });
+            PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : "ErrorUnknown", severity: "Error", data });
         }
         // If error callback is set, call it
-        if (typeof onError === 'function') {
-            onError((isApolloError ? data : { message: 'Unknown error occurred' }) as ApolloError);
+        if (typeof onError === "function") {
+            onError((isApolloError ? data : { message: "Unknown error occurred" }) as ApolloError);
         }
-    }
+    };
     // Start loading spinner
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     // Call function
     call().then((response: { data?: Output | null | undefined }) => {
         // If response is null or undefined or not an object, then there must be an error
-        if (!response || !response.data || typeof response.data !== 'object') {
+        if (!response || !response.data || typeof response.data !== "object") {
             handleError();
             return;
         }
@@ -117,27 +121,26 @@ export const graphqlWrapperHelper = <Output extends object>({
         // result from Apollo is wrapped in an object with the endpoint name as the key. 
         // If this is not the case, then we are (hopefully) using a custom hook which already 
         // removes the extra layer.
-        const data: Output = (Object.keys(response.data).length === 1 && !['success', 'count'].includes(Object.keys(response.data)[0])) ? Object.values(response.data)[0] : response.data;
+        const data: Output = (Object.keys(response.data).length === 1 && !["success", "count"].includes(Object.keys(response.data)[0])) ? Object.values(response.data)[0] : response.data;
         // If this is a Count object with count = 0, then there must be an error
-        if ((data as any)?.__typename === 'Count' && (data as any)?.count === 0) {
+        if ((data as any)?.__typename === "Count" && (data as any)?.count === 0) {
             handleError(data);
             return;
         }
         if (successCondition(data)) {
             if (successMessage) PubSub.get().publishSnack({
-                messageKey: successMessage(data).key,
-                messageVariables: successMessage(data).variables,
-                severity: 'Success'
-            });
+                ...successMessage(data),
+                severity: "Success",
+            } as any);
             if (spinnerDelay) PubSub.get().publishLoading(false);
-            if (onSuccess && typeof onSuccess === 'function') onSuccess(data);
+            if (onSuccess && typeof onSuccess === "function") onSuccess(data);
         } else {
             handleError(data);
         }
     }).catch((response: ApolloError) => {
         handleError(response);
-    })
-}
+    });
+};
 
 /**
  * Calls a useMutation or useLazyQuery function and handles response and catch, using the DocumentNode. 
@@ -149,14 +152,14 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
     const client = initializeApollo();
     // Determine if DocumentNode is a mutation or query, by checking the operation of the first 
     // OperationDefinition in the definitions array
-    const isMutation = node.definitions.some((def) => def.kind === 'OperationDefinition' && def.operation === 'mutation');
+    const isMutation = node.definitions.some((def) => def.kind === "OperationDefinition" && def.operation === "mutation");
     return graphqlWrapperHelper({
         call: () => isMutation ?
             client.mutate({ mutation: node, variables: wrapInput(rest.input) }) :
             client.query({ query: node, variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};
 
 /**
  * Wraps a useMutation function and handles response and catch
@@ -165,9 +168,9 @@ export const mutationWrapper = <Output extends object, Input extends Record<stri
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => mutation({ variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};
 
 /**
  * Wraps a useLazyQuery function and handles response and catch
@@ -176,6 +179,6 @@ export const queryWrapper = <Output extends object, Input extends Record<string,
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => query({ variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};

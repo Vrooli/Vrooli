@@ -1,11 +1,11 @@
-import { Count, FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, NotificationSortBy, Success } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyHelper, readOneHelper } from '../actions';
-import { assertRequestFrom } from '../auth';
-import { CustomError } from '../events';
-import { rateLimit } from '../middleware';
-import { parseNotificationSettings, updateNotificationSettings } from '../notify';
-import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
+import { FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, NotificationSortBy, Success, VisibilityType } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper } from "../actions";
+import { assertRequestFrom } from "../auth";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { parseNotificationSettings, updateNotificationSettings } from "../notify";
+import { FindManyResult, FindOneResult, GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum NotificationSortBy {
@@ -94,12 +94,12 @@ export const typeDef = gql`
 
     extend type Mutation {
         notificationMarkAsRead(input: FindByIdInput!): Success!
-        notificationMarkAllAsRead: Count!
+        notificationMarkAllAsRead: Success!
         notificationSettingsUpdate(input: NotificationSettingsUpdateInput!): NotificationSettings!
     }
-`
+`;
 
-const objectType = 'Notification';
+const objectType = "Notification";
 export const resolvers: {
     NotificationSortBy: typeof NotificationSortBy;
     Query: {
@@ -109,7 +109,7 @@ export const resolvers: {
     },
     Mutation: {
         notificationMarkAsRead: GQLEndpoint<FindByIdInput, Success>;
-        notificationMarkAllAsRead: GQLEndpoint<undefined, Count>;
+        notificationMarkAllAsRead: GQLEndpoint<undefined, Success>;
         notificationSettingsUpdate: GQLEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
     }
 } = {
@@ -117,36 +117,46 @@ export const resolvers: {
     Query: {
         notification: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         notifications: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
         notificationSettings: async (_, __, { prisma, req }, info) => {
             const { id } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 250, req });
             const user = await prisma.user.findUnique({
                 where: { id },
-                select: { notificationSettings: true }
+                select: { notificationSettings: true },
             });
-            if (!user) throw new CustomError('0402', 'InternalError', ['en'])
+            if (!user) throw new CustomError("0402", "InternalError", ["en"]);
             return parseNotificationSettings(user.notificationSettings);
-        }
+        },
     },
     Mutation: {
-        notificationMarkAsRead: async (_, { input }, { prisma, req }, info) => {
+        notificationMarkAsRead: async (_p, { input }, { prisma, req }, info) => {
+            const { id: userId } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            throw new CustomError('0365', 'NotImplemented', ['en'])
+            const { count } = await prisma.notification.updateMany({
+                where: { AND: [{ user: { id: userId } }, { id: input.id }] },
+                data: { isRead: true },
+            });
+            return { __typename: "Success", success: count > 0 };
         },
         notificationMarkAllAsRead: async (_, __, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            throw new CustomError('0366', 'NotImplemented', ['en'])
+            const { id: userId } = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 1000, req });
+            await prisma.notification.updateMany({
+                where: { AND: [{ user: { id: userId } }, { isRead: false }] },
+                data: { isRead: true },
+            });
+            return { __typename: "Success", success: true };
         },
         notificationSettingsUpdate: async (_, { input }, { prisma, req }, info) => {
             const { id } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 100, req });
             return updateNotificationSettings(input, prisma, id);
-        }
+        },
     },
-}
+};

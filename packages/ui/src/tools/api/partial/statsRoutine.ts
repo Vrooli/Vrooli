@@ -1,8 +1,8 @@
-import { StatsRoutine } from "@shared/consts";
+import { StatsRoutine } from "@local/shared";
 import { GqlPartial } from "../types";
 
 export const statsRoutine: GqlPartial<StatsRoutine> = {
-    __typename: 'StatsRoutine',
+    __typename: "StatsRoutine",
     full: {
         id: true,
         periodStart: true,
@@ -13,4 +13,4 @@ export const statsRoutine: GqlPartial<StatsRoutine> = {
         runCompletionTimeAverage: true,
         runContextSwitchesAverage: true,
     },
-}
+};

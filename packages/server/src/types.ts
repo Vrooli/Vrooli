@@ -1,7 +1,7 @@
-import pkg from '@prisma/client';
-import { FocusModeStopCondition, GqlModelType, SessionUser } from '@shared/consts';
-import { GraphQLResolveInfo } from 'graphql';
-import { Context } from './middleware';
+import { FocusModeStopCondition, GqlModelType, SessionUser } from "@local/shared";
+import pkg from "@prisma/client";
+import { GraphQLResolveInfo } from "graphql";
+import { Context } from "./middleware";
 
 export interface BasicToken {
     iat: number;
@@ -10,7 +10,7 @@ export interface BasicToken {
 }
 export interface ApiToken extends BasicToken {
     apiToken: string;
-};
+}
 
 // Tokens store more limited data than the session object returned by the API. 
 // This is because the maximum size of a cookie is 4kb
@@ -20,7 +20,7 @@ export interface SessionToken extends BasicToken {
     // Supports logging in with multiple accounts
     users: SessionUserToken[];
 }
-export type SessionUserToken = Pick<SessionUser, 'id' | 'handle' | 'hasPremium' | 'languages' | 'name'> & {
+export type SessionUserToken = Pick<SessionUser, "id" | "handle" | "hasPremium" | "languages" | "name"> & {
     activeFocusMode?: {
         mode: { id: string; },
         stopCondition: FocusModeStopCondition,

@@ -1,12 +1,12 @@
+import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { OrganizationModel } from "./organization";
 import { defaultPermissions } from "../utils";
+import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
-const __typename = 'Payment' as const;
+const __typename = "Payment" as const;
 const suppFields = [] as const;
 export const PaymentModel: ModelLogic<{
     IsTransferable: false,
@@ -17,8 +17,8 @@ export const PaymentModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: PaymentSearchInput,
     GqlSort: PaymentSortBy,
-    PrismaCreate: Prisma.paymentUpsertArgs['create'],
-    PrismaUpdate: Prisma.paymentUpsertArgs['update'],
+    PrismaCreate: Prisma.paymentUpsertArgs["create"],
+    PrismaUpdate: Prisma.paymentUpsertArgs["update"],
     PrismaModel: Prisma.paymentGetPayload<SelectWrap<Prisma.paymentSelect>>,
     PrismaSelect: Prisma.paymentSelect,
     PrismaWhere: Prisma.paymentWhereInput,
@@ -28,18 +28,18 @@ export const PaymentModel: ModelLogic<{
     display: {
         select: () => ({ id: true, description: true }),
         // Cut off the description at 20 characters
-        label: (select) =>  select.description.length > 20 ? select.description.slice(0, 20) + '...' : select.description,
+        label: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
     },
     format: {
         gqlRelMap: {
             __typename,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         },
         prismaRelMap: {
             __typename,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         },
         countFields: {},
     },
@@ -57,8 +57,8 @@ export const PaymentModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-            ]
+                "descriptionWrapped",
+            ],
         }),
     },
     validate: {
@@ -73,18 +73,18 @@ export const PaymentModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: 'Organization',
-            user: 'User',
+            organization: "Organization",
+            user: "User",
         }),
         visibility: {
-            private: { },
-            public: { },
+            private: {},
+            public: {},
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

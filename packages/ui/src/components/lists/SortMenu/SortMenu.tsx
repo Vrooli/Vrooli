@@ -1,7 +1,7 @@
 // Menu for selecting 
 
+import { CommonKey } from "@local/shared";
 import { Menu, MenuItem } from "@mui/material";
-import { CommonKey } from "@shared/translations";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SortMenuProps } from "../types";

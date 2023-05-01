@@ -1,9 +1,9 @@
-import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@shared/consts";
+import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
+import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -16,7 +16,7 @@ import { SessionContext } from "utils/SessionContext";
 import { ProjectUpsertProps } from "../types";
 
 export const ProjectUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -27,7 +27,7 @@ export const ProjectUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ProjectVersion, FindVersionInput>(projectVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => projectInitialValues(session, existing), [existing, session]);
@@ -42,7 +42,7 @@ export const ProjectUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateProject' : 'UpdateProject',
+                    titleKey: isCreate ? "CreateProject" : "UpdateProject",
                 }}
             />
             <Formik
@@ -50,15 +50,15 @@ export const ProjectUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
                         mutation,
                         input: transformProjectValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateProjectValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const ProjectUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

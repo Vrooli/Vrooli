@@ -1,4 +1,4 @@
-import { uuidValidate } from "@shared/uuid";
+import { uuidValidate } from "@local/shared";
 
 /**
  * Filters out any invalid IDs from an array of IDs.

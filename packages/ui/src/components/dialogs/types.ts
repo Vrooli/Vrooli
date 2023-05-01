@@ -1,18 +1,17 @@
-import { DialogProps, PopoverProps } from '@mui/material';
-import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, User } from '@shared/consts';
-import { SvgComponent } from '@shared/icons';
+import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
+import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
-import { StatsCompactPropsObject } from 'components/text/types';
-import { BaseObjectFormProps } from 'forms/types';
-import { NavigableObject, RoutineStep } from 'types';
-import { ObjectAction } from 'utils/actions/objectActions';
-import { CookiePreferences } from 'utils/cookies';
-import { ListObjectType } from 'utils/display/listTools';
-import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
-import { SearchType } from 'utils/search/objectToSearch';
-import { CommentShape } from 'utils/shape/models/comment';
-import { NodeShape } from 'utils/shape/models/node';
-import { NodeLinkShape } from 'utils/shape/models/nodeLink';
+import { StatsCompactPropsObject } from "components/text/types";
+import { BaseObjectFormProps } from "forms/types";
+import { NavigableObject, RoutineStep } from "types";
+import { ObjectAction } from "utils/actions/objectActions";
+import { CookiePreferences } from "utils/cookies";
+import { ListObjectType } from "utils/display/listTools";
+import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
+import { SearchType } from "utils/search/objectToSearch";
+import { CommentShape } from "utils/shape/models/comment";
+import { NodeShape } from "utils/shape/models/node";
+import { NodeLinkShape } from "utils/shape/models/nodeLink";
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -28,16 +27,16 @@ export interface BaseObjectDialogProps extends DialogProps {
     open: boolean;
     title?: string;
     zIndex: number;
-};
+}
 
-export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, 'display'> {
+export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
     parent: Comment | null;
 }
 
 export interface CookieSettingsDialogProps {
     handleClose: (preferences?: CookiePreferences) => void;
     isOpen: boolean;
-};
+}
 
 export interface DeleteAccountDialogProps {
     handleClose: (wasDeleted: boolean) => void;
@@ -62,11 +61,26 @@ export interface DialogTitleProps {
     title?: string;
 }
 
-export type SelectOrCreateObjectType = 'ApiVersion' | 'NoteVersion' | 'Organization' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion' | 'User';
+export type SelectOrCreateObjectType = "ApiVersion" |
+    "FocusMode" |
+    "Meeting" |
+    "NoteVersion" |
+    "Organization" |
+    "ProjectVersion" |
+    "Question" |
+    "RoutineVersion" |
+    "RunProject" |
+    "RunRoutine" |
+    "SmartContractVersion" |
+    "StandardVersion" |
+    "User";
 export type SelectOrCreateObject = ApiVersion |
+    FocusMode |
+    Meeting |
     NoteVersion |
     Organization |
     ProjectVersion |
+    Question |
     RoutineVersion |
     SmartContractVersion |
     StandardVersion |
@@ -77,14 +91,14 @@ export type SelectOrCreateObject = ApiVersion |
  * "List" returns the object as it appears in a findMany query.
  * "Url" returns the url of the object.
  */
-export type FindObjectDialogType = 'Full' | 'List' | 'Url';
+export type FindObjectDialogType = "Full" | "List" | "Url";
 export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
     /**
      * Determines the type of data returned when an object is selected
      */
     find: Find;
     handleCancel: () => any;
-    handleComplete: (data: Find extends 'Url' ? string : ObjectType) => any;
+    handleComplete: (data: Find extends "Url" ? string : ObjectType) => any;
     isOpen: boolean;
     limitTo?: SelectOrCreateObjectType[];
     /**
@@ -103,16 +117,6 @@ export interface FindSubroutineDialogProps {
     isOpen: boolean;
     nodeId: string;
     routineVersionId: string | null | undefined;
-    zIndex: number;
-}
-
-export interface FocusModeDialogProps extends Omit<DialogProps, 'open'> {
-    isCreate: boolean;
-    isOpen: boolean;
-    onClose: () => any;
-    onCreated: (focusMode: FocusMode) => any;
-    onUpdated: (focusMode: FocusMode) => any;
-    partialData?: Partial<FocusMode>;
     zIndex: number;
 }
 
@@ -160,13 +164,13 @@ export interface MenuTitleProps {
 }
 
 export enum ObjectDialogAction {
-    Add = 'Add',
-    Cancel = 'Cancel',
-    Close = 'Close',
-    Edit = 'Edit',
-    Next = 'Next',
-    Previous = 'Previous',
-    Save = 'Save',
+    Add = "Add",
+    Cancel = "Cancel",
+    Close = "Close",
+    Edit = "Edit",
+    Next = "Next",
+    Previous = "Previous",
+    Save = "Save",
 }
 
 export interface ReorderInputDialogProps {
@@ -186,7 +190,7 @@ export interface ReportDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface ResourceDialogProps extends Omit<DialogProps, 'open'> {
+export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
     /**
      * Index in resource list. -1 if new
      */
@@ -246,18 +250,7 @@ export interface LinkDialogProps {
     link?: NodeLinkShape; // Link to display on open, if editing
     nodeFrom?: NodeShape | null; // Initial "from" node
     nodeTo?: NodeShape | null; // Initial "to" node
-    routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
-    zIndex: number;
-}
-
-export interface ScheduleDialogProps extends Omit<DialogProps, 'open'> {
-    isCreate: boolean;
-    isMutate: boolean;
-    isOpen: boolean;
-    onClose: () => any;
-    onCreated: (schedule: Schedule) => any;
-    onUpdated: (schedule: Schedule) => any;
-    partialData?: Partial<Schedule>;
+    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
     zIndex: number;
 }
 
@@ -295,6 +288,22 @@ export interface RunStepsDialogProps {
      */
     percentComplete: number;
     stepList: RoutineStep | null;
+    zIndex: number;
+}
+
+export interface DeleteBookmarkListDialogProps {
+    bookmarkDeleteOptions: Bookmark[];
+    onClose: () => any;
+    onDelete: (bookmarks: Bookmark[]) => any;
+    zIndex: number;
+}
+
+export interface SelectBookmarkListDialogProps {
+    objectId: string | null;
+    objectType: BookmarkFor | `${BookmarkFor}`;
+    onClose: (inList: boolean) => any;
+    isCreate: boolean;
+    isOpen: boolean;
     zIndex: number;
 }
 
@@ -353,7 +362,7 @@ export interface LargeDialogProps {
     sxs?: {
         paper?: { [x: string]: any };
     }
-};
+}
 
 export interface WalletInstallDialogProps {
     onClose: () => any;
@@ -368,7 +377,7 @@ export interface WalletSelectDialogProps {
     zIndex: number;
 }
 
-export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'> {
+export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
     anchorEl: HTMLElement | null;
     children: React.ReactNode;
     handleClose: () => any;

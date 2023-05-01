@@ -1,5 +1,4 @@
-import { CopyInput, CopyResult, CopyType } from "@shared/consts";
-import { exists } from "@shared/utils";
+import { CopyInput, CopyResult, CopyType, exists } from "@local/shared";
 import { mutationWrapper, useCustomMutation } from "api";
 import { copyCopy } from "api/generated/endpoints/copy_copy";
 import { useCallback } from "react";
@@ -20,7 +19,7 @@ export const useCopier = ({
     objectId,
     objectName,
     objectType,
-    onActionComplete
+    onActionComplete,
 }: UseCopierProps) => {
     const [copy] = useCustomMutation<CopyResult, CopyInput>(copyCopy);
 
@@ -29,20 +28,20 @@ export const useCopier = ({
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasCopyingSupport) {
-            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
         mutationWrapper<CopyResult, CopyInput>({
             mutation: copy,
             input: { id: objectId, intendToPullRequest: true, objectType: CopyType[objectType] },
-            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: objectName ?? '' } }),
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
-        })
+            successMessage: () => ({ messageKey: "CopySuccess", messageVariables: { objectName: objectName ?? "" } }),
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data); },
+        });
     }, [copy, hasCopyingSupport, objectId, objectName, objectType, onActionComplete]);
 
     return { handleCopy, hasCopyingSupport };
-}
+};

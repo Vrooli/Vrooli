@@ -1,6 +1,6 @@
+import { Session } from "@local/shared";
 import { AccountStatus } from "@prisma/client";
-import { Session } from '@shared/consts';
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 import { Request } from "express";
 import { CustomError } from "../events";
 import { Notify, sendResetPasswordLink, sendVerificationLink } from "../notify";
@@ -18,8 +18,8 @@ const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
  * @returns Hashed and salted code, with invalid characters removed
  */
 export const generateCode = (): string => {
-    return bcrypt.genSaltSync(HASHING_ROUNDS).replace('/', '')
-}
+    return bcrypt.genSaltSync(HASHING_ROUNDS).replace("/", "");
+};
 
 /**
  * Verifies if a confirmation or password reset code is valid
@@ -31,7 +31,7 @@ export const generateCode = (): string => {
 export const validateCode = (providedCode: string | null, storedCode: string | null, dateRequested: Date | null): boolean => {
     return Boolean(providedCode) && Boolean(storedCode) && Boolean(dateRequested) &&
         providedCode === storedCode && Date.now() - new Date(dateRequested as Date).getTime() < CODE_TIMEOUT;
-}
+};
 
 /**
  * Hashes password for safe storage in database
@@ -39,8 +39,8 @@ export const validateCode = (providedCode: string | null, storedCode: string | n
  * @returns Hashed password
  */
 export const hashPassword = (password: string): string => {
-    return bcrypt.hashSync(password, HASHING_ROUNDS)
-}
+    return bcrypt.hashSync(password, HASHING_ROUNDS);
+};
 
 /**
  * Validates a user's password, taking into account the user's account status
@@ -55,15 +55,15 @@ export const validatePassword = (plaintext: string, user: { status: AccountStatu
     // 1. Not deleted
     // 2. Not locked out
     // If account is deleted or locked, throw error
-    if (user.status === 'HardLocked')
-        throw new CustomError('0060', 'HardLockout', languages);
-    if (user.status === 'SoftLocked')
-        throw new CustomError('0330', 'SoftLockout', languages);
-    if (user.status === 'Deleted')
-        throw new CustomError('0061', 'AccountDeleted', languages);
+    if (user.status === "HardLocked")
+        throw new CustomError("0060", "HardLockout", languages);
+    if (user.status === "SoftLocked")
+        throw new CustomError("0330", "SoftLockout", languages);
+    if (user.status === "Deleted")
+        throw new CustomError("0061", "AccountDeleted", languages);
     // Validate plaintext password against hash
-    return bcrypt.compareSync(plaintext, user.password)
-}
+    return bcrypt.compareSync(plaintext, user.password);
+};
 
 /**
  * Attemps to log a user in
@@ -77,11 +77,11 @@ export const logIn = async (
     password: string,
     user: { id: string, lastLoginAttempt: Date, logInAttempts: number, status: AccountStatus, password: string },
     prisma: PrismaType,
-    req: Request
+    req: Request,
 ): Promise<Session | null> => {
     // First, check if the log in fail counter should be reset
     // If account is NOT deleted or hard-locked, and lockout duration has passed
-    if (user.status !== 'HardLocked' && user.status !== 'Deleted' && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
+    if (user.status !== "HardLocked" && user.status !== "Deleted" && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
         // Reset log in fail counter
         await prisma.user.update({
             where: { id: user.id },
@@ -90,11 +90,11 @@ export const logIn = async (
     }
     // If account is deleted or locked, throw error
     if (user.status === AccountStatus.HardLocked)
-        throw new CustomError('0060', 'HardLockout', req.languages);
+        throw new CustomError("0060", "HardLockout", req.languages);
     if (user.status === AccountStatus.SoftLocked)
-        throw new CustomError('0331', 'SoftLockout', req.languages);
+        throw new CustomError("0331", "SoftLockout", req.languages);
     if (user.status === AccountStatus.Deleted)
-        throw new CustomError('0061', 'AccountDeleted', req.languages);
+        throw new CustomError("0061", "AccountDeleted", req.languages);
     // If password is valid
     if (validatePassword(password, user, req.languages)) {
         const userData = await prisma.user.update({
@@ -103,15 +103,15 @@ export const logIn = async (
                 logInAttempts: 0,
                 lastLoginAttempt: new Date().toISOString(),
                 resetPasswordCode: null,
-                lastResetPasswordReqestAttempt: null
+                lastResetPasswordReqestAttempt: null,
             },
-            select: { id: true }
+            select: { id: true },
         });
         return await toSession(userData, prisma, req);
     }
     // If password is invalid
     let new_status: any = AccountStatus.Unlocked;
-    let log_in_attempts = user.logInAttempts++;
+    const log_in_attempts = user.logInAttempts++;
     if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
         new_status = AccountStatus.HardLocked;
     } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
@@ -119,10 +119,10 @@ export const logIn = async (
     }
     await prisma.user.update({
         where: { id: user.id },
-        data: { status: new_status, logInAttempts: log_in_attempts, lastLoginAttempt: new Date().toISOString() }
-    })
+        data: { status: new_status, logInAttempts: log_in_attempts, lastLoginAttempt: new Date().toISOString() },
+    });
     return null;
-}
+};
 
 /**
  * Updated user object with new password reset code, and sends email to user with reset link
@@ -135,14 +135,14 @@ export const setupPasswordReset = async (user: { id: string, resetPasswordCode: 
     const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { resetPasswordCode, lastResetPasswordReqestAttempt: new Date().toISOString() },
-        select: { emails: { select: { emailAddress: true } } }
-    })
+        select: { emails: { select: { emailAddress: true } } },
+    });
     // Send new verification emails
     for (const email of updatedUser.emails) {
         sendResetPasswordLink(email.emailAddress, user.id, resetPasswordCode);
     }
     return true;
-}
+};
 
 /**
 * Updates email object with new verification code, and sends email to user with link
@@ -154,16 +154,16 @@ export const setupVerificationCode = async (emailAddress: string, prisma: Prisma
     const email = await prisma.email.update({
         where: { emailAddress },
         data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
-        select: { userId: true }
-    })
+        select: { userId: true },
+    });
     // If email is not associated with a user, throw error
     if (!email.userId)
-        throw new CustomError('0061', 'EmailNotYours', languages);
+        throw new CustomError("0061", "EmailNotYours", languages);
     // Send new verification email
     sendVerificationLink(emailAddress, email.userId, verificationCode);
     // Warn of new verification email to existing emails and push devices (if applicable)
     Notify(prisma, languages).pushNewEmailVerification().toUser(email.userId);
-}
+};
 
 /**
  * Validate verification code and update user's account status
@@ -183,20 +183,20 @@ export const validateVerificationCode = async (emailAddress: string, userId: str
             userId: true,
             verified: true,
             verificationCode: true,
-            lastVerificationCodeRequestAttempt: true
-        }
-    })
+            lastVerificationCodeRequestAttempt: true,
+        },
+    });
     if (!email)
-        throw new CustomError('0062', 'EmailNotFound', languages);
+        throw new CustomError("0062", "EmailNotFound", languages);
     // Check that userId matches email's userId
     if (email.userId !== userId)
-        throw new CustomError('0063', 'EmailNotYours', languages);
+        throw new CustomError("0063", "EmailNotYours", languages);
     // If email already verified, remove old verification code
     if (email.verified) {
         await prisma.email.update({
             where: { id: email.id },
-            data: { verificationCode: null, lastVerificationCodeRequestAttempt: null }
-        })
+            data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
+        });
         return true;
     }
     // Otherwise, validate code
@@ -209,9 +209,9 @@ export const validateVerificationCode = async (emailAddress: string, userId: str
                     verified: true,
                     lastVerifiedTime: new Date().toISOString(),
                     verificationCode: null,
-                    lastVerificationCodeRequestAttempt: null
-                }
-            })
+                    lastVerificationCodeRequestAttempt: null,
+                },
+            });
             return true;
         }
         // If email is not verified, set up new verification code
@@ -220,4 +220,4 @@ export const validateVerificationCode = async (emailAddress: string, userId: str
         }
         return false;
     }
-}
+};

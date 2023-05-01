@@ -1,10 +1,8 @@
+import { DUMMY_ID, ProfileUpdateInput, User, userValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { ProfileUpdateInput, User } from '@shared/consts';
-import { DUMMY_ID } from '@shared/uuid';
-import { userValidation } from "@shared/validation";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
+import { mutationWrapper } from "api/utils";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
@@ -18,7 +16,7 @@ import { shapeProfile } from "utils/shape/models/profile";
 import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
-    display = 'page',
+    display = "page",
 }: SettingsProfileViewProps) => {
     const session = useContext(SessionContext);
 
@@ -31,7 +29,7 @@ export const SettingsProfileView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Profile',
+                    titleKey: "Profile",
                 }}
             />
             <Stack direction="row">
@@ -40,16 +38,16 @@ export const SettingsProfileView = ({
                     enableReinitialize={true}
                     initialValues={{
                         handle: profile?.handle ?? null,
-                        name: profile?.name ?? '',
+                        name: profile?.name ?? "",
                         translations: profile?.translations?.length ? profile.translations : [{
                             id: DUMMY_ID,
                             language: getUserLanguages(session)[0],
-                            bio: '',
+                            bio: "",
                         }],
                     }}
                     onSubmit={(values, helpers) => {
                         if (!profile) {
-                            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                             return;
                         }
                         mutationWrapper<User, ProfileUpdateInput>({
@@ -58,9 +56,9 @@ export const SettingsProfileView = ({
                                 id: profile.id,
                                 ...values,
                             }),
-                            successMessage: () => ({ key: 'SettingsUpdated' }),
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            successMessage: () => ({ messageKey: "SettingsUpdated" }),
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validationSchema={userValidation.update({})}
                 >
@@ -74,5 +72,5 @@ export const SettingsProfileView = ({
                 </Formik>
             </Stack>
         </>
-    )
-}
+    );
+};

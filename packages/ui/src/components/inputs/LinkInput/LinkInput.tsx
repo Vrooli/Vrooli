@@ -1,5 +1,5 @@
+import { SearchIcon } from "@local/shared";
 import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { SearchIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { Field, useField } from "formik";
@@ -10,7 +10,7 @@ import { LinkInputProps } from "../types";
 
 export const LinkInput = ({
     label,
-    name = 'link',
+    name = "link",
     zIndex,
 }: LinkInputProps) => {
     const { palette } = useTheme();
@@ -21,7 +21,7 @@ export const LinkInput = ({
 
     // Search dialog to find objects. to link to
     const [searchOpen, setSearchOpen] = useState(false);
-    const openSearch = useCallback(() => { setSearchOpen(true) }, []);
+    const openSearch = useCallback(() => { setSearchOpen(true); }, []);
     const closeSearch = useCallback((selectedUrl?: string) => {
         setSearchOpen(false);
         if (selectedUrl) {
@@ -45,7 +45,7 @@ export const LinkInput = ({
                 let { title, subtitle } = getDisplay(displayData);
                 // Limit subtitle to 100 characters
                 if (subtitle && subtitle.length > 100) {
-                    subtitle = subtitle.substring(0, 100) + '...';
+                    subtitle = subtitle.substring(0, 100) + "...";
                 }
                 return { title, subtitle };
             }
@@ -69,13 +69,13 @@ export const LinkInput = ({
                     <Field
                         fullWidth
                         name={name}
-                        label={label ?? t('Link')}
+                        label={label ?? t("Link")}
                         as={TextField}
                         ref={textFieldRef}
                         sx={{
-                            '& .MuiInputBase-root': {
-                                borderRadius: '5px 0 0 5px',
-                            }
+                            "& .MuiInputBase-root": {
+                                borderRadius: "5px 0 0 5px",
+                            },
                         }}
                     />
                     <ColorIconButton
@@ -83,7 +83,7 @@ export const LinkInput = ({
                         onClick={openSearch}
                         background={palette.secondary.main}
                         sx={{
-                            borderRadius: '0 5px 5px 0',
+                            borderRadius: "0 5px 5px 0",
                             height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                         }}>
                         <SearchIcon />
@@ -92,11 +92,11 @@ export const LinkInput = ({
                 {/* Title/Subtitle */}
                 {title && (
                     <Tooltip title={subtitle}>
-                        <Typography variant='body2' ml={1}>{title}{subtitle ? ' - ' + subtitle : ''}</Typography>
+                        <Typography variant='body2' ml={1}>{title}{subtitle ? " - " + subtitle : ""}</Typography>
                     </Tooltip>
                 )}
             </Box>
         </>
 
-    )
-}
+    );
+};

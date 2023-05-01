@@ -1,6 +1,5 @@
+import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, projectValidation, ProjectYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou } from '@shared/consts';
-import { projectValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -15,9 +14,9 @@ import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 
-const __typename = 'Project' as const;
-type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
-const suppFields = ['you', 'translatedName'] as const;
+const __typename = "Project" as const;
+type Permissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
+const suppFields = ["you", "translatedName"] as const;
 export const ProjectModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -27,8 +26,8 @@ export const ProjectModel: ModelLogic<{
     GqlSearch: ProjectSearchInput,
     GqlSort: ProjectSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.projectUpsertArgs['create'],
-    PrismaUpdate: Prisma.projectUpsertArgs['update'],
+    PrismaCreate: Prisma.projectUpsertArgs["create"],
+    PrismaUpdate: Prisma.projectUpsertArgs["update"],
     PrismaModel: Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
     PrismaSelect: Prisma.projectSelect,
     PrismaWhere: Prisma.projectWhereInput,
@@ -39,40 +38,40 @@ export const ProjectModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            createdBy: 'User',
-            issues: 'Issue',
-            labels: 'Label',
+            createdBy: "User",
+            issues: "Issue",
+            labels: "Label",
             owner: {
-                ownedByUser: 'User',
-                ownedByOrganization: 'Organization',
+                ownedByUser: "User",
+                ownedByOrganization: "Organization",
             },
-            parent: 'Project',
-            pullRequests: 'PullRequest',
-            questions: 'Question',
-            quizzes: 'Quiz',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
-            transfers: 'Transfer',
-            versions: 'ProjectVersion',
+            parent: "Project",
+            pullRequests: "PullRequest",
+            questions: "Question",
+            quizzes: "Quiz",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            transfers: "Transfer",
+            versions: "ProjectVersion",
         },
         prismaRelMap: {
             __typename,
-            createdBy: 'User',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            parent: 'ProjectVersion',
-            issues: 'Issue',
-            labels: 'Label',
-            tags: 'Tag',
-            versions: 'ProjectVersion',
-            bookmarkedBy: 'User',
-            pullRequests: 'PullRequest',
-            stats: 'StatsProject',
-            questions: 'Question',
-            transfers: 'Transfer',
-            quizzes: 'Quiz',
+            createdBy: "User",
+            ownedByOrganization: "Organization",
+            ownedByUser: "User",
+            parent: "ProjectVersion",
+            issues: "Issue",
+            labels: "Label",
+            tags: "Tag",
+            versions: "ProjectVersion",
+            bookmarkedBy: "User",
+            pullRequests: "PullRequest",
+            stats: "StatsProject",
+            questions: "Question",
+            transfers: "Transfer",
+            quizzes: "Quiz",
         },
-        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
+        joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
         countFields: {
             issuesCount: true,
             labelsCount: true,
@@ -92,8 +91,8 @@ export const ProjectModel: ModelLogic<{
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
-                }
+                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                };
             },
         },
     },
@@ -101,7 +100,7 @@ export const ProjectModel: ModelLogic<{
         shape: {
             pre: async (params) => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
-                return { ...maps }
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -110,22 +109,22 @@ export const ProjectModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'projects', isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'forks', data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'labels', data, ...rest })),
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "ProjectVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", relation: "labels", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 handle: noNull(data.handle),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'projects', isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'labels', data, ...rest })),
-            })
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", relation: "labels", data, ...rest })),
+            }),
         },
         trigger: {
             onCommon: async (params) => {
@@ -157,16 +156,15 @@ export const ProjectModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'tagsWrapped',
-                'labelsWrapped',
-                { versions: { some: 'transDescriptionWrapped' } },
-                { versions: { some: 'transNameWrapped' } },
-            ]
-        })
+                "tagsWrapped",
+                "labelsWrapped",
+                { versions: { some: "transDescriptionWrapped" } },
+                { versions: { some: "transNameWrapped" } },
+            ],
+        }),
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
@@ -175,8 +173,8 @@ export const ProjectModel: ModelLogic<{
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<Prisma.projectSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
+                ["ownedByOrganization", "Organization"],
+                ["ownedByUser", "User"],
             ], languages),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
@@ -191,10 +189,10 @@ export const ProjectModel: ModelLogic<{
             isDeleted: true,
             isPrivate: true,
             permissions: true,
-            createdBy: 'User',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            versions: ['ProjectVersion', ['root']],
+            createdBy: "User",
+            ownedByOrganization: "Organization",
+            ownedByUser: "User",
+            versions: ["ProjectVersion", ["root"]],
         }),
         visibility: {
             private: { isPrivate: true, isDeleted: false },
@@ -203,8 +201,8 @@ export const ProjectModel: ModelLogic<{
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

@@ -1,8 +1,8 @@
-import { Count, DeleteManyInput, DeleteOneInput, DeleteType, Success } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { deleteManyHelper, deleteOneHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { GQLEndpoint } from '../types';
+import { Count, DeleteManyInput, DeleteOneInput, DeleteType, Success } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { deleteManyHelper, deleteOneHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { GQLEndpoint } from "../types";
 
 export const typeDef = gql`
     enum DeleteType {
@@ -22,6 +22,7 @@ export const typeDef = gql`
         Node
         Note
         NoteVersion
+        Notification
         Organization
         Post
         Project
@@ -62,7 +63,7 @@ export const typeDef = gql`
         deleteOne(input: DeleteOneInput!): Success!
         deleteMany(input: DeleteManyInput!): Count!
     }
-`
+`;
 
 export const resolvers: {
     DeleteType: typeof DeleteType;
@@ -80,6 +81,6 @@ export const resolvers: {
         deleteMany: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
             return deleteManyHelper({ input, objectType: input.objectType, prisma, req });
-        }
-    }
-}
+        },
+    },
+};

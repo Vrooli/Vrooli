@@ -1,39 +1,39 @@
 export enum DeviceType {
-    Mobile = 'Mobile',
-    Desktop = 'Desktop',
+    Mobile = "Mobile",
+    Desktop = "Desktop",
 }
 
 export enum DeviceOS {
-    Android = 'Android',
-    IOS = 'iOS',
-    Windows = 'Windows',
-    MacOS = 'MacOS',
-    Linux = 'Linux',
-    Unknown = 'Unknown',
-};
+    Android = "Android",
+    IOS = "iOS",
+    Windows = "Windows",
+    MacOS = "MacOS",
+    Linux = "Linux",
+    Unknown = "Unknown",
+}
 
 /**
  *  Windows keys which differ on other operating systems
- */ 
+ */
 export enum WindowsKey {
-    Ctrl = 'Ctrl',
-    Alt = 'Alt',
-    Enter = 'Enter',
+    Ctrl = "Ctrl",
+    Alt = "Alt",
+    Enter = "Enter",
 }
 
 /**
  * Windows to Mac key mapping
  */
 export enum MacKeyFromWindows {
-    Ctrl = '⌘',
-    Alt = '⌥',
-    Enter = '↩',
+    Ctrl = "⌘",
+    Alt = "⌥",
+    Enter = "↩",
 }
 
 /**
  * All keys allowed in a key combination
  */
-export type KeyComboOption = `${WindowsKey}` | 'Shift' | 'Tab' | 'Backspace' | 'Delete' | 'Escape' | 'Space' | 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End' | 'PageUp' | 'PageDown' | 'Insert' | 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'F6' | 'F7' | 'F8' | 'F9' | 'F10' | 'F11' | 'F12' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+export type KeyComboOption = `${WindowsKey}` | "Shift" | "Tab" | "Backspace" | "Delete" | "Escape" | "Space" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End" | "PageUp" | "PageDown" | "Insert" | "F1" | "F2" | "F3" | "F4" | "F5" | "F6" | "F7" | "F8" | "F9" | "F10" | "F11" | "F12" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 
 /**
  * Finds the device name, type, and operating system using navigator. 
@@ -64,9 +64,9 @@ export const getDeviceInfo = (): {
     const isLinux = /Linux/i.test(userAgent);
     const deviceOS = isAndroid ? DeviceOS.Android : isIOS ? DeviceOS.IOS : isWindows ? DeviceOS.Windows : isMacOS ? DeviceOS.MacOS : isLinux ? DeviceOS.Linux : DeviceOS.Unknown;
     // Check if the app is running in standalone mode (i.e. downloaded to the home screen
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
     return { deviceName, deviceType, deviceOS, isStandalone };
-}
+};
 
 /**
  * Converts a key combination into a string for display.
@@ -77,7 +77,7 @@ export const keyComboToString = (...keys: KeyComboOption[]): string => {
     // Find the device's operating system
     const { deviceOS } = getDeviceInfo();
     // Initialize the result string
-    let result = '';
+    let result = "";
     // Iterate over the keys
     for (const key of keys) {
         // If the key is a WindowsKey, convert it to the correct key for the device's operating system
@@ -86,9 +86,9 @@ export const keyComboToString = (...keys: KeyComboOption[]): string => {
         } else {
             result += key;
         }
-        result += ' + ';
+        result += " + ";
     }
     // Remove the trailing ' + '
     result = result.slice(0, -3);
     return result;
-}
+};

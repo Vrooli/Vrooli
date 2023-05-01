@@ -1,5 +1,4 @@
-import { GqlModelType } from "@shared/consts";
-import { exists, isObject } from "@shared/utils";
+import { exists, GqlModelType, isObject } from "@local/shared";
 import { GqlRelMap } from "../models/types";
 
 /**

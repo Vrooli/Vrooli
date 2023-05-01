@@ -1,15 +1,15 @@
-import { Tag } from '@shared/consts';
-import { exists } from '@shared/utils';
-import { useField } from 'formik';
-import { useCallback } from 'react';
-import { TagShape } from 'utils/shape/models/tag';
-import { TagSelectorBase } from '../TagSelectorBase/TagSelectorBase';
-import { TagSelectorProps } from '../types';
+import { exists, Tag } from "@local/shared";
+import { useField } from "formik";
+import { useCallback } from "react";
+import { TagShape } from "utils/shape/models/tag";
+import { TagSelectorBase } from "../TagSelectorBase/TagSelectorBase";
+import { TagSelectorProps } from "../types";
 
 export const TagSelector = ({
     disabled,
     name,
-    placeholder = 'Enter tags, followed by commas...',
+    placeholder = "Enter tags, followed by commas...",
+    zIndex,
 }: TagSelectorProps) => {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
@@ -23,6 +23,7 @@ export const TagSelector = ({
             handleTagsUpdate={handleTagsUpdate}
             placeholder={placeholder}
             tags={field.value ?? []}
+            zIndex={zIndex}
         />
-    )
-}
+    );
+};

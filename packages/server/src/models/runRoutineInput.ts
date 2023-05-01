@@ -1,15 +1,14 @@
+import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, runRoutineInputValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
-import { runRoutineInputValidation } from '@shared/validation';
 import { RoutineVersionInputModel } from ".";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions } from '../utils';
+import { defaultPermissions } from "../utils";
 import { RunRoutineModel } from "./runRoutine";
 import { ModelLogic } from "./types";
 
-const __typename = 'RunRoutineInput' as const;
+const __typename = "RunRoutineInput" as const;
 const suppFields = [] as const;
 export const RunRoutineInputModel: ModelLogic<{
     IsTransferable: false,
@@ -20,8 +19,8 @@ export const RunRoutineInputModel: ModelLogic<{
     GqlSearch: RunRoutineInputSearchInput,
     GqlSort: RunRoutineInputSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.run_routine_inputUpsertArgs['create'],
-    PrismaUpdate: Prisma.run_routine_inputUpsertArgs['update'],
+    PrismaCreate: Prisma.run_routine_inputUpsertArgs["create"],
+    PrismaUpdate: Prisma.run_routine_inputUpsertArgs["update"],
     PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
     PrismaSelect: Prisma.run_routine_inputSelect,
     PrismaWhere: Prisma.run_routine_inputWhereInput,
@@ -42,18 +41,18 @@ export const RunRoutineInputModel: ModelLogic<{
                 return `${runRoutineLabel} - ${inputLabel}`;
             }
             return inputLabel;
-        }
+        },
     },
     format: {
         gqlRelMap: {
             __typename,
-            input: 'RoutineVersionInput',
-            runRoutine: 'RunRoutine',
+            input: "RoutineVersionInput",
+            runRoutine: "RunRoutine",
         },
         prismaRelMap: {
             __typename,
-            input: 'RunRoutineInput',
-            runRoutine: 'RunRoutine',
+            input: "RunRoutineInput",
+            runRoutine: "RunRoutine",
         },
         countFields: {},
     },
@@ -68,9 +67,9 @@ export const RunRoutineInputModel: ModelLogic<{
             },
             update: async ({ data }) => {
                 return {
-                    data: data.data
-                }
-            }
+                    data: data.data,
+                };
+            },
         },
         yup: runRoutineInputValidation,
     },
@@ -91,10 +90,10 @@ export const RunRoutineInputModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            runRoutine: 'RunRoutine',
+            runRoutine: "RunRoutine",
         }),
         permissionResolvers: defaultPermissions,
-        profanityFields: ['data'],
+        profanityFields: ["data"],
         owner: (data, userId) => RunRoutineModel.validate!.owner(data.runRoutine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
@@ -104,4 +103,4 @@ export const RunRoutineInputModel: ModelLogic<{
             owner: (userId) => ({ runRoutine: RunRoutineModel.validate!.visibility.owner(userId) }),
         },
     },
-})
+});

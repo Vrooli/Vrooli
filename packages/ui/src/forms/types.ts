@@ -1,10 +1,12 @@
-import { InputType } from "@shared/consts";
-import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { InputType } from "@local/shared";
+import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
+import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
+import { MeetingShape } from "utils/shape/models/meeting";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeEndShape } from "utils/shape/models/nodeEnd";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
@@ -17,6 +19,8 @@ import { ReminderShape } from "utils/shape/models/reminder";
 import { ReportShape } from "utils/shape/models/report";
 import { ResourceShape } from "utils/shape/models/resource";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
+import { RunProjectShape } from "utils/shape/models/runProject";
+import { RunRoutineShape } from "utils/shape/models/runRoutine";
 import { ScheduleShape } from "utils/shape/models/schedule";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
@@ -77,35 +81,41 @@ export interface SignUpFormProps extends FormProps {
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
-export interface CommentFormProps extends BaseObjectFormProps<CommentShape> { }
+export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
+export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {
     isEditing: boolean;
 }
-export interface FocusModeFormProps extends BaseObjectFormProps<FocusModeShape> { }
+export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
+export type MeetingFormProps = BaseObjectFormProps<MeetingShape>
 export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
     versions: string[];
 }
-export interface OrganizationFormProps extends BaseObjectFormProps<OrganizationShape> { }
+export type OrganizationFormProps = BaseObjectFormProps<OrganizationShape>
 export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
     versions: string[];
 }
-export interface QuestionFormProps extends BaseObjectFormProps<QuestionShape> { }
+export type QuestionFormProps = BaseObjectFormProps<QuestionShape>
 export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
     index?: number;
     reminderListId?: string;
 }
-export interface ReportFormProps extends BaseObjectFormProps<ReportShape> { }
-export interface ResourceFormProps extends BaseObjectFormProps<ResourceShape> { }
+export type ReportFormProps = BaseObjectFormProps<ReportShape>
+export type ResourceFormProps = BaseObjectFormProps<ResourceShape>
 export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
     isSubroutine: boolean;
     versions: string[];
 }
-export interface ScheduleFormProps extends BaseObjectFormProps<ScheduleShape> { }
+export type RunProjectFormProps = BaseObjectFormProps<RunProjectShape>
+export type RunRoutineFormProps = BaseObjectFormProps<RunRoutineShape>
+export type ScheduleFormProps = BaseObjectFormProps<ScheduleShape> & {
+    canSetScheduleFor: boolean;
+}
 export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
     versions: string[];
 }
-export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, 'display' | 'isLoading'> {
+export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, "display" | "isLoading"> {
     canUpdate: boolean;
     handleViewFull: () => void;
     isEditing: boolean;
@@ -114,7 +124,7 @@ export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutin
 export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {
     versions: string[];
 }
-export interface UserFormProps extends BaseObjectFormProps<ProfileShape> { }
+export type UserFormProps = BaseObjectFormProps<ProfileShape>
 
 //==============================================================
 /* #endregion Specific Form Props */
@@ -128,7 +138,7 @@ export interface UserFormProps extends BaseObjectFormProps<ProfileShape> { }
  * Props for rendering a Checkbox input component
  */
 export interface CheckboxProps {
-    color?: 'primary' | 'secondary' | 'default';
+    color?: "primary" | "secondary" | "default";
     /**
      * Array of booleans, one for each option in props
      */
@@ -146,28 +156,28 @@ export interface CheckboxProps {
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends Omit<DP, 'onUpload' | 'zIndex'> {
+export interface DropzoneProps extends Omit<DP, "onUpload" | "zIndex"> {
     defaultValue?: [];
 } // onUpload handled by form
 
 /**
  * Props for rendering a JSON input component
  */
-export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface JsonProps extends Omit<JP, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
 
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'languages' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
     defaultValue?: string[];
 }
 
 /**
  * Props for rendering a Markdown input component
  */
-export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface MarkdownProps extends Omit<MP, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
 
@@ -192,7 +202,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, 'selected' | 'handleChange' | 'zIndex'> {
+export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, "selected" | "handleChange" | "zIndex"> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -204,7 +214,7 @@ export interface SliderProps {
     max: number;
     defaultValue?: number; // Maps to defaultValue
     step?: number;
-    valueLabelDisplay?: 'auto' | 'on' | 'off';
+    valueLabelDisplay?: "auto" | "on" | "off";
 }
 
 /**
@@ -212,14 +222,14 @@ export interface SliderProps {
  */
 export interface SwitchProps {
     defaultValue?: boolean; // Maps to defaultChecked
-    size?: 'small' | 'medium';
-    color?: 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'default';
+    size?: "small" | "medium";
+    color?: "primary" | "secondary" | "error" | "info" | "success" | "warning" | "default";
 }
 
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'name' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | "handleTagsUpdate" | "name" | "zIndex"> {
     defaultValue?: TagShape[];
 }
 
@@ -244,7 +254,7 @@ export interface TextFieldProps {
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, 'name'> {
+export interface IntegerInputProps extends Omit<QP, "name"> {
     defaultValue?: any; // Ignored
 }
 
@@ -545,7 +555,7 @@ export interface YupField {
  */
 export interface YupSchema {
     title: string;
-    type: 'object';
+    type: "object";
     required: any[];
     properties: { [x: string]: any };
 }
@@ -563,11 +573,11 @@ export interface YupSchema {
  * on the width of the screen.
  */
 export type GridItemSpacing = number | string | {
-    xs?: number | 'auto';
-    sm?: number | 'auto';
-    md?: number | 'auto';
-    lg?: number | 'auto';
-    xl?: number | 'auto';
+    xs?: number | "auto";
+    sm?: number | "auto";
+    md?: number | "auto";
+    lg?: number | "auto";
+    xl?: number | "auto";
 }
 
 /**
@@ -575,11 +585,11 @@ export type GridItemSpacing = number | string | {
  * on the width of the screen.
  */
 export type GridSpacing = number | string | Array<number | string | null> | {
-    xs?: number | 'auto';
-    sm?: number | 'auto';
-    md?: number | 'auto';
-    lg?: number | 'auto';
-    xl?: number | 'auto';
+    xs?: number | "auto";
+    sm?: number | "auto";
+    md?: number | "auto";
+    lg?: number | "auto";
+    xl?: number | "auto";
 }
 
 /**
@@ -601,7 +611,7 @@ export interface GridContainerBase {
     /**
      * Direction to display items in the container. Overrides parent spacing
      */
-    direction?: 'column' | 'row';
+    direction?: "column" | "row";
     /**
      * Spacing of container's columns. Overrides spacing field
      */
@@ -651,7 +661,7 @@ export interface FormSchema {
     /**
      * Contains information about the overall layout of the form
      */
-    formLayout?: Omit<GridContainerBase, 'rowSpacing' | 'columnSpacing'>;
+    formLayout?: Omit<GridContainerBase, "rowSpacing" | "columnSpacing">;
     /**
      * Contains information about subsections of the form. Subsections 
      * can only be one level deep. If this is empty, then formLayout is 

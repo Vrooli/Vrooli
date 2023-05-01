@@ -1,8 +1,5 @@
+import { DUMMY_ID, orDefault, ProjectVersion, projectVersionTranslationValidation, projectVersionValidation, Session } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
-import { ProjectVersion, Session } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { projectVersionTranslationValidation, projectVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
@@ -15,7 +12,7 @@ import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -23,28 +20,28 @@ import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/pro
 
 export const projectInitialValues = (
     session: Session | undefined,
-    existing?: ProjectVersion | null | undefined
+    existing?: ProjectVersion | null | undefined,
 ): ProjectVersionShape => ({
-    __typename: 'ProjectVersion' as const,
+    __typename: "ProjectVersion" as const,
     id: DUMMY_ID,
     isComplete: false,
     isPrivate: true,
     resourceList: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
     root: {
-        __typename: 'Project' as const,
+        __typename: "Project" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
     },
-    versionLabel: '1.0.0',
+    versionLabel: "1.0.0",
     ...existing,
     directories: orDefault(existing?.directories, [{
-        __typename: 'ProjectVersionDirectory' as const,
+        __typename: "ProjectVersionDirectory" as const,
         id: DUMMY_ID,
         isRoot: true,
         childApiVersions: [],
@@ -56,28 +53,26 @@ export const projectInitialValues = (
         childStandardVersions: [],
     } as any]),
     translations: orDefault(existing?.translations, [{
-        __typename: 'ProjectVersionTranslation' as const,
+        __typename: "ProjectVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        name: '',
-        description: '',
+        name: "",
+        description: "",
     }]),
 });
 
 export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
     return existing === undefined
         ? shapeProjectVersion.create(values)
-        : shapeProjectVersion.update(existing, values)
-}
+        : shapeProjectVersion.update(existing, values);
+};
 
 export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
     const transformedValues = transformProjectValues(values, existing);
-    const validationSchema = existing === undefined
-        ? projectVersionValidation.create({})
-        : projectVersionValidation.update({});
+    const validationSchema = projectVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const ProjectForm = forwardRef<any, ProjectFormProps>(({
     display,
@@ -105,12 +100,12 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'name'],
-        validationSchema: projectVersionTranslationValidation.update({}),
+        fields: ["description", "name"],
+        validationSchema: projectVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     // For now, we'll only deal with one directory listing
-    const [directoryField, , directoryHelpers] = useField('directories[0]');
+    const [directoryField, , directoryHelpers] = useField("directories[0]");
 
     return (
         <>
@@ -119,12 +114,12 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -133,7 +128,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 }}>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Project'}
+                        objectType={"Project"}
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
@@ -148,13 +143,13 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Name')}
+                            label={t("Name")}
                             language={language}
                             name="name"
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Description')}
+                            label={t("Description")}
                             language={language}
                             multiline
                             minRows={2}
@@ -177,10 +172,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
@@ -189,5 +181,5 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

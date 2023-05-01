@@ -1,4 +1,4 @@
-import { User } from "@shared/consts";
+import { User } from "@local/shared";
 import { ViewProps } from "../types";
 
-export interface UserViewProps extends ViewProps<User> {}
+export interface UserViewProps extends ViewProps<User> { }

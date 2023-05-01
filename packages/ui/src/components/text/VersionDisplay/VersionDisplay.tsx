@@ -1,5 +1,5 @@
+import { addSearchParams, useLocation } from "@local/shared";
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
-import { addSearchParams, useLocation } from "@shared/route";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useMemo, useState } from "react";
 import usePress from "utils/hooks/usePress";
@@ -15,20 +15,20 @@ export const VersionDisplay = ({
     confirmVersionChange,
     currentVersion,
     loading = false,
-    prefix = '',
+    prefix = "",
     versions = [],
     ...props
 }: VersionDisplayProps) => {
     const [, setLocation] = useLocation();
 
     const handleVersionChange = useCallback((version: string) => {
-        addSearchParams(setLocation, { version })
+        addSearchParams(setLocation, { version });
         window.location.reload();
     }, [setLocation]);
 
     const openVersion = useCallback((version: string) => {
-        if (typeof confirmVersionChange === 'function') {
-            confirmVersionChange(() => { handleVersionChange(version) });
+        if (typeof confirmVersionChange === "function") {
+            confirmVersionChange(() => { handleVersionChange(version); });
         } else {
             handleVersionChange(version);
         }
@@ -39,22 +39,22 @@ export const VersionDisplay = ({
             <ListItem
                 button
                 disabled={version.versionLabel === currentVersion?.versionLabel}
-                onClick={() => { openVersion(version.versionLabel) }}
+                onClick={() => { openVersion(version.versionLabel); }}
                 key={index}
                 sx={{
-                    padding: '0px 8px',
+                    padding: "0px 8px",
                 }}
             >
                 <ListItemText primary={version.versionLabel} />
             </ListItem>
-        )
-    }), [currentVersion, openVersion, versions])
+        );
+    }), [currentVersion, openVersion, versions]);
 
     // Versions popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
     const open = useCallback((target: EventTarget) => {
         if (versions.length > 1) {
-            setAnchorEl(target)
+            setAnchorEl(target);
         }
     }, [versions.length]);
     const close = useCallback(() => setAnchorEl(null), []);
@@ -68,17 +68,17 @@ export const VersionDisplay = ({
     if (loading) return (
         <Box sx={{
             ...(props.sx ?? {}),
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
         }}>
-            {prefix && <Typography variant="body1" sx={{ marginRight: '4px' }}>{prefix}</Typography>}
+            {prefix && <Typography variant="body1" sx={{ marginRight: "4px" }}>{prefix}</Typography>}
             <LinearProgress
                 color="inherit"
                 sx={{
-                    width: '40px',
-                    height: '6px',
-                    borderRadius: '12px'
+                    width: "40px",
+                    height: "6px",
+                    borderRadius: "12px",
                 }}
             />
         </Box>
@@ -91,8 +91,8 @@ export const VersionDisplay = ({
                 handleClose={close}
                 sxs={{
                     content: {
-                        maxHeight: '120px',
-                    }
+                        maxHeight: "120px",
+                    },
                 }}
             >
                 {/* Versions list */}
@@ -101,15 +101,15 @@ export const VersionDisplay = ({
                 </List>
             </PopoverWithArrow>
             {/* Label */}
-            <Tooltip title={versions.length > 1 ? "Press to change version" : ''}>
+            <Tooltip title={versions.length > 1 ? "Press to change version" : ""}>
                 <Typography
                     {...pressEvents}
                     variant="body1"
                     sx={{
-                        cursor: listItems.length > 1 ? 'pointer' : 'default',
+                        cursor: listItems.length > 1 ? "pointer" : "default",
                     }}
                 >{`${prefix}${currentVersion.versionLabel}`}</Typography>
             </Tooltip>
         </Box>
-    )
-}
+    );
+};

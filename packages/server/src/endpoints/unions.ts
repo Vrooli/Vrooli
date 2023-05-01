@@ -1,15 +1,15 @@
 /**
  * Endpoints optimized for specific pages
  */
-import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrOrganizationSortBy, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { readManyAsFeedHelper } from '../actions';
-import { getUser } from '../auth';
-import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from '../builders';
-import { rateLimit } from '../middleware';
-import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
-import { SearchMap } from '../utils';
-import { resolveUnion } from './resolvers';
+import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrOrganizationSortBy, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { readManyAsFeedHelper } from "../actions";
+import { getUser } from "../auth";
+import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from "../builders";
+import { rateLimit } from "../middleware";
+import { FindManyResult, GQLEndpoint, UnionResolver } from "../types";
+import { SearchMap } from "../utils";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -194,7 +194,7 @@ export const typeDef = gql`
         projectOrOrganizations(input: ProjectOrOrganizationSearchInput!): ProjectOrOrganizationSearchResult!
         runProjectOrRunRoutines(input: RunProjectOrRunRoutineSearchInput!): RunProjectOrRunRoutineSearchResult!
     }
-`
+`;
 
 export const resolvers: {
     ProjectOrRoutineSortBy: typeof ProjectOrRoutineSortBy,
@@ -211,21 +211,21 @@ export const resolvers: {
     ProjectOrRoutineSortBy,
     ProjectOrOrganizationSortBy,
     RunProjectOrRunRoutineSortBy,
-    ProjectOrRoutine: { __resolveType(obj: any) { return resolveUnion(obj) } },
-    ProjectOrOrganization: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    ProjectOrRoutine: { __resolveType(obj: any) { return resolveUnion(obj); } },
+    ProjectOrOrganization: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
-                __typename: 'ProjectOrRoutineSearchResult',
-                Project: 'Project',
-                Routine: 'Routine',
+                __typename: "ProjectOrRoutineSearchResult",
+                Project: "Project",
+                Routine: "Routine",
             }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req }
+            const commonReadParams = { prisma, req };
             // Query projects
             let projects;
-            if (input.objectType === undefined || input.objectType === 'Project') {
+            if (input.objectType === undefined || input.objectType === "Project") {
                 projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
@@ -254,12 +254,12 @@ export const resolvers: {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'Project',
+                    objectType: "Project",
                 });
             }
             // Query routines
             let routines;
-            if (input.objectType === undefined || input.objectType === 'Routine') {
+            if (input.objectType === undefined || input.objectType === "Routine") {
                 routines = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Routine,
@@ -295,7 +295,7 @@ export const resolvers: {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'Routine',
+                    objectType: "Routine",
                 });
             }
             // Add supplemental fields to every result
@@ -303,9 +303,9 @@ export const resolvers: {
                 projects: projects?.nodes ?? [],
                 routines: routines?.nodes ?? [],
             }, {
-                projects: { type: 'Project', ...(partial as any).Project },
-                routines: { type: 'Routine', ...(partial as any).Routine },
-            }, prisma, getUser(req))
+                projects: { type: "Project", ...(partial as any).Project },
+                routines: { type: "Routine", ...(partial as any).Routine },
+            }, prisma, getUser(req));
             // Combine nodes, alternating between projects and routines
             const nodes: ProjectOrRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.routines.length); i++) {
@@ -318,29 +318,29 @@ export const resolvers: {
             }
             // Combine pageInfo
             const combined: ProjectOrRoutineSearchResult = {
-                __typename: 'ProjectOrRoutineSearchResult' as const,
+                __typename: "ProjectOrRoutineSearchResult" as const,
                 pageInfo: {
-                    __typename: 'ProjectOrRoutinePageInfo' as const,
+                    __typename: "ProjectOrRoutinePageInfo" as const,
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: projects?.pageInfo?.endCursor ?? '',
-                    endCursorRoutine: routines?.pageInfo?.endCursor ?? '',
+                    endCursorProject: projects?.pageInfo?.endCursor ?? "",
+                    endCursorRoutine: routines?.pageInfo?.endCursor ?? "",
                 },
-                edges: nodes.map((node) => ({ __typename: 'ProjectOrRoutineEdge' as const, cursor: node.id, node })),
-            }
+                edges: nodes.map((node) => ({ __typename: "ProjectOrRoutineEdge" as const, cursor: node.id, node })),
+            };
             return combined;
         },
         projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
-                __typename: 'ProjectOrOrganizationSearchResult',
-                Project: 'Project',
-                Organization: 'Organization',
+                __typename: "ProjectOrOrganizationSearchResult",
+                Project: "Project",
+                Organization: "Organization",
             }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req }
+            const commonReadParams = { prisma, req };
             // Query projects
             let projects;
-            if (input.objectType === undefined || input.objectType === 'Project') {
+            if (input.objectType === undefined || input.objectType === "Project") {
                 projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
@@ -370,12 +370,12 @@ export const resolvers: {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'Project',
+                    objectType: "Project",
                 });
             }
             // Query organizations
             let organizations;
-            if (input.objectType === undefined || input.objectType === 'Organization') {
+            if (input.objectType === undefined || input.objectType === "Organization") {
                 organizations = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Organization,
@@ -402,7 +402,7 @@ export const resolvers: {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'Organization',
+                    objectType: "Organization",
                 });
             }
             // Add supplemental fields to every result
@@ -410,9 +410,9 @@ export const resolvers: {
                 projects: projects?.nodes ?? [],
                 organizations: organizations?.nodes ?? [],
             }, {
-                projects: { type: 'Project', ...(partial as any).Project },
-                organizations: { type: 'Organization', ...(partial as any).Organization },
-            }, prisma, getUser(req))
+                projects: { type: "Project", ...(partial as any).Project },
+                organizations: { type: "Organization", ...(partial as any).Organization },
+            }, prisma, getUser(req));
             // Combine nodes, alternating between projects and organizations
             const nodes: ProjectOrOrganization[] = [];
             for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.organizations.length); i++) {
@@ -425,29 +425,29 @@ export const resolvers: {
             }
             // Combine pageInfo
             const combined: ProjectOrOrganizationSearchResult = {
-                __typename: 'ProjectOrOrganizationSearchResult' as const,
+                __typename: "ProjectOrOrganizationSearchResult" as const,
                 pageInfo: {
-                    __typename: 'ProjectOrOrganizationPageInfo' as const,
+                    __typename: "ProjectOrOrganizationPageInfo" as const,
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: projects?.pageInfo?.endCursor ?? '',
-                    endCursorOrganization: organizations?.pageInfo?.endCursor ?? '',
+                    endCursorProject: projects?.pageInfo?.endCursor ?? "",
+                    endCursorOrganization: organizations?.pageInfo?.endCursor ?? "",
                 },
-                edges: nodes.map((node) => ({ __typename: 'ProjectOrOrganizationEdge' as const, cursor: node.id, node })),
-            }
+                edges: nodes.map((node) => ({ __typename: "ProjectOrOrganizationEdge" as const, cursor: node.id, node })),
+            };
             return combined;
         },
         runProjectOrRunRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
-                __typename: 'RunProjectOrRunRoutineSearchResult',
-                RunProject: 'RunProject',
-                RunRoutine: 'RunRoutine',
+                __typename: "RunProjectOrRunRoutineSearchResult",
+                RunProject: "RunProject",
+                RunRoutine: "RunRoutine",
             }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req }
+            const commonReadParams = { prisma, req };
             // Query run projects
             let runProjects;
-            if (input.objectType === undefined || input.objectType === 'RunProject') {
+            if (input.objectType === undefined || input.objectType === "RunProject") {
                 runProjects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).RunProject,
@@ -462,17 +462,17 @@ export const resolvers: {
                         projectVersionId: input.projectVersionId,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
-                        take: take,
+                        take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'RunProject',
+                    objectType: "RunProject",
                 });
             }
             // Query routines
             let runRoutines;
-            if (input.objectType === undefined || input.objectType === 'RunRoutine') {
+            if (input.objectType === undefined || input.objectType === "RunRoutine") {
                 runRoutines = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).RunRoutine,
@@ -487,12 +487,12 @@ export const resolvers: {
                         routineVersionId: input.routineVersionId,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
-                        take: take,
+                        take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    objectType: 'RunRoutine',
+                    objectType: "RunRoutine",
                 });
             }
             // Add supplemental fields to every result
@@ -500,9 +500,9 @@ export const resolvers: {
                 runProjects: runProjects?.nodes ?? [],
                 runRoutines: runRoutines?.nodes ?? [],
             }, {
-                runProjects: { type: 'RunProject', ...(partial as any).RunProject },
-                runRoutines: { type: 'RunRoutine', ...(partial as any).RunRoutine },
-            }, prisma, getUser(req))
+                runProjects: { type: "RunProject", ...(partial as any).RunProject },
+                runRoutines: { type: "RunRoutine", ...(partial as any).RunRoutine },
+            }, prisma, getUser(req));
             // Combine nodes, alternating between runProjects and runRoutines
             const nodes: RunProjectOrRunRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental.runProjects.length, withSupplemental.runRoutines.length); i++) {
@@ -515,16 +515,16 @@ export const resolvers: {
             }
             // Combine pageInfo
             const combined: RunProjectOrRunRoutineSearchResult = {
-                __typename: 'RunProjectOrRunRoutineSearchResult' as const,
+                __typename: "RunProjectOrRunRoutineSearchResult" as const,
                 pageInfo: {
-                    __typename: 'RunProjectOrRunRoutinePageInfo' as const,
+                    __typename: "RunProjectOrRunRoutinePageInfo" as const,
                     hasNextPage: runProjects?.pageInfo?.hasNextPage ?? runRoutines?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: runProjects?.pageInfo?.endCursor ?? '',
-                    endCursorRoutine: runRoutines?.pageInfo?.endCursor ?? '',
+                    endCursorProject: runProjects?.pageInfo?.endCursor ?? "",
+                    endCursorRoutine: runRoutines?.pageInfo?.endCursor ?? "",
                 },
-                edges: nodes.map((node) => ({ __typename: 'RunProjectOrRunRoutineEdge' as const, cursor: node.id, node })),
-            }
+                edges: nodes.map((node) => ({ __typename: "RunProjectOrRunRoutineEdge" as const, cursor: node.id, node })),
+            };
             return combined;
         },
     },
-}
+};

@@ -1,4 +1,4 @@
-import { User } from "@shared/consts";
+import { User } from "@local/shared";
 import { useCustomLazyQuery } from "api";
 import { userProfile } from "api/generated/endpoints/user_profile";
 import { useCallback, useContext, useEffect, useState } from "react";

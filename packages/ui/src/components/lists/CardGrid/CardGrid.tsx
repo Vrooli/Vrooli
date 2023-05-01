@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
-import { CardGridProps } from '../types';
+import { Box } from "@mui/material";
+import { CardGridProps } from "../types";
 
 export const CardGrid = ({
     children,
@@ -9,9 +9,9 @@ export const CardGrid = ({
 }: CardGridProps) => {
     return (
         <Box sx={{
-            display: 'grid',
+            display: "grid",
             gridTemplateColumns: `repeat(auto-fit, minmax(${minWidth}px, 1fr))`,
-            alignItems: 'stretch',
+            alignItems: "stretch",
             gap: 2,
             margin: disableMargin ? 0 : 2,
             borderRadius: 2,
@@ -20,4 +20,4 @@ export const CardGrid = ({
             {children}
         </Box>
     );
-}
+};

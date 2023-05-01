@@ -1,6 +1,4 @@
-import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from "@shared/consts";
-import { SetLocation } from "@shared/route";
-import { exists, setDotNotationValue } from "@shared/utils";
+import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, ReactionFor, ReportFor, setDotNotationValue, SetLocation } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
@@ -26,18 +24,20 @@ export type UseObjectActionsProps = {
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];
-    hasBookmarkingSupport: boolean;
+    closeBookmarkDialog: () => void;
     closeDeleteDialog: () => void;
     closeDonateDialog: () => void;
     closeShareDialog: () => void;
     closeStatsDialog: () => void;
     closeReportDialog: () => void;
+    hasBookmarkingSupport: boolean;
     hasCopyingSupport: boolean;
     hasDeletingSupport: boolean;
     hasReportingSupport: boolean;
     hasSharingSupport: boolean;
     hasStatsSupport: boolean;
     hasVotingSupport: boolean;
+    isBookmarkDialogOpen: boolean;
     isDeleteDialogOpen: boolean;
     isDonateDialogOpen: boolean;
     isShareDialogOpen: boolean;
@@ -55,11 +55,11 @@ export type UseObjectActionsReturn = {
 
 const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
     if (!exists(dialog)) {
-        PubSub.get().publishSnack({ messageKey: `ActionNotSupported`, severity: 'Error' });
+        PubSub.get().publishSnack({ messageKey: "ActionNotSupported", severity: "Error" });
         return;
     }
     dialog();
-}
+};
 
 /**
  * Hook for updating state and navigating upon completing an action
@@ -77,33 +77,41 @@ export const useObjectActions = ({
     // Callback when an action is completed
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
             case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                const isBookmarkedLocation = getYouDot(object, 'isBookmarked');
+            case ObjectActionComplete.BookmarkUndo: {
+                const isBookmarkedLocation = getYouDot(object, "isBookmarked");
                 const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
                 if (wasSuccessful && isBookmarkedLocation && object) setObject(setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful));
                 break;
-            case ObjectActionComplete.Fork:
+            }
+            case ObjectActionComplete.Fork: {
                 // Data is in first key with a value
-                const forkData: any = Object.values(data).find((v) => typeof v === 'object');
+                const forkData: any = Object.values(data).find((v) => typeof v === "object");
                 openObject(forkData, setLocation);
                 window.location.reload();
                 break;
+            }
             case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                const reactionLocation = getYouDot(object, 'reaction');
-                const emoji = action === ObjectActionComplete.VoteUp ? '👍' : action === ObjectActionComplete.VoteDown ? '👎' : null;
+            case ObjectActionComplete.VoteUp: {
+                const reactionLocation = getYouDot(object, "reaction");
+                const emoji = action === ObjectActionComplete.VoteUp ? "👍" : action === ObjectActionComplete.VoteDown ? "👎" : null;
                 if (data.success && reactionLocation && object) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
                 break;
+            }
         }
     }, [object, setLocation, setObject]);
 
     // Hooks for specific actions
-    const { handleBookmark, hasBookmarkingSupport } = useBookmarker({
+    const {
+        isBookmarkDialogOpen,
+        handleBookmark,
+        closeBookmarkDialog,
+        hasBookmarkingSupport,
+    } = useBookmarker({
         objectId: object?.id,
         objectType: objectType as BookmarkFor,
         onActionComplete,
@@ -119,13 +127,13 @@ export const useObjectActions = ({
         objectType: objectType as ReactionFor,
         onActionComplete,
     });
-    console.log('objectName', getDisplay(object))
+    console.log("objectName", getDisplay(object));
 
     // Determine which actions are available    
     const hasDeletingSupport = exists(DeleteType[objectType]);
     const hasReportingSupport = exists(ReportFor[objectType]);
     const hasSharingSupport = useMemo(() => getYou(object).canShare, [object]);
-    const hasStatsSupport = useMemo(() => ['Api', 'Organization', 'Project', 'Quiz', 'Routine', 'SmartContract', 'Standard', 'User'].includes(objectType), [objectType]);
+    const hasStatsSupport = useMemo(() => ["Api", "Organization", "Project", "Quiz", "Routine", "SmartContract", "Standard", "User"].includes(objectType), [objectType]);
     const availableActions = useMemo(() => getAvailableActions(object, session), [object, session]);
 
     // Dialog states
@@ -149,9 +157,9 @@ export const useObjectActions = ({
 
     // Callback when an action is started
     const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
-        console.log('onActionStart', action);
+        console.log("onActionStart", action);
         if (!exists(object)) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
@@ -190,13 +198,14 @@ export const useObjectActions = ({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                handleVote(action === ObjectAction.VoteUp ? '👍' : '👎');
+                handleVote(action === ObjectAction.VoteUp ? "👍" : "👎");
                 break;
         }
     }, [beforeNavigation, handleBookmark, handleCopy, handleVote, object, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, setLocation]);
 
     return {
         availableActions,
+        closeBookmarkDialog,
         closeDeleteDialog,
         closeDonateDialog,
         closeShareDialog,
@@ -209,6 +218,7 @@ export const useObjectActions = ({
         hasSharingSupport,
         hasStatsSupport,
         hasVotingSupport,
+        isBookmarkDialogOpen,
         isDeleteDialogOpen,
         isDonateDialogOpen,
         isShareDialogOpen,
@@ -223,4 +233,4 @@ export const useObjectActions = ({
         openStatsDialog,
         openReportDialog,
     };
-}
+};

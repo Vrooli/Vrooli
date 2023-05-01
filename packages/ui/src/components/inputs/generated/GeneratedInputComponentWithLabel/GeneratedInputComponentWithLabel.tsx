@@ -1,5 +1,5 @@
+import { CopyIcon } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { CopyIcon } from "@shared/icons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

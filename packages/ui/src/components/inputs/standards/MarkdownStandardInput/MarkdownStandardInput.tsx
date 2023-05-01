@@ -1,6 +1,6 @@
-import { Grid } from '@mui/material';
-import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
-import { MarkdownStandardInputProps } from '../types';
+import { Grid } from "@mui/material";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { MarkdownStandardInputProps } from "../types";
 
 /**
  * Input for entering (and viewing format of) Markdown data that 
@@ -21,4 +21,4 @@ export const MarkdownStandardInput = ({
             </Grid>
         </Grid>
     );
-}
+};

@@ -1,10 +1,9 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { assertRequestFrom } from '../auth/request';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { resolveUnion } from './resolvers';
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput, VisibilityType } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum BookmarkSortBy {
@@ -95,9 +94,9 @@ export const typeDef = gql`
         bookmarkCreate(input: BookmarkCreateInput!): Bookmark!
         bookmarkUpdate(input: BookmarkUpdateInput!): Bookmark!
     }
-`
+`;
 
-const objectType = 'Bookmark';
+const objectType = "Bookmark";
 export const resolvers: {
     BookmarkSortBy: typeof BookmarkSortBy;
     BookmarkFor: typeof BookmarkFor;
@@ -113,26 +112,25 @@ export const resolvers: {
 } = {
     BookmarkSortBy,
     BookmarkFor,
-    BookmarkTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    BookmarkTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         bookmark: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         bookmarks: async (_, { input }, { prisma, req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { list: { userId: userData.id } } });
+            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         bookmarkCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req });
         },
         bookmarkUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

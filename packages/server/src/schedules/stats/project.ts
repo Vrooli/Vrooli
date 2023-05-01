@@ -1,6 +1,7 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { logger } from '../../events';
-import { PrismaType } from '../../types';
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+import { PrismaType } from "../../types";
+
 const { PrismaClient } = pkg;
 
 type BatchDirectoryCountsResult = Record<string, {
@@ -54,7 +55,7 @@ const batchDirectoryCounts = async (
             select: {
                 id: true,
                 projectVersion: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 _count: {
                     select: {
@@ -65,8 +66,8 @@ const batchDirectoryCounts = async (
                         childRoutineVersions: true,
                         childSmartContractVersions: true,
                         childStandardVersions: true,
-                    }
-                }
+                    },
+                },
             },
             skip,
             take: batchSize,
@@ -90,7 +91,7 @@ const batchDirectoryCounts = async (
         });
     } while (currentBatchSize === batchSize);
     return result;
-}
+};
 
 /**
  * Batch collects run counts for a list of project versions
@@ -124,12 +125,12 @@ const batchRunCounts = async (
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
-                ]
+                ],
             },
             select: {
                 id: true,
                 projectVersion: {
-                    select: { id: true }
+                    select: { id: true },
                 },
                 completedAt: true,
                 contextSwitches: true,
@@ -146,7 +147,7 @@ const batchRunCounts = async (
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const versionId = run.projectVersion?.id;
-            if (!versionId || !result[versionId]) { return }
+            if (!versionId || !result[versionId]) { return; }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[versionId].runsStarted += 1;
@@ -168,7 +169,7 @@ const batchRunCounts = async (
         }
     });
     return result;
-}
+};
 
 /**
  * Creates periodic stats for all projects
@@ -199,7 +200,7 @@ export const logProjectStats = async (
                 select: {
                     id: true,
                     root: {
-                        select: { id: true }
+                        select: { id: true },
                     },
                 },
                 skip,
@@ -233,13 +234,13 @@ export const logProjectStats = async (
                     runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
                     runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
                     runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging project statistics', { trace: '0420', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging project statistics", { trace: "0420", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

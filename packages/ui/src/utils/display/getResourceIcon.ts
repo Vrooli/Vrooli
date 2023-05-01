@@ -1,5 +1,4 @@
-import { ResourceUsedFor } from '@shared/consts';
-import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from '@shared/icons';
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ResourceUsedFor, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from "@local/shared";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Community]: OrganizationIcon,
@@ -17,7 +16,7 @@ export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Researching]: ResearchIcon,
     [ResourceUsedFor.Scheduling]: ScheduleIcon,
     [ResourceUsedFor.Tutorial]: HelpIcon,
-}
+};
 
 export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "default": DefaultSocialIcon,
@@ -29,7 +28,7 @@ export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "vimeo": SocialVideoIcon,
     "youtube": YouTubeIcon,
     "reddit": RedditIcon,
-}
+};
 
 /**
  * Maps resource type to icon
@@ -45,7 +44,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any =>
         const url = new URL(link); // eg. https://www.youtube.com/watch?v=dQw4w9WgXcQ
         const host = url.hostname; // eg. www.youtube.com
         // Remove beginning of hostname (usually "www", but sometimes "m")
-        const hostParts = host.split('.').filter(p => !['www', 'm'].includes(p)); // eg. ['youtube', 'com']
+        const hostParts = host.split(".").filter(p => !["www", "m"].includes(p)); // eg. ['youtube', 'com']
         // If no host name found, return default icon
         if (hostParts.length === 0) {
             return ResourceSocialIconMap.default;
@@ -56,4 +55,4 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any =>
     }
     if (usedFor in ResourceIconMap) return ResourceIconMap[usedFor];
     return LinkIcon;
-}
+};

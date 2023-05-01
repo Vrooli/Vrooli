@@ -1,8 +1,5 @@
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, Organization, ResourceList, VisibilityType } from "@shared/consts";
-import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
-import { uuidValidate } from '@shared/uuid';
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -58,7 +55,7 @@ const tabParams: TabParams[] = [{
 }];
 
 export const OrganizationView = ({
-    display = 'page',
+    display = "page",
     partialData,
     zIndex = 200,
 }: OrganizationViewProps) => {
@@ -104,8 +101,8 @@ export const OrganizationView = ({
                 if (!organization) return;
                 setOrganization({
                     ...organization,
-                    resourceList: updatedList
-                })
+                    resourceList: updatedList,
+                });
             }}
             loading={isLoading}
             mutate={true}
@@ -120,7 +117,7 @@ export const OrganizationView = ({
         if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : palette.secondary.dark, // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? "#8e6b00" : palette.secondary.dark, // Custom color for resources
             index: i,
             Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
@@ -134,8 +131,8 @@ export const OrganizationView = ({
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Member)
-            return toSearchListData('Member', 'SearchMember', { organizationId: organization?.id });
-        return toSearchListData('Project', 'SearchProject', { ownedByOrganizationId: organization?.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
+            return toSearchListData("Member", "SearchMember", { organizationId: organization?.id });
+        return toSearchListData("Project", "SearchProject", { ownedByOrganizationId: organization?.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab, organization?.id, permissions.canUpdate]);
 
     // More menu
@@ -148,7 +145,7 @@ export const OrganizationView = ({
 
     const actionData = useObjectActions({
         object: organization,
-        objectType: 'Organization',
+        objectType: "Organization",
         setLocation,
         setObject: setOrganization,
     });
@@ -164,14 +161,14 @@ export const OrganizationView = ({
             mt={3}
             bgcolor={palette.background.paper}
             sx={{
-                borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: 12 },
-                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+                borderRadius: { xs: "0", sm: 2 },
+                boxShadow: { xs: "none", sm: 12 },
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
+                width={"min(100px, 25vw)"}
+                height={"min(100px, 25vw)"}
                 borderRadius='100%'
                 position='absolute'
                 display='flex'
@@ -180,9 +177,9 @@ export const OrganizationView = ({
                 left='50%'
                 top="-55px"
                 sx={{
-                    border: `1px solid black`,
+                    border: "1px solid black",
                     backgroundColor: profileColors[0],
-                    transform: 'translateX(-50%)',
+                    transform: "translateX(-50%)",
                 }}
             >
                 <OrganizationIcon fill={profileColors[1]} width='80%' height='80%' />
@@ -193,10 +190,10 @@ export const OrganizationView = ({
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
-                        display: 'block',
-                        marginLeft: 'auto',
+                        display: "block",
+                        marginLeft: "auto",
                         marginRight: 1,
-                        paddingRight: '1em',
+                        paddingRight: "1em",
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -206,7 +203,7 @@ export const OrganizationView = ({
                 {/* Title */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : permissions.canUpdate ? (
@@ -216,7 +213,7 @@ export const OrganizationView = ({
                                 <IconButton
                                     aria-label="Edit organization"
                                     size="small"
-                                    onClick={() => actionData.onActionStart('Edit')}
+                                    onClick={() => actionData.onActionStart("Edit")}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -234,7 +231,7 @@ export const OrganizationView = ({
                             textAlign="center"
                             sx={{
                                 color: palette.secondary.dark,
-                                cursor: 'pointer',
+                                cursor: "pointer",
                             }}
                         >${handle}</Typography>
                     </Link>
@@ -250,12 +247,12 @@ export const OrganizationView = ({
                 {/* Bio */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? 'No bio set'}</Typography>
+                        <Typography variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -268,11 +265,12 @@ export const OrganizationView = ({
                     <ReportsLink object={organization} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        objectId={organization?.id ?? ''}
+                        objectId={organization?.id ?? ""}
                         bookmarkFor={BookmarkFor.Organization}
                         isBookmarked={organization?.you?.isBookmarked ?? false}
                         bookmarks={organization?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
@@ -294,7 +292,7 @@ export const OrganizationView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Organization',
+                    titleKey: "Organization",
                 }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -306,18 +304,18 @@ export const OrganizationView = ({
                 zIndex={zIndex + 1}
             />
             <Box sx={{
-                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
-                display: 'flex',
+                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                display: "flex",
                 paddingTop: 5,
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
                 position: "relative",
             }}>
                 {/* Language display/select */}
                 <Box sx={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 8,
                     right: 8,
-                    paddingRight: '1em',
+                    paddingRight: "1em",
                 }}>
                     <SelectLanguageMenu
                         currentLanguage={language}
@@ -355,5 +353,5 @@ export const OrganizationView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

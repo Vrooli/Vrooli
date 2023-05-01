@@ -1,6 +1,4 @@
-import { BookmarkFor, DotNotation, GqlModelType } from "@shared/consts";
-import { CommonKey } from "@shared/translations";
-import { exists, isOfType } from "@shared/utils";
+import { BookmarkFor, CommonKey, DotNotation, exists, GqlModelType, isOfType } from "@local/shared";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
 import { SearchListGenerator } from "components/lists/types";
 import { AutocompleteOption, NavigableObject } from "types";

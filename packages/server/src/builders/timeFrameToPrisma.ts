@@ -1,4 +1,4 @@
-import { TimeFrame } from '@shared/consts';
+import { TimeFrame } from "@local/shared";
 
 /**
  * Converts time frame to Prisma "where" query
@@ -7,8 +7,8 @@ import { TimeFrame } from '@shared/consts';
  */
 export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): { [x: string]: any } | undefined => {
     if (!time || (!time.before && !time.after)) return undefined;
-    let where: { [x: string]: any } = ({ [fieldName]: {} });
+    const where: { [x: string]: any } = ({ [fieldName]: {} });
     if (time.before) where[fieldName].lte = time.before;
     if (time.after) where[fieldName].gte = time.after;
     return where;
-}
+};

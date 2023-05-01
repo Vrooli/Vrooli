@@ -1,6 +1,6 @@
-import { InputType } from '@shared/consts';
-import { FieldData } from 'forms/types';
-import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from '../types';
+import { InputType } from "@local/shared";
+import { FieldData } from "forms/types";
+import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -10,52 +10,52 @@ import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInp
  */
 const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
-        color: 'secondary',
+        color: "secondary",
         defaultValue: new Array(props.options?.length ?? 0).fill(false),
         options: [],
         row: true,
-        ...props
+        ...props,
     }),
     [InputType.Dropzone]: (props: Partial<DropzoneProps>): DropzoneProps => ({
         defaultValue: [],
-        ...props
+        ...props,
     }),
-    [InputType.JSON]: (props: Partial<Omit<JsonProps, 'id'>>): Omit<JsonProps, 'id'> => ({
-        defaultValue: '',
-        ...props
+    [InputType.JSON]: (props: Partial<Omit<JsonProps, "id">>): Omit<JsonProps, "id"> => ({
+        defaultValue: "",
+        ...props,
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
         defaultValue: [],
-        ...props
+        ...props,
     }),
-    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'name'>>): Omit<IntegerInputProps, 'name'> => ({
-        ...props
+    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, "name">>): Omit<IntegerInputProps, "name"> => ({
+        ...props,
     }),
-    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
-        defaultValue: '',
-        ...props
+    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
+        defaultValue: "",
+        ...props,
     }),
-    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
-        defaultValue: '',
-        ...props
+    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
+        defaultValue: "",
+        ...props,
     }), //TODO change when custom prompt input implemented, if it's needed
     [InputType.Radio]: (props: Partial<RadioProps>) => ({
-        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
-        ...props
+        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : "",
+        ...props,
     }),
-    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, 'name'> => ({
+    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, "name"> => ({
         options: [],
         getOptionLabel: (option: any) => option,
-        ...props
+        ...props,
     }),
     [InputType.Slider]: (props: SliderProps) => {
         let { defaultValue, min, max, step, ...otherProps } = props;
         const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
         const nearest = (value: number, min: number, max: number, steps: number) => {
-            var zerone = Math.round((value - min) * steps / (max - min)) / steps; // bring to 0-1 range    
-            zerone = Math.min(Math.max(zerone, 0), 1) // keep in range in case value is off limits
+            let zerone = Math.round((value - min) * steps / (max - min)) / steps; // bring to 0-1 range    
+            zerone = Math.min(Math.max(zerone, 0), 1); // keep in range in case value is off limits
             return zerone * (max - min) + min;
-        }
+        };
         if (!isNumeric(min)) min = 0;
         if (!isNumeric(max)) max = 100;
         if (!isNumeric(step)) step = (max - min) / 20; // Default to 20 steps
@@ -65,24 +65,24 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
             min,
             max,
             step,
-            ...otherProps
-        }
+            ...otherProps,
+        };
     },
     [InputType.Switch]: (props: Partial<SwitchProps>): SwitchProps => ({
         defaultValue: false,
-        color: 'secondary',
-        size: 'medium',
-        ...props
+        color: "secondary",
+        size: "medium",
+        ...props,
     }),
     [InputType.TagSelector]: (props: Partial<TagSelectorProps>): TagSelectorProps => ({
         defaultValue: [],
-        ...props
+        ...props,
     }),
     [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
-        defaultValue: '',
-        ...props
+        defaultValue: "",
+        ...props,
     }),
-}
+};
 
 /**
  * Populates a FieldData array with unset default values
@@ -94,10 +94,10 @@ export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
         const { props, ...otherKeys } = field;
         return {
             props: defaultMap[field.type](props as any),
-            ...otherKeys
-        }
+            ...otherKeys,
+        };
     });
-}
+};
 
 interface CreateDefaultFieldDataProps {
     fieldName?: string;
@@ -114,16 +114,16 @@ export const createDefaultFieldData = ({
     fieldName,
     label,
     type,
-    yup
+    yup,
 }: CreateDefaultFieldDataProps): FieldData | null => {
     if (!type || !defaultMap[type]) return null;
     return ({
         type: type as any,
         props: defaultMap[type]({}),
-        fieldName: fieldName ?? '',
-        label: label ?? '',
+        fieldName: fieldName ?? "",
+        label: label ?? "",
         yup: yup ?? ({
             checks: [],
         }),
-    })
-}
+    });
+};

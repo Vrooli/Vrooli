@@ -1,8 +1,5 @@
+import { DUMMY_ID, orDefault, Session, StandardVersion, standardVersionTranslationValidation, standardVersionValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { Session, StandardVersion } from "@shared/consts";
-import { orDefault } from "@shared/utils";
-import { DUMMY_ID } from "@shared/uuid";
-import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -17,7 +14,7 @@ import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { InputTypeOptions } from "utils/consts";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -25,9 +22,9 @@ import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/s
 
 export const standardInitialValues = (
     session: Session | undefined,
-    existing?: StandardVersion | null | undefined
+    existing?: StandardVersion | null | undefined,
 ): StandardVersionShape => ({
-    __typename: 'StandardVersion' as const,
+    __typename: "StandardVersion" as const,
     id: DUMMY_ID,
     directoryListings: [],
     isComplete: false,
@@ -38,45 +35,43 @@ export const standardInitialValues = (
     default: JSON.stringify({}),
     yup: JSON.stringify({}),
     resourceList: {
-        __typename: 'ResourceList' as const,
+        __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
     root: {
-        __typename: 'Standard' as const,
+        __typename: "Standard" as const,
         id: DUMMY_ID,
         isInternal: false,
         isPrivate: false,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
     },
-    versionLabel: '1.0.0',
+    versionLabel: "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'StandardVersionTranslation' as const,
+        __typename: "StandardVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
+        description: "",
         jsonVariable: null, //TODO
-        name: '',
+        name: "",
     }]),
 });
 
 export const transformStandardValues = (values: StandardVersionShape, existing?: StandardVersionShape) => {
     return existing === undefined
         ? shapeStandardVersion.create(values)
-        : shapeStandardVersion.update(existing, values)
-}
+        : shapeStandardVersion.update(existing, values);
+};
 
 export const validateStandardValues = async (values: StandardVersionShape, existing?: StandardVersionShape) => {
     const transformedValues = transformStandardValues(values, existing);
-    const validationSchema = existing === undefined
-        ? standardVersionValidation.create({})
-        : standardVersionValidation.update({});
+    const validationSchema = standardVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const StandardForm = forwardRef<any, StandardFormProps>(({
     display,
@@ -103,8 +98,8 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description'],
-        validationSchema: standardVersionTranslationValidation.update({}),
+        fields: ["description"],
+        validationSchema: standardVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -114,12 +109,12 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -128,7 +123,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                 }}>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Standard'}
+                        objectType={"Standard"}
                         zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2}>
@@ -142,13 +137,13 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Name')}
+                            label={t("Name")}
                             language={language}
                             name="name"
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Description')}
+                            label={t("Description")}
                             language={language}
                             multiline
                             minRows={4}
@@ -164,7 +159,10 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector name="root.tags" />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
                     <VersionInput
                         fullWidth
                         versions={versions}
@@ -172,10 +170,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
@@ -184,5 +179,5 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

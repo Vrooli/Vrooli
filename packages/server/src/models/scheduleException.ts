@@ -1,11 +1,11 @@
+import { RunRoutineSearchInput, RunRoutineSortBy, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { RunRoutineSearchInput, RunRoutineSortBy, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from '@shared/consts';
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { ScheduleModel } from "./schedule";
 import { ModelLogic } from "./types";
 
-const __typename = 'ScheduleException' as const;
+const __typename = "ScheduleException" as const;
 const suppFields = [] as const;
 export const ScheduleExceptionModel: ModelLogic<{
     IsTransferable: false,
@@ -16,8 +16,8 @@ export const ScheduleExceptionModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
-    PrismaCreate: Prisma.schedule_exceptionUpsertArgs['create'],
-    PrismaUpdate: Prisma.schedule_exceptionUpsertArgs['update'],
+    PrismaCreate: Prisma.schedule_exceptionUpsertArgs["create"],
+    PrismaUpdate: Prisma.schedule_exceptionUpsertArgs["update"],
     PrismaModel: Prisma.schedule_exceptionGetPayload<SelectWrap<Prisma.schedule_exceptionSelect>>,
     PrismaSelect: Prisma.schedule_exceptionSelect,
     PrismaWhere: Prisma.schedule_exceptionWhereInput,
@@ -31,14 +31,14 @@ export const ScheduleExceptionModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            schedule: 'Schedule',
+            schedule: "Schedule",
         },
         prismaRelMap: {
             __typename,
-            schedule: 'Schedule',
+            schedule: "Schedule",
         },
         countFields: {},
     },
     mutate: {} as any,
     validate: {} as any,
-})
+});

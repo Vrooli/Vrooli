@@ -1,5 +1,5 @@
-import { Stack, useTheme } from '@mui/material';
-import { JsonStandardInputProps } from '../types';
+import { Stack, useTheme } from "@mui/material";
+import { JsonStandardInputProps } from "../types";
 
 export const JsonStandardInput = ({
     isEditing,
@@ -120,4 +120,4 @@ export const JsonStandardInput = ({
             } */}
         </Stack>
     );
-}
+};

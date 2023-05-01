@@ -1,10 +1,10 @@
 // Used to display popular/search results of a particular object type
-import { Box, Collapse, IconButton, Stack, Typography, useTheme } from '@mui/material';
-import { ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ContentCollapseProps } from '../types';
+import { ExpandLessIcon, ExpandMoreIcon } from "@local/shared";
+import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ContentCollapseProps } from "../types";
 
 export function ContentCollapse({
     children,
@@ -34,26 +34,26 @@ export function ContentCollapse({
     }, [internalIsOpen, onOpenChange]);
 
     // Calculate fill color
-    const fillColor = sxs?.root?.color ?? (Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary);
+    const fillColor = sxs?.root?.color ?? (children ? palette.background.textPrimary : palette.background.textSecondary);
 
     const titleText = useMemo(() => {
-        if (titleKey) return t(titleKey, { ...titleVariables, defaultValue: title ?? '' });
+        if (titleKey) return t(titleKey, { ...titleVariables, defaultValue: title ?? "" });
         if (title) return title;
-        return '';
+        return "";
     }, [title, titleKey, titleVariables, t]);
 
     return (
         <Box id={id} sx={{
-            color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary,
+            color: children ? palette.background.textPrimary : palette.background.textSecondary,
             ...(sxs?.root ?? {}),
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? 'h6'} variant="h6">{titleText}</Typography>
+                <Typography component={titleComponent ?? "h6"} variant="h6">{titleText}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}
-                    aria-label={t(internalIsOpen ? 'Collapse' : 'Expand')}
+                    aria-label={t(internalIsOpen ? "Collapse" : "Expand")}
                     onClick={toggleOpen}
                 >
                     {internalIsOpen ?

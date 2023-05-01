@@ -4,15 +4,15 @@
  * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
-import { Box, Stack, useTheme } from '@mui/material';
-import { Node, NodeType } from '@shared/consts';
-import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { firstString } from 'utils/display/stringTools';
-import { usePinchZoom } from 'utils/hooks/usePinchZoom';
-import { PubSub } from 'utils/pubsub';
-import { NodeEdge } from '../edges';
-import { NodeColumn } from '../NodeColumn/NodeColumn';
-import { NodeGraphProps } from '../types';
+import { Node, NodeType } from "@local/shared";
+import { Box, Stack, useTheme } from "@mui/material";
+import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { firstString } from "utils/display/stringTools";
+import { usePinchZoom } from "utils/hooks/usePinchZoom";
+import { PubSub } from "utils/pubsub";
+import { NodeEdge } from "../edges";
+import { NodeColumn } from "../NodeColumn/NodeColumn";
+import { NodeGraphProps } from "../types";
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -49,14 +49,14 @@ export const NodeGraph = ({
     }, []);
 
     // Stores edges
-    const [edges, setEdges] = useState<JSX.Element[]>([])
+    const [edges, setEdges] = useState<JSX.Element[]>([]);
     // Dragging a node
     const [dragId, setDragId] = useState<string | null>(null);
     const dragRefs = useRef<DragRefs>({
         currPosition: null,
         speed: 0,
         timeout: null,
-    })
+    });
     // Determines if links should be re-rendered quickly or slowly
     const [fastUpdate, setFastUpdate] = useState(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -66,18 +66,18 @@ export const NodeGraph = ({
 
     usePinchZoom({
         onScaleChange: handleScaleChange,
-        validTargetIds: ['node-', 'graph-', 'subroutine'],
+        validTargetIds: ["node-", "graph-", "subroutine"],
     });
 
     // Add context menu event listener
     useEffect(() => {
         // Disable context menu for whole page
-        const handleContextMenu = (ev: any) => { ev.preventDefault(); }
-        document.addEventListener('contextmenu', handleContextMenu);
+        const handleContextMenu = (ev: any) => { ev.preventDefault(); };
+        document.addEventListener("contextmenu", handleContextMenu);
         return () => {
-            document.removeEventListener('contextmenu', handleContextMenu);
-        }
-    } , []);
+            document.removeEventListener("contextmenu", handleContextMenu);
+        };
+    }, []);
 
     // /**
     //  * Add tag to head indicating that this page has custom scaling
@@ -95,7 +95,7 @@ export const NodeGraph = ({
      * When a node is being dragged near the edge of the grid, the grid scrolls
      */
     const nodeScroll = useCallback(() => {
-        const gridElement = document.getElementById('graph-root');
+        const gridElement = document.getElementById("graph-root");
         if (!gridElement) return;
         if (dragRefs.current.currPosition === null) return;
         const { x, y } = dragRefs.current.currPosition;
@@ -112,11 +112,11 @@ export const NodeGraph = ({
             const minSpeed = 5;
             const percent = 1 - (distToEdge) / (sideLength * 0.15);
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
-        }
-        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0) }
-        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0) };
-        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed) };
-        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed) };
+        };
+        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0); };
+        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0); };
+        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed); };
+        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed); };
 
         // If near the left edge, move the grid left. If near the right edge, move the grid right.
         let horizontalMove: boolean | null = null; // Store left right move, or no horizontal move
@@ -134,12 +134,12 @@ export const NodeGraph = ({
         if (verticalMove === false) scrollUp();
         else if (verticalMove === true) scrollDown();
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-    }, [])
+    }, []);
 
     const clearScroll = () => {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
-        dragRefs.current = { currPosition: null, speed: 0, timeout: null }
-    }
+        dragRefs.current = { currPosition: null, speed: 0, timeout: null };
+    };
 
     /**
      * Checks if a point is inside a rectangle
@@ -148,7 +148,7 @@ export const NodeGraph = ({
      * @param padding - The padding to add to the rectangle
      * @returns True if position is within the bounds of a rectangle
      */
-    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding: number = 25) => {
+    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding = 25) => {
         const rectangle = document.getElementById(id)?.getBoundingClientRect();
         if (!rectangle) return false;
         const zone = {
@@ -156,14 +156,14 @@ export const NodeGraph = ({
             yStart: rectangle.y - padding,
             xEnd: rectangle.x + rectangle.width + padding * 2,
             yEnd: rectangle.y + rectangle.height + padding * 2,
-        }
+        };
         return Boolean(
             point.x >= zone.xStart &&
             point.x <= zone.xEnd &&
             point.y >= zone.yStart &&
-            point.y <= zone.yEnd
+            point.y <= zone.yEnd,
         );
-    }
+    };
 
     /**
      * Makes sure drop is valid, then updates order of nodes
@@ -175,12 +175,12 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
         // If the drop position is within the unlinked container, unlink the node
-        if (isInsideRectangle({ x, y }, 'unlinked-nodes-dialog')) {
+        if (isInsideRectangle({ x, y }, "unlinked-nodes-dialog")) {
             handleNodeDrop(nodeId, null, null);
             return;
         }
@@ -197,7 +197,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: 'Error' })
+            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
             return;
         }
         // Get the drop row
@@ -208,7 +208,7 @@ export const NodeGraph = ({
         // Check if the drop is above each node
         for (let i = 0; i < centerYs.length; i++) {
             if (y < centerYs[i]) {
-                rowIndex = i
+                rowIndex = i;
                 break;
             }
         }
@@ -228,17 +228,17 @@ export const NodeGraph = ({
             // Find target
             if (!targetId) return;
             // If touching the grid or a node
-            else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
+            else if (targetId.startsWith("node-") || targetId === "graph-root" || targetId === "graph-grid") {
                 // Determine if grid was touched
-                if (targetId.startsWith('node-column') || targetId.startsWith('node-placeholder') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
+                if (targetId.startsWith("node-column") || targetId.startsWith("node-placeholder") || targetId === "graph-root" || targetId === "graph-grid") touchedGrid = true;
                 // Otherwise, set dragRef
                 else dragRefs.current.currPosition = { x, y };
             }
-        }
+        };
         const handleMove = (x: number, y: number) => {
             // I the grid is being dragged, move the grid
             if (touchedGrid && dragRefs.current.currPosition) {
-                const gridElement = document.getElementById('graph-root');
+                const gridElement = document.getElementById("graph-root");
                 if (!gridElement) return;
                 const deltaX = x - dragRefs.current.currPosition.x;
                 const deltaY = y - dragRefs.current.currPosition.y;
@@ -246,11 +246,11 @@ export const NodeGraph = ({
             }
             // drag
             dragRefs.current.currPosition = { x, y };
-        }
+        };
         const handleEnd = () => {
             touchedGrid = false;
             clearScroll();
-        }
+        };
         const onMouseDown = (ev: MouseEvent) => handleStart(ev.clientX, ev.clientY, (ev as any)?.target.id);
         const onTouchStart = (ev: TouchEvent<any> | any) => handleStart(ev.touches[0].clientX, ev.touches[0].clientY, (ev as any)?.target.id);
         const onMouseUp = handleEnd;
@@ -258,39 +258,39 @@ export const NodeGraph = ({
         const onMouseMove = (ev: MouseEvent) => handleMove(ev.clientX, ev.clientY);
         const onTouchMove = (ev: any) => handleMove(ev.touches[0].clientX, ev.touches[0].clientY);
         // Add event listeners
-        window.addEventListener('mousedown', onMouseDown); // Detects if node or graph is being dragged
-        window.addEventListener('mouseup', onMouseUp); // Stops dragging and pinching
-        window.addEventListener('mousemove', onMouseMove); // Moves node or grid
-        window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged
-        window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged
-        window.addEventListener('touchend', onTouchEnd); // Stops dragging and pinching
+        window.addEventListener("mousedown", onMouseDown); // Detects if node or graph is being dragged
+        window.addEventListener("mouseup", onMouseUp); // Stops dragging and pinching
+        window.addEventListener("mousemove", onMouseMove); // Moves node or grid
+        window.addEventListener("touchstart", onTouchStart); // Detects if node is being dragged
+        window.addEventListener("touchmove", onTouchMove); // Detects if node is being dragged
+        window.addEventListener("touchend", onTouchEnd); // Stops dragging and pinching
         // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
-        let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
+        const dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-            setDragId(data.nodeId)
+            setDragId(data.nodeId);
         });
-        let dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
+        const dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
-        let fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
+        const fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
             setFastUpdate(data.on);
-            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false) }, data.duration);
+            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false); }, data.duration);
         });
         return () => {
             // Remove event listeners
-            window.removeEventListener('mousedown', onMouseDown);
-            window.removeEventListener('mouseup', onMouseUp);
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('touchstart', onTouchStart);
-            window.removeEventListener('touchmove', onTouchMove);
-            window.removeEventListener('touchend', onTouchEnd);
+            window.removeEventListener("mousedown", onMouseDown);
+            window.removeEventListener("mouseup", onMouseUp);
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("touchstart", onTouchStart);
+            window.removeEventListener("touchmove", onTouchMove);
+            window.removeEventListener("touchend", onTouchEnd);
             // Remove PubSub subscribers
             PubSub.get().unsubscribe(dragStartSub);
             PubSub.get().unsubscribe(dragDropSub);
             PubSub.get().unsubscribe(fastUpdateSub);
-        }
+        };
     }, [handleDragStop, nodeScroll]);
 
     /**
@@ -306,7 +306,7 @@ export const NodeGraph = ({
             const toNode = nodesById[link.to.id];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}
+                key={`edge-${firstString(link.id, "new-") + fromNode.id + "-to-" + toNode.id}`}
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
@@ -317,7 +317,7 @@ export const NodeGraph = ({
                 handleBranch={handleBranchInsert}
                 handleDelete={handleLinkDelete}
                 handleEdit={() => { }}
-            />
+            />;
         }).filter(edge => edge) as JSX.Element[];
     }, [fastUpdate, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
@@ -342,7 +342,7 @@ export const NodeGraph = ({
             nodes={col}
             scale={scale}
             zIndex={zIndex}
-        />)
+        />);
     }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     // Positive modulo function
@@ -350,54 +350,54 @@ export const NodeGraph = ({
 
     return (
         <Box id="graph-root" position="relative" sx={{
-            cursor: 'move',
+            cursor: "move",
             // Disable zooming, selection, and text highlighting
-            touchAction: 'none',
-            msTouchAction: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none',
-            WebkitTouchCallout: 'none',
-            KhtmlUserSelect: 'none',
-            minWidth: '100%',
+            touchAction: "none",
+            msTouchAction: "none",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            MozUserSelect: "none",
+            msUserSelect: "none",
+            WebkitTouchCallout: "none",
+            KhtmlUserSelect: "none",
+            minWidth: "100%",
             // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
-            height: 'calc(100vh - 48px)',
+            height: "calc(100vh - 48px)",
             margin: 0,
             padding: 0,
-            overflowX: 'auto',
-            overflowY: 'auto',
+            overflowX: "auto",
+            overflowY: "auto",
             // Hide scrollbars
-            '&::-webkit-scrollbar': {
-                display: 'none',
+            "&::-webkit-scrollbar": {
+                display: "none",
             },
         }}>
             {/* Edges */}
             {edges}
             <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
-                width: 'fit-content',
-                minWidth: '100vw',
-                minHeight: '100%',
-                paddingLeft: 'env(safe-area-inset-left)',
-                paddingRight: 'env(safe-area-inset-right)',
+                width: "fit-content",
+                minWidth: "100vw",
+                minHeight: "100%",
+                paddingLeft: "env(safe-area-inset-left)",
+                paddingRight: "env(safe-area-inset-right)",
                 // Create grid background pattern on stack, so it scrolls with content
-                '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
-                '--line-thickness': `1px`,
+                "--line-color": palette.mode === "light" ? "rgba(0 0 0 / .05)" : "rgba(255 255 255 / .05)",
+                "--line-thickness": "1px",
                 // Minor length is 1/5 of major length, and is always between 25 and 50 pixels
-                '--minor-length': `${mod(scale * 12.5, 25) + 25}px`,
-                '--major-length': `${mod(scale * 62.5, 125) + 125}px`,
-                '--line': `var(--line-color) 0 var(--line-thickness)`,
-                '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
-                '--large-body': `transparent var(--line-thickness) var(--major-length)`,
+                "--minor-length": `${mod(scale * 12.5, 25) + 25}px`,
+                "--major-length": `${mod(scale * 62.5, 125) + 125}px`,
+                "--line": "var(--line-color) 0 var(--line-thickness)",
+                "--small-body": "transparent var(--line-thickness) var(--minor-length)",
+                "--large-body": "transparent var(--line-thickness) var(--major-length)",
 
-                '--small-squares': `repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))`,
+                "--small-squares": "repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))",
 
-                '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
-                background: `var(--small-squares), var(--large-squares)`,
+                "--large-squares": "repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))",
+                background: "var(--small-squares), var(--large-squares)",
             }}>
                 {/* Nodes */}
                 {nodeColumns}
             </Stack>
         </Box>
-    )
+    );
 };

@@ -1,8 +1,8 @@
-import { BoxProps } from '@mui/material';
-import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from '@shared/consts';
-import { MouseEvent } from 'react';
-import { BuildAction } from 'utils/consts';
-import { NodeShape } from 'utils/shape/models/node';
+import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@local/shared";
+import { BoxProps } from "@mui/material";
+import { MouseEvent } from "react";
+import { BuildAction } from "utils/consts";
+import { NodeShape } from "utils/shape/models/node";
 
 /**
  * Props for all scalable objects
@@ -50,7 +50,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  */
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => void;
-    handleUpdate: (updatedNode: Node & { end: NodeEnd }) => void; 
+    handleUpdate: (updatedNode: Node & { end: NodeEnd }) => void;
     language: string;
     linksIn: NodeLink[];
     node: Node & { end: NodeEnd };
@@ -80,7 +80,7 @@ export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditablePr
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => void; 
+    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => void;
     language: string;
     linksIn: NodeLink[];
     linksOut: NodeLink[];
@@ -95,7 +95,7 @@ export interface SubroutineNodeProps extends ScaleProps, LabelledProps, Editable
     data: NodeRoutineListItem;
     isOpen: boolean;
     handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;
-    handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => void; 
+    handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => void;
     language: string;
     zIndex: number;
 }
@@ -110,7 +110,7 @@ export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps
     zIndex: number;
 }
 
-export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLinked'> {
+export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, "isLinked"> {
     /**
      * ID of node in this cell. Used for drag events
      */

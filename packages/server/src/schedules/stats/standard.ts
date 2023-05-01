@@ -1,5 +1,6 @@
-import pkg, { PeriodType } from '@prisma/client';
-import { logger } from '../../events';
+import pkg, { PeriodType } from "@prisma/client";
+import { logger } from "../../events";
+
 const { PrismaClient } = pkg;
 
 /**
@@ -25,10 +26,10 @@ export const logStandardStats = async (
             const batch = await prisma.standard_version.findMany({
                 where: {
                     routineVersionInputs: {
-                        some: {} // This is empty on purpose - we don't care about the routine version, just that at least one exists
+                        some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
                     },
                     routineVersionOutputs: {
-                        some: {} // This is empty on purpose - we don't care about the routine version, just that at least one exists
+                        some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
                     },
                     isDeleted: false,
                     isLatest: true,
@@ -37,14 +38,14 @@ export const logStandardStats = async (
                 select: {
                     id: true,
                     root: {
-                        select: { id: true }
+                        select: { id: true },
                     },
                     _count: {
                         select: {
                             routineVersionInputs: true,
                             routineVersionOutputs: true,
-                        }
-                    }
+                        },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -62,13 +63,13 @@ export const logStandardStats = async (
                     periodType,
                     linksToInputs: standardVersion._count.routineVersionInputs,
                     linksToOutputs: standardVersion._count.routineVersionOutputs,
-                }))
+                })),
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error logging standard statistics', { trace: '0425', periodType, periodStart, periodEnd });
+        logger.error("Caught error logging standard statistics", { trace: "0425", periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

@@ -1,11 +1,11 @@
-import { ApiSortBy } from "@shared/consts";
+import { ApiSortBy } from "@local/shared";
 import { apiFindMany } from "api/generated/endpoints/api_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const apiSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout('SearchApi'),
+    formLayout: searchFormLayout("SearchApi"),
     containers: [
         hasCompleteVersionContainer,
         votesContainer(),
@@ -19,7 +19,7 @@ export const apiSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const apiSearchParams = () => toParams(apiSearchSchema(), apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc);

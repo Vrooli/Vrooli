@@ -1,24 +1,22 @@
-import { DialogContent, Link, Typography } from '@mui/material';
-import { CSSProperties } from '@mui/styles';
-import { Report, ReportCreateInput } from '@shared/consts';
-import { uuid } from '@shared/uuid';
-import { reportCreateForm } from '@shared/validation';
-import { reportCreate } from 'api/generated/endpoints/report_create';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { Formik } from 'formik';
-import { BaseFormRef } from 'forms/BaseForm/BaseForm';
-import { ReportForm, reportInitialValues } from 'forms/ReportForm/ReportForm';
-import { formNavLink } from 'forms/styles';
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { clickSize } from 'styles';
-import { getUserLanguages } from 'utils/display/translationTools';
-import { useUpsertActions } from 'utils/hooks/useUpsertActions';
-import { SessionContext } from 'utils/SessionContext';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { LargeDialog } from '../LargeDialog/LargeDialog';
-import { ReportDialogProps } from '../types';
+import { Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
+import { DialogContent, Link, Typography } from "@mui/material";
+import { CSSProperties } from "@mui/styles";
+import { reportCreate } from "api/generated/endpoints/report_create";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { ReportForm, reportInitialValues } from "forms/ReportForm/ReportForm";
+import { formNavLink } from "forms/styles";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { clickSize } from "styles";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useUpsertActions } from "utils/hooks/useUpsertActions";
+import { SessionContext } from "utils/SessionContext";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { ReportDialogProps } from "../types";
 
 const titleId = "report-dialog-title";
 
@@ -27,24 +25,24 @@ export const ReportDialog = ({
     onClose,
     open,
     reportFor,
-    title = 'Report',
+    title = "Report",
     zIndex,
 }: ReportDialogProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]); }, [session]);
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session])
-    const { handleCancel } = useUpsertActions<Report>('dialog', true, onClose, onClose);
+    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
+    const { handleCancel } = useUpsertActions<Report>("dialog", true, onClose, onClose);
     const [mutation, { loading: isLoading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
 
     /**
      * Opens existing reports in a new tab
      */
     const toExistingReports = useCallback(() => {
-        window.open('/reports', '_blank');// TODO change url
+        window.open("/reports", "_blank");// TODO change url
     }, []);
 
     return (
@@ -58,7 +56,7 @@ export const ReportDialog = ({
             <DialogTitle
                 id={titleId}
                 title={title}
-                helpText={t('ReportsHelp')}
+                helpText={t("ReportsHelp")}
                 onClose={handleCancel}
             />
             <DialogContent>
@@ -66,10 +64,10 @@ export const ReportDialog = ({
                     <Typography sx={{
                         ...clickSize,
                         ...formNavLink,
-                        justifyContent: 'center',
+                        justifyContent: "center",
                         marginTop: 2,
                     } as CSSProperties}>
-                        {t('ViewExistingReports')}
+                        {t("ViewExistingReports")}
                     </Typography>
                 </Link>
                 <Formik
@@ -83,17 +81,17 @@ export const ReportDialog = ({
                                 createdFor: reportFor,
                                 createdForConnect: forId,
                                 reason: values.otherReason ?? values.reason,
-                                details: '',
+                                details: "",
                                 language,
                             },
                             successCondition: (data) => data !== null,
-                            successMessage: () => ({ key: 'ReportSubmitted' }),
+                            successMessage: () => ({ messageKey: "ReportSubmitted" }),
                             onSuccess: () => {
                                 helpers.resetForm();
-                                onClose()
+                                onClose();
                             },
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validationSchema={reportCreateForm}
                 >
@@ -110,5 +108,5 @@ export const ReportDialog = ({
                 </Formik>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

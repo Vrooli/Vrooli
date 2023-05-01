@@ -1,6 +1,6 @@
-import path from 'path';
-import fs from 'fs';
-import { logger } from '../events/logger';
+import fs from "fs";
+import path from "path";
+import { logger } from "../events/logger";
 
 // How many times a file name should be checked before giving up
 // ex: if 'billy.png' is taken, tries 'billy-1.png', 'billy-2.png', etc.
@@ -26,11 +26,11 @@ export function clean(file: string, defaultFolder?: string): {
 } {
     const pathRegex = /([^a-z0-9 \.\-\_\/]+)/gi;
     // First, remove any invalid characters
-    const cleanPath = file.replace(pathRegex, '');
-    const folder = path.dirname(cleanPath)?.replace('.', '') || defaultFolder?.replace(pathRegex, '')?.replace('.', '');
-    if (!cleanPath || cleanPath.length === 0) return { };
+    const cleanPath = file.replace(pathRegex, "");
+    const folder = path.dirname(cleanPath)?.replace(".", "") || defaultFolder?.replace(pathRegex, "")?.replace(".", "");
+    if (!cleanPath || cleanPath.length === 0) return {};
     // If a directory was passed in, instead of a file
-    if (!cleanPath.includes('.')) return { folder: folder ?? defaultFolder };
+    if (!cleanPath.includes(".")) return { folder: folder ?? defaultFolder };
     const { name, ext } = path.parse(path.basename(cleanPath));
     return { name, ext, folder: folder ?? defaultFolder };
 }
@@ -53,12 +53,12 @@ export async function findFileName(file: string, defaultFolder?: string): Promis
     // If file name was not available, start appending a number until one works
     let curr = 0;
     while (curr < MAX_FILE_NAME_ATTEMPTS) {
-        let currName = `${name}-${curr}${ext}`;
-        if (!fs.existsSync(`${UPLOAD_DIR}/${folder}/${currName}`)) return { name: `${currName}`, ext: ext, folder: folder };
+        const currName = `${name}-${curr}${ext}`;
+        if (!fs.existsSync(`${UPLOAD_DIR}/${folder}/${currName}`)) return { name: `${currName}`, ext, folder };
         curr++;
     }
     // If no valid name found after max tries, return null
-    return { };
+    return {};
 }
 
 /**
@@ -74,25 +74,25 @@ export async function findFileName(file: string, defaultFolder?: string): Promis
  */
 export async function saveFile(stream: any, filename: string, mimetype: any, overwrite?: boolean, acceptedTypes?: string[]) {
     try {
-        const { name, ext, folder } = await (overwrite ? clean(filename, 'public') : findFileName(filename));
-        if (name === null) throw Error('Could not create a valid file name');
+        const { name, ext, folder } = await (overwrite ? clean(filename, "public") : findFileName(filename));
+        if (name === null) throw Error("Could not create a valid file name");
         if (acceptedTypes) {
             if (Array.isArray(acceptedTypes) && !acceptedTypes.some(type => mimetype.startsWith(type) || ext === type)) {
-                throw Error('File type not accepted');
+                throw Error("File type not accepted");
             }
         }
         // Download the file
         await stream.pipe(fs.createWriteStream(`${UPLOAD_DIR}/${folder}/${name}${ext}`));
         return {
             success: true,
-            filename: `${folder}/${name}${ext}`
-        }
+            filename: `${folder}/${name}${ext}`,
+        };
     } catch (error) {
-        logger.error('Failed to save file.', { trace: '0008', error });
+        logger.error("Failed to save file.", { trace: "0008", error });
         return {
             success: false,
-            filename: filename ?? ''
-        }
+            filename: filename ?? "",
+        };
     }
 }
 
@@ -107,7 +107,7 @@ export async function deleteFile(file: string) {
         fs.unlinkSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`);
         return true;
     } catch (error) {
-        logger.error('Failed to delete file', { trace: '0009', error });
+        logger.error("Failed to delete file", { trace: "0009", error });
         return false;
     }
 }
@@ -118,12 +118,12 @@ export async function deleteFile(file: string) {
  * @returns Array of data from each file
  */
 export async function readFiles(files: string[]) {
-    let data: (string | null)[] = [];
+    const data: (string | null)[] = [];
     for (const file of files) {
-        const { name, ext, folder } = clean(file, 'public');
+        const { name, ext, folder } = clean(file, "public");
         const path = `${UPLOAD_DIR}/${folder}/${name}${ext}`;
         if (fs.existsSync(path)) {
-            data.push(fs.readFileSync(path, 'utf8'));
+            data.push(fs.readFileSync(path, "utf8"));
         } else {
             data.push(null);
         }
@@ -138,8 +138,8 @@ export async function readFiles(files: string[]) {
  * @param acceptedTypes String or array of accepted file types, in mimetype form (e.g. 'image/png', 'application/vnd.ms-excel')
  * @returns Array of each filename saved, or null if unsuccessful
  */
-export async function saveFiles(files: any, overwrite: boolean = true, acceptedTypes: string[] = []) {
-    let data: (string | null)[] = [];
+export async function saveFiles(files: any, overwrite = true, acceptedTypes: string[] = []) {
+    const data: (string | null)[] = [];
     for (const file of files) {
         const { createReadStream, filename, mimetype } = await file;
         const stream = createReadStream();
@@ -156,11 +156,11 @@ export async function saveFiles(files: any, overwrite: boolean = true, acceptedT
  */
 export async function appendToFile(file: string, data: string) {
     try {
-        const { name, ext, folder } = clean(file, 'public');
+        const { name, ext, folder } = clean(file, "public");
         fs.appendFileSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`, data);
         return true;
     } catch (error) {
-        logger.error('Failed to append to file', { trace: '0010', error });
+        logger.error("Failed to append to file", { trace: "0010", error });
         return false;
     }
 }

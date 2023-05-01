@@ -1,9 +1,8 @@
-import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from '@mui/material';
-import { AddIcon } from '@shared/icons';
-import { exists } from '@shared/utils';
-import { useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { SelectorBaseProps } from '../types';
+import { AddIcon, exists } from "@local/shared";
+import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from "@mui/material";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { SelectorBaseProps } from "../types";
 
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
@@ -15,12 +14,12 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     getOptionLabel,
     helperText,
     fullWidth = false,
-    inputAriaLabel = 'select-label',
+    inputAriaLabel = "select-label",
     onBlur,
     onChange,
     name,
     noneOption = false,
-    label = 'Select',
+    label = "Select",
     required = true,
     disabled = false,
     sx,
@@ -43,9 +42,9 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
         const description = getOptionDescription ? getOptionDescription(option) : null;
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
         return (
-            <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: 'normal' }}>
+            <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: "normal" }}>
                 {Icon && <ListItemIcon sx={{
-                    minWidth: '32px',
+                    minWidth: "32px",
                 }}>
                     <Icon fill={palette.background.textSecondary} />
                 </ListItemIcon>}
@@ -53,8 +52,8 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                     <ListItemText sx={{
                         ...getOptionStyle(labelText),
                         // fontWeight: description ? 'bold!important' : typography.fontWeightRegular,
-                        '& .MuiTypography-root': {
-                            fontWeight: description ? 'bold' : typography.fontWeightRegular,
+                        "& .MuiTypography-root": {
+                            fontWeight: description ? "bold" : typography.fontWeightRegular,
                         },
                     }}>{labelText}</ListItemText>
                     {description && <ListItemText sx={getOptionStyle(labelText)}>{description}</ListItemText>}
@@ -78,7 +77,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
         <FormControl
             variant="outlined"
             error={error}
-            sx={{ width: fullWidth ? '-webkit-fill-available' : '' }}
+            sx={{ width: fullWidth ? "-webkit-fill-available" : "" }}
         >
             <InputLabel
                 id={inputAriaLabel}
@@ -95,27 +94,27 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 label={label}
                 labelId={inputAriaLabel}
                 name={name}
-                onChange={(e) => { onChange(findOption(e.target.value as string) as T) }}
+                onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
                 onBlur={onBlur}
                 required={required}
-                value={exists(value) ? getOptionLabel(value) : ''}
+                value={exists(value) ? getOptionLabel(value) : ""}
                 variant="outlined"
                 sx={{
                     ...sx,
                     color: palette.background.textPrimary,
-                    '& .MuiSelect-select': {
-                        paddingTop: '12px',
-                        paddingBottom: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                    }
+                    "& .MuiSelect-select": {
+                        paddingTop: "12px",
+                        paddingBottom: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                    },
                 }}
                 tabIndex={tabIndex}
             >
                 {
                     noneOption ? (
                         <MenuItem value="">
-                            <em>{t('None')}</em>
+                            <em>{t("None")}</em>
                         </MenuItem>
                     ) : null
                 }
@@ -125,7 +124,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {
                     addOption ? (
                         <MenuItem value="addOption" onClick={addOption.onSelect}>
-                            <AddIcon fill={palette.background.textPrimary} style={{ marginRight: '8px' }} />
+                            <AddIcon fill={palette.background.textPrimary} style={{ marginRight: "8px" }} />
                             <em>{addOption.label}</em>
                         </MenuItem>
                     ) : null

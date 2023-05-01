@@ -1,5 +1,5 @@
+import { commentTranslationValidation } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { commentTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -7,13 +7,13 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CommentDialogProps } from "../types";
 
-const titleId = 'comment-dialog-title';
+const titleId = "comment-dialog-title";
 
 /**
  * Dialog for creating/updating a comment. 
@@ -41,8 +41,8 @@ export const CommentDialog = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['text'],
-        validationSchema: isCreate ? commentTranslationValidation.create({}) : commentTranslationValidation.update({}),
+        fields: ["text"],
+        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
@@ -58,21 +58,21 @@ export const CommentDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: isCreate ? 'AddComment' : 'EditComment' }}
+                titleData={{ titleId, titleKey: isCreate ? "AddComment" : "EditComment" }}
             />
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    paddingBottom: '64px',
+                    display: "block",
+                    paddingBottom: "64px",
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
-                    placeholder={t(`PleaseBeNice`)}
+                    placeholder={t("PleaseBeNice")}
                     minRows={3}
                     sxs={{
                         bar: {
@@ -81,27 +81,24 @@ export const CommentDialog = ({
                         },
                         textArea: {
                             borderRadius: 0,
-                            resize: 'none',
-                            height: parent ? '70vh' : '100vh',
+                            resize: "none",
+                            height: parent ? "70vh" : "100vh",
                             background: palette.background.paper,
-                        }
+                        },
                     }}
                 />
                 {/* Display parent underneath */}
                 {parent && (
                     <Box sx={{
                         backgroundColor: palette.background.paper,
-                        height: '30vh',
+                        height: "30vh",
                     }}>
                         <Typography variant="body2">{parentText}</Typography>
                     </Box>
                 )}
                 <GridSubmitButtons
                     display={"dialog"}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
@@ -110,5 +107,5 @@ export const CommentDialog = ({
                 />
             </BaseForm>
         </LargeDialog>
-    )
-}
+    );
+};

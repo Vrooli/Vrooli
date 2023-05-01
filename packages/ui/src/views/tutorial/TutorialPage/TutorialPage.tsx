@@ -1,9 +1,8 @@
-import { Box, IconButton, Palette, Stack, useTheme } from '@mui/material';
-import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from '@shared/icons';
-import { SetLocation, useLocation } from '@shared/route';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { useCallback, useMemo, useState } from 'react';
-import { TutorialViewProps } from '../types';
+import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon, SetLocation, useLocation } from "@local/shared";
+import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useCallback, useMemo, useState } from "react";
+import { TutorialViewProps } from "../types";
 
 type PageProps = {
     palette: Palette;
@@ -51,7 +50,7 @@ type PageProps = {
  * At the bottom of the page, there is a row of buttons to navigate between pages
  */
 export const TutorialView = ({
-    display = 'page',
+    display = "page",
 }: TutorialViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -62,7 +61,7 @@ export const TutorialView = ({
     const nextPage = useCallback(() => setPage(Math.min(5, page + 1)), [page, setPage]);
     const goToPage = useCallback((page: number) => setPage(page), [setPage]);
 
-    const complete = useCallback(() => setLocation('/'), [setLocation]);
+    const complete = useCallback(() => setLocation("/"), [setLocation]);
 
     const currentPage = useMemo(() => {
         // switch (page) {
@@ -82,28 +81,28 @@ export const TutorialView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Tutorial',
+                    titleKey: "Tutorial",
                 }}
             />
             {currentPage}
             {/* Buttons */}
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', marginTop: '1em' }}>
+            <Stack direction="row" spacing={2} sx={{ justifyContent: "center", alignItems: "center", textAlign: "center", marginTop: "1em" }}>
                 {/* Previous arrow if available. If not, add empty space */}
                 {page > 0 ? <IconButton onClick={previousPage}>
                     <ArrowLeftIcon fill={palette.background.textPrimary} />
-                </IconButton> : <Box sx={{ width: '40px' }} />}
+                </IconButton> : <Box sx={{ width: "40px" }} />}
                 {/* Dot for each page, with current page being larger, colored, and not selectable */}
                 {[0, 1, 2, 3, 4, 5].map((p) => (
                     <Box key={p} sx={{
-                        width: '1em',
-                        height: '1em',
-                        borderRadius: '100%',
+                        width: "1em",
+                        height: "1em",
+                        borderRadius: "100%",
                         background: p === page ? palette.primary.main : palette.background.textSecondary,
-                        cursor: p === page ? 'default' : 'pointer',
-                        transition: '0.3s ease-in-out',
-                        '&:hover': {
-                            transform: p === page ? 'none' : 'scale(1.2)',
-                        }
+                        cursor: p === page ? "default" : "pointer",
+                        transition: "0.3s ease-in-out",
+                        "&:hover": {
+                            transform: p === page ? "none" : "scale(1.2)",
+                        },
                     }} onClick={() => goToPage(p)} />
                 ))}
                 {/* Next arrow if available. If not, complete arrow */}
@@ -114,5 +113,5 @@ export const TutorialView = ({
                 </IconButton>}
             </Stack>
         </>
-    )
-}
+    );
+};

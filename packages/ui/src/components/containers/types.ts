@@ -1,6 +1,5 @@
+import { CommentFor, CommonKey, SvgComponent } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
-import { CommentFor } from "@shared/consts";
-import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
@@ -14,15 +13,27 @@ export interface CommentContainerProps {
 }
 
 export interface TitleContainerProps {
-    children: JSX.Element | JSX.Element[];
+    children: JSX.Element | JSX.Element[] | boolean | null | undefined;
     helpKey?: CommonKey;
     helpVariables?: { [x: string]: string | number };
+    /**
+     * Icon displayed to the left of the title
+     */
+    Icon?: SvgComponent;
     titleKey: CommonKey;
     titleVariables?: { [x: string]: string | number };
     id?: string;
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
-    options?: [(CommonKey | { key: CommonKey, variables: Record<string, any> }), (e?: any) => void][];
+    options?: {
+        /**
+         * If set, adds icon for option to the right of the title
+         */
+        Icon?: SvgComponent;
+        key: CommonKey;
+        onClick: (e?: any) => void;
+        variables?: Record<string, any>
+    }[];
     sx?: object;
     tooltip?: string;
 }
@@ -68,14 +79,14 @@ export interface TextCollapseProps {
     text?: string | null;
 }
 
-export type EditTextComponent = 'Markdown' | 'TranslatedMarkdown' | 'TranslatedTextField' | 'TextField';
+export type EditTextComponent = "Markdown" | "TranslatedMarkdown" | "TranslatedTextField" | "TextField";
 
 interface BaseEditableTextProps<T extends EditTextComponent> {
     component: T;
     isEditing: boolean;
     name: string;
     showOnNoText?: boolean;
-    variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2';
+    variant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2";
 }
 
 interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {
@@ -86,10 +97,10 @@ interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends Bas
 }
 
 export type PropsByComponentType = {
-    Markdown: Omit<MarkdownInputProps, 'name'>;
-    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, 'name'>;
-    TranslatedTextField: Omit<TranslatedTextFieldProps, 'name'>;
-    TextField: Omit<TextFieldProps, 'error' | 'helpText' | 'name' | 'onBlur' | 'onChange' | 'value'>;
+    Markdown: Omit<MarkdownInputProps, "name">;
+    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, "name">;
+    TranslatedTextField: Omit<TranslatedTextFieldProps, "name">;
+    TextField: Omit<TextFieldProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
 };
 
 export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextProps<T> & {

@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
+import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
 import { Stack } from "@mui/material";
-import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { mutationWrapper } from "api";
 import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
@@ -14,10 +14,10 @@ import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
-    display = 'page',
+    display = "page",
 }: SettingsNotificationsViewProps) => {
 
-    const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, 'notificationSettings'>>(notificationSettings, { errorPolicy: 'all' });
+    const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
     useDisplayApolloError(error);
     const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
 
@@ -27,8 +27,8 @@ export const SettingsNotificationsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Notification',
-                    titleVariables: { count: 2 }
+                    titleKey: "Notification",
+                    titleVariables: { count: 2 },
                 }}
             />
             <Stack direction="row">
@@ -50,7 +50,7 @@ export const SettingsNotificationsView = ({
                         mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
                             mutation,
                             input: values,
-                            onError: () => { helpers.setSubmitting(false) }
+                            onError: () => { helpers.setSubmitting(false); },
                         })
                     }
                 >
@@ -63,5 +63,5 @@ export const SettingsNotificationsView = ({
                 </Formik>
             </Stack>
         </>
-    )
-}
+    );
+};

@@ -1,11 +1,11 @@
-import { Stack, Tooltip, useTheme } from '@mui/material';
-import { CompleteIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useField } from 'formik';
-import { useCallback, useMemo } from 'react';
-import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
-import { IsCompleteButtonProps } from '../types';
+import { CompleteIcon } from "@local/shared";
+import { Stack, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { useField } from "formik";
+import { useCallback, useMemo } from "react";
+import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
+import { IsCompleteButtonProps } from "../types";
 
 export function IsCompleteButton({
     isEditing,
@@ -13,16 +13,16 @@ export function IsCompleteButton({
 }: IsCompleteButtonProps) {
     const { palette } = useTheme();
 
-    const [field, , helpers] = useField('isComplete');
+    const [field, , helpers] = useField("isComplete");
 
-    const isAvailable = useMemo(() => ['Project', 'Routine'].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Project", "Routine"].includes(objectType), [objectType]);
 
     const { Icon, tooltip } = useMemo(() => {
         const isComplete = field?.value;
         return {
             Icon: isComplete ? CompleteIcon : null,
-            tooltip: isComplete ? `This is complete${isEditing ? '' : '. Press to mark incomplete'}` : `This is incomplete${isEditing ? '' : '. Press to mark complete'}`
-        }
+            tooltip: isComplete ? `This is complete${isEditing ? "" : ". Press to mark incomplete"}` : `This is incomplete${isEditing ? "" : ". Press to mark complete"}`,
+        };
     }, [field?.value, isEditing]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -39,12 +39,12 @@ export function IsCompleteButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>Complete?</TextShrink>
+            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{field?.value ? "Complete" : "Incomplete"}</TextShrink>
             <Tooltip title={tooltip}>
-                <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(isEditing, false) }} onClick={handleClick}>
+                <ColorIconButton background={palette.primary.light} sx={{ ...smallButtonProps(isEditing, false) }} onClick={handleClick}>
                     {Icon && <Icon {...commonIconProps()} />}
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
+    );
 }

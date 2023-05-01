@@ -1,68 +1,64 @@
-import { useTheme } from '@mui/material';
-import { Schedule, ScheduleSearchResult } from '@shared/consts';
-import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from '@shared/icons';
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { CommonKey } from '@shared/translations';
-import { calculateOccurrences } from '@shared/utils';
-import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SideActionButtons } from 'components/buttons/SideActionButtons/SideActionButtons';
-import { ScheduleDialog } from 'components/dialogs/ScheduleDialog/ScheduleDialog';
-import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { PageTabs } from 'components/PageTabs/PageTabs';
-import { PageTab } from 'components/types';
-import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from 'date-fns';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Calendar, dateFnsLocalizer, DateLocalizer } from 'react-big-calendar';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { useTranslation } from 'react-i18next';
-import { CalendarEvent } from 'types';
-import { getCurrentUser } from 'utils/authentication/session';
-import { getDisplay } from 'utils/display/listTools';
-import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
-import { useDimensions } from 'utils/hooks/useDimensions';
-import { useFindMany } from 'utils/hooks/useFindMany';
-import { useWindowSize } from 'utils/hooks/useWindowSize';
-import { CalendarPageTabOption } from 'utils/search/objectToSearch';
-import { SessionContext } from 'utils/SessionContext';
-import { CalendarViewProps } from 'views/types';
+import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, WeekIcon } from "@local/shared";
+import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
+import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { useTranslation } from "react-i18next";
+import { CalendarEvent } from "types";
+import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
+import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
+import { useDimensions } from "utils/hooks/useDimensions";
+import { useFindMany } from "utils/hooks/useFindMany";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { ScheduleUpsert } from "views/objects/schedule";
+import { CalendarViewProps } from "views/types";
 
 // Tab data type
-type BaseParams = {
+type CalendarBaseParams = {
     Icon: (props: SvgProps) => JSX.Element,
     titleKey: CommonKey;
     tabType: CalendarPageTabOption;
 }
 
-// Data for each tab
-const tabParams: BaseParams[] = [{
+// Data for each tab. Ordered by tab index
+export const calendarTabParams: CalendarBaseParams[] = [{
     Icon: OrganizationIcon,
-    titleKey: 'Meeting',
+    titleKey: "Meeting",
     tabType: CalendarPageTabOption.Meetings,
 }, {
     Icon: RoutineIcon,
-    titleKey: 'Routine',
-    tabType: CalendarPageTabOption.Routines,
+    titleKey: "Routine",
+    tabType: CalendarPageTabOption.RunRoutines,
 }, {
     Icon: ProjectIcon,
-    titleKey: 'Project',
-    tabType: CalendarPageTabOption.Projects,
+    titleKey: "Project",
+    tabType: CalendarPageTabOption.RunProjects,
 }, {
     Icon: FocusModeIcon,
-    titleKey: 'FocusMode',
+    titleKey: "FocusMode",
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
-// // Replace this with your own events data
 // const sampleSchedules = [
 //     {
 //         id: uuid(),
-//         title: 'Meeting',
+//         title: "Meeting",
 //         startTime: new Date(),
 //         endTime: add(new Date(), { hours: 1 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Weekly,
 //                 interval: 1,
@@ -71,7 +67,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { weeks: 1 }),
 //                 newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
@@ -80,15 +76,15 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#4caf50',
-//                 label: 'Work',
+//                 color: "#4caf50",
+//                 label: "Work",
 //             },
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 label: 'Important',
+//                 label: "Important",
 //             },
 //         ],
 //         // Dummy data for reminders
@@ -96,12 +92,12 @@ const tabParams: BaseParams[] = [{
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Monthly Report',
+//         title: "Monthly Report",
 //         startTime: add(new Date(), { days: 5 }),
 //         endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Monthly,
 //                 interval: 1,
@@ -111,21 +107,21 @@ const tabParams: BaseParams[] = [{
 //         exceptions: [],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#2196f3',
-//                 label: 'Reports',
+//                 color: "#2196f3",
+//                 label: "Reports",
 //             },
 //         ],
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Bi-weekly Team Lunch',
+//         title: "Bi-weekly Team Lunch",
 //         startTime: add(new Date(), { days: 6 }),
 //         endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Weekly,
 //                 interval: 2,
@@ -134,7 +130,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { weeks: 2 }),
 //                 newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
@@ -143,21 +139,21 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#ff9800',
-//                 label: 'Social',
+//                 color: "#ff9800",
+//                 label: "Social",
 //             },
 //         ],
 //     },
 //     {
 //         id: uuid(),
-//         title: 'Daily Stand-up',
+//         title: "Daily Stand-up",
 //         startTime: add(new Date(), { days: 1 }),
 //         endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
 //         recurrences: [
 //             {
-//                 __typename: 'ScheduleRecurrence' as const,
+//                 __typename: "ScheduleRecurrence" as const,
 //                 id: uuid(),
 //                 recurrenceType: ScheduleRecurrenceType.Daily,
 //                 interval: 1,
@@ -166,7 +162,7 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         exceptions: [
 //             {
-//                 __typename: 'ScheduleException' as const,
+//                 __typename: "ScheduleException" as const,
 //                 id: uuid(),
 //                 originalStartTime: add(new Date(), { days: 2 }),
 //                 newStartTime: null,
@@ -175,17 +171,113 @@ const tabParams: BaseParams[] = [{
 //         ],
 //         labels: [
 //             {
-//                 __typename: 'Label' as const,
+//                 __typename: "Label" as const,
 //                 id: uuid(),
-//                 color: '#f44336',
-//                 label: 'Stand-up',
-//             }
+//                 color: "#f44336",
+//                 label: "Stand-up",
+//             },
 //         ],
 //     },
 // ];
 
+const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
+    display: "flex",
+    alignItems: "center",
+    [breakpoints.down("sm")]: {
+        width: "100%",
+        justifyContent: "space-evenly",
+        marginBottom: spacing(1),
+    },
+});
+
+/**
+ * Toolbar for changing calendar view and navigating between dates
+ */
+const CustomToolbar = (props) => {
+    const { breakpoints, palette, spacing } = useTheme();
+    const { t } = useTranslation();
+    const { label, onView, view, onNavigate } = props;
+
+    const navigate = (action) => {
+        onNavigate(action);
+    };
+
+    const changeView = (nextView) => {
+        onView(nextView);
+    };
+
+    return (
+        <Box sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0 16px",
+            [breakpoints.down(400)]: {
+                flexDirection: "column",
+            },
+        }}>
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <Tooltip title={t("Today")}>
+                    <IconButton onClick={() => navigate(Navigate.TODAY)}>
+                        <TodayIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Previous")}>
+                    <IconButton onClick={() => navigate(Navigate.PREVIOUS)}>
+                        <ArrowLeftIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Next")}>
+                    <IconButton onClick={() => navigate(Navigate.NEXT)}>
+                        <ArrowRightIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <span>{label}</span>
+            </Box>
+
+            <Box sx={sectionStyle(breakpoints, spacing)}>
+                <Tooltip title={t("Month")}>
+                    <IconButton onClick={() => changeView(Views.MONTH)}>
+                        <MonthIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Week")}>
+                    <IconButton onClick={() => changeView(Views.WEEK)}>
+                        <WeekIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={t("Day")}>
+                    <IconButton onClick={() => changeView(Views.DAY)}>
+                        <DayIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+        </Box >
+    );
+};
+
+/**
+ * Day header for Month view. Use
+ */
+const DayColumnHeader = ({ label }) => {
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
+
+    return (
+        <Box sx={{
+            textAlign: "center",
+            fontWeight: "bold",
+        }}>
+            {isMobile ? getShortenedLabel(label) : label}
+        </Box>
+    );
+};
+
 export const CalendarView = ({
-    display = 'page',
+    display = "page",
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -202,7 +294,7 @@ export const CalendarView = ({
     useEffect(() => {
         const localeLoader = async () => {
             try {
-                const localeModule = await loadLocale(locale as any)
+                const localeModule = await loadLocale(locale as any);
 
                 const newLocalizer = dateFnsLocalizer({
                     format,
@@ -215,7 +307,7 @@ export const CalendarView = ({
 
                 setLocalizer(newLocalizer);
             } catch (error) {
-                console.error('Failed to load locale:', error);
+                console.error("Failed to load locale:", error);
             }
         };
 
@@ -223,7 +315,11 @@ export const CalendarView = ({
     }, [locale]);
 
     // Data for calculating calendar height
-    const { dimensions, ref } = useDimensions();
+    const { dimensions, ref, refreshDimensions } = useDimensions();
+    // Refresh dimensions once after the component is mounted
+    useEffect(() => {
+        setTimeout(refreshDimensions, 1000);
+    }, [refreshDimensions]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const calendarHeight = useMemo(() => `calc(100vh - ${dimensions.height}px - ${isMobile ? 56 : 0}px - env(safe-area-inset-bottom))`, [dimensions, isMobile]);
 
@@ -237,7 +333,7 @@ export const CalendarView = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
+        return calendarTabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
@@ -246,7 +342,7 @@ export const CalendarView = ({
     }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<CalendarPageTabOption>>(() => {
         const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        const index = calendarTabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to bookmarked tab
         if (index === -1) return tabs[0];
         // Return tab
@@ -257,23 +353,10 @@ export const CalendarView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // Find schedules
-    const where = useMemo(() => ({
-        // Only find schedules that hav not ended, 
-        // and will start before the date range ends
-        endTimeFrame: (dateRange.start && dateRange.end) ? {
-            after: dateRange.start.toISOString(),
-            before: add(dateRange.end, { years: 1000 }).toISOString(),
-        } : undefined,
-        startTimeFrame: (dateRange.start && dateRange.end) ? {
-            after: add(dateRange.start, { years: -1000 }).toISOString(),
-            before: dateRange.end.toISOString(),
-        } : undefined,
-        scheduleForUserId: getCurrentUser(session)?.id,
-    }), [dateRange, session]);
     const {
         allData: schedules,
         hasMore,
@@ -281,8 +364,20 @@ export const CalendarView = ({
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
         canSearch: true,
-        searchType: 'Schedule',
-        where,
+        searchType: "Schedule",
+        where: {
+            // Only find schedules that hav not ended, 
+            // and will start before the date range ends
+            endTimeFrame: (dateRange.start && dateRange.end) ? {
+                after: dateRange.start.toISOString(),
+                before: add(dateRange.end, { years: 1000 }).toISOString(),
+            } : undefined,
+            startTimeFrame: (dateRange.start && dateRange.end) ? {
+                after: add(dateRange.start, { years: -1000 }).toISOString(),
+                before: dateRange.end.toISOString(),
+            } : undefined,
+            scheduleForUserId: getCurrentUser(session)?.id,
+        },
     });
     // Load more schedules when date range changes
     useEffect(() => {
@@ -303,7 +398,7 @@ export const CalendarView = ({
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: 'CalendarEvent',
+                __typename: "CalendarEvent",
                 id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
                 title: getDisplay(schedule, getUserLanguages(session)).title,
                 start: occurrence.start,
@@ -319,23 +414,19 @@ export const CalendarView = ({
 
 
     const openEvent = useCallback((event: any) => {
-        console.log('CalendarEvent clicked:', event);
+        console.log("CalendarEvent clicked:", event);
     }, []);
 
     // Handle scheduling
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true) };
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
     const handleUpdateSchedule = (schedule: Schedule) => {
         setEditingSchedule(schedule);
         setIsScheduleDialogOpen(true);
     };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false) };
-    const handleScheduleCreated = (created: Schedule) => {
-        //TODO
-        setIsScheduleDialogOpen(false);
-    };
-    const handleScheduleUpdated = (updated: Schedule) => {
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
+    const handleScheduleCompleted = (created: Schedule) => {
         //TODO
         setIsScheduleDialogOpen(false);
     };
@@ -343,19 +434,29 @@ export const CalendarView = ({
         //TODO
     };
 
-    if (!localizer) return <FullPageSpinner />
+    if (!localizer) return <FullPageSpinner />;
     return (
         <>
             {/* Dialog for creating/updating schedules */}
-            <ScheduleDialog
-                isCreate={editingSchedule === null}
-                isMutate={true}
-                isOpen={isScheduleDialogOpen}
+            <LargeDialog
+                id="schedule-dialog"
                 onClose={handleCloseScheduleDialog}
-                onCreated={handleScheduleCreated}
-                onUpdated={handleScheduleUpdated}
+                isOpen={isScheduleDialogOpen}
+                titleId={""}
                 zIndex={202}
-            />
+            >
+                <ScheduleUpsert
+                    defaultTab={currTab.value}
+                    display="dialog"
+                    handleDelete={handleDeleteSchedule}
+                    isCreate={editingSchedule === null}
+                    isMutate={false}
+                    onCancel={handleCloseScheduleDialog}
+                    onCompleted={handleScheduleCompleted}
+                    partialData={editingSchedule ?? undefined}
+                    zIndex={202}
+                />
+            </LargeDialog>
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
@@ -368,8 +469,8 @@ export const CalendarView = ({
                     onClick={handleAddSchedule}
                     sx={{
                         padding: 0,
-                        width: '54px',
-                        height: '54px',
+                        width: "54px",
+                        height: "54px",
                     }}
                 >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -395,12 +496,18 @@ export const CalendarView = ({
                 onSelectEvent={openEvent}
                 startAccessor="start"
                 endAccessor="end"
-                views={['month', 'week', 'day']}
+                components={{
+                    toolbar: CustomToolbar,
+                    month: {
+                        header: DayColumnHeader,
+                    },
+                }}
                 style={{
                     height: calendarHeight,
+                    maxHeight: calendarHeight,
                     background: palette.background.paper,
                 }}
             />
         </>
-    )
-}
+    );
+};

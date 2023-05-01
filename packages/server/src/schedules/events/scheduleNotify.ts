@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client';
-import { GqlModelType } from '@shared/consts';
-import { calculateOccurrences, uppercaseFirstLetter } from '@shared/utils';
-import { findFirstRel } from '../../builders';
-import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from '../../events';
-import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from '../../notify';
-import { initializeRedis } from '../../redisConn';
-import { PrismaType } from '../../types';
+import { calculateOccurrences, GqlModelType, uppercaseFirstLetter } from "@local/shared";
+import { PrismaClient } from "@prisma/client";
+import { findFirstRel } from "../../builders";
+import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events";
+import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from "../../notify";
+import { initializeRedis } from "../../redisConn";
+import { PrismaType } from "../../types";
 
 /**
  * For a list of scheduled events, finds subscribers and schedules notifications for them
@@ -41,10 +40,10 @@ const scheduleNotifications = async (
                         meetings: { select: { id: true } },
                         runProjects: { select: { id: true } },
                         runRoutines: { select: { id: true } },
-                    }
+                    },
                 },
                 subscriber: {
-                    select: { id: true }
+                    select: { id: true },
                 },
             },
             skip,
@@ -57,15 +56,15 @@ const scheduleNotifications = async (
         // If no subscriptions, continue
         if (batch.length === 0) continue;
         // Find objectType and id of the object that has a schedule. Assume there is only one focusMode, meeting, etc.
-        const [objectField, objectData] = findFirstRel(batch[0].schedule!, ['focusModes', 'meetings', 'runProjects', 'runRoutines']);
+        const [objectField, objectData] = findFirstRel(batch[0].schedule!, ["focusModes", "meetings", "runProjects", "runRoutines"]);
         if (!objectField || !objectData || objectData.length === 0) {
-            logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: '0433' });
+            logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
             continue;
         }
         const scheduleForId = objectData[0].id;
         const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as GqlModelType;
         // Find notification preferences for each subscriber
-        const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext['reminders'] } = {};
+        const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
         for (const subscription of batch) {
             const context = parseSubscriptionContext(subscription.context) as ScheduleSubscriptionContext | null;
             if (!context) continue;
@@ -106,16 +105,16 @@ const scheduleNotifications = async (
             // Filter out subscribers who have already been notified
             const filteredSubscriberDelaysList = subscriberDelaysList.filter((_, index) => !redisGetResults[index]);
             // Send push notifications to each subscriber
-            await Notify(prisma, ['en']).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
+            await Notify(prisma, ["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
 
             // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours
             await Promise.all(filteredSubscriberDelaysList.map((subscriber) => {
                 const key = `notify-schedule:${scheduleId}:${occurrence.start.getTime()}:user:${subscriber.userId}`;
-                return redisClient.set(key, 'true', { EX: 25 * 60 * 60 });
+                return redisClient.set(key, "true", { EX: 25 * 60 * 60 });
             }));
         }
     } while (currentBatchSize === batchSize);
-}
+};
 
 /**
  * Caches upcoming scheduled events in the database.
@@ -132,7 +131,7 @@ export const scheduleNotify = async () => {
         const endDate = new Date(now.setHours(now.getHours() + 25));
         // Set up batch parameters
         const batchSize = 100;
-        let skip = 0;
+        const skip = 0;
         let currentBatchSize = 0;
         // While there are still schedules to process
         do {
@@ -151,7 +150,7 @@ export const scheduleNotify = async () => {
                             originalStartTime: true,
                             newStartTime: true,
                             newEndTime: true,
-                        }
+                        },
                     },
                     recurrences: {
                         where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
@@ -163,12 +162,13 @@ export const scheduleNotify = async () => {
                             dayOfMonth: true,
                             month: true,
                             endDate: true,
-                        }
+                        },
                     },
                 },
                 skip,
                 take: batchSize,
             });
+            currentBatchSize = schedules.length;
             // For each schedule
             for (const schedule of schedules) {
                 // Find all occurrences of the schedule within the next 25 hours
@@ -177,9 +177,9 @@ export const scheduleNotify = async () => {
                 await scheduleNotifications(prisma, schedule.id, occurrences);
             }
         } while (currentBatchSize === batchSize);
-        logger.info('Upcoming scheduled events cached successfully.', { trace: '0427' });
+        logger.info("Upcoming scheduled events cached successfully.", { trace: "0427" });
     } catch (error) {
-        logger.error('Failed to cache upcoming scheduled events.', { trace: '0428' });
+        logger.error("Failed to cache upcoming scheduled events.", { trace: "0428" });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();

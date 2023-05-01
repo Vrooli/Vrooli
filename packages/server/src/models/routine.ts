@@ -1,6 +1,5 @@
+import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, routineValidation, RoutineYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou } from '@shared/consts';
-import { routineValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -197,9 +196,9 @@ import { ViewModel } from "./view";
 //     // }
 // })
 
-const __typename = 'Routine' as const;
-type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
-const suppFields = ['you', 'translatedName'] as const;
+const __typename = "Routine" as const;
+type Permissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
+const suppFields = ["you", "translatedName"] as const;
 export const RoutineModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -209,8 +208,8 @@ export const RoutineModel: ModelLogic<{
     GqlSearch: RoutineSearchInput,
     GqlSort: RoutineSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.routineUpsertArgs['create'],
-    PrismaUpdate: Prisma.routineUpsertArgs['update'],
+    PrismaCreate: Prisma.routineUpsertArgs["create"],
+    PrismaUpdate: Prisma.routineUpsertArgs["update"],
     PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
     PrismaSelect: Prisma.routineSelect,
     PrismaWhere: Prisma.routineWhereInput,
@@ -221,38 +220,38 @@ export const RoutineModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            createdBy: 'User',
+            createdBy: "User",
             owner: {
-                ownedByUser: 'User',
-                ownedByOrganization: 'Organization',
+                ownedByUser: "User",
+                ownedByOrganization: "Organization",
             },
-            forks: 'Routine',
-            issues: 'Issue',
-            labels: 'Label',
-            parent: 'Routine',
-            bookmarkedBy: 'User',
-            tags: 'Tag',
-            versions: 'RoutineVersion',
+            forks: "Routine",
+            issues: "Issue",
+            labels: "Label",
+            parent: "Routine",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            versions: "RoutineVersion",
         },
         prismaRelMap: {
             __typename,
-            createdBy: 'User',
-            ownedByUser: 'User',
-            ownedByOrganization: 'Organization',
-            parent: 'RoutineVersion',
-            questions: 'Question',
-            quizzes: 'Quiz',
-            issues: 'Issue',
-            labels: 'Label',
-            pullRequests: 'PullRequest',
-            bookmarkedBy: 'User',
-            stats: 'StatsRoutine',
-            tags: 'Tag',
-            transfers: 'Transfer',
-            versions: 'RoutineVersion',
-            viewedBy: 'View',
+            createdBy: "User",
+            ownedByUser: "User",
+            ownedByOrganization: "Organization",
+            parent: "RoutineVersion",
+            questions: "Question",
+            quizzes: "Quiz",
+            issues: "Issue",
+            labels: "Label",
+            pullRequests: "PullRequest",
+            bookmarkedBy: "User",
+            stats: "StatsRoutine",
+            tags: "Tag",
+            transfers: "Transfer",
+            versions: "RoutineVersion",
+            viewedBy: "View",
         },
-        joinMap: { labels: 'label', tags: 'tag', bookmarkedBy: 'user' },
+        joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
         countFields: {
             forksCount: true,
             issuesCount: true,
@@ -272,8 +271,8 @@ export const RoutineModel: ModelLogic<{
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
-                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
-                }
+                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                };
             },
         },
     },
@@ -284,7 +283,7 @@ export const RoutineModel: ModelLogic<{
             // maybe models/routineVersion.
             pre: async (params) => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
-                return { ...maps }
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -293,21 +292,21 @@ export const RoutineModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'labels', data, ...rest })),
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "labels", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, ...rest })),
+                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "tags", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "labels", data, ...rest })),
             }),
         },
         trigger: {
@@ -341,16 +340,15 @@ export const RoutineModel: ModelLogic<{
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'tagsWrapped',
-                'labelsWrapped',
-                { versions: { some: 'transDescriptionWrapped' } },
-                { versions: { some: 'transNameWrapped' } }
-            ]
-        })
+                "tagsWrapped",
+                "labelsWrapped",
+                { versions: { some: "transDescriptionWrapped" } },
+                { versions: { some: "transNameWrapped" } },
+            ],
+        }),
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
@@ -360,8 +358,8 @@ export const RoutineModel: ModelLogic<{
             data.isDeleted === false &&
             data.isInternal === false &&
             oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
+                ["ownedByOrganization", "Organization"],
+                ["ownedByUser", "User"],
             ], languages),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
@@ -377,10 +375,10 @@ export const RoutineModel: ModelLogic<{
             isInternal: true,
             isPrivate: true,
             permissions: true,
-            createdBy: 'User',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            versions: ['RoutineVersion', ['root']],
+            createdBy: "User",
+            ownedByOrganization: "Organization",
+            ownedByUser: "User",
+            versions: ["RoutineVersion", ["root"]],
         }),
         visibility: {
             private: { isPrivate: true, isDeleted: false },
@@ -389,8 +387,8 @@ export const RoutineModel: ModelLogic<{
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

@@ -1,8 +1,8 @@
-import { Box, IconButton, Stack, useTheme } from '@mui/material';
-import { OpenThreadIcon, OrganizationIcon, UserIcon } from '@shared/icons';
-import { useMemo } from 'react';
-import { placeholderColor } from 'utils/display/listTools';
-import { CommentConnectorProps } from '../types';
+import { OpenThreadIcon, OrganizationIcon, UserIcon } from "@local/shared";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { useMemo } from "react";
+import { placeholderColor } from "utils/display/listTools";
+import { CommentConnectorProps } from "../types";
 
 /**
  * Collapsible, vertical line for indicating a comment level. Top of line 
@@ -20,7 +20,7 @@ export const CommentConnector = ({
     // Determine profile image type
     const ProfileIcon = useMemo(() => {
         switch (parentType) {
-            case 'Organization':
+            case "Organization":
                 return OrganizationIcon;
             default:
                 return UserIcon;
@@ -39,7 +39,7 @@ export const CommentConnector = ({
             justifyContent='center'
             alignItems='center'
             sx={{
-                display: 'flex',
+                display: "flex",
             }}
         >
             <ProfileIcon fill={profileColors[1]} width='80%' height='80%' />
@@ -60,13 +60,13 @@ export const CommentConnector = ({
                         borderRadius='100px'
                         bgcolor={profileColors[0]}
                         sx={{
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
+                            marginLeft: "auto",
+                            marginRight: "auto",
                             marginTop: 1,
                             marginBottom: 1,
-                            cursor: 'pointer',
-                            '&:hover': {
-                                brightness: palette.mode === 'light' ? 1.05 : 0.95,
+                            cursor: "pointer",
+                            "&:hover": {
+                                brightness: palette.mode === "light" ? 1.05 : 0.95,
                             },
                         }}
                         onClick={onToggle}
@@ -81,13 +81,13 @@ export const CommentConnector = ({
             <IconButton
                 onClick={onToggle}
                 sx={{
-                    width: '48px',
-                    height: '48px',
+                    width: "48px",
+                    height: "48px",
                 }}
             >
-                <OpenThreadIcon fill={profileColors[0]}/>
+                <OpenThreadIcon fill={profileColors[0]} />
             </IconButton>
             {profileImage}
         </Stack>
-    )
-}
+    );
+};

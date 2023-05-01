@@ -1,8 +1,8 @@
-import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput } from '@shared/consts';
-import { gql } from 'apollo-server-express';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { rateLimit } from '../middleware';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput } from "@local/shared";
+import { gql } from "apollo-server-express";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -160,9 +160,9 @@ export const typeDef = gql`
         routineCreate(input: RoutineCreateInput!): Routine!
         routineUpdate(input: RoutineUpdateInput!): Routine!
     }
-`
+`;
 
-const objectType = 'Routine';
+const objectType = "Routine";
 export const resolvers: {
     RoutineSortBy: typeof RoutineSortBy;
     Query: {
@@ -194,5 +194,5 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-    }
-}
+    },
+};

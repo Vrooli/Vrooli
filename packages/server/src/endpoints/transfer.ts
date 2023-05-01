@@ -1,13 +1,13 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, TransferSortBy, TransferObjectType, Transfer, TransferSearchInput, TransferRequestSendInput, TransferRequestReceiveInput, TransferUpdateInput, TransferDenyInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { CustomError } from '../events';
-import { resolveUnion } from './resolvers';
-import { TransferStatus } from '@prisma/client';
-import { assertRequestFrom } from '../auth';
-import { TransferModel } from '../models';
+import { FindByIdInput, Transfer, TransferDenyInput, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput } from "@local/shared";
+import { TransferStatus } from "@prisma/client";
+import { gql } from "apollo-server-express";
+import { readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { assertRequestFrom } from "../auth";
+import { CustomError } from "../events";
+import { rateLimit } from "../middleware";
+import { TransferModel } from "../models";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../types";
+import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
     enum TransferSortBy {
@@ -117,9 +117,9 @@ export const typeDef = gql`
         transferAccept(input: FindByIdInput!): Transfer!
         transferDeny(input: TransferDenyInput!): Transfer!
     }
-`
+`;
 
-const objectType = 'Transfer';
+const objectType = "Transfer";
 export const resolvers: {
     TransferSortBy: typeof TransferSortBy;
     TransferObjectType: typeof TransferObjectType;
@@ -141,15 +141,15 @@ export const resolvers: {
     TransferSortBy,
     TransferObjectType,
     TransferStatus,
-    TransferObject: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    TransferObject: { __resolveType(obj: any) { return resolveUnion(obj); } },
     Query: {
         transfer: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         transfers: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
@@ -157,38 +157,38 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 100, req });
             const userData = assertRequestFrom(req, { isUser: true });
             const transferId = await TransferModel.transfer(prisma).requestSend(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req });
         },
         transferRequestReceive: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
             const userData = assertRequestFrom(req, { isUser: true });
             const transferId = await TransferModel.transfer(prisma).requestReceive(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req });
         },
         transferUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         transferCancel: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            throw new CustomError('0000', 'NotImplemented', ['en']);
+            throw new CustomError("0000", "NotImplemented", ["en"]);
             // const transferId = await TransferModel.transfer(prisma).cancel(info, input, userData);
             // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
         },
         transferAccept: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            throw new CustomError('0000', 'NotImplemented', ['en']);
+            throw new CustomError("0000", "NotImplemented", ["en"]);
             // const transferId = await TransferModel.transfer(prisma).accept(info, input, userData);
             // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
         },
         transferDeny: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            throw new CustomError('0000', 'NotImplemented', ['en']);
+            throw new CustomError("0000", "NotImplemented", ["en"]);
             // const transferId = await TransferModel.transfer(prisma).deny(info, input, userData);
             // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
-        }
-    }
-}
+        },
+    },
+};

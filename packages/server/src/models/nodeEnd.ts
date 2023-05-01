@@ -1,14 +1,13 @@
-import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
+import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, nodeEndValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { NodeModel } from "./node";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { nodeEndValidation } from "@shared/validation";
+import { PrismaType } from "../types";
 import { nodeEndNextShapeHelper } from "../utils";
+import { NodeModel } from "./node";
+import { ModelLogic } from "./types";
 
-const __typename = 'NodeEnd' as const;
+const __typename = "NodeEnd" as const;
 const suppFields = [] as const;
 export const NodeEndModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +18,8 @@ export const NodeEndModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.node_endUpsertArgs['create'],
-    PrismaUpdate: Prisma.node_endUpsertArgs['update'],
+    PrismaCreate: Prisma.node_endUpsertArgs["create"],
+    PrismaUpdate: Prisma.node_endUpsertArgs["update"],
     PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
@@ -34,14 +33,14 @@ export const NodeEndModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            suggestedNextRoutineVersions: 'RoutineVersion',
+            suggestedNextRoutineVersions: "RoutineVersion",
         },
         prismaRelMap: {
             __typename,
-            suggestedNextRoutineVersions: 'RoutineVersion',
-            node: 'Node',
+            suggestedNextRoutineVersions: "RoutineVersion",
+            node: "Node",
         },
-        joinMap: { suggestedNextRoutineVersions: 'toRoutineVersion' },
+        joinMap: { suggestedNextRoutineVersions: "toRoutineVersion" },
         countFields: {},
     },
     mutate: {
@@ -50,17 +49,17 @@ export const NodeEndModel: ModelLogic<{
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, ...rest })),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, ...rest })),
-                }
+                    ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Node", parentRelationshipName: "end", data, ...rest })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest })),
+                };
             },
             update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, ...rest })),
-                }
+                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect", "Disconnect"], data, ...rest })),
+                };
             },
         },
         yup: nodeEndValidation,
-    }
-})
+    },
+});

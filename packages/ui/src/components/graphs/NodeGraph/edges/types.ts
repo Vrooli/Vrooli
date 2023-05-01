@@ -1,4 +1,4 @@
-import { NodeLink } from "@shared/consts";
+import { NodeLink } from "@local/shared";
 
 export type Point = {
     x: number;

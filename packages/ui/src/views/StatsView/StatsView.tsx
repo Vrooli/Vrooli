@@ -1,19 +1,19 @@
-import { Box, Card, CardContent, Grid, Typography, useTheme } from '@mui/material';
-import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
-import { useCustomLazyQuery } from 'api';
-import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
-import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
-import { CardGrid } from 'components/lists/CardGrid/CardGrid';
-import { DateRangeMenu } from 'components/lists/DateRangeMenu/DateRangeMenu';
-import { LineGraphCard } from 'components/lists/LineGraphCard/LineGraphCard';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { PageTabs } from 'components/PageTabs/PageTabs';
-import { PageTab } from 'components/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { statsDisplay } from 'utils/display/statsDisplay';
-import { displayDate } from 'utils/display/stringTools';
-import { StatsViewProps } from '../types';
+import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
+import { useCustomLazyQuery } from "api";
+import { statsSiteFindMany } from "api/generated/endpoints/statsSite_findMany";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { CardGrid } from "components/lists/CardGrid/CardGrid";
+import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
+import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { statsDisplay } from "utils/display/statsDisplay";
+import { displayDate } from "utils/display/stringTools";
+import { StatsViewProps } from "../types";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -26,7 +26,7 @@ import { StatsViewProps } from '../types';
  * For example, the "Daily" tab will display the hourly stats data
  * for the previous 24 hours.
  */
-const TabOptions = ['Daily', 'Weekly', 'Monthly', 'Yearly', 'AllTime'] as const;
+const TabOptions = ["Daily", "Weekly", "Monthly", "Yearly", "AllTime"] as const;
 
 /**
  * Stores the time frame interval for each tab.
@@ -43,11 +43,11 @@ const tabPeriods: { [key in typeof TabOptions[number]]: number } = {
  * Maps tab options to PeriodType.
  */
 const tabPeriodTypes = {
-    Daily: 'Hourly',
-    Weekly: 'Daily',
-    Monthly: 'Weekly',
-    Yearly: 'Monthly',
-    AllTime: 'Yearly',
+    Daily: "Hourly",
+    Weekly: "Daily",
+    Monthly: "Weekly",
+    Yearly: "Monthly",
+    AllTime: "Yearly",
 } as const;
 
 // Stats should not be earlier than February 2023.
@@ -57,7 +57,7 @@ const MIN_DATE = new Date(2023, 1, 1);
  * Displays site-wide statistics, organized by time period.
  */
 export const StatsView = ({
-    display = 'page',
+    display = "page",
 }: StatsViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -65,25 +65,25 @@ export const StatsView = ({
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
         after: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        before: new Date()
+        before: new Date(),
     });
     // Menu for picking date range.
     const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
     const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
     const handleDateRangeClose = () => {
-        setCustomRangeAnchorEl(null)
+        setCustomRangeAnchorEl(null);
     };
     const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
         setPeriod({
             after: newAfter || period.after,
             before: newBefore || period.before,
-        })
+        });
         handleDateRangeClose();
     }, [period.after, period.before]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<typeof TabOptions[number]>[]>(() => {
-        let tabs = TabOptions;
+        const tabs = TabOptions;
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
             index: i,
@@ -110,7 +110,7 @@ export const StatsView = ({
                 before: period.before.toISOString(),
             },
         }),
-        errorPolicy: 'all',
+        errorPolicy: "all",
     });
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
@@ -131,15 +131,15 @@ export const StatsView = ({
             if (data.length === 0) return null;
             // Uppercase first letter of field name
             const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-            const title = t(fieldName, { count: 2, ns: 'common', defaultValue: field });
+            const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
             return (
                 <Box
                     key={index}
                     sx={{
                         margin: 2,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                     }}
                 >
                     <LineGraphCard
@@ -149,7 +149,7 @@ export const StatsView = ({
                         title={title}
                     />
                 </Box>
-            )
+            );
         })
     ), [t, visual]);
 
@@ -159,7 +159,7 @@ export const StatsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'StatisticsShort',
+                    titleKey: "StatisticsShort",
                 }}
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
@@ -184,7 +184,7 @@ export const StatsView = ({
                 variant="body1"
                 textAlign="center"
                 onClick={handleDateRangeOpen}
-                sx={{ cursor: 'pointer' }}
+                sx={{ cursor: "pointer" }}
             >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
             <ContentCollapse
@@ -192,8 +192,8 @@ export const StatsView = ({
                 titleKey="Overview"
                 sxs={{
                     root: {
-                        marginBottom: 4
-                    }
+                        marginBottom: 4,
+                    },
                 }}
             >
                 <Grid container spacing={2}>
@@ -206,7 +206,7 @@ export const StatsView = ({
                                 <Card sx={{
                                     background: palette.primary.light,
                                     color: palette.primary.contrastText,
-                                    height: '100%'
+                                    height: "100%",
                                 }}>
                                     <CardContent>
                                         <Typography variant="h6" textAlign="center" gutterBottom>
@@ -232,5 +232,5 @@ export const StatsView = ({
                 </CardGrid>
             </ContentCollapse>
         </>
-    )
+    );
 };

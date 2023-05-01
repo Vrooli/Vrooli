@@ -1,11 +1,11 @@
+import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
+import { ModelLogic } from "./types";
 
-const __typename = 'Notification' as const;
+const __typename = "Notification" as const;
 const suppFields = [] as const;
 export const NotificationModel: ModelLogic<{
     IsTransferable: false,
@@ -16,8 +16,8 @@ export const NotificationModel: ModelLogic<{
     GqlSearch: NotificationSearchInput,
     GqlSort: NotificationSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.notificationUpsertArgs['create'],
-    PrismaUpdate: Prisma.notificationUpsertArgs['update'],
+    PrismaCreate: Prisma.notificationUpsertArgs["create"],
+    PrismaUpdate: Prisma.notificationUpsertArgs["update"],
     PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,
     PrismaSelect: Prisma.notificationSelect,
     PrismaWhere: Prisma.notificationWhereInput,
@@ -42,14 +42,13 @@ export const NotificationModel: ModelLogic<{
         sortBy: NotificationSortBy,
         searchFields: {
             createdTimeFrame: true,
-            visibility: true,
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-                'linkWrapped',
-                'titleWrapped',
-            ]
+                "descriptionWrapped",
+                "linkWrapped",
+                "titleWrapped",
+            ],
         }),
     },
     validate: {
@@ -63,7 +62,7 @@ export const NotificationModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         visibility: {
             private: {},
@@ -73,4 +72,4 @@ export const NotificationModel: ModelLogic<{
             }),
         },
     },
-})
+});

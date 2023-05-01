@@ -1,6 +1,6 @@
-import gql from 'graphql-tag';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
+import gql from "graphql-tag";
+import { Organization_nav } from "../fragments/Organization_nav";
+import { User_nav } from "../fragments/User_nav";
 
 export const labelCreate = gql`${Organization_nav}
 ${User_nav}
