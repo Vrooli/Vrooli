@@ -128,6 +128,8 @@ services:
       - ./packages/docs:/docs
     ports:
       - "${PORT_DOCS}:${PORT_DOCS}"
+    networks:
+      - app
     command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
     environment:
       VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
