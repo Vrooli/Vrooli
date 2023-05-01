@@ -67,6 +67,7 @@ check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP
 check_var VAPID_PUBLIC_KEY
+check_var GOOGLE_TRACKING_ID
 
 # Extract the current version number from the package.json file
 CURRENT_VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
@@ -129,6 +130,7 @@ echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
 echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
 echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>.env
+echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
 # Set trap to remove .env file on exit
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
