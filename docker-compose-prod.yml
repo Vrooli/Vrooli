@@ -129,6 +129,7 @@ services:
     ports:
       - "${PORT_DOCS}:${PORT_DOCS}"
     networks:
+      - proxy
       - app
     command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
     environment:
