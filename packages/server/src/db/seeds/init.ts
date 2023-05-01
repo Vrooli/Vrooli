@@ -243,54 +243,56 @@ export async function init(prisma: PrismaType) {
 
     // TODO temporary
     // Add 100 dummy projects
-    const dummy1 = await prisma.project.findFirst({
-        where: {
-            AND: [
-                { ownedByOrganizationId: vrooli.id },
-                { versions: { some: { translations: { some: { language: EN, name: "DUMMY 1" } } } } },
-            ],
-        },
-    });
-    if (!dummy1) {
-        for (let i = 0; i < 100; i++) {
-            logger.info("📚 Creating DUMMY project" + i);
-            await prisma.project.create({
-                data: {
-                    permissions: JSON.stringify({}),
-                    createdBy: { connect: { id: admin.id } },
-                    ownedByOrganization: { connect: { id: vrooli.id } },
-                    versions: {
-                        create: [{
-                            isComplete: true,
-                            isLatest: true,
-                            versionIndex: 0,
-                            versionLabel: "1.0.0",
-                            translations: {
-                                create: [
-                                    {
-                                        language: EN,
-                                        description: `This is the first description for DUMMY ${i}`,
-                                        name: `DUMMY ${i}`,
-                                    },
-                                ],
-                            },
-                        }, {
-                            isComplete: false,
-                            versionIndex: 1,
-                            versionLabel: "1.0.1",
-                            translations: {
-                                create: [
-                                    {
-                                        language: EN,
-                                        description: `This is the second description for DUMMY ${i}`,
-                                        name: `DUMMY ${i}`,
-                                    },
-                                ],
-                            },
-                        }],
+    if (process.env.NODE_ENV === "development") {
+        const dummy1 = await prisma.project.findFirst({
+            where: {
+                AND: [
+                    { ownedByOrganizationId: vrooli.id },
+                    { versions: { some: { translations: { some: { language: EN, name: "DUMMY 1" } } } } },
+                ],
+            },
+        });
+        if (!dummy1) {
+            for (let i = 0; i < 100; i++) {
+                logger.info("📚 Creating DUMMY project" + i);
+                await prisma.project.create({
+                    data: {
+                        permissions: JSON.stringify({}),
+                        createdBy: { connect: { id: admin.id } },
+                        ownedByOrganization: { connect: { id: vrooli.id } },
+                        versions: {
+                            create: [{
+                                isComplete: true,
+                                isLatest: true,
+                                versionIndex: 0,
+                                versionLabel: "1.0.0",
+                                translations: {
+                                    create: [
+                                        {
+                                            language: EN,
+                                            description: `This is the first description for DUMMY ${i}`,
+                                            name: `DUMMY ${i}`,
+                                        },
+                                    ],
+                                },
+                            }, {
+                                isComplete: false,
+                                versionIndex: 1,
+                                versionLabel: "1.0.1",
+                                translations: {
+                                    create: [
+                                        {
+                                            language: EN,
+                                            description: `This is the second description for DUMMY ${i}`,
+                                            name: `DUMMY ${i}`,
+                                        },
+                                    ],
+                                },
+                            }],
+                        },
                     },
-                },
-            });
+                });
+            }
         }
     }
 
