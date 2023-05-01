@@ -6,7 +6,7 @@
     },
     "eslint.run": "onSave",
     "[javascript]": {
-        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+        "editor.defaultFormatter": "vscode.typescript-language-features"
     },
     "[javascriptreact]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"
