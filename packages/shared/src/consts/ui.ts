@@ -42,7 +42,7 @@ export const LINKS = {
     Tag: "/tag",
     Terms: "/terms", // Terms and conditions
     Tutorial: "/tutorial",
-    User: "/user",
+    User: "/profile",
     Welcome: "/welcome", // Displays the first time you enter the application (either as guest or as logged in user)
 };
 export type LINKS = ValueOf<typeof LINKS>;

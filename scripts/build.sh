@@ -210,7 +210,7 @@ cd ../..
 
 # Compress build
 info "Compressing build..."
-tar -czf ${HERE}/../build.tar.gz dist
+tar -czf ${HERE}/../build.tar.gz -C ${HERE}/../packages/ui/dist .
 trap "rm build.tar.gz" EXIT
 if [ $? -ne 0 ]; then
     error "Failed to compress build"

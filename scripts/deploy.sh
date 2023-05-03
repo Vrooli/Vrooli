@@ -183,15 +183,6 @@ fi
 info "Stopping docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod down
 
-# Move and decompress build created by build.sh to the correct location.
-info "Moving and decompressing new build to correct location..."
-rm -rf ${HERE}/../packages/ui/dist
-tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
-if [ $? -ne 0 ]; then
-    error "Could not move and decompress build to correct location"
-    exit 1
-fi
-
 # Restart docker containers.
 info "Restarting docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-prod.yml up -d

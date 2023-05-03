@@ -31,6 +31,8 @@ services:
     networks:
       - proxy
       - app
+    volumes:
+      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
     depends_on:
       - server
     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
