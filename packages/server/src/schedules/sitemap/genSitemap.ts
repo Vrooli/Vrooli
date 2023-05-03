@@ -26,7 +26,7 @@ const Links: Record<typeof sitemapObjectTypes[number], string> = {
 };
 
 // Where to save the sitemap index and files
-const sitemapIndexDir = "../../packages/ui/public";
+const sitemapIndexDir = "../../packages/ui/dist";
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
 
 // Name of website

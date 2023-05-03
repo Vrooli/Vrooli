@@ -200,6 +200,14 @@ else
     cd ../..
 fi
 
+# Remove any sitemap information from the dist folder,
+# since this is generated dynamically by the production server.
+info "Removing sitemap information from dist folder..."
+cd ${HERE}/../packages/ui/dist
+rm -f sitemap.xml sitemaps/*
+rmdir sitemaps
+cd ../..
+
 # Compress build
 info "Compressing build..."
 tar -czf ${HERE}/../build.tar.gz dist

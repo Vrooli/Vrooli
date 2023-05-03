@@ -78,7 +78,7 @@ services:
       - ./data/logs:${PROJECT_DIR}/data/logs:z
       - ./data/uploads:${PROJECT_DIR}/data/uploads:z
       - ./data/stats:${PROJECT_DIR}/data/stats:z
-      - ./packages/ui/public:${PROJECT_DIR}/packages/ui/public:z
+      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
     depends_on:
       - redis
       - db
