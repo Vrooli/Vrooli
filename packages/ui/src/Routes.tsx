@@ -113,7 +113,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <ApiUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Api}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} {...props}>
                     <ApiView />
                 </NavRoute>
                 <NavRoute path={LINKS.Awards} {...props}>
@@ -168,7 +168,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <NoteUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} {...props}>
                     <NoteView />
                 </NavRoute>
                 <NavRoute
@@ -217,7 +217,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <ProjectUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Project}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Project}/:rootId/:versionId?`} {...props}>
                     <ProjectView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
@@ -255,7 +255,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <RoutineUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
                     <RoutineView />
                 </NavRoute>
                 <NavRoute
@@ -294,7 +294,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <SmartContractUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
+                <NavRoute path={`${LINKS.SmartContract}/:rootId/:versionId?`} {...props}>
                     <SmartContractView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
@@ -303,7 +303,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
                     <StandardUpsert display='page' isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Standard}/:rootId/:versionId?`} {...props}>
                     <StandardView />
                 </NavRoute>
                 <NavRoute

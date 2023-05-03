@@ -33,6 +33,33 @@ const sitemapDir = `${sitemapIndexDir}/sitemaps`;
 const siteName = "https://vrooli.com";
 
 /**
+ * Converts a string to a BigInt
+ * @param value String to convert
+ * @param radix Radix (base) to use
+ * @returns 
+ */
+function toBigInt(value: string, radix: number) {
+    return [...value.toString()]
+        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
+}
+
+/**
+ * Converts a UUID into a shorter, base 36 string without dashes. 
+ * Useful for displaying UUIDs in a more compact format, such as in a URL.
+ * @param uuid v4 UUID to convert
+ * @returns base 36 string without dashes
+ */
+const uuidToBase36 = (uuid: string): string => {
+    try {
+        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
+        return base36 === "0" ? "" : base36;
+    } catch (error) {
+        return uuid;
+    }
+};
+
+
+/**
  * Generates and saves one or more sitemap files for an object
  * @param objectType The object type to collect sitemap entries for
  * @returns Names of the files that were generated
@@ -98,11 +125,11 @@ const genSitemapForObject = async (
                 // Convert batch to SiteMapEntryContent
                 const entryContent: SitemapEntryContent = {
                     handle: entry.handle,
-                    id: entry.id,
+                    id: uuidToBase36(entry.id),
                     languages: entry.translations.map(translation => translation.language),
                     objectLink: Links[objectType],
                     rootHandle: entry.root?.handle,
-                    rootId: entry.root?.id,
+                    rootId: entry.root?.id ? uuidToBase36(entry.root.id) : undefined,
                 };
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);
@@ -110,6 +137,11 @@ const genSitemapForObject = async (
                 estimatedFileSize += (baseUrlSize + entry.id.length) * entry.translations.length + 100;
             }
         } while (collectedEntries.length < 50000 && estimatedFileSize < 50000000 && currentBatchSize === batchSize);
+        // If no entries were collected, return an empty array. 
+        // This is to prevent an empty sitemap file from being generated, which gives an error in Google Search Console
+        if (collectedEntries.length === 0) {
+            return [];
+        }
         // Convert collected entries to sitemap file
         const sitemap = generateSitemap(siteName, { content: collectedEntries });
         // Zip and save sitemap file
