@@ -200,11 +200,11 @@ else
     cd ../..
 fi
 
-# Remove any sitemap information from the dist folder,
+# Remove sitemap data for user-generated content,
 # since this is generated dynamically by the production server.
 info "Removing sitemap information from dist folder..."
 cd ${HERE}/../packages/ui/dist
-rm -f sitemap.xml sitemaps/*
+rm -f sitemap.xml sitemaps/*.xml.gz
 rmdir sitemaps
 cd ../..
 
