@@ -14,6 +14,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildAction, Status } from "utils/consts";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useStableObject } from "utils/hooks/useStableObject";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
@@ -58,6 +59,7 @@ export const BuildView = ({
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
+    const stableRoutineVersion = useStableObject(routineVersion);
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
     // The routineVersion's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
@@ -66,12 +68,14 @@ export const BuildView = ({
     const [changeStack, setChangeStack] = useState<BuildRoutineVersion[]>([]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
     const clearChangeStack = useCallback(() => {
-        setChangeStack(routineVersion ? [routineVersion] : []);
-        setChangeStackIndex(routineVersion ? 0 : -1);
+        setChangeStack(stableRoutineVersion ? [stableRoutineVersion] : []);
+        setChangeStackIndex(stableRoutineVersion ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("clearing change stack");
-        setChangedRoutineVersion(routineVersion);
-    }, [routineVersion]);
+        setChangedRoutineVersion(stableRoutineVersion);
+    }, [stableRoutineVersion]);
+    useEffect(() => {
+        clearChangeStack();
+    }, [clearChangeStack]);
     /**
      * Moves back one in the change stack
      */
@@ -123,10 +127,6 @@ export const BuildView = ({
         // Remove the event listener
         return () => { document.removeEventListener("keydown", handleKeyDown); };
     }, [redo, undo]);
-
-    useEffect(() => {
-        clearChangeStack();
-    }, [clearChangeStack, routineVersion]);
 
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
@@ -681,6 +681,8 @@ export const BuildView = ({
                 },
             }),
         });
+        // Close dialog
+        closeAddSubroutineDialog();
     }, [addToChangeStack, changedRoutineVersion]);
 
     /**

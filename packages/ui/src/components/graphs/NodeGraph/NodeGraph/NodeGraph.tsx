@@ -195,10 +195,19 @@ export const NodeGraph = ({
                 break;
             }
         }
-        // If columnIndex is start node or earlier, return
-        if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
-            return;
+        // If columnIndex is -1, this means it wasn't dropped into any column. 
+        // In this case, set to first or last column depending on drop position
+        if (columnIndex === -1) {
+            const leftMostColumnRect = document.getElementById(`node-column-0`)?.getBoundingClientRect();
+            const rightMostColumnRect = document.getElementById(`node-column-${columns.length - 1}`)?.getBoundingClientRect();
+            if (leftMostColumnRect && x < leftMostColumnRect.x) {
+                columnIndex = 0;
+            } else if (rightMostColumnRect && x > rightMostColumnRect.right) {
+                columnIndex = columns.length - 1;
+            } else {
+                PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
+                return;
+            }
         }
         // Get the drop row
         const rowRects = columns[columnIndex].map(node => document.getElementById(`node-${node.id}`)?.getBoundingClientRect());

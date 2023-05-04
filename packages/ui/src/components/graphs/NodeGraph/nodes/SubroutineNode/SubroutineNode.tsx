@@ -40,7 +40,7 @@ export const SubroutineNode = ({
     // Determines if the subroutine is one you can edit
     const canUpdate = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canUpdate === true), [data.routineVersion]);
 
-    const { title } = useMemo(() => getDisplay(data, navigator.languages), [data]);
+    const { title } = useMemo(() => getDisplay({ ...data, __typename: "NodeRoutineListItem" }, navigator.languages), [data]);
 
     const onAction = useCallback((event: any | null, action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine) => {
         if (event && [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine].includes(action)) {
