@@ -108,10 +108,10 @@ export const endpoints = {
         };
     },
     comment: async () => {
-        const { comment: commentPartial, commentThread: commentThreadPartial } = await import("./partial/comment");
+        const { comment: commentPartial, commentSearchResult: commentSearchResultPartial } = await import("./partial/comment");
         return {
             findOne: toQuery("comment", "FindByIdInput", commentPartial, "full"),
-            findMany: toQuery("comments", "CommentSearchInput", commentThreadPartial, "full"),
+            findMany: toQuery("comments", "CommentSearchInput", commentSearchResultPartial, "full"),
             create: toMutation("commentCreate", "CommentCreateInput", commentPartial, "full"),
             update: toMutation("commentUpdate", "CommentUpdateInput", commentPartial, "full"),
         };

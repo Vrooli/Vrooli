@@ -215,7 +215,7 @@ export const CommentModel: ModelLogic<{
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+                    customQueries.push(SearchMap[field as string](input[field as string], getUser(req), __typename));
                 }
             }
             // Create query for visibility

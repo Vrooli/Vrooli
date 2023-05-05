@@ -1,7 +1,7 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Comment, CommentThread as ThreadType, CreateIcon, uuidValidate } from "@local/shared";
+import { Comment, CommentThread as ThreadType, CreateIcon, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
@@ -42,7 +42,7 @@ export function CommentContainer({
         searchType: "Comment",
         resolve: (result) => result.threads,
         where: {
-            [`${objectType.toLowerCase()}Id`]: objectId,
+            [`${lowercaseFirstLetter(objectType)}Id`]: objectId,
         },
     });
 

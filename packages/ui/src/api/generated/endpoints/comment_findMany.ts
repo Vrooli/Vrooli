@@ -7,8 +7,44 @@ ${User_nav}
 
 query comments($input: CommentSearchInput!) {
   comments(input: $input) {
-    childThreads {
+    endCursor
+    threads {
         childThreads {
+            childThreads {
+                comment {
+                    translations {
+                        id
+                        language
+                        text
+                    }
+                    id
+                    created_at
+                    updated_at
+                    owner {
+                        ... on Organization {
+                            ...Organization_nav
+                        }
+                        ... on User {
+                            ...User_nav
+                        }
+                    }
+                    score
+                    bookmarks
+                    reportsCount
+                    you {
+                        canDelete
+                        canBookmark
+                        canReply
+                        canReport
+                        canUpdate
+                        canReact
+                        isBookmarked
+                        reaction
+                    }
+                }
+                endCursor
+                totalInThread
+            }
             comment {
                 translations {
                     id
@@ -77,39 +113,7 @@ query comments($input: CommentSearchInput!) {
         endCursor
         totalInThread
     }
-    comment {
-        translations {
-            id
-            language
-            text
-        }
-        id
-        created_at
-        updated_at
-        owner {
-            ... on Organization {
-                ...Organization_nav
-            }
-            ... on User {
-                ...User_nav
-            }
-        }
-        score
-        bookmarks
-        reportsCount
-        you {
-            canDelete
-            canBookmark
-            canReply
-            canReport
-            canUpdate
-            canReact
-            isBookmarked
-            reaction
-        }
-    }
-    endCursor
-    totalInThread
+    totalThreads
   }
 }`;
 

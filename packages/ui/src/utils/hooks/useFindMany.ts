@@ -52,7 +52,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     const stableResolve = useStableObject(resolve);
     const stableWhere = useStableObject(where);
-    console.log("where check", where, stableWhere);
 
     const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
     const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? "");
@@ -126,6 +125,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
      */
     const after = useRef<string | undefined>(undefined);
 
+    console.log("brussel sprouts rendering usefindmany...");
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
     const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.query, {
         variables: ({
@@ -171,7 +171,8 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        if (!pageData || !canSearch) return;
+        if (!pageData || !canSearch || sortBy?.length === 0) return;
+        console.log("brussel sprout in load more");
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
             const { endCursor } = pageData.pageInfo;
@@ -182,7 +183,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         } else {
             setHasMore(false);
         }
-    }, [canSearch, getPageData, pageData]);
+    }, [canSearch, getPageData, pageData, sortBy]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
