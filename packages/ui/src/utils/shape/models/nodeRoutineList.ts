@@ -12,11 +12,11 @@ export type NodeRoutineListShape = Pick<NodeRoutineList, "id" | "isOptional" | "
 export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineListCreateInput, NodeRoutineListUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, "id", "isOptional", "isOrdered"),
-        ...createRel(d, "items", ["Create"], "many", shapeNodeRoutineListItem),
+        ...createRel(d, "items", ["Create"], "many", shapeNodeRoutineListItem, (r) => ({ list: { id: d.id }, ...r })),
         ...createRel(d, "node", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isOptional", "isOrdered"),
-        ...updateRel(o, u, "items", ["Create", "Update", "Delete"], "many", shapeNodeRoutineListItem),
+        ...updateRel(o, u, "items", ["Create", "Update", "Delete"], "many", shapeNodeRoutineListItem, (r, i) => ({ list: { id: i.id }, ...r })),
     }, a),
 };

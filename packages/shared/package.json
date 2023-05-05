@@ -2,7 +2,7 @@
     "name": "@local/shared",
     "author": "Vrooli",
     "license": "GPL-3.0",
-    "version": "1.9.1",
+    "version": "1.9.2",
     "private": true,
     "description": "Common code shared between server and ui",
     "main": "dist/index.js",

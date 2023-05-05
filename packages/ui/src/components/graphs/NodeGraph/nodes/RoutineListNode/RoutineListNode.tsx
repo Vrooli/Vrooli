@@ -139,7 +139,7 @@ export const RoutineListNode = ({
 
     const minNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale), [scale]);
     const maxNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale) * 2, [scale]);
-    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 5}px, 2em)`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
     const addSize = useMemo(() => `max(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 48px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
@@ -175,6 +175,8 @@ export const RoutineListNode = ({
                             width: "100%",
                             lineBreak: "anywhere" as any,
                             whiteSpace: "pre" as any,
+                            fontSize,
+                            display: (calculateNodeSize(NodeWidth.RoutineList, scale) / 8) < 10 ? "none" : "block",
                         } as CSSProperties}
                     >{firstString(l, t("Unlinked"))}</Typography>
                 )}
@@ -189,7 +191,7 @@ export const RoutineListNode = ({
                 zIndex={zIndex}
             />
         );
-    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, zIndex, node.id, t]);
+    }, [fontSize, labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, zIndex, node.id, t]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
@@ -325,7 +327,6 @@ export const RoutineListNode = ({
                     zIndex: 5,
                     minWidth: `${minNodeSize}px`,
                     maxWidth: collapseOpen ? `${maxNodeSize}px` : `${minNodeSize}px`,
-                    fontSize,
                     position: "relative",
                     display: "block",
                     borderRadius: "12px",

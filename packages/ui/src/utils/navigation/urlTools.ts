@@ -86,17 +86,22 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
     // If the URL is for a versioned object
     if (isVersioned) {
+        let hasRoot = false;
         // Check if the second last part is a root handle or root ID
         if (adaHandleRegex.test(secondLastPart)) {
             returnObject.handleRoot = secondLastPart;
+            hasRoot = true;
         } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
             returnObject.idRoot = base36ToUuid(secondLastPart);
+            hasRoot = true;
         }
         // Check if the last part is a version handle or version ID
         if (adaHandleRegex.test(lastPart)) {
-            returnObject.handle = lastPart;
+            if (hasRoot) returnObject.handle = lastPart;
+            else returnObject.handleRoot = lastPart;
         } else if (uuidValidate(base36ToUuid(lastPart, false))) {
-            returnObject.id = base36ToUuid(lastPart, false);
+            if (hasRoot) returnObject.id = base36ToUuid(lastPart, false);
+            else returnObject.idRoot = base36ToUuid(lastPart, false);
         }
     } else {
         // If the URL is for a non-versioned object, check if the last part is a handle or ID
