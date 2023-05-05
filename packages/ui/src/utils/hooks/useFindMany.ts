@@ -9,6 +9,7 @@ import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { SessionContext } from "utils/SessionContext";
 import { useDisplayApolloError } from "./useDisplayApolloError";
+import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";
 
 type UseFindManyProps = {
@@ -50,7 +51,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
-    const stableResolve = useStableObject(resolve);
+    const stableResolve = useStableCallback(resolve);
     const stableWhere = useStableObject(where);
 
     const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});

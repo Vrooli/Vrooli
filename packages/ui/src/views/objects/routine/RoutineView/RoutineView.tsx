@@ -190,6 +190,19 @@ export const RoutineView = ({
 
     console.log("formik values", formik.values);
 
+    const comments = useMemo(() => (
+        <Box sx={containerProps(palette)}>
+            <CommentContainer
+                forceAddCommentOpen={isAddCommentOpen}
+                language={language}
+                objectId={existing?.id ?? ""}
+                objectType={CommentFor.RoutineVersion}
+                onAddCommentClose={closeAddCommentDialog}
+                zIndex={zIndex}
+            />
+        </Box>
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
+
     return (
         <>
             <TopBar
@@ -332,16 +345,7 @@ export const RoutineView = ({
                         zIndex={zIndex}
                     />
                     {/* Comments */}
-                    <Box sx={containerProps(palette)}>
-                        <CommentContainer
-                            forceAddCommentOpen={isAddCommentOpen}
-                            language={language}
-                            objectId={existing?.id ?? ""}
-                            objectType={CommentFor.RoutineVersion}
-                            onAddCommentClose={closeAddCommentDialog}
-                            zIndex={zIndex}
-                        />
-                    </Box>
+                    {comments}
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
