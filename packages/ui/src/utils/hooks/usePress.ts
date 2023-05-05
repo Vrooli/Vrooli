@@ -74,7 +74,7 @@ export const usePress = ({
     const startPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     const lastPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     // Event target, for adding/removing event listeners
-    const target = useRef<React.MouseEvent['target']>();
+    const target = useRef<React.MouseEvent["target"]>();
     // Stores if click was a right click
     const isRightClick = useRef<boolean>(false);
     // Stores if object is currently being pressed
@@ -98,7 +98,7 @@ export const usePress = ({
             isHovering.current = true;
         }, hoverDelay);
         // Store target
-        target.current = event.target ?? event.currentTarget as React.MouseEvent['target'];
+        target.current = event.target ?? event.currentTarget as React.MouseEvent["target"];
     }, [onHover, hoverDelay]);
 
     const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
@@ -120,7 +120,7 @@ export const usePress = ({
             }
         }
         // Store target
-        target.current = event.target ?? event.currentTarget as React.MouseEvent['target'];
+        target.current = event.target ?? event.currentTarget as React.MouseEvent["target"];
         // Store position
         const currentPosition = getPosition(event);
         startPosition.current = currentPosition;
@@ -164,7 +164,7 @@ export const usePress = ({
         // Calculate distance travelled
         const travelDistance = Math.sqrt(
             Math.pow(lastPosition.current.x - startPosition.current.x, 2) +
-            Math.pow(lastPosition.current.y - startPosition.current.y, 2)
+            Math.pow(lastPosition.current.y - startPosition.current.y, 2),
         );
         // Check if short click or right click
         if (

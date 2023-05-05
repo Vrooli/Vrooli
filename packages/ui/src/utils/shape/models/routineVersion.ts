@@ -42,7 +42,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: d.id } })),
         ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: d.id } })),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "smartContractVersion", ["Connect"], "one"),
         ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
         ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),

@@ -10,7 +10,7 @@ import { getTranslation, getUserLanguages } from "./translationTools";
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
 export type ListObjectType = {
-    __typename: `${GqlModelType}` | 'CalendarEvent';
+    __typename: `${GqlModelType}` | "CalendarEvent";
     completedAt?: number | null;
     startedAt?: number | null;
     name?: string | null;
@@ -25,7 +25,7 @@ export type ListObjectType = {
     user?: ListObjectType | null;
     versions?: ListObjectType[] | null;
     you?: Partial<YouInflated> | null;
-} & Omit<NavigableObject, '__typename'>;
+} & Omit<NavigableObject, "__typename">;
 
 /**
  * All possible permissions/user-statuses any object can have
@@ -76,18 +76,18 @@ export const getYouDot = (
     // If no object, return null
     if (!object) return null;
     // If the object is a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
+    if (isOfType(object, "Bookmark", "View", "Vote")) return getYouDot(object.to as ListObjectType, property);
     // If the object is a run routine, use the routine version
-    if (isOfType(object, 'RunRoutine')) return getYouDot(object.routineVersion as ListObjectType, property);
+    if (isOfType(object, "RunRoutine")) return getYouDot(object.routineVersion as ListObjectType, property);
     // If the object is a run project, use the project version
-    if (isOfType(object, 'RunProject')) return getYouDot(object.projectVersion as ListObjectType, property);
+    if (isOfType(object, "RunProject")) return getYouDot(object.projectVersion as ListObjectType, property);
     // Check object.you
     if (exists((object as any).you?.[property])) return `you.${property}`;
     // Check object.root.you
-    if (exists((object as any).root?.you?.[property])) return `root.you.${property}`
+    if (exists((object as any).root?.you?.[property])) return `root.you.${property}`;
     // If not found, return null
     return null;
-}
+};
 
 export const defaultYou: YouInflated = {
     canComment: false,
@@ -109,38 +109,38 @@ export const defaultYou: YouInflated = {
  * @param object An object
  */
 export const getYou = (
-    object: ListObjectType | null | undefined
+    object: ListObjectType | null | undefined,
 ): YouInflated => {
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const defaultPermissions = { ...defaultYou };
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYou(object.to as ListObjectType);
+    if (isOfType(object, "Bookmark", "View", "Vote")) return getYou(object.to as ListObjectType);
     // If a run routine, use the routine version
-    if (isOfType(object, 'RunRoutine')) return getYou(object.routineVersion as ListObjectType);
+    if (isOfType(object, "RunRoutine")) return getYou(object.routineVersion as ListObjectType);
     // If a run project, use the project version
-    if (isOfType(object, 'RunProject')) return getYou(object.projectVersion as ListObjectType);
+    if (isOfType(object, "RunProject")) return getYou(object.projectVersion as ListObjectType);
     // Otherwise, get the permissions from the object
     // Loop through all permission fields
     for (const key in defaultPermissions) {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === 'string') defaultPermissions[key] = field;
+        if (field === true || field === false || typeof field === "string") defaultPermissions[key] = field;
         // If not, check if the field is in the root.you object
         else {
             const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false || typeof field === 'string') defaultPermissions[key] = field;
+            if (field === true || field === false || typeof field === "string") defaultPermissions[key] = field;
         }
     }
     return defaultPermissions;
-}
+};
 
 /**
  * Gets counts for an object. These are inflated to match CountsInflated, so any fields not present are 0
  * @param object An object
  */
 export const getCounts = (
-    object: ListObjectType | null | undefined
+    object: ListObjectType | null | undefined,
 ): CountsInflated => {
     // Initialize fields to 0
     const defaultCounts = {
@@ -160,18 +160,18 @@ export const getCounts = (
     };
     if (!object) return defaultCounts;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
+    if (isOfType(object, "Bookmark", "View", "Vote")) return getCounts(object.to as ListObjectType);
     // If a run routine, use the routine version
-    if (isOfType(object, 'RunRoutine')) return getCounts(object.routineVersion as ListObjectType);
+    if (isOfType(object, "RunRoutine")) return getCounts(object.routineVersion as ListObjectType);
     // If a run project, use the project version
-    if (isOfType(object, 'RunProject')) return getCounts(object.projectVersion as ListObjectType);
+    if (isOfType(object, "RunProject")) return getCounts(object.projectVersion as ListObjectType);
     // If a NodeRoutineListItem, use the routine version
-    if (isOfType(object, 'NodeRoutineListItem')) return getCounts(object.routineVersion as ListObjectType);
+    if (isOfType(object, "NodeRoutineListItem")) return getCounts(object.routineVersion as ListObjectType);
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
         // For every field except score and views, property name is field + "Count"
-        const objectProp = ['score', 'views'].includes(key) ? key : `${key}Count`;
+        const objectProp = ["score", "views"].includes(key) ? key : `${key}Count`;
         // Check if the field is in the object
         const field = valueFromDot(object, objectProp);
         if (field !== undefined) defaultCounts[key] = field;
@@ -182,7 +182,7 @@ export const getCounts = (
         }
     }
     return defaultCounts;
-}
+};
 
 /**
  * Attempts to find the most relevant title for an object. Does not check root object or versions
@@ -202,7 +202,7 @@ const tryTitle = (obj: Record<string, any>, langs: readonly string[]) => {
         translations.label,
         obj.handle ? `$${obj.handle}` : null,
     );
-}
+};
 
 /**
  * Attempts to find the most relevant subtitle for an object. Does not check root object or versions
@@ -224,7 +224,7 @@ const trySubtitle = (obj: Record<string, any>, langs: readonly string[]) => {
         translations.details,
         translations.text,
     );
-}
+};
 
 /**
  * For an object which does not have a direct title (i.e. it's likely in the root object or a version), 
@@ -243,7 +243,7 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
         obj.root, // The root object (only found if obj is a version)
         obj.versions?.find(v => v.isLatest), // The latest version (only found if obj is a root object)
         ...([...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex)), // All versions, sorted by versionIndex (i.e. newest first)
-    ]
+    ];
     // Loop through the objects
     for (const curr of objectsToCheck) {
         // If the object is null or undefined, skip it
@@ -254,8 +254,8 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
         // If both are found, break
         if (title && subtitle) break;
     }
-    return { title: title ?? '', subtitle: subtitle ?? '' };
-}
+    return { title: title ?? "", subtitle: subtitle ?? "" };
+};
 
 /**
  * Gets the name and subtitle of a list object
@@ -265,45 +265,45 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
  */
 export const getDisplay = (
     object: ListObjectType | null | undefined,
-    languages?: readonly string[]
+    languages?: readonly string[],
 ): { title: string, subtitle: string } => {
-    if (!object) return { title: '', subtitle: '' };
+    if (!object) return { title: "", subtitle: "" };
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
+    if (isOfType(object, "Bookmark", "View", "Vote")) return getDisplay(object.to as ListObjectType);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
     // If a run routine, use the routine version's display and the startedAt/completedAt date
-    if (isOfType(object, 'RunRoutine')) {
+    if (isOfType(object, "RunRoutine")) {
         const { completedAt, name, routineVersion, startedAt } = object;
         const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
         return {
             title: started ? `${title} (started)` : title,
-            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
-        }
+            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+        };
     }
     // If a run project, use the project version's display and the startedAt/completedAt date
-    if (isOfType(object, 'RunProject')) {
+    if (isOfType(object, "RunProject")) {
         const { completedAt, name, projectVersion, startedAt } = object;
         const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
         return {
             title: started ? `${title} (started)` : title,
-            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
-        }
+            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+        };
     }
     // If a member, use the user's display
-    if (isOfType(object, 'Member')) return getDisplay(object.user as ListObjectType);
+    if (isOfType(object, "Member")) return getDisplay(object.user as ListObjectType);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
-    if (isOfType(object, 'NodeRoutineListItem') && title.length === 0 && subtitle.length === 0) {
+    if (isOfType(object, "NodeRoutineListItem") && title.length === 0 && subtitle.length === 0) {
         const routineVersionDisplay = getDisplay(object.routineVersion as ListObjectType, languages);
         return {
             title: title.length === 0 ? routineVersionDisplay.title : title,
             subtitle: subtitle.length === 0 ? routineVersionDisplay.subtitle : subtitle,
-        }
+        };
     }
     return { title, subtitle };
 };
@@ -319,20 +319,20 @@ export const getBookmarkFor = (
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
-    if (isOfType(object, 'BookmarkList', 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
+    if (isOfType(object, "BookmarkList", "Member")) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getBookmarkFor(object.to as ListObjectType);
+    if (isOfType(object, "Bookmark", "View", "Vote")) return getBookmarkFor(object.to as ListObjectType);
     // If a run routine, use the routine version
-    if (isOfType(object, 'RunRoutine')) return getBookmarkFor(object.routineVersion as ListObjectType);
+    if (isOfType(object, "RunRoutine")) return getBookmarkFor(object.routineVersion as ListObjectType);
     // If a run project, use the project version
-    if (isOfType(object, 'RunProject')) return getBookmarkFor(object.projectVersion as ListObjectType);
+    if (isOfType(object, "RunProject")) return getBookmarkFor(object.projectVersion as ListObjectType);
     // If a NodeRoutineListItem, use the routine version
-    if (isOfType(object, 'NodeRoutineListItem')) return getBookmarkFor(object.routineVersion as ListObjectType);
+    if (isOfType(object, "NodeRoutineListItem")) return getBookmarkFor(object.routineVersion as ListObjectType);
     // If the object contains a root object, use that
     if ((object as any).root) return getBookmarkFor((object as any).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
-}
+};
 
 /**
  * Converts a list of GraphQL objects to a list of autocomplete information.
@@ -342,23 +342,23 @@ export const getBookmarkFor = (
  */
 export function listToAutocomplete(
     objects: readonly ListObjectType[],
-    languages: readonly string[]
+    languages: readonly string[],
 ): AutocompleteOption[] {
     return objects.map(o => ({
         __typename: o.__typename as any,
         id: o.id,
         isBookmarked: getYou(o).isBookmarked,
         label: getDisplay(o, languages).title,
-        runnableObject: o.__typename === 'RunProject' ?
+        runnableObject: o.__typename === "RunProject" ?
             o.projectVersion :
-            o.__typename === 'RunRoutine' ?
+            o.__typename === "RunRoutine" ?
                 o.routineVersion :
                 undefined,
         bookmarks: getCounts(o).bookmarks,
-        to: isOfType(o, 'Bookmark', 'View', 'Vote') ? o.to : undefined,
-        user: isOfType(o, 'Member') ? o.user : undefined,
-        versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
-        root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
+        to: isOfType(o, "Bookmark", "View", "Vote") ? o.to : undefined,
+        user: isOfType(o, "Member") ? o.user : undefined,
+        versions: isOfType(o, "Api", "Note", "Project", "Routine", "SmartContract", "Standard") ? o.versions : undefined,
+        root: isOfType(o, "ApiVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "SmartContractVersion", "StandardVersion") ? o.root : undefined,
     }));
 }
 
@@ -404,7 +404,7 @@ export function listToListItems({
     loading,
     zIndex,
 }: ListToListItemProps): JSX.Element[] {
-    let listItems: JSX.Element[] = [];
+    const listItems: JSX.Element[] = [];
     // If loading, display dummy items
     if (loading) {
         if (!dummyItems) return listItems;
@@ -424,7 +424,7 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "Star", "View", or "Vote", use the "to" object
-        if (isOfType(curr, 'Bookmark', 'View', 'Vote')) curr = curr.to as ListObjectType;
+        if (isOfType(curr, "Bookmark", "View", "Vote")) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
@@ -452,7 +452,7 @@ const placeholderColors: [string, string][] = [
     ["#40a4d6", "#79e0ef"],
     ["#6248e4", "#aac3c9"],
     ["#8ec22c", "#cfe7b4"],
-]
+];
 
 /**
  * Finds a random color for a placeholder icon
@@ -460,7 +460,7 @@ const placeholderColors: [string, string][] = [
  */
 export const placeholderColor = (): [string, string] => {
     return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
-}
+};
 
 /**
  * Creates object containing information required to display a search list 
@@ -474,4 +474,4 @@ export const toSearchListData = (
     searchType,
     placeholder,
     where,
-})
+});

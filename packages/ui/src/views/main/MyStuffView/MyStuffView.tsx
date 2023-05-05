@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -30,22 +30,22 @@ const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
     searchType: SearchType.Routine,
     tabType: SearchPageTabOption.Routines,
-    where: (userId) => ({ isInternal: false, ownedByUserId: userId }),
+    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
     Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: SearchPageTabOption.Projects,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: HelpIcon,
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
-    where: (userId) => ({ createdById: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: NoteIcon,
     searchType: SearchType.Note,
     tabType: SearchPageTabOption.Notes,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: OrganizationIcon,
     searchType: SearchType.Organization,
@@ -55,17 +55,17 @@ const tabParams: BaseParams[] = [{
     Icon: StandardIcon,
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standards,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: ApiIcon,
     searchType: SearchType.Api,
     tabType: SearchPageTabOption.Apis,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: SmartContractIcon,
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }];
 
 export const MyStuffView = ({

@@ -27,7 +27,7 @@ export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, Sm
     create: (d) => ({
         ...createPrims(d, "id", "content", "contractType", "default", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeSmartContract),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeSmartContract, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
         ...createRel(d, "translations", ["Create"], "many", shapeSmartContractVersionTranslation),
     }),

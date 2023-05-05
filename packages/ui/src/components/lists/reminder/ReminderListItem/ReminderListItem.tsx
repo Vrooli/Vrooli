@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
 import { DeleteIcon } from "@local/shared";
-import { Checkbox, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { CompletionBar } from "components/lists/ObjectListItem/ObjectListItem";
+import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { CompletionBar } from "components/CompletionBar/CompletionBar";
+import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
 import { ReminderListItemProps } from "../types";
 
 /**
@@ -34,9 +34,8 @@ export function ReminderListItem({
             return { checked: false, checkDisabled, checkTooltip: checkDisabled ? "Reminder is incmplete" : "Mark as complete" };
         }
     }, [handleUpdate, reminder]);
-    const handleCheck = useCallback((event: any) => {
-        event.stopPropagation();
-        event.preventDefault();
+    const handleCheck = useCallback(() => {
+        console.log("in handle check");
         if (checkDisabled) return;
         const updatedItems = reminder.reminderItems.length > 0 ?
             { ...(reminder.reminderItems.map(item => ({ ...item, isComplete: !checked }))) } :
@@ -51,70 +50,47 @@ export function ReminderListItem({
         return { stepsComplete, stepsTotal, percentComplete };
     }, [reminder]);
 
-    const handleClick = useCallback((event: React.MouseEvent) => {
-        // Don't open if the checkbox was clicked
-        if ((event.target as HTMLElement).id === "reminder-checkbox") {
-            event.stopPropagation();
-            return;
-        }
-        handleOpen();
-    }, [handleOpen]);
-
-    const handleDeleteClick = useCallback((event: React.MouseEvent) => {
-        event.stopPropagation();
+    const handleDeleteClick = useCallback(() => {
+        console.log("in handle delete click");
         handleDelete(reminder);
     }, [handleDelete, reminder]);
 
     return (
-        <ListItem
-            disablePadding
-            onClick={handleClick}
-            sx={{
-                display: "flex",
-                padding: 1,
-                cursor: "pointer",
-            }}
-        >
-            {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
-                {/* Name */}
-                <ListItemText
-                    primary={`${reminder.name} ${stepsTotal > 0 ? `(${stepsComplete}/${stepsTotal})` : ""}`}
-                    sx={{ ...multiLineEllipsis(1) }}
-                />
-                {/* Description */}
-                <ListItemText
-                    primary={reminder.description}
-                    sx={{ ...multiLineEllipsis(1), color: palette.background.textSecondary }}
-                />
-                {/* Progress bar */}
-                {stepsTotal > 0 && <CompletionBar
+        <ObjectListItemBase
+            belowSubtitle={
+                stepsTotal > 0 ? <CompletionBar
                     color="secondary"
                     variant={"determinate"}
                     value={percentComplete}
                     sx={{ height: "15px" }}
-                />}
-            </Stack>
-            {/* Right-aligned checkbox and delete icon */}
-            <Stack direction="row" spacing={1}>
-                <Tooltip placement={"top"} title={checkTooltip}>
-                    <Checkbox
-                        id='reminder-checkbox'
-                        size="small"
-                        name='isComplete'
-                        color='secondary'
-                        checked={checked}
-                        onChange={handleCheck}
-                    />
-                </Tooltip>
-                {checked && (
-                    <Tooltip title="Delete">
-                        <IconButton edge="end" size="small" onClick={handleDeleteClick}>
-                            <DeleteIcon fill={palette.error.main} />
-                        </IconButton>
+                /> : null
+            }
+            data={reminder}
+            loading={false}
+            objectType="Reminder"
+            onClick={() => { handleOpen(); }}
+            toTheRight={
+                <Stack direction="row" spacing={1}>
+                    <Tooltip placement={"top"} title={checkTooltip}>
+                        <Checkbox
+                            id='reminder-checkbox'
+                            size="small"
+                            name='isComplete'
+                            color='secondary'
+                            checked={checked}
+                            onChange={handleCheck}
+                        />
                     </Tooltip>
-                )}
-            </Stack>
-        </ListItem>
+                    {checked && (
+                        <Tooltip title="Delete">
+                            <IconButton edge="end" size="small" onClick={handleDeleteClick}>
+                                <DeleteIcon fill={palette.error.main} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Stack>
+            }
+            zIndex={201}
+        />
     );
 }
