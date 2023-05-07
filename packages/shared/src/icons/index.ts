@@ -83,6 +83,7 @@ export * from "./ListNumberIcon";
 export * from "./LockIcon";
 export * from "./LogInIcon";
 export * from "./LogOutIcon";
+export * from "./MagicIcon";
 export * from "./MicrophoneDisabledIcon";
 export * from "./MicrophoneOffIcon";
 export * from "./MicrophoneOnIcon";

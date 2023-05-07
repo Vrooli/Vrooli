@@ -1,5 +1,5 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -98,6 +98,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -204,7 +205,11 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
