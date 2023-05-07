@@ -5,11 +5,11 @@ export const meetingInviteValidation: YupModel = {
         id: req(id),
         message: opt(message),
     }, [
-        ['meeting', ['Connect'], 'one', 'req'],
-        ['user', ['Connect'], 'many', 'opt'],
+        ["meeting", ["Connect"], "one", "req"],
+        ["user", ["Connect"], "many", "opt"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         message: opt(message),
     }, [], [], o),
-}
+};

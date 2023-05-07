@@ -158,7 +158,7 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const beforeNavigation = useCallback(() => {
+    const onClick = useCallback(() => {
         if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
     }, [searchString, setLocation]);
 
@@ -188,13 +188,14 @@ export const DashboardView = ({
     }, [data]);
 
     const noteItems = useMemo(() => listToListItems({
-        beforeNavigation,
+        canNavigate: () => false,
         dummyItems: new Array(5).fill("Note"),
         items: notes,
         keyPrefix: "note-list-item",
         loading,
+        onClick,
         zIndex,
-    }), [beforeNavigation, notes, loading]);
+    }), [onClick, notes, loading]);
 
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
@@ -234,14 +235,15 @@ export const DashboardView = ({
         const first10 = result.slice(0, 10);
         // Convert to list items
         return listToListItems({
-            beforeNavigation,
+            canNavigate: () => false,
             dummyItems: new Array(5).fill("Event"),
             items: first10,
             keyPrefix: "event-list-item",
             loading,
+            onClick,
             zIndex,
         });
-    }, [beforeNavigation, data?.home?.schedules, loading, session]);
+    }, [onClick, data?.home?.schedules, loading, session]);
 
     return (
         <PageContainer>

@@ -367,7 +367,7 @@ export interface ListToListItemProps {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: NavigableObject) => boolean | void,
+    canNavigate?: (item: NavigableObject) => boolean | void,
     /**
      * List of dummy items types to display while loading
      */
@@ -388,6 +388,7 @@ export interface ListToListItemProps {
      * Whether the list is loading
      */
     loading: boolean,
+    onClick?: (item: NavigableObject) => void,
     zIndex: number,
 }
 
@@ -396,12 +397,13 @@ export interface ListToListItemProps {
  * @returns A list of ListItems
  */
 export function listToListItems({
-    beforeNavigation,
+    canNavigate,
     dummyItems,
     keyPrefix,
     hideUpdateButton,
     items,
     loading,
+    onClick,
     zIndex,
 }: ListToListItemProps): JSX.Element[] {
     const listItems: JSX.Element[] = [];
@@ -427,12 +429,13 @@ export function listToListItems({
         if (isOfType(curr, "Bookmark", "View", "Vote")) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
-            beforeNavigation={beforeNavigation}
+            canNavigate={canNavigate}
             data={curr as ListObjectType}
             hideUpdateButton={hideUpdateButton}
             index={i}
             loading={false}
             objectType={curr.__typename as any}
+            onClick={onClick}
             zIndex={zIndex}
         />);
     }

@@ -33,7 +33,7 @@ import { ObjectListItemBaseProps } from "../types";
  * - To the right, but left of action buttons: custom component(s)
  */
 export function ObjectListItemBase<T extends ListObjectType>({
-    beforeNavigation,
+    canNavigate,
     belowSubtitle,
     belowTags,
     hideUpdateButton,
@@ -76,14 +76,14 @@ export function ObjectListItemBase<T extends ListObjectType>({
             onClick(data);
             return;
         }
-        // If beforeNavigation is supplied, call it
-        if (beforeNavigation) {
-            const shouldContinue = beforeNavigation(data);
+        // If canNavigate is supplied, call it
+        if (canNavigate) {
+            const shouldContinue = canNavigate(data);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page
         setLocation(link);
-    }, [data, link, onClick, beforeNavigation, setLocation]);
+    }, [data, link, onClick, canNavigate, setLocation]);
 
     const editUrl = useMemo(() => data ? getObjectEditUrl(data) : "", [data]);
     const handleEditClick = useCallback((event: any) => {
@@ -92,14 +92,14 @@ export function ObjectListItemBase<T extends ListObjectType>({
         if (!target.id || !target.id.startsWith("edit-list-item-")) return;
         // If data not supplied, don't open
         if (!data) return;
-        // If beforeNavigation is supplied, call it
-        if (beforeNavigation) {
-            const shouldContinue = beforeNavigation(data);
+        // If canNavigate is supplied, call it
+        if (canNavigate) {
+            const shouldContinue = canNavigate(data);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's edit page
         setLocation(editUrl);
-    }, [beforeNavigation, data, editUrl, setLocation]);
+    }, [canNavigate, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -224,7 +224,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
     }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
 
     const actionData = useObjectActions({
-        beforeNavigation,
+        canNavigate,
         object,
         objectType,
         setLocation,

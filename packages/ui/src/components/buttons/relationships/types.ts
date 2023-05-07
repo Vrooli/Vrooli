@@ -14,5 +14,6 @@ export type MeetingButtonProps = RelationshipButtonsBaseProps
 export type OwnerButtonProps = RelationshipButtonsBaseProps
 export type ParentButtonProps = RelationshipButtonsBaseProps
 export type ProjectButtonProps = RelationshipButtonsBaseProps
+export type QuestionForButtonProps = RelationshipButtonsBaseProps
 export type RunProjectButtonProps = RelationshipButtonsBaseProps
 export type RunRoutineButtonProps = RelationshipButtonsBaseProps

@@ -350,22 +350,19 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         // If value is not an object, return;
-        if (!newValue || newValue.__typename === "Shortcut" || newValue.__typename === "Action") return false;
+        if (!newValue || newValue.__typename === "Shortcut" || newValue.__typename === "Action") return;
         // If object has versions
         if ((newValue as any).versions && (newValue as any).versions.length > 0) {
             // If there is only one version, select it
             if ((newValue as any).versions.length === 1) {
                 // Select and close dialog
                 onClose(newValue as any, (newValue as any).versions[0].id);
-                return false;
             }
             // Otherwise, set selected object so we can choose which version to link to
             setSelectedObject(newValue as any);
-            return false;
         }
         // Select and close dialog
         onClose(newValue as any);
-        return false;
     }, [onClose]);
 
     const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
@@ -458,7 +455,8 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
-                        beforeNavigation={onInputSelect}
+                        canNavigate={false}
+                        onItemClick={onInputSelect}
                         take={20}
                         // Combine results for each object type
                         resolve={(data: { [x: string]: any }) => {

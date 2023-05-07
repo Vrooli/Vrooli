@@ -1,4 +1,4 @@
-import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -20,7 +20,7 @@ export interface ObjectListItemBaseProps<T extends ListObjectType> {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: NavigableObject) => boolean | void,
+    canNavigate?: (item: NavigableObject) => boolean | void,
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     /**
@@ -81,6 +81,7 @@ export type RelationshipItemOrganization = Pick<Organization, "handle" | "id"> &
     translations?: Pick<Organization["translations"][0], "name" | "id" | "language">[];
     __typename: "Organization";
 };
+export type RelationshipItemQuestionForObject = { __typename: QuestionForType | `${QuestionForType}`, id: string }
 export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
     __typename: "User";
 }
@@ -135,7 +136,7 @@ export interface SearchListProps {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: any) => boolean,
+    canNavigate?: (item: any) => boolean,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
@@ -150,6 +151,7 @@ export interface SearchListProps {
     sxs?: {
         search?: { [x: string]: any };
     }
+    onItemClick?: (item: any) => void;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     zIndex: number;

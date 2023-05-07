@@ -5,6 +5,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { QuestionFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -96,6 +97,12 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                     margin: 2,
                     marginBottom: 4,
                 }}>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"Question"}
+                        zIndex={zIndex}
+                        sx={{ marginBottom: 4 }}
+                    />
                     <Stack direction="column" spacing={2}>
                         <LanguageInput
                             currentLanguage={language}

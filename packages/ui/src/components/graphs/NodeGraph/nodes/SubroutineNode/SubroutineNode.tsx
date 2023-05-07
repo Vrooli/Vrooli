@@ -1,5 +1,5 @@
 import { ActionIcon, CloseIcon, NoActionIcon, Routine } from "@local/shared";
-import { Box, Container, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
@@ -54,11 +54,12 @@ export const SubroutineNode = ({
     const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
     const onOptionalChange = useCallback((checked: boolean) => {
+        if (!isEditing) return;
         handleUpdate(data.id, {
             ...data,
             isOptional: checked,
         });
-    }, [handleUpdate, data]);
+    }, [isEditing, handleUpdate, data]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -94,13 +95,12 @@ export const SubroutineNode = ({
                 sx={{
                     boxShadow: 12,
                     minWidth: nodeSize,
-                    fontSize,
                     position: "relative",
                     display: "block",
                     marginBottom: "8px",
                     borderRadius: "12px",
                     overflow: "hidden",
-                    backgroundColor: palette.background.paper,
+                    background: palette.mode === "light" ? "#b0bbe7" : "#384164",
                     color: palette.background.textPrimary,
                 }}
             >
@@ -111,7 +111,7 @@ export const SubroutineNode = ({
                     sx={{
                         display: "flex",
                         alignItems: "center",
-                        backgroundColor: canUpdate ?
+                        background: canUpdate ?
                             (palette.mode === "light" ? palette.primary.dark : palette.secondary.dark) :
                             "#667899",
                         color: palette.mode === "light" ? palette.primary.contrastText : palette.secondary.contrastText,
@@ -124,6 +124,21 @@ export const SubroutineNode = ({
                         },
                     }}
                 >
+                    <Tooltip placement={"top"} title='Routine can be skipped'>
+                        <Box
+                            onClick={() => { onOptionalChange(!data?.isOptional); }}
+                            onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
+                            sx={routineNodeActionStyle(isEditing)}
+                        >
+                            <IconButton
+                                size="small"
+                                sx={{ ...routineNodeCheckboxOption }}
+                                disabled={!isEditing}
+                            >
+                                {data?.isOptional ? <NoActionIcon /> : <ActionIcon />}
+                            </IconButton>
+                        </Box>
+                    </Tooltip>
                     {labelVisible && <Typography
                         id={`subroutine-name-${data.id}`}
                         variant="h6"
@@ -131,6 +146,7 @@ export const SubroutineNode = ({
                             ...noSelect,
                             ...textShadow,
                             ...multiLineEllipsis(1),
+                            fontSize,
                             textAlign: "center",
                             width: "100%",
                             lineBreak: "anywhere" as any,
@@ -148,25 +164,6 @@ export const SubroutineNode = ({
                         </IconButton>
                     )}
                 </Container>
-                <Stack direction="row" justifyContent="space-between" borderRadius={0} sx={{ ...noSelect }}>
-                    <Tooltip placement={"top"} title='Routine can be skipped'>
-                        <Box
-                            onClick={() => { onOptionalChange(!data?.isOptional); }}
-                            onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
-                            sx={routineNodeActionStyle(isEditing)}
-                        >
-                            <IconButton
-                                size="small"
-                                sx={{ ...routineNodeCheckboxOption }}
-                                disabled={!isEditing}
-                            >
-                                {data?.isOptional ? <NoActionIcon /> : <ActionIcon />}
-                            </IconButton>
-                            {scale > -2 && <Typography sx={{ marginLeft: "4px" }}>{data?.isOptional ? "Optional" : "Required"}</Typography>}
-                        </Box>
-                    </Tooltip>
-                    {/* <Typography variant="body2">Steps: 4</Typography> */}
-                </Stack>
             </Box>
         </>
     );

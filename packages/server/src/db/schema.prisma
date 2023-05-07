@@ -1310,7 +1310,7 @@ model question {
 
 model question_translation {
     id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
+    description String?  @db.VarChar(16384)
     name        String   @db.VarChar(128)
     language    String   @db.VarChar(3)
     questionId  String   @db.Uuid
