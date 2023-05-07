@@ -77,7 +77,7 @@ export const UnlinkedNodesDialog = ({
                 color: palette.secondary.contrastText,
                 paddingLeft: 1,
                 paddingRight: 1,
-                paddingBottom: 1,
+                paddingBottom: open ? 1 : 0,
                 marginRight: 1,
                 marginTop: open ? "4px" : "unset",
                 maxHeight: { xs: "50vh", sm: "65vh", md: "72vh" },

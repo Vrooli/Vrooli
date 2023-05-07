@@ -8,7 +8,6 @@ import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
 import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { QuestionForButtonProps } from "../types";
@@ -72,8 +71,6 @@ export function QuestionForButton({
     }, [isDialogOpen, handleSelect, closeDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
-        const a = getDisplay(field?.value);
-        console.log("for object", "a: ", typeof a + "", "b: ", firstString("" ?? "Question for..."));
         const forObject = field?.value;
         // If no data, marked as unset
         if (!forObject) return {

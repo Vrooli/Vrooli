@@ -167,7 +167,7 @@ export const RoutineListNode = ({
                         sx={{ ...routineNodeCheckboxOption }}
                         disabled={!isEditing}
                     >
-                        {node.routineList.isOrdered ? <ListNumberIcon /> : <ListBulletIcon />}
+                        {node.routineList.isOrdered ? <ListNumberIcon fill={palette.background.textPrimary} /> : <ListBulletIcon fill={palette.background.textPrimary} />}
                     </IconButton>
                     {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOrdered ? "Ordered" : "Unordered"}</Typography>}
                 </Box>
@@ -183,7 +183,7 @@ export const RoutineListNode = ({
                         sx={{ ...routineNodeCheckboxOption }}
                         disabled={!isEditing}
                     >
-                        {node.routineList.isOptional ? <NoActionIcon /> : <ActionIcon />}
+                        {node.routineList.isOptional ? <NoActionIcon fill={palette.background.textPrimary} /> : <ActionIcon fill={palette.background.textPrimary} />}
                     </IconButton>
                     {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOptional ? "Optional" : "Required"}</Typography>}
                 </Box>
@@ -200,13 +200,13 @@ export const RoutineListNode = ({
                         sx={{ ...routineNodeCheckboxOption }}
                         disabled={!isEditing}
                     >
-                        <EditIcon />
+                        <EditIcon fill={palette.background.textPrimary} />
                     </IconButton>
                     {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{t("Edit")}</Typography>}
                 </Box>
             </Tooltip>}
         </Collapse>
-    ), [collapseOpen, palette.mode, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, onEdit]);
+    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, onEdit]);
 
     /** 
      * Subroutines, sorted from lowest to highest index

@@ -1,19 +1,27 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdInput, HelpIcon, Question, useLocation } from "@local/shared";
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { CommentFor, EditIcon, exists, FindByIdInput, Question, Tag, useLocation } from "@local/shared";
+import { Box, Stack, useTheme } from "@mui/material";
 import { questionFindOne } from "api/generated/endpoints/question_findOne";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
+import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { smallHorizontalScrollbar } from "components/lists/styles";
+import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { placeholderColor } from "utils/display/listTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { Formik } from "formik";
+import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
+import Markdown from "markdown-to-jsx";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ObjectAction } from "utils/actions/objectActions";
+import { getDisplay } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SessionContext } from "utils/SessionContext";
+import { TagShape } from "utils/shape/models/tag";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
@@ -24,154 +32,52 @@ export const QuestionView = ({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: question, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
+    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
         query: questionFindOne,
         partialData,
     });
 
-    const availableLanguages = useMemo<string[]>(() => (question?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [question?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(question ?? partialData, [language]);
-        return {
-            description: description && description.trim().length > 0 ? description : undefined,
-            name,
-        };
-    }, [language, question, partialData]);
+    const { title, subtitle } = useMemo(() => getDisplay(existing, [language]), [existing, language]);
 
     useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+        document.title = `${title} | Vrooli`;
+    }, [title]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+    const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => initialValues?.tags as TagShape[] | null | undefined, [initialValues]);
+
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
+    const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
+    const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
     const actionData = useObjectActions({
-        object: question,
+        object: existing,
         objectType: "Question",
+        openAddCommentDialog,
         setLocation,
         setObject: setQuestion,
     });
 
-    /**
-     * Displays name, avatar, description, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
-                sx={{
-                    border: "1px solid black",
-                    backgroundColor: profileColors[0],
-                    transform: "translateX(-50%)",
-                }}
-            >
-                <HelpIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
-            <Tooltip title="See all options">
-                <IconButton
-                    aria-label="More"
-                    size="small"
-                    onClick={openMoreMenu}
-                    sx={{
-                        display: "block",
-                        marginLeft: "auto",
-                        marginRight: 1,
-                    }}
-                >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
-                </IconButton>
-            </Tooltip>
-            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
-                {/* Title */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit question">
-                                <IconButton
-                                    aria-label="Edit question"
-                                    size="small"
-                                    onClick={() => actionData.onActionStart("Edit")}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
-                }
-                {/* Joined date */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    textBeforeDate="Joined"
-                    timestamp={question?.created_at}
-                    width={"33%"}
-                />
-                {/* Bio */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : (
-                        <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? "No description set"}</Typography>
-                    )
-                }
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <ShareButton object={question} zIndex={zIndex} />
-                    <ReportsLink object={question} />
-                    <BookmarkButton
-                        disabled={!permissions.canBookmark}
-                        objectId={question?.id ?? ""}
-                        bookmarkFor={BookmarkFor.Question}
-                        isBookmarked={question?.you?.isBookmarked ?? false}
-                        bookmarks={question?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
-                    />
-                </Stack>
-            </Stack>
-        </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, question, description, zIndex, actionData]);
+    const comments = useMemo(() => (
+        <Box sx={containerProps(palette)}>
+            <CommentContainer
+                forceAddCommentOpen={isAddCommentOpen}
+                language={language}
+                objectId={existing?.id ?? ""}
+                objectType={CommentFor.Question}
+                onAddCommentClose={closeAddCommentDialog}
+                zIndex={zIndex}
+            />
+        </Box>
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
 
     return (
         <>
@@ -182,37 +88,71 @@ export const QuestionView = ({
                     titleKey: "Question",
                 }}
             />
-            {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={moreMenuAnchor}
-                object={question as any}
-                onClose={closeMoreMenu}
-                zIndex={zIndex + 1}
-            />
-            <Box sx={{
-                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
-                display: "flex",
-                paddingTop: 5,
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                position: "relative",
-            }}>
-                {/* Language display/select */}
-                <Box sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={() => { }}
+            >
+                {() => <Stack direction="column" spacing={4} sx={{
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    width: "min(100%, 700px)",
+                    padding: 2,
                 }}>
-                    <SelectLanguageMenu
-                        currentLanguage={language}
-                        handleCurrent={setLanguage}
-                        languages={availableLanguages}
+                    <RelationshipList
+                        isEditing={false}
+                        objectType={"Question"}
                         zIndex={zIndex}
                     />
-                </Box>
-                {overviewComponent}
-            </Box>
-            {/* TODO */}
+                    <ObjectTitle
+                        language={language}
+                        languages={availableLanguages}
+                        loading={isLoading}
+                        title={title}
+                        setLanguage={setLanguage}
+                        translations={existing?.translations ?? []}
+                        zIndex={zIndex}
+                    />
+                    {/* Date and tags */}
+                    <Stack direction="row" spacing={1} mt={2} mb={1}>
+                        {/* Date created */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            timestamp={existing?.created_at}
+                        />
+                        {exists(tags) && tags.length > 0 && <TagList
+                            maxCharacters={30}
+                            parentId={existing?.id ?? ""}
+                            tags={tags as Tag[]}
+                            sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                        />}
+                    </Stack>
+                    <Markdown>{subtitle}</Markdown>
+                    {/* Action buttons */}
+                    <ObjectActionsRow
+                        actionData={actionData}
+                        exclude={[ObjectAction.Edit]} // Handled elsewhere
+                        object={existing}
+                        zIndex={zIndex}
+                    />
+                    {/* Comments */}
+                    {comments}
+                </Stack>}
+            </Formik>
+            {/* Edit button (if canUpdate)*/}
+            <SideActionButtons
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                {/* Edit button */}
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

@@ -1,4 +1,4 @@
-import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -7,7 +7,7 @@ import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 
-export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
+export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | Question | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
