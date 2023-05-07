@@ -8,6 +8,7 @@ export * from "./NodeColumn/NodeColumn";
 export * from "./NodeContextMenu/NodeContextMenu";
 export * from "./NodeEndDialog/NodeEndDialog";
 export * from "./NodeGraph/NodeGraph";
+export * from "./NodeRoutineListDialog/NodeRoutineListDialog";
 export * from "./nodes";
 
 export const NodeWidth = {

@@ -6,7 +6,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 export type NodeRoutineListShape = Pick<NodeRoutineList, "id" | "isOptional" | "isOrdered"> & {
     __typename?: "NodeRoutineList";
     items: NodeRoutineListItemShape[];
-    node: { id: string };
+    node: { __typename?: "Node", id: string };
 }
 
 export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineListCreateInput, NodeRoutineListUpdateInput> = {

@@ -21,4 +21,13 @@ export const routineNodeCheckboxLabel: SxProps = {
 
 export const routineNodeCheckboxOption: SxProps = {
     padding: "4px",
+    height: "36px",
 };
+
+export const routineNodeActionStyle = (isEditing: boolean): SxProps => ({
+    display: "inline-flex",
+    alignItems: "center",
+    cursor: isEditing ? "pointer" : "default",
+    height: "36px",
+    paddingRight: "8px",
+});

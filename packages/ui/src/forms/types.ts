@@ -9,6 +9,7 @@ import { FocusModeShape } from "utils/shape/models/focusMode";
 import { MeetingShape } from "utils/shape/models/meeting";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeEndShape } from "utils/shape/models/nodeEnd";
+import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
 import { OrganizationShape } from "utils/shape/models/organization";
@@ -84,7 +85,11 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
+export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
 export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {
+    isEditing: boolean;
+}
+export interface NodeRoutineListFormProps extends BaseObjectFormProps<NodeWithRoutineListShape> {
     isEditing: boolean;
 }
 export type FocusModeFormProps = BaseObjectFormProps<FocusModeShape>
@@ -116,7 +121,11 @@ export interface SmartContractFormProps extends BaseObjectFormProps<SmartContrac
     versions: string[];
 }
 export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, "display" | "isLoading"> {
-    canUpdate: boolean;
+    /**
+     * True if the routine version itself can be updated. Otherwise, 
+     * only node-level properties can be updated (e.g. index)
+     */
+    canUpdateRoutineVersion: boolean;
     handleViewFull: () => void;
     isEditing: boolean;
     versions: string[];

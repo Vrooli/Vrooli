@@ -1,16 +1,15 @@
-import { CloseIcon, name as nameValidation, reqErr, Routine } from "@local/shared";
-import { Box, Checkbox, Container, FormControlLabel, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
+import { ActionIcon, CloseIcon, NoActionIcon, Routine } from "@local/shared";
+import { Box, Container, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { updateTranslationFields } from "utils/display/translationTools";
 import usePress from "utils/hooks/usePress";
 import { calculateNodeSize } from "..";
+import { NodeWidth } from "../..";
 import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
-import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from "../styles";
+import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { SubroutineNodeProps } from "../types";
 
 /**
@@ -36,7 +35,7 @@ export const SubroutineNode = ({
     const { palette } = useTheme();
 
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
-    const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
     // Determines if the subroutine is one you can edit
     const canUpdate = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canUpdate === true), [data.routineVersion]);
 
@@ -54,53 +53,12 @@ export const SubroutineNode = ({
     }, [onAction]);
     const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
-    const handleLabelUpdate = useCallback((newLabel: string) => {
-        handleUpdate(data.id, {
-            ...data,
-            translations: updateTranslationFields(data, language, { name: newLabel }),
-        });
-    }, [handleUpdate, data, language]);
-
     const onOptionalChange = useCallback((checked: boolean) => {
         handleUpdate(data.id, {
             ...data,
             isOptional: checked,
         });
     }, [handleUpdate, data]);
-
-    const labelObject = useMemo(() => {
-        if (!labelVisible) return null;
-        return (
-            <EditableLabel
-                canUpdate={isEditing}
-                handleUpdate={handleLabelUpdate}
-                renderLabel={(t) => (
-                    <Typography
-                        id={`subroutine-name-${data.id}`}
-                        variant="h6"
-                        sx={{
-                            ...noSelect,
-                            ...textShadow,
-                            ...multiLineEllipsis(1),
-                            textAlign: "center",
-                            width: "100%",
-                            lineBreak: "anywhere" as any,
-                            whiteSpace: "pre" as any,
-                        } as CSSProperties}
-                    >{firstString(t, "Untitled")}</Typography>
-                )}
-                sxs={{
-                    stack: {
-                        marginLeft: "auto",
-                        marginRight: "auto",
-                    },
-                }}
-                text={title}
-                validationSchema={nameValidation.required(reqErr)}
-                zIndex={zIndex}
-            />
-        );
-    }, [labelVisible, isEditing, handleLabelUpdate, title, zIndex, data.id]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -166,7 +124,19 @@ export const SubroutineNode = ({
                         },
                     }}
                 >
-                    {labelObject}
+                    {labelVisible && <Typography
+                        id={`subroutine-name-${data.id}`}
+                        variant="h6"
+                        sx={{
+                            ...noSelect,
+                            ...textShadow,
+                            ...multiLineEllipsis(1),
+                            textAlign: "center",
+                            width: "100%",
+                            lineBreak: "anywhere" as any,
+                            whiteSpace: "pre" as any,
+                        } as CSSProperties}
+                    >{firstString(title, "Untitled")}</Typography>}
                     {isEditing && (
                         <IconButton
                             id={`subroutine-delete-icon-button-${data.id}`}
@@ -180,23 +150,20 @@ export const SubroutineNode = ({
                 </Container>
                 <Stack direction="row" justifyContent="space-between" borderRadius={0} sx={{ ...noSelect }}>
                     <Tooltip placement={"top"} title='Routine can be skipped'>
-                        <FormControlLabel
-                            disabled={!isEditing}
-                            label='Optional'
-                            control={
-                                <Checkbox
-                                    id={`${title}-optional-option`}
-                                    size="small"
-                                    name='isOptionalCheckbox'
-                                    color='secondary'
-                                    checked={data?.isOptional}
-                                    onChange={(_e, checked) => { onOptionalChange(checked); }}
-                                    onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
-                                    sx={{ ...routineNodeCheckboxOption }}
-                                />
-                            }
-                            sx={{ ...routineNodeCheckboxLabel }}
-                        />
+                        <Box
+                            onClick={() => { onOptionalChange(!data?.isOptional); }}
+                            onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
+                            sx={routineNodeActionStyle(isEditing)}
+                        >
+                            <IconButton
+                                size="small"
+                                sx={{ ...routineNodeCheckboxOption }}
+                                disabled={!isEditing}
+                            >
+                                {data?.isOptional ? <NoActionIcon /> : <ActionIcon />}
+                            </IconButton>
+                            {scale > -2 && <Typography sx={{ marginLeft: "4px" }}>{data?.isOptional ? "Optional" : "Required"}</Typography>}
+                        </Box>
                     </Tooltip>
                     {/* <Typography variant="body2">Steps: 4</Typography> */}
                 </Stack>

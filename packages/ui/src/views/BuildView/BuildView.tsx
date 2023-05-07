@@ -8,7 +8,7 @@ import { FindSubroutineDialog } from "components/dialogs/FindSubroutineDialog/Fi
 import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
-import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -131,6 +131,18 @@ export const BuildView = ({
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
     /**
+     * Updates a node's data
+     */
+    const handleNodeUpdate = useCallback((node: Node) => {
+        const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
+        if (nodeIndex === -1) return;
+        addToChangeStack({
+            ...changedRoutineVersion,
+            nodes: updateArray(changedRoutineVersion.nodes, nodeIndex, node),
+        });
+    }, [addToChangeStack, changedRoutineVersion]);
+
+    /**
      * Calculates:
      * - 2D array of positioned nodes data (to represent columns and rows)
      * - 1D array of unpositioned nodes data
@@ -203,15 +215,26 @@ export const BuildView = ({
     const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
-    // Subroutine info drawer
+    // Subroutine info dialog
     const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
         if (node && node.routineList) setOpenedSubroutine({ node: node as Node & { routineList: NodeRoutineList }, routineItemId: subroutineId });
     }, [nodesById]);
-    const closeRoutineInfo = useCallback(() => {
+    const closeSubroutineDialog = useCallback(() => {
         setOpenedSubroutine(null);
     }, []);
+
+    // Routine list info dialog
+    const [openedRoutineList, setOpenedRoutineList] = useState<{ node: Node & { routineList: NodeRoutineList } } | null>(null);
+    const handleRoutineListOpen = useCallback((nodeId: string) => {
+        const node = nodesById[nodeId];
+        if (node && node.routineList) setOpenedRoutineList({ node: node as Node & { routineList: NodeRoutineList } });
+    }, [nodesById]);
+    const closeRoutineListDialog = useCallback((updatedNode?: Node & { routineList: NodeRoutineList }) => {
+        if (updatedNode) handleNodeUpdate(updatedNode);
+        setOpenedRoutineList(null);
+    }, [handleNodeUpdate]);
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [linkDialogFrom, setLinkDialogFrom] = useState<Node | null>(null);
@@ -574,18 +597,6 @@ export const BuildView = ({
     }, [handleNodeDrop, moveNode]);
 
     /**
-     * Updates a node's data
-     */
-    const handleNodeUpdate = useCallback((node: Node) => {
-        const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
-        if (nodeIndex === -1) return;
-        addToChangeStack({
-            ...changedRoutineVersion,
-            nodes: updateArray(changedRoutineVersion.nodes, nodeIndex, node),
-        });
-    }, [addToChangeStack, changedRoutineVersion]);
-
-    /**
      * Inserts a new routine list node along an edge
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
@@ -841,8 +852,8 @@ export const BuildView = ({
             }),
         } as any);
         // Close dialog
-        closeRoutineInfo();
-    }, [addToChangeStack, changedRoutineVersion, closeRoutineInfo]);
+        closeSubroutineDialog();
+    }, [addToChangeStack, changedRoutineVersion, closeSubroutineDialog]);
 
     /**
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
@@ -876,6 +887,9 @@ export const BuildView = ({
                 break;
             case BuildAction.DeleteSubroutine:
                 handleSubroutineDelete(nodeId, subroutineId ?? "");
+                break;
+            case BuildAction.OpenRoutine:
+                handleRoutineListOpen(nodeId);
                 break;
             case BuildAction.EditSubroutine:
                 handleSubroutineOpen(nodeId, subroutineId ?? "");
@@ -1065,7 +1079,16 @@ export const BuildView = ({
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}
-                onClose={closeRoutineInfo}
+                onClose={closeSubroutineDialog}
+                zIndex={zIndex + 3}
+            />
+            {/* Displays routine information when you click on a routine list*/}
+            <NodeRoutineListDialog
+                handleClose={closeRoutineListDialog}
+                isEditing={isEditing}
+                isOpen={Boolean(openedRoutineList)}
+                language={translationData.language}
+                node={openedRoutineList}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}

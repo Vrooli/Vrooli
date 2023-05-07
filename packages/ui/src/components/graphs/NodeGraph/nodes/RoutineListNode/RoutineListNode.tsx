@@ -1,19 +1,18 @@
-import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon, name as nameValidation, NodeRoutineListItem, reqErr } from "@local/shared";
-import { Checkbox, Collapse, Container, FormControlLabel, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, NodeRoutineListItem } from "@local/shared";
+import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
-import { getTranslation, updateTranslationFields } from "utils/display/translationTools";
+import { getTranslation } from "utils/display/translationTools";
 import { useDebounce } from "utils/hooks/useDebounce";
 import usePress from "utils/hooks/usePress";
 import { PubSub } from "utils/pubsub";
 import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
-import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from "../styles";
+import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { RoutineListNodeProps } from "../types";
 
 /**
@@ -84,26 +83,26 @@ export const RoutineListNode = ({
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
 
-    const handleLabelUpdate = useCallback((newLabel: string) => {
-        handleUpdate({
-            ...node,
-            translations: updateTranslationFields(node, language, { title: newLabel }),
-        });
-    }, [handleUpdate, language, node]);
-
     const onOrderedChange = useCallback((checked: boolean) => {
+        if (!isEditing) return;
         handleUpdate({
             ...node,
             routineList: { ...node.routineList, isOrdered: checked } as any,
         });
-    }, [handleUpdate, node]);
+    }, [handleUpdate, isEditing, node]);
 
     const onOptionalChange = useCallback((checked: boolean) => {
+        if (!isEditing) return;
         handleUpdate({
             ...node,
             routineList: { ...node.routineList, isOptional: checked } as any,
         });
-    }, [handleUpdate, node]);
+    }, [handleUpdate, isEditing, node]);
+
+    const onEdit = useCallback(() => {
+        if (!isEditing) return;
+        handleAction(BuildAction.OpenRoutine, node.id);
+    }, [handleAction, isEditing, node.id]);
 
     const handleSubroutineAction = useCallback((
         action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine,
@@ -152,92 +151,62 @@ export const RoutineListNode = ({
         });
     }, [handleNodeDelete, handleNodeUnlink]);
 
-    const isLabelDialogOpen = useRef<boolean>(false);
-    const onLabelDialogOpen = useCallback((isOpen: boolean) => {
-        isLabelDialogOpen.current = isOpen;
-    }, []);
-    const labelObject = useMemo(() => {
-        if (!labelVisible) return null;
-        return (
-            <EditableLabel
-                canUpdate={isEditing && collapseOpen}
-                handleUpdate={handleLabelUpdate}
-                onDialogOpen={onLabelDialogOpen}
-                renderLabel={(l) => (
-                    <Typography
-                        id={`node-routinelist-title-${node.id}`}
-                        variant="h6"
-                        sx={{
-                            ...noSelect,
-                            ...textShadow,
-                            ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
-                            textAlign: "center",
-                            width: "100%",
-                            lineBreak: "anywhere" as any,
-                            whiteSpace: "pre" as any,
-                            fontSize,
-                            display: (calculateNodeSize(NodeWidth.RoutineList, scale) / 8) < 10 ? "none" : "block",
-                        } as CSSProperties}
-                    >{firstString(l, t("Unlinked"))}</Typography>
-                )}
-                sxs={{
-                    stack: {
-                        marginLeft: "auto",
-                        marginRight: "auto",
-                    },
-                }}
-                text={label}
-                validationSchema={nameValidation.required(reqErr)}
-                zIndex={zIndex}
-            />
-        );
-    }, [fontSize, labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, zIndex, node.id, t]);
-
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
             ...noSelect,
             background: palette.mode === "light" ? "#b0bbe7" : "#384164",
         }}>
             <Tooltip placement={"top"} title={t("MustCompleteRoutinesInOrder")}>
-                <FormControlLabel
-                    disabled={!isEditing}
-                    label='Ordered'
-                    control={
-                        <Checkbox
-                            id={`${label ?? ""}-ordered-option`}
-                            size="small"
-                            name='isOrderedCheckbox'
-                            color='secondary'
-                            checked={node.routineList.isOrdered}
-                            onChange={(_e, checked) => { onOrderedChange(checked); }}
-                            onTouchStart={() => { onOrderedChange(!node.routineList.isOrdered); }}
-                            sx={{ ...routineNodeCheckboxOption }}
-                        />
-                    }
-                    sx={{ ...routineNodeCheckboxLabel }}
-                />
+                <Box
+                    onClick={() => { onOrderedChange(!node.routineList.isOrdered); }}
+                    onTouchStart={() => { onOrderedChange(!node.routineList.isOrdered); }}
+                    sx={routineNodeActionStyle(isEditing)}
+                >
+                    <IconButton
+                        size="small"
+                        sx={{ ...routineNodeCheckboxOption }}
+                        disabled={!isEditing}
+                    >
+                        {node.routineList.isOrdered ? <ListNumberIcon /> : <ListBulletIcon />}
+                    </IconButton>
+                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOrdered ? "Ordered" : "Unordered"}</Typography>}
+                </Box>
             </Tooltip>
             <Tooltip placement={"top"} title={t("RoutineCanSkip")}>
-                <FormControlLabel
-                    disabled={!isEditing}
-                    label={t("Optional")}
-                    control={
-                        <Checkbox
-                            id={`${label ?? ""}-optional-option`}
-                            size="small"
-                            name='isOptionalCheckbox'
-                            color='secondary'
-                            checked={node.routineList.isOptional}
-                            onChange={(_e, checked) => { onOptionalChange(checked); }}
-                            onTouchStart={() => { onOptionalChange(!node.routineList.isOptional); }}
-                            sx={{ ...routineNodeCheckboxOption }}
-                        />
-                    }
-                    sx={{ ...routineNodeCheckboxLabel }}
-                />
+                <Box
+                    onClick={() => { onOptionalChange(!node.routineList.isOptional); }}
+                    onTouchStart={() => { onOptionalChange(!node.routineList.isOptional); }}
+                    sx={routineNodeActionStyle(isEditing)}
+                >
+                    <IconButton
+                        size="small"
+                        sx={{ ...routineNodeCheckboxOption }}
+                        disabled={!isEditing}
+                    >
+                        {node.routineList.isOptional ? <NoActionIcon /> : <ActionIcon />}
+                    </IconButton>
+                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOptional ? "Optional" : "Required"}</Typography>}
+                </Box>
             </Tooltip>
+            {isEditing && <Tooltip placement={"top"} title={t("NodeRoutineListInfo")}>
+                <Box
+                    onClick={() => { onEdit(); }}
+                    onTouchStart={() => { onEdit(); }}
+                    sx={routineNodeActionStyle(isEditing)}
+                >
+                    <IconButton
+                        id={`${label ?? ""}-edit-option`}
+                        size="small"
+                        sx={{ ...routineNodeCheckboxOption }}
+                        disabled={!isEditing}
+                    >
+                        <EditIcon />
+                    </IconButton>
+                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{t("Edit")}</Typography>}
+                </Box>
+            </Tooltip>}
         </Collapse>
-    ), [collapseOpen, palette.mode, t, isEditing, label, node.routineList.isOrdered, node.routineList.isOptional, onOrderedChange, onOptionalChange]);
+    ), [collapseOpen, palette.mode, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, onEdit]);
 
     /** 
      * Subroutines, sorted from lowest to highest index
@@ -298,9 +267,9 @@ export const RoutineListNode = ({
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
-        if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
+        if (!canDrag || !isLinked || !isEditing || fastUpdateRef.current) return;
         setContextAnchor(target);
-    }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
+    }, [canDrag, isEditing, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
         onLongPress: openContext,
@@ -372,7 +341,21 @@ export const RoutineListNode = ({
                                     </IconButton>
                                 )
                             }
-                            {labelObject}
+                            {labelVisible && <Typography
+                                id={`node-routinelist-title-${node.id}`}
+                                variant="h6"
+                                sx={{
+                                    ...noSelect,
+                                    ...textShadow,
+                                    ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
+                                    textAlign: "center",
+                                    width: "100%",
+                                    lineBreak: "anywhere" as any,
+                                    whiteSpace: "pre" as any,
+                                    fontSize,
+                                    display: (calculateNodeSize(NodeWidth.RoutineList, scale) / 8) < 10 ? "none" : "block",
+                                } as CSSProperties}
+                            >{firstString(label, t("Unlinked"))}</Typography>}
                             {
                                 isEditing && (
                                     <IconButton

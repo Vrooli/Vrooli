@@ -46,12 +46,15 @@ export const generateSitemap = (siteName: string, entries: {
     if (entries.main) {
         // Loop through entries
         entries.main.forEach(function (entry: SitemapEntryMain) {
-            // For each entry, create a url element with loc, priority, and changefreq
-            xml.ele("url", {
-                loc: siteName + entry.path,
-                priority: (entry.priority || 0) + "",
-                changefreq: entry.changeFreq || "never",
-            }).up();
+            // For each entry, create a url element
+            const urlElement = xml.ele("url");
+            // Create loc element
+            urlElement.ele("loc").txt(siteName + entry.path).up();
+            // Create priority element
+            urlElement.ele("priority").txt((entry.priority || 0) + "").up();
+            // Create changefreq element
+            urlElement.ele("changefreq").txt(entry.changeFreq || "never").up();
+            urlElement.up();
         });
     }
     // If content entries exist, add them

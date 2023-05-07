@@ -55,6 +55,7 @@ export const InputOutputContainer = ({
     const { t } = useTranslation();
 
     const sortedList = useMemo(() => {
+        console.log("in sorted listtt", list);
         return list;
         // TODO when index added in schema.prisma, sort by index
         //return list.sort((a, b) => a. - b.index);

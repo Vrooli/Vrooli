@@ -198,7 +198,7 @@ export const NodeGraph = ({
         // If columnIndex is -1, this means it wasn't dropped into any column. 
         // In this case, set to first or last column depending on drop position
         if (columnIndex === -1) {
-            const leftMostColumnRect = document.getElementById(`node-column-0`)?.getBoundingClientRect();
+            const leftMostColumnRect = document.getElementById("node-column-0")?.getBoundingClientRect();
             const rightMostColumnRect = document.getElementById(`node-column-${columns.length - 1}`)?.getBoundingClientRect();
             if (leftMostColumnRect && x < leftMostColumnRect.x) {
                 columnIndex = 0;
@@ -342,6 +342,7 @@ export const NodeGraph = ({
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
+            columnsLength={columns.length}
             handleAction={handleAction}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}

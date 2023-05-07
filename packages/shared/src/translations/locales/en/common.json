@@ -318,6 +318,8 @@
     "NodeDeleteWithName": "Delete \"{{nodeName}}\"",
     "NodeEndEdit": "Edit end node",
     "NodeEndInfo": "End node information",
+    "NodeRoutineListEdit": "Edit routine list",
+    "NodeRoutineListInfo": "End routine list information",
     "NodeMove": "Move node",
     "NodeMoveDialogHelp": "This dialog allows you to move a node to a new position.\n\nNodes are positioned using \"column\" and \"row\" coordinates.",
     "NodeUnlinkedDelete": "Delete unlinked node",

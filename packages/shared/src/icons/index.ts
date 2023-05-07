@@ -95,6 +95,7 @@ export * from "./MoveNodeIcon";
 export * from "./MoveRightIcon";
 export * from "./MoveUpDownIcon";
 export * from "./MoveUpIcon";
+export * from "./NoActionIcon";
 export * from "./NoteIcon";
 export * from "./NotificationsAllIcon";
 export * from "./NotificationsCustomizedIcon";
