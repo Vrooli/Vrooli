@@ -193,7 +193,7 @@ export const shapeHelper = async<
 }: ShapeHelperProps<Input, IsOneToOne, IsRequired, Types, RelField, PrimaryKey, SoftDelete>):
     Promise<ShapeHelperOutput<IsOneToOne, IsRequired, Types[number], RelField, PrimaryKey>> => {
     // Initialize result
-    const result: { [x: string]: any } = {};
+    let result: { [x: string]: any } = {};
     // If both connect and create do not exist, and it's required, throw an error
     if (!data[`${relation}Connect` as string] && !data[`${relation}Create` as string] && isRequired) {
         throw new CustomError("0368", "InvalidArgs", ["en"], { relation, data });
@@ -213,12 +213,16 @@ export const shapeHelper = async<
     // Now we can further shape the result
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
     if (Array.isArray(result.connect) && result.connect.length > 0) result.connect = result.connect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
+    else result.connect = undefined;
     if (Array.isArray(result.disconnect) && result.disconnect.length > 0) result.disconnect = result.disconnect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
+    else result.disconnect = undefined;
     if (Array.isArray(result.delete) && result.delete.length > 0) result.delete = result.delete.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
+    else result.delete = undefined;
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
     if (Array.isArray(result.update) && result.update.length > 0) {
         result.update = result.update.map((e: any) => ({ where: { id: e.id }, data: e }));
     }
+    else result.update = undefined;
     // Convert deletes to updates if softDelete is true
     if (softDelete && Array.isArray(result.delete) && result.delete.length > 0) {
         const softDeletes = result.delete.map((e: any) => ({ where: { id: e[primaryKey] }, data: { isDeleted: true } }));
@@ -249,32 +253,43 @@ export const shapeHelper = async<
     }
     // Handle join table, if applicable
     if (joinData) {
+        const resultWithJoin: Record<string, any> = { create: [], update: [], delete: [] };
         if (result.connect) {
             // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
             for (const id of (result?.connect ?? [])) {
                 const curr = { [joinData.fieldName]: { connect: id } };
-                result.create = Array.isArray(result.create) ? [...result.create, curr] : [curr];
+                resultWithJoin.create.push(curr);
             }
         }
         if (result.disconnect) {
             // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
             for (const id of (result?.disconnect ?? [])) {
-                const curr = { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: id[primaryKey], [joinData.parentIdFieldName]: joinData.parentId } };
-                result.delete = Array.isArray(result.delete) ? [...result.delete, curr] : [curr];
+                const curr = {
+                    [joinData.uniqueFieldName]: {
+                        [joinData.childIdFieldName]: id[primaryKey],
+                        [joinData.parentIdFieldName]: joinData.parentId,
+                    },
+                };
+                resultWithJoin.delete.push(curr);
             }
         }
         if (result.delete) {
             // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
             for (const id of (result?.delete ?? [])) {
-                const curr = { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: id[primaryKey], [joinData.parentIdFieldName]: joinData.parentId } };
-                result.delete = Array.isArray(result.delete) ? [...result.delete, curr] : [curr];
+                const curr = {
+                    [joinData.uniqueFieldName]: {
+                        [joinData.childIdFieldName]: id[primaryKey],
+                        [joinData.parentIdFieldName]: joinData.parentId,
+                    },
+                };
+                resultWithJoin.delete.push(curr);
             }
         }
         if (result.create) {
             // ex: create: [ { tag: { create: { id: 'asdf' } } } ]
             for (const id of (result?.create ?? [])) {
                 const curr = { [joinData.fieldName]: { create: id } };
-                result.create = Array.isArray(result.create) ? [...result.create, curr] : [curr];
+                resultWithJoin.create.push(curr);
             }
         }
         if (result.update) {
@@ -287,9 +302,10 @@ export const shapeHelper = async<
                     where: { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: data.where[primaryKey], [joinData.parentIdFieldName]: joinData.parentId } },
                     data: { [joinData.fieldName]: { update: data.data } },
                 };
-                result.update = Array.isArray(result.update) ? [...result.update, curr] : [curr];
+                resultWithJoin.update.push(curr);
             }
         }
+        result = resultWithJoin;
     }
     // If one-to-one, perform some final checks and remove arrays
     if (isOneToOne) {
@@ -320,10 +336,10 @@ export const shapeHelper = async<
         // one-to-one's update must not have a where, and must be an object, not an array
         if (Array.isArray(result.update)) result.update = result.update.length ? result.update[0].data : undefined;
     }
-    // If there are no results, return empty object
-    if (!Object.keys(result).length) return {} as any;
-    // Otherwise, return result wrapped in the relation name
-    return { [relation]: result } as any;
+    // If there are some keys which are not undefined, return result wrapped in the relation name
+    if (Object.keys(result).some(key => result[key] !== undefined)) return { [relation]: result } as any;
+    // Otherwise, return empty object
+    return {} as any;
 };
 
 /**
