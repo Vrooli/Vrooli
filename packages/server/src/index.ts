@@ -13,12 +13,7 @@ import { schema } from "./endpoints";
 import { logger } from "./events/logger";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
-import { initSitemapCronJob } from "./schedules";
-import { initCountsCronJobs } from "./schedules/counts";
-import { initEventsCronJobs } from "./schedules/events";
-import { initModerationCronJobs } from "./schedules/moderate";
-import { initExpirePremiumCronJob } from "./schedules/premium/base";
-import { initStatsCronJobs } from "./schedules/stats";
+import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -426,6 +421,7 @@ const main = async () => {
     initSitemapCronJob();
     initModerationCronJobs();
     initExpirePremiumCronJob();
+    initGenerateEmbeddingsCronJob();
 
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
