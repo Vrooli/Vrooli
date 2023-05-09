@@ -49,6 +49,7 @@
         "node-ical": "^0.15.3",
         "nodemailer": "^6.6.0",
         "nodemon": "^2.0.7",
+        "openai": "^3.2.1",
         "redis": "4.4.0",
         "stripe": "^11.17.0",
         "twilio": "^3.61.0",
