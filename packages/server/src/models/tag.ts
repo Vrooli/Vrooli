@@ -110,7 +110,6 @@ export const TagModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                "transDescriptionWrapped",
                 "tagWrapped",
             ],
         }),
