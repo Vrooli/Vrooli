@@ -14,6 +14,7 @@ import { logger } from "./events/logger";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
+import { generateEmbeddings } from "./schedules/embeddings/generateEmbeddings";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -422,6 +423,7 @@ const main = async () => {
     initModerationCronJobs();
     initExpirePremiumCronJob();
     initGenerateEmbeddingsCronJob();
+    generateEmbeddings(); // TODO temp
 
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
