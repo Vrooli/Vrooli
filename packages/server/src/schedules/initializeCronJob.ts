@@ -13,9 +13,6 @@ export const initializeCronJob = (
     job: () => Promise<unknown>,
     description = "",
 ): void => {
-    // Log the start of the cron job initialization
-    logger.info(`Initializing${description ? " " + description : ""} cron job.`, { trace: "0395" });
-
     try {
         // Schedule the cron job
         cron.schedule(cronSchedule, () => {

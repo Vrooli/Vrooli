@@ -13,7 +13,6 @@ import { genSitemap, genSitemapIfNotExists } from "./genSitemap";
  * Initializes cron jobs for sitemap creation
  */
 export const initSitemapCronJob = () => {
-    logger.info("Initializing sitemap cron job.", { trace: "0398" });
     try {
         // Generate sitemaps right away if they don't already exist
         genSitemapIfNotExists().then(() => {
