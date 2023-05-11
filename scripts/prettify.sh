@@ -1,6 +1,8 @@
 #!/bin/bash
 # These functions help to prettify echos
 
+export TERM=${TERM:-xterm}
+
 # Determine if tput is available
 if [ -n "$(command -v tput)" ]; then
     # Set colors

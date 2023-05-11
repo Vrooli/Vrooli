@@ -137,7 +137,7 @@ trap "rm ${HERE}/../packages/ui/.env" EXIT
 # Generate query/mutation selectors
 if [ -z "$GRAPHQL_GENERATE" ]; then
     prompt "Do you want to generate GraphQL query/mutation selectors? (y/N)"
-    read -r GRAPHQL_GENERATE
+    read -n1 -r GRAPHQL_GENERATE
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
@@ -242,15 +242,15 @@ fi
 # Copy build to VPS
 if [ -z "$DEPLOY" ]; then
     prompt "Build successful! Would you like to send the build to the production server? (y/N)"
-    read -r DEPLOY
+    read -n1 -r DEPLOY
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
     source "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
-    read -r
-    rsync -ri build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
+    read -n1 -r -s
+    rsync -ri --info=progress2 build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1
