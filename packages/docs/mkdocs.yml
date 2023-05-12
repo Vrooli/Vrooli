@@ -68,6 +68,7 @@ theme:
     - navigation.expand
     - navigation.path
     - navigation.top
+    - navigation.footer
 plugins:
   - search
   - social
