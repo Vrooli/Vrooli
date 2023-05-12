@@ -19,6 +19,7 @@ nav:
       - Authorization: api_reference/authorization.md
   - Setup:
       - Getting Started: setup/getting_started.md
+      - Messenger Setup: setup/messenger_setup.md
       - Understanding the Design:
           - Directory Structure: setup/understanding_the_design/directory_structure.md
           - Database Design: setup/understanding_the_design/database_design.md
