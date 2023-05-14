@@ -2,7 +2,7 @@
 If you've followed the [prerequisites](TODO), you should be ready to download and set up the repo. Here's how to do it:
 
 ## 1. Download this repository
-In the directory of your choice, enter `git clone <REPO_URL>`. On Windows, make sure this is done from an Ubuntu terminal in Windows Terminal. If the code is stored on the Windows file system, then docker will be **extremely** slow - and likely unusable.  
+In the directory of your choice, enter `git clone <REPO_URL>` (or `git clone --depth 1 --branch main <REPO_URL-url>` on the production server, since you only need the latest commit). On Windows, make sure this is done from an Ubuntu terminal in Windows Terminal. If the code is stored on the Windows file system, then docker will be **extremely** slow - and likely unusable.  
 
 To open the project from the command line, enter `code <PROJECT_NAME>` from the directory you cloned in, or `code .` from the project's directory.
 

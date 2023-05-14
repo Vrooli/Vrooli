@@ -87,7 +87,7 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
     # Check if the NginxSSLReverseProxy directory exists
     if [ ! -d "${NGINX_LOCATION}" ]; then
         info "NginxSSLReverseProxy not installed. Cloning and setting up..."
-        git clone https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
+        git clone --depth 1 --branch main https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
         chmod +x "${NGINX_LOCATION}/scripts/*"
         "${NGINX_LOCATION}/scripts/fullSetup.sh"
     fi

@@ -138,6 +138,7 @@ trap "rm ${HERE}/../packages/ui/.env" EXIT
 if [ -z "$GRAPHQL_GENERATE" ]; then
     prompt "Do you want to generate GraphQL query/mutation selectors? (y/N)"
     read -n1 -r GRAPHQL_GENERATE
+    echo
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
@@ -243,6 +244,7 @@ fi
 if [ -z "$DEPLOY" ]; then
     prompt "Build successful! Would you like to send the build to the production server? (y/N)"
     read -n1 -r DEPLOY
+    echo
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
@@ -250,7 +252,7 @@ if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || 
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
-    rsync -ri --info=progress2 build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1

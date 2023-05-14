@@ -1,4 +1,4 @@
-# Getting started👩‍💻
+# Start Your Development Journey👩‍💻
 Looking to contribute to the development of Vrooli? You're in the right place!
 
 In these docs, we cover the following topics:

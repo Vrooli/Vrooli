@@ -85,7 +85,7 @@ while true; do
 
     # Create the backup file using the mysqldump command
     # ssh $remote_server "pg_dump -Fc -U ${DB_USER}" >"$local_dir/$backup_filename"
-    ssh $remote_server "cd /var/tmp/${VERSION}/data && tar -czf - postgres" > "$local_dir/$backup_filename"
+    ssh -i ~/.ssh/id_rsa_${SITE_IP} $remote_server "cd /var/tmp/${VERSION}/data && tar -czf - postgres" >"$local_dir/$backup_filename"
 
     # Compress the backup file to save disk space
     gzip "$local_dir/$backup_filename"

@@ -48,13 +48,20 @@ RUNLEVEL=1 sudo apt-get -y upgrade
 if [ -z "${ON_REMOTE}" ]; then
     prompt "Is this script being run on the remote server? (Y/n)"
     read -n1 -r ON_REMOTE
+    echo
 fi
 if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "yes" ] || [ "${ON_REMOTE}" = "Yes" ]; then
     header "Enabling PasswordAuthentication"
     sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?PubkeyAuthentication .*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?AuthorizedKeysFile .*/AuthorizedKeysFile .ssh\/authorized_keys/g' /etc/ssh/sshd_config
-    chmod 700 ~/.ssh
+    if [ ! -d ~/.ssh ]; then
+        mkdir ~/.ssh
+        chmod 700 ~/.ssh
+    fi
+    if [ ! -f ~/.ssh/authorized_keys ]; then
+        touch ~/.ssh/authorized_keys
+    fi
     chmod 600 ~/.ssh/authorized_keys
     # Try restarting service. Can either be called "sshd" or "ssh"
     sudo service sshd restart
@@ -126,6 +133,13 @@ else
     info "Detected: $(docker-compose --version)"
 fi
 
+header "Create nginx-proxy network"
+docker network create nginx-proxy
+# Ignore errors if the network already exists
+if [ $? -ne 0 ]; then
+    true
+fi
+
 # Less needs to be done for production environments
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
@@ -135,6 +149,7 @@ if [ "${ENVIRONMENT}" = "dev" ]; then
     if [ -z "${REINSTALL_MODULES}" ]; then
         prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
         read -n1 -r REINSTALL_MODULES
+        echo
     fi
     if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
         header "Deleting all node_modules directories"
