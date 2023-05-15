@@ -1,5 +1,4 @@
 import { i18nConfig, PaymentType } from "@local/shared";
-import { PrismaClient } from "@prisma/client";
 import { ApolloServer } from "apollo-server-express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -16,6 +15,7 @@ import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { generateEmbeddings } from "./schedules/embeddings/generateEmbeddings";
 import { setupDatabase } from "./utils/setupDatabase";
+import { withPrisma } from "./utils/withPrisma";
 
 const debug = process.env.NODE_ENV === "development";
 
@@ -146,20 +146,24 @@ const main = async () => {
             });
             // Create open payment in database, so we can track it
             // TODO create cron job to clean up old payments that never completed, and to remove premium status from users when expired
-            const prisma = new PrismaClient();
-            await prisma.payment.create({
-                data: {
-                    amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
-                    checkoutId: session.id,
-                    currency: session.currency ?? "usd",
-                    description: variant === "donation" ? "Donation" : "Premium subscription - " + variant,
-                    paymentMethod: "Stripe",
-                    paymentType,
-                    status: "Pending",
-                    user: { connect: { id: userId } },
+            await withPrisma({
+                process: async (prisma) => {
+                    await prisma.payment.create({
+                        data: {
+                            amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
+                            checkoutId: session.id,
+                            currency: session.currency ?? "usd",
+                            description: variant === "donation" ? "Donation" : "Premium subscription - " + variant,
+                            paymentMethod: "Stripe",
+                            paymentType,
+                            status: "Pending",
+                            user: { connect: { id: userId } },
+                        },
+                    });
                 },
+                trace: "0437",
+                traceObject: { userId, variant },
             });
-            await prisma.$disconnect();
             // Send session ID as response
             res.json(session);
             return;
@@ -190,54 +194,60 @@ const main = async () => {
                     session = event.data.object;
                     checkoutId = session.id;
                     userId = session.metadata.userId;
-                    prisma = new PrismaClient();
-                    payments = await prisma.payment.findMany({
-                        where: {
-                            checkoutId,
-                            paymentMethod: "Stripe",
-                            user: { id: userId },
-                        },
-                    });
-                    // If not found, log error
-                    if (payments.length === 0) {
-                        logger.error("Payment not found. Someone is gonna be mad", { trace: "0439", checkoutId, userId });
-                        break;
-                    }
-                    // Update payment in database to indicate it was paid
-                    await prisma.payment.update({
-                        where: { id: payments[0].id },
-                        data: {
-                            status: "Paid",
-                        },
-                    });
-                    // If subscription, upsert premium status
-                    if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
-                        const enabledAt = new Date().toISOString();
-                        const expiresAt = new Date(Date.now() + (payments[0].paymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString();
-                        const isActive = true;
-                        const premiums = await prisma.premium.findMany({
-                            where: { user: { id: userId } },
-                        });
-                        if (premiums.length === 0) {
-                            await prisma.premium.create({
-                                data: {
-                                    enabledAt,
-                                    expiresAt,
-                                    isActive,
-                                    user: { connect: { id: userId } },
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find payment in database
+                            payments = await prisma.payment.findMany({
+                                where: {
+                                    checkoutId,
+                                    paymentMethod: "Stripe",
+                                    user: { id: userId },
                                 },
                             });
-                        } else {
-                            await prisma.premium.update({
-                                where: { id: premiums[0].id },
+                            // If not found, log error
+                            if (payments.length === 0) {
+                                logger.error("Payment not found. Someone is gonna be mad", { trace: "0439", checkoutId, userId });
+                                return;
+                            }
+                            // Update payment in database to indicate it was paid
+                            await prisma.payment.update({
+                                where: { id: payments[0].id },
                                 data: {
-                                    enabledAt: premiums[0].enabledAt ?? enabledAt,
-                                    expiresAt,
-                                    isActive,
+                                    status: "Paid",
                                 },
                             });
-                        }
-                    }
+                            // If subscription, upsert premium status
+                            if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
+                                const enabledAt = new Date().toISOString();
+                                const expiresAt = new Date(Date.now() + (payments[0].paymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString();
+                                const isActive = true;
+                                const premiums = await prisma.premium.findMany({
+                                    where: { user: { id: userId } },
+                                });
+                                if (premiums.length === 0) {
+                                    await prisma.premium.create({
+                                        data: {
+                                            enabledAt,
+                                            expiresAt,
+                                            isActive,
+                                            user: { connect: { id: userId } },
+                                        },
+                                    });
+                                } else {
+                                    await prisma.premium.update({
+                                        where: { id: premiums[0].id },
+                                        data: {
+                                            enabledAt: premiums[0].enabledAt ?? enabledAt,
+                                            expiresAt,
+                                            isActive,
+                                        },
+                                    });
+                                }
+                            }
+                        },
+                        trace: "0454",
+                        traceObject: { userId, session, checkoutId },
+                    });
                     break;
                 // Session expired before payment
                 case "checkout.session.expired":
@@ -245,121 +255,158 @@ const main = async () => {
                     session = event.data.object;
                     checkoutId = session.id;
                     userId = session.metadata.userId;
-                    prisma = new PrismaClient();
-                    payments = await prisma.payment.findMany({
-                        where: {
-                            checkoutId,
-                            paymentMethod: "Stripe",
-                            status: "Pending",
-                            user: { id: userId },
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find payment in database
+                            payments = await prisma.payment.findMany({
+                                where: {
+                                    checkoutId,
+                                    paymentMethod: "Stripe",
+                                    status: "Pending",
+                                    user: { id: userId },
+                                },
+                            });
+                            if (payments.length > 0) {
+                                // Delete payment in database
+                                await prisma.payment.delete({
+                                    where: { id: payments[0].id },
+                                });
+                            }
                         },
-                    });
-                    // If not found, ignore
-                    if (payments.length === 0) {
-                        break;
-                    }
-                    // Delete payment in database
-                    await prisma.payment.delete({
-                        where: { id: payments[0].id },
+                        trace: "0455",
+                        traceObject: { userId, session, checkoutId },
                     });
                     break;
                 // Payment failed
-                case "invoice.payment_failed":
+                case "invoice.payment_failed": {
                     const invoice = event.data.object;
                     const subscriptionId = invoice.subscription;
                     userId = invoice.metadata.userId;
-                    // Find the payment in the database
-                    prisma = new PrismaClient();
-                    payments = await prisma.payment.findMany({
-                        where: {
-                            user: { id: userId },
-                            paymentMethod: "Stripe",
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find payment in database
+                            payments = await prisma.payment.findMany({
+                                where: {
+                                    user: { id: userId },
+                                    paymentMethod: "Stripe",
+                                },
+                            });
+                            // If not found, log an error and return
+                            if (payments.length === 0) {
+                                logger.error("Payment not found on invoice.payment_failed", { trace: "0443", userId });
+                                response.status(400).send("Payment not found");
+                                return;
+                            }
+                            // Update the payment status to "Failed" in the database
+                            await prisma.payment.update({
+                                where: { id: payments[0].id },
+                                data: {
+                                    status: "Failed",
+                                },
+                            });
                         },
+                        trace: "0456",
+                        traceObject: { userId, invoice, subscriptionId },
                     });
-                    // If not found, log an error and return
-                    if (payments.length === 0) {
-                        logger.error("Payment not found on invoice.payment_failed", { trace: "0443", userId });
-                        response.status(400).send("Payment not found");
-                        return;
-                    }
-                    // Update the payment status to "Failed" in the database
-                    await prisma.payment.update({
-                        where: { id: payments[0].id },
-                        data: {
-                            status: "Failed",
-                        },
-                    });
-                    // Disconnect the Prisma client
-                    await prisma.$disconnect();
-                    // Log the error and return a response
+                    // Log the error
                     logger.error("Payment failed", { trace: "0444", userId, subscriptionId });
-                    response.status(400).send("Payment failed");
                     break;
+                }
                 // Subscription changed (monthly -> yearly, yearly -> monthly)
-                case "customer.subscription.updated":
+                case "customer.subscription.updated": {
                     const subscription = event.data.object;
                     userId = subscription.metadata.userId;
                     const newPaymentType = subscription.plan.interval === "month" ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
-
-                    prisma = new PrismaClient();
-                    const premiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } },
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find premium record in database
+                            const premiumRecord = await prisma.premium.findFirst({
+                                where: { user: { id: userId } },
+                            });
+                            // If found, update the expiration date
+                            if (premiumRecord) {
+                                await prisma.premium.update({
+                                    where: { id: premiumRecord.id },
+                                    data: {
+                                        expiresAt: new Date(Date.now() + (newPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
+                                    },
+                                });
+                            }
+                            // Otherwise, log an error and return
+                            else {
+                                logger.error("Premium record not found on customer.subscription.updated", { trace: "0457", userId });
+                                response.status(400).send("Premium record not found");
+                                return;
+                            }
+                        },
+                        trace: "0458",
+                        traceObject: { userId, subscription, newPaymentType },
                     });
-
-                    if (premiumRecord) {
-                        await prisma.premium.update({
-                            where: { id: premiumRecord.id },
-                            data: {
-                                expiresAt: new Date(Date.now() + (newPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
-                            },
-                        });
-                    }
-                    await prisma.$disconnect();
                     break;
-
+                }
                 // Subscription canceled
                 case "customer.subscription.deleted":
                     userId = event.data.object.metadata.userId;
-
-                    prisma = new PrismaClient();
-                    const canceledPremiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } },
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find premium record in database
+                            const canceledPremiumRecord = await prisma.premium.findFirst({
+                                where: { user: { id: userId } },
+                            });
+                            // If found, set as inactive
+                            if (canceledPremiumRecord) {
+                                await prisma.premium.update({
+                                    where: { id: canceledPremiumRecord.id },
+                                    data: {
+                                        isActive: false,
+                                    },
+                                });
+                            }
+                            // Otherwise, log an error and return
+                            else {
+                                logger.error("Premium record not found on customer.subscription.deleted", { trace: "0459", userId });
+                                response.status(400).send("Premium record not found");
+                                return;
+                            }
+                        },
+                        trace: "0460",
+                        traceObject: { userId },
                     });
-
-                    if (canceledPremiumRecord) {
-                        await prisma.premium.update({
-                            where: { id: canceledPremiumRecord.id },
-                            data: {
-                                isActive: false,
-                            },
-                        });
-                    }
-                    await prisma.$disconnect();
                     break;
-
                 // Subscription renewed
-                case "invoice.payment_succeeded":
+                case "invoice.payment_succeeded": {
                     const renewedInvoice = event.data.object;
                     const renewedSubscriptionId = renewedInvoice.subscription;
                     userId = renewedInvoice.metadata.userId;
-
-                    prisma = new PrismaClient();
-                    const renewedPremiumRecord = await prisma.premium.findFirst({
-                        where: { user: { id: userId } },
+                    await withPrisma({
+                        process: async (prisma) => {
+                            // Find premium record in database
+                            const renewedPremiumRecord = await prisma.premium.findFirst({
+                                where: { user: { id: userId } },
+                            });
+                            // If found, set as active and update the expiration date
+                            if (renewedPremiumRecord) {
+                                const renewedPaymentType = renewedPremiumRecord.expiresAt && new Date(renewedPremiumRecord.expiresAt) < new Date() ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
+                                await prisma.premium.update({
+                                    where: { id: renewedPremiumRecord.id },
+                                    data: {
+                                        expiresAt: new Date(Date.now() + (renewedPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
+                                        isActive: true,
+                                    },
+                                });
+                            }
+                            // Otherwise, log an error and return
+                            else {
+                                logger.error("Premium record not found on invoice.payment_succeeded", { trace: "0461", userId });
+                                response.status(400).send("Premium record not found");
+                                return;
+                            }
+                        },
+                        trace: "0462",
+                        traceObject: { userId, renewedInvoice, renewedSubscriptionId },
                     });
-
-                    if (renewedPremiumRecord) {
-                        const renewedPaymentType = renewedPremiumRecord.expiresAt && new Date(renewedPremiumRecord.expiresAt) < new Date() ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
-                        await prisma.premium.update({
-                            where: { id: renewedPremiumRecord.id },
-                            data: {
-                                expiresAt: new Date(Date.now() + (renewedPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
-                                isActive: true,
-                            },
-                        });
-                    }
-                    await prisma.$disconnect();
                     break;
+                }
                 // If this default is reached, the webhook specified in Stripe is too broad
                 default:
                     logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });

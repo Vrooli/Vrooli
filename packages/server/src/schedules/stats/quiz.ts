@@ -1,9 +1,7 @@
 import { QuizAttemptStatus } from "@local/shared";
-import pkg, { PeriodType } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
 
 type BatchDirectoryAttemptCountsResult = Record<string, {
     timesStarted: number;
@@ -104,54 +102,35 @@ export const logQuizStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // We may be dealing with a lot of data, so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            // Find all quizzes with at least one attempt
-            const batch = await prisma.quiz.findMany({
-                where: {
-                    attempts: {
-                        some: {}, // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
-                    },
-                },
-                select: {
-                    id: true,
-                },
-                skip,
-                take: batchSize,
-            });
-            // Increment skip
-            skip += batchSize;
-            // Update current batch size
-            currentBatchSize = batch.length;
-            // Find and count all attempts associated with the quizzes, which 
-            // have been started or completed within the period
-            const attemptCountsByQuiz = await batchAttemptCounts(prisma, batch.map(quiz => quiz.id), periodStart, periodEnd);
-            // Create stats for each routine
-            await prisma.stats_quiz.createMany({
-                data: batch.map(quiz => ({
-                    quizId: quiz.id,
-                    periodStart,
-                    periodEnd,
-                    periodType,
-                    timesStarted: attemptCountsByQuiz[quiz.id].timesStarted,
-                    timesPassed: attemptCountsByQuiz[quiz.id].timesPassed,
-                    timesFailed: attemptCountsByQuiz[quiz.id].timesFailed,
-                    scoreAverage: attemptCountsByQuiz[quiz.id].scoreAverage,
-                    completionTimeAverage: attemptCountsByQuiz[quiz.id].completionTimeAverage,
-                })),
-            });
-        } while (currentBatchSize === batchSize);
-    } catch (error) {
-        logger.error("Caught error logging quiz statistics", { trace: "0421", periodType, periodStart, periodEnd });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
-};
+) => await batch<Prisma.quizFindManyArgs>({
+    objectType: "Quiz",
+    processBatch: async (batch, prisma) => {
+        // Find and count all attempts associated with the quizzes, which 
+        // have been started or completed within the period
+        const attemptCountsByQuiz = await batchAttemptCounts(prisma, batch.map(quiz => quiz.id), periodStart, periodEnd);
+        // Create stats for each routine
+        await prisma.stats_quiz.createMany({
+            data: batch.map(quiz => ({
+                quizId: quiz.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                timesStarted: attemptCountsByQuiz[quiz.id].timesStarted,
+                timesPassed: attemptCountsByQuiz[quiz.id].timesPassed,
+                timesFailed: attemptCountsByQuiz[quiz.id].timesFailed,
+                scoreAverage: attemptCountsByQuiz[quiz.id].scoreAverage,
+                completionTimeAverage: attemptCountsByQuiz[quiz.id].completionTimeAverage,
+            })),
+        });
+    },
+    select: {
+        id: true,
+    },
+    trace: "0421",
+    traceObject: { periodType, periodStart, periodEnd },
+    where: {
+        attempts: {
+            some: {}, // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
+        },
+    },
+});

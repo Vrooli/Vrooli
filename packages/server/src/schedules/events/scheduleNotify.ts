@@ -1,10 +1,10 @@
 import { calculateOccurrences, GqlModelType, uppercaseFirstLetter } from "@local/shared";
-import { PrismaClient } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "../../events";
 import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from "../../notify";
 import { initializeRedis } from "../../redisConn";
 import { PrismaType } from "../../types";
+import { withPrisma } from "../../utils/withPrisma";
 
 /**
  * For a list of scheduled events, finds subscribers and schedules notifications for them
@@ -120,68 +120,64 @@ const scheduleNotifications = async (
  * Caches upcoming scheduled events in the database.
  */
 export const scheduleNotify = async () => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // Define window for start and end dates. 
-        // Should be looking for all events that occur within the next 25 hours. 
-        // This script runs every 24 hours, so we add an hour buffer in case the script runs late.
-        const now = new Date();
-        const startDate = now;
-        const endDate = new Date(now.setHours(now.getHours() + 25));
-        // Set up batch parameters
-        const batchSize = 100;
-        const skip = 0;
-        let currentBatchSize = 0;
-        // While there are still schedules to process
-        do {
-            // Find all schedules data that occurs within the window
-            const schedules = await prisma.schedule.findMany({
-                where: schedulesWhereInTimeframe(startDate, endDate),
-                select: {
-                    id: true,
-                    startTime: true,
-                    endTime: true,
-                    timezone: true,
-                    exceptions: {
-                        where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
-                        select: {
-                            id: true,
-                            originalStartTime: true,
-                            newStartTime: true,
-                            newEndTime: true,
+    await withPrisma({
+        process: async (prisma) => {
+            // Define window for start and end dates. 
+            // Should be looking for all events that occur within the next 25 hours. 
+            // This script runs every 24 hours, so we add an hour buffer in case the script runs late.
+            const now = new Date();
+            const startDate = now;
+            const endDate = new Date(now.setHours(now.getHours() + 25));
+            // Set up batch parameters
+            const batchSize = 100;
+            const skip = 0;
+            let currentBatchSize = 0;
+            // While there are still schedules to process
+            do {
+                // Find all schedules data that occurs within the window
+                const schedules = await prisma.schedule.findMany({
+                    where: schedulesWhereInTimeframe(startDate, endDate),
+                    select: {
+                        id: true,
+                        startTime: true,
+                        endTime: true,
+                        timezone: true,
+                        exceptions: {
+                            where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
+                            select: {
+                                id: true,
+                                originalStartTime: true,
+                                newStartTime: true,
+                                newEndTime: true,
+                            },
+                        },
+                        recurrences: {
+                            where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
+                            select: {
+                                id: true,
+                                recurrenceType: true,
+                                interval: true,
+                                dayOfWeek: true,
+                                dayOfMonth: true,
+                                month: true,
+                                endDate: true,
+                            },
                         },
                     },
-                    recurrences: {
-                        where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
-                        select: {
-                            id: true,
-                            recurrenceType: true,
-                            interval: true,
-                            dayOfWeek: true,
-                            dayOfMonth: true,
-                            month: true,
-                            endDate: true,
-                        },
-                    },
-                },
-                skip,
-                take: batchSize,
-            });
-            currentBatchSize = schedules.length;
-            // For each schedule
-            for (const schedule of schedules) {
-                // Find all occurrences of the schedule within the next 25 hours
-                const occurrences = calculateOccurrences(schedule as any, startDate, endDate);
-                // For each occurrence, schedule notifications for subscribers of the schedule
-                await scheduleNotifications(prisma, schedule.id, occurrences);
-            }
-        } while (currentBatchSize === batchSize);
-        logger.info("Upcoming scheduled events cached successfully.", { trace: "0427" });
-    } catch (error) {
-        logger.error("Failed to cache upcoming scheduled events.", { trace: "0428" });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
+                    skip,
+                    take: batchSize,
+                });
+                currentBatchSize = schedules.length;
+                // For each schedule
+                for (const schedule of schedules) {
+                    // Find all occurrences of the schedule within the next 25 hours
+                    const occurrences = calculateOccurrences(schedule as any, startDate, endDate);
+                    // For each occurrence, schedule notifications for subscribers of the schedule
+                    await scheduleNotifications(prisma, schedule.id, occurrences);
+                }
+            } while (currentBatchSize === batchSize);
+            logger.info("Upcoming scheduled events cached successfully.", { trace: "0427" });
+        },
+        trace: "0428",
+    });
 };

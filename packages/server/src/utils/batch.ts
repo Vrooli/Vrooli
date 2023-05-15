@@ -1,9 +1,6 @@
-import pkg from "@prisma/client";
-import { logger } from "../events";
 import { PrismaType } from "../types";
 import { batchCollect, BatchCollectProps, FindManyArgs } from "./batchCollect";
-
-const { PrismaClient } = pkg;
+import { withPrisma } from "./withPrisma";
 
 
 interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, "prisma" | "processBatch"> {
@@ -22,16 +19,15 @@ export async function batch<T extends FindManyArgs>({
     traceObject,
     ...props
 }: BatchProps<T>) {
-    const prisma = new PrismaClient();
-    try {
-        await batchCollect<T>({
-            prisma,
-            processBatch: async (batch) => await processBatch(batch, prisma),
-            ...props,
-        });
-    } catch (error) {
-        logger.error("Caught error in batch", { trace, error, ...traceObject });
-    } finally {
-        await prisma.$disconnect();
-    }
+    await withPrisma({
+        process: async (prisma) => {
+            await batchCollect<T>({
+                prisma,
+                processBatch: async (batch) => await processBatch(batch, prisma),
+                ...props,
+            });
+        },
+        trace,
+        traceObject,
+    });
 }

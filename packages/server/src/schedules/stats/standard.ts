@@ -12,7 +12,7 @@ export const logStandardStats = async (
     periodStart: string,
     periodEnd: string,
 ) => await batch<Prisma.standard_versionFindManyArgs>({
-    objectType: "Standard",
+    objectType: "StandardVersion",
     processBatch: async (batch, prisma) => {
         await prisma.stats_standard.createMany({
             data: batch.map(standardVersion => ({

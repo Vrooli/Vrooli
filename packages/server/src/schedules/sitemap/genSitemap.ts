@@ -1,12 +1,10 @@
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
-import pkg from "@prisma/client";
 import fs from "fs";
 import zlib from "zlib";
 import { logger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { withPrisma } from "../../utils/withPrisma";
 
 const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
 
@@ -174,22 +172,24 @@ export const genSitemap = async (): Promise<void> => {
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
         logger.warning("Sitemap file for main routes does not exist");
     }
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    const sitemapFileNames: string[] = [];
-    // Generate sitemap for each object type
-    for (const objectType of sitemapObjectTypes) {
-        const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
-        // Add sitemap file names to array
-        sitemapFileNames.push(...sitemapFileNamesForObject);
-    }
-    // Generate sitemap index file
-    const sitemapIndex = generateSitemapIndex(`${siteName}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
-    // Write sitemap index file
-    fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
-    // Close the Prisma client
-    await prisma.$disconnect();
-    console.info("✅ Sitemap generated successfully");
+    const success = await withPrisma({
+        process: async (prisma) => {
+            const sitemapFileNames: string[] = [];
+            // Generate sitemap for each object type
+            for (const objectType of sitemapObjectTypes) {
+                const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
+                // Add sitemap file names to array
+                sitemapFileNames.push(...sitemapFileNamesForObject);
+            }
+            // Generate sitemap index file
+            const sitemapIndex = generateSitemapIndex(`${siteName}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
+            // Write sitemap index file
+            fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
+        },
+        trace: "0463",
+        traceObject: { routeSitemapFileName, sitemapDir },
+    });
+    if (success) logger.info("✅ Sitemap generated successfully");
 };
 
 /**

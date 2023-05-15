@@ -1,8 +1,6 @@
-import pkg, { PeriodType } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
 
 type BatchDirectoryRunCountsResult = Record<string, {
     runsStarted: number;
@@ -99,56 +97,37 @@ export const logRoutineStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // We may be dealing with a lot of data, so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            // Find all latest (so should only be associated with one routine) routine versions
-            const batch = await prisma.routine_version.findMany({
-                where: {
-                    isDeleted: false,
-                    isLatest: true,
-                    root: { isDeleted: false },
-                },
-                select: {
-                    id: true,
-                    root: {
-                        select: { id: true },
-                    },
-                },
-                skip,
-                take: batchSize,
-            });
-            // Increment skip
-            skip += batchSize;
-            // Update current batch size
-            currentBatchSize = batch.length;
-            // Find and count all runs associated with the latest routine versions, which 
-            // have been started or completed within the period
-            const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
-            // Create stats for each routine
-            await prisma.stats_routine.createMany({
-                data: batch.map(routineVersion => ({
-                    routineId: routineVersion.root.id,
-                    periodStart,
-                    periodEnd,
-                    periodType,
-                    runsStarted: runCountsByVersion[routineVersion.id].runsStarted,
-                    runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
-                    runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
-                    runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
-                })),
-            });
-        } while (currentBatchSize === batchSize);
-    } catch (error) {
-        logger.error("Caught error logging routine statistics", { trace: "0422", periodType, periodStart, periodEnd });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
-};
+) => await batch<Prisma.routine_versionFindManyArgs>({
+    objectType: "RoutineVersion",
+    processBatch: async (batch, prisma) => {
+        // Find and count all runs associated with the latest routine versions, which 
+        // have been started or completed within the period
+        const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
+        // Create stats for each routine
+        await prisma.stats_routine.createMany({
+            data: batch.map(routineVersion => ({
+                routineId: routineVersion.root.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                runsStarted: runCountsByVersion[routineVersion.id].runsStarted,
+                runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
+                runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
+                runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
+            })),
+        });
+    },
+    select: {
+        id: true,
+        root: {
+            select: { id: true },
+        },
+    },
+    trace: "0422",
+    traceObject: { periodType, periodStart, periodEnd },
+    where: {
+        isDeleted: false,
+        isLatest: true,
+        root: { isDeleted: false },
+    },
+});

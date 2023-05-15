@@ -12,7 +12,7 @@ export const logSmartContractStats = async (
     periodStart: string,
     periodEnd: string,
 ) => await batch<Prisma.smart_contract_versionFindManyArgs>({
-    objectType: "SmartContract",
+    objectType: "SmartContractVersion",
     processBatch: async (batch, prisma) => {
         await prisma.stats_smart_contract.createMany({
             data: batch.map(smartContractVersion => ({
