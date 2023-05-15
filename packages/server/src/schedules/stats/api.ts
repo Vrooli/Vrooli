@@ -13,7 +13,7 @@ export const logApiStats = async (
     periodEnd: string,
 ) => await batch<Prisma.api_versionFindManyArgs>({
     objectType: "ApiVersion",
-    processData: async (batch, prisma) => {
+    processBatch: async (batch, prisma) => {
         await prisma.stats_api.createMany({
             data: batch.map(apiVersion => ({
                 apiId: apiVersion.root.id,

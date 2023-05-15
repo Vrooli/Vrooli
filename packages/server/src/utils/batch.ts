@@ -6,8 +6,8 @@ import { batchCollect, BatchCollectProps, FindManyArgs } from "./batchCollect";
 const { PrismaClient } = pkg;
 
 
-interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, "prisma" | "processData"> {
-    processData: (batch: any[], prisma: PrismaType) => Promise<void>,
+interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, "prisma" | "processBatch"> {
+    processBatch: (batch: any[], prisma: PrismaType) => Promise<void>,
     trace: string,
     traceObject?: Record<string, any>,
 }
@@ -17,7 +17,7 @@ interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, 
  * while also handling the connection/disconnection to the database
  */
 export async function batch<T extends FindManyArgs>({
-    processData,
+    processBatch,
     trace,
     traceObject,
     ...props
@@ -26,7 +26,7 @@ export async function batch<T extends FindManyArgs>({
     try {
         await batchCollect<T>({
             prisma,
-            processData: async (batch) => await processData(batch, prisma),
+            processBatch: async (batch) => await processBatch(batch, prisma),
             ...props,
         });
     } catch (error) {

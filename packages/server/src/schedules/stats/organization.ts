@@ -1,7 +1,7 @@
 import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
 import { batch } from "../../utils/batch";
-import { batchCollect } from "../../utils/batchCollect";
+import { batchGroup } from "../../utils/batchGroup";
 
 type BatchRunRoutinesResult = Record<string, {
     runRoutinesStarted: number;
@@ -23,62 +23,61 @@ const batchRunRoutines = async (
     organizationIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunRoutinesResult> => {
-    // Initialize return value
-    const result: BatchRunRoutinesResult = Object.fromEntries(organizationIds.map(id => [id, {
+): Promise<BatchRunRoutinesResult> => batchGroup<Prisma.run_routineFindManyArgs, BatchRunRoutinesResult>({
+    initialResult: Object.fromEntries(organizationIds.map(id => [id, {
         runRoutinesStarted: 0,
         runRoutinesCompleted: 0,
         runRoutineCompletionTimeAverage: 0,
         runRoutineContextSwitchesAverage: 0,
-    }]));
-    await batchCollect<Prisma.run_routineFindManyArgs>({
-        objectType: "RunRoutine",
-        prisma,
-        processData: async (batch) => {
-            // For each run, increment the counts for the routine version
-            batch.forEach(run => {
-                const organizationId = run.organization?.id;
-                if (!organizationId || !result[organizationId]) { return; }
-                // If runStarted within period, increment runsStarted
-                if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                    result[organizationId].runRoutinesStarted += 1;
-                }
-                // If runCompleted within period, increment runsCompleted 
-                // and update averages
-                if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                    result[organizationId].runRoutinesCompleted += 1;
-                    if (run.timeElapsed !== null) result[organizationId].runRoutineCompletionTimeAverage += run.timeElapsed;
-                    result[organizationId].runRoutineContextSwitchesAverage += run.contextSwitches;
-                }
-            });
+    }])),
+    processBatch: async (batch, result) => {
+        // For each run, increment the counts for the routine version
+        batch.forEach(run => {
+            const organizationId = run.organization?.id;
+            if (!organizationId || !result[organizationId]) { return; }
+            // If runStarted within period, increment runsStarted
+            if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
+                result[organizationId].runRoutinesStarted += 1;
+            }
+            // If runCompleted within period, increment runsCompleted 
+            // and update averages
+            if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
+                result[organizationId].runRoutinesCompleted += 1;
+                if (run.timeElapsed !== null) result[organizationId].runRoutineCompletionTimeAverage += run.timeElapsed;
+                result[organizationId].runRoutineContextSwitchesAverage += run.contextSwitches;
+            }
+        });
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(organizationId => {
+            if (result[organizationId].runRoutinesCompleted > 0) {
+                result[organizationId].runRoutineCompletionTimeAverage /= result[organizationId].runRoutinesCompleted;
+                result[organizationId].runRoutineContextSwitchesAverage /= result[organizationId].runRoutinesCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunRoutine",
+    prisma,
+    select: {
+        id: true,
+        organization: {
+            select: { id: true },
         },
-        select: {
-            id: true,
-            organization: {
-                select: { id: true },
-            },
-            completedAt: true,
-            contextSwitches: true,
-            startedAt: true,
-            timeElapsed: true,
-        },
-        where: {
-            organization: { id: { in: organizationIds } },
-            OR: [
-                { startedAt: { gte: periodStart, lte: periodEnd } },
-                { completedAt: { gte: periodStart, lte: periodEnd } },
-            ],
-        },
-    });
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(organizationId => {
-        if (result[organizationId].runRoutinesCompleted > 0) {
-            result[organizationId].runRoutineCompletionTimeAverage /= result[organizationId].runRoutinesCompleted;
-            result[organizationId].runRoutineContextSwitchesAverage /= result[organizationId].runRoutinesCompleted;
-        }
-    });
-    return result;
-};
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        organization: { id: { in: organizationIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all organizations
@@ -92,7 +91,7 @@ export const logOrganizationStats = async (
     periodEnd: string,
 ) => await batch<Prisma.organizationFindManyArgs>({
     objectType: "Organization",
-    processData: async (batch, prisma) => {
+    processBatch: async (batch, prisma) => {
         const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
         await prisma.stats_organization.createMany({
             data: batch.map(organization => ({

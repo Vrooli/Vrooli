@@ -13,7 +13,7 @@ export interface BatchCollectProps<T extends FindManyArgs> {
     batchSize?: number,
     objectType: GqlModelType | `${GqlModelType}`
     prisma: PrismaType,
-    processData: (batch: any[]) => Promise<void>,
+    processBatch: (batch: any[]) => Promise<void>,
     select: T["select"],
     where?: T["where"],
 }
@@ -26,7 +26,7 @@ export const batchCollect = async <T extends FindManyArgs>({
     batchSize = DEFAULT_BATCH_SIZE,
     objectType,
     prisma,
-    processData,
+    processBatch,
     select,
     where,
 }: BatchCollectProps<T>) => {
@@ -45,6 +45,6 @@ export const batchCollect = async <T extends FindManyArgs>({
         skip += batchSize;
         currentBatchSize = batch.length;
 
-        await processData(batch);
+        await processBatch(batch);
     } while (currentBatchSize === batchSize);
 };
