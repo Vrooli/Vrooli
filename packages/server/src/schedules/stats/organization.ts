@@ -1,9 +1,7 @@
-import pkg, { PeriodType, Prisma } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
+import { batch } from "../../utils/batch";
 import { batchCollect } from "../../utils/batchCollect";
-
-const { PrismaClient } = pkg;
 
 type BatchRunRoutinesResult = Record<string, {
     runRoutinesStarted: number;
@@ -92,43 +90,35 @@ export const logOrganizationStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    const prisma = new PrismaClient();
-    try {
-        await batchCollect<Prisma.organizationFindManyArgs>({
-            objectType: "Organization",
-            prisma,
-            processData: async (batch) => {
-                const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
-                await prisma.stats_organization.createMany({
-                    data: batch.map(organization => ({
-                        organizationId: organization.id,
-                        periodStart,
-                        periodEnd,
-                        periodType,
-                        ...organization._count,
-                        ...runRoutineStats[organization.id],
-                    })),
-                });
-            },
-            select: {
-                id: true,
-                _count: {
-                    select: {
-                        apis: true,
-                        members: true,
-                        notes: true,
-                        projects: true,
-                        routines: true,
-                        smartContracts: true,
-                        standards: true,
-                    },
-                },
-            },
+) => await batch<Prisma.organizationFindManyArgs>({
+    objectType: "Organization",
+    processData: async (batch, prisma) => {
+        const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
+        await prisma.stats_organization.createMany({
+            data: batch.map(organization => ({
+                organizationId: organization.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                ...organization._count,
+                ...runRoutineStats[organization.id],
+            })),
         });
-    } catch (error) {
-        logger.error("Caught error logging organization statistics", { trace: "0419", periodType, periodStart, periodEnd });
-    } finally {
-        await prisma.$disconnect();
-    }
-};
+    },
+    select: {
+        id: true,
+        _count: {
+            select: {
+                apis: true,
+                members: true,
+                notes: true,
+                projects: true,
+                routines: true,
+                smartContracts: true,
+                standards: true,
+            },
+        },
+    },
+    trace: "0419",
+    traceObject: { periodType, periodStart, periodEnd },
+});

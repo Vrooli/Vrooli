@@ -1,23 +1,27 @@
 import { GqlModelType } from "@local/shared";
-import { PrismaClient } from "@prisma/client";
 import { ObjectMap } from "../models";
+import { PrismaType } from "../types";
 
 export const DEFAULT_BATCH_SIZE = 100;
 
-type FindManyArgs = {
+export type FindManyArgs = {
     select?: any,
     where?: any,
 }
 
-type BatchCollectProps<T extends FindManyArgs> = {
+export interface BatchCollectProps<T extends FindManyArgs> {
     batchSize?: number,
     objectType: GqlModelType | `${GqlModelType}`
-    prisma: PrismaClient,
+    prisma: PrismaType,
     processData: (batch: any[]) => Promise<void>,
     select: T["select"],
     where?: T["where"],
 }
 
+/**
+ * Processes data from the database in batches, 
+ * as to not overload the database with a large query
+ */
 export const batchCollect = async <T extends FindManyArgs>({
     batchSize = DEFAULT_BATCH_SIZE,
     objectType,
