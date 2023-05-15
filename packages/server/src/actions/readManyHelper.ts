@@ -81,6 +81,17 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
         throw new CustomError("0383", "InternalError", req.languages, { objectType });
     }
+    // TODO for objects with embeddings, need to replace findMany with something like this:
+    //     const results = await prisma.$queryRaw`
+    //     SELECT id, embedding::text, ((1 / (1 + vector <-> ${vecEmbed}::vector)) * 2 + stars) as score
+    //     FROM embedding
+    //     WHERE stars > ${minimumStars} 
+    //     HAVING vector <-> ${vecEmbed}::vector < ${maxDistance}
+    //     ORDER BY score DESC
+    //     LIMIT ${limit}
+    // `
+    // This allows us to search by embedding similarity, while also factoring in popularity
+
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
