@@ -3,7 +3,7 @@ import { batchCollect, BatchCollectProps, FindManyArgs } from "./batchCollect";
 interface BatchGroupProps<T extends FindManyArgs, R> extends Omit<BatchCollectProps<T>, "processBatch"> {
     initialResult: R,
     processBatch: (batch: any[], result: R) => void,
-    finalizeResult: (result: R) => R,
+    finalizeResult?: (result: R) => R,
 }
 
 /**
@@ -21,5 +21,5 @@ export async function batchGroup<T extends FindManyArgs, R>({
         ...props,
         processBatch: async (batch) => processBatch(batch, result),
     });
-    return finalizeResult(result);
+    return finalizeResult ? finalizeResult(result) : result;
 }

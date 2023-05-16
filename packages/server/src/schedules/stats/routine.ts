@@ -1,8 +1,9 @@
 import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
 import { batch } from "../../utils/batch";
+import { batchGroup } from "../../utils/batchGroup";
 
-type BatchDirectoryRunCountsResult = Record<string, {
+type BatchRunCountsResult = Record<string, {
     runsStarted: number;
     runsCompleted: number;
     runCompletionTimeAverage: number;
@@ -22,44 +23,14 @@ const batchRunCounts = async (
     routineVersionIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchDirectoryRunCountsResult> => {
-    // Initialize return value
-    const result: BatchDirectoryRunCountsResult = Object.fromEntries(routineVersionIds.map(id => [id, {
+): Promise<BatchRunCountsResult> => batchGroup<Prisma.run_routineFindManyArgs, BatchRunCountsResult>({
+    initialResult: Object.fromEntries(routineVersionIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
         runCompletionTimeAverage: 0,
         runContextSwitchesAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all runs associated with the routine versions
-        const batch = await prisma.run_routine.findMany({
-            where: {
-                routineVersion: { id: { in: routineVersionIds } },
-                OR: [
-                    { startedAt: { gte: periodStart, lte: periodEnd } },
-                    { completedAt: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                routineVersion: {
-                    select: { id: true },
-                },
-                completedAt: true,
-                contextSwitches: true,
-                startedAt: true,
-                timeElapsed: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const versionId = run.routineVersion?.id;
@@ -76,16 +47,37 @@ const batchRunCounts = async (
                 result[versionId].runContextSwitchesAverage += run.contextSwitches;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(versionId => {
-        if (result[versionId].runsCompleted > 0) {
-            result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
-            result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(versionId => {
+            if (result[versionId].runsCompleted > 0) {
+                result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
+                result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunRoutine",
+    prisma,
+    select: {
+        id: true,
+        routineVersion: {
+            select: { id: true },
+        },
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        routineVersion: { id: { in: routineVersionIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all routines

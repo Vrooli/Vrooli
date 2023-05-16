@@ -1,6 +1,7 @@
 import { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
 import { PrismaType } from "../../types";
 import { batch } from "../../utils/batch";
+import { batchGroup } from "../../utils/batchGroup";
 
 type BatchApisResult = Record<string, {
     apisCreated: number;
@@ -66,42 +67,30 @@ const batchApis = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchApisResult> => {
-    // Initialize return value
-    const result: BatchApisResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchApisResult> => batchGroup<Prisma.apiFindManyArgs, BatchApisResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         apisCreated: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all apis created by the users in the period
-        const batch = await prisma.api.findMany({
-            where: {
-                created_at: { gte: periodStart, lt: periodEnd },
-                createdById: { in: userIds },
-                isDeleted: false,
-            },
-            select: {
-                id: true,
-                createdById: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(api => {
             const userId = api.createdById;
             if (!userId || !result[userId]) return;
             result[userId].apisCreated += 1;
         });
-    } while (currentBatchSize === batchSize);
-    return result;
-};
+    },
+    objectType: "Api",
+    prisma,
+    select: {
+        id: true,
+        createdById: true,
+    },
+    where: {
+        created_at: { gte: periodStart, lt: periodEnd },
+        createdById: { in: userIds },
+        isDeleted: false,
+    },
+});
 
 /**
  * Batch collects organization stats for a list of users
@@ -116,41 +105,29 @@ const batchOrganizations = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchOrganizationsResult> => {
-    // Initialize return value
-    const result: BatchOrganizationsResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchOrganizationsResult> => batchGroup<Prisma.organizationFindManyArgs, BatchOrganizationsResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         organizationsCreated: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all organizations created by the users in the period
-        const batch = await prisma.organization.findMany({
-            where: {
-                created_at: { gte: periodStart, lt: periodEnd },
-                createdById: { in: userIds },
-            },
-            select: {
-                id: true,
-                createdById: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(organization => {
             const userId = organization.createdById;
             if (!userId || !result[userId]) return;
             result[userId].organizationsCreated += 1;
         });
-    } while (currentBatchSize === batchSize);
-    return result;
-};
+    },
+    objectType: "Organization",
+    prisma,
+    select: {
+        id: true,
+        createdById: true,
+    },
+    where: {
+        created_at: { gte: periodStart, lt: periodEnd },
+        createdById: { in: userIds },
+    },
+});
 
 /**
  * Batch collects project stats for a list of users
@@ -165,41 +142,13 @@ const batchProjects = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchProjectsResult> => {
-    // Initialize return value
-    const result: BatchProjectsResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchProjectsResult> => batchGroup<Prisma.projectFindManyArgs, BatchProjectsResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         projectsCreated: 0,
         projectsCompleted: 0,
         projectCompletionTimeAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all projects created by the users in the period
-        const batch = await prisma.project.findMany({
-            where: {
-                createdById: { in: userIds },
-                isDeleted: false,
-                OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
-                    { completedAt: { gte: periodStart, lt: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                completedAt: true,
-                created_at: true,
-                createdById: true,
-                hasCompleteVersion: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(project => {
             const userId = project.createdById;
@@ -210,16 +159,35 @@ const batchProjects = async (
                 if (project.completedAt) result[userId].projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime());
             }
         });
-    } while (currentBatchSize === batchSize);
-    // Calculate averages
-    Object.keys(result).forEach(userId => {
-        const user = result[userId];
-        if (user.projectsCompleted > 0) {
-            user.projectCompletionTimeAverage /= user.projectsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // Calculate averages
+        Object.keys(result).forEach(userId => {
+            const user = result[userId];
+            if (user.projectsCompleted > 0) {
+                user.projectCompletionTimeAverage /= user.projectsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "Project",
+    prisma,
+    select: {
+        id: true,
+        completedAt: true,
+        created_at: true,
+        createdById: true,
+        hasCompleteVersion: true,
+    },
+    where: {
+        createdById: { in: userIds },
+        isDeleted: false,
+        OR: [
+            { created_at: { gte: periodStart, lt: periodEnd } },
+            { completedAt: { gte: periodStart, lt: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Batch collects quiz stats for a list of users
@@ -234,35 +202,12 @@ const batchQuizzes = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchQuizzesResult> => {
-    // Initialize return value
-    const result: BatchQuizzesResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchQuizzesResult> => batchGroup<Prisma.quiz_attemptFindManyArgs, BatchQuizzesResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         quizzesPassed: 0,
         quizzesFailed: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all quiz attempts created by the users in the period
-        const batch = await prisma.quiz_attempt.findMany({
-            where: {
-                userId: { in: userIds },
-                updated_at: { gte: periodStart, lte: periodEnd },
-                status: { in: [QuizAttemptStatus.Passed, QuizAttemptStatus.Failed] },
-            },
-            select: {
-                id: true,
-                userId: true,
-                status: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(attempt => {
             const userId = attempt.userId;
@@ -273,9 +218,20 @@ const batchQuizzes = async (
                 result[userId].quizzesFailed += 1;
             }
         });
-    } while (currentBatchSize === batchSize);
-    return result;
-};
+    },
+    objectType: "QuizAttempt",
+    prisma,
+    select: {
+        id: true,
+        userId: true,
+        status: true,
+    },
+    where: {
+        userId: { in: userIds },
+        updated_at: { gte: periodStart, lte: periodEnd },
+        status: { in: [QuizAttemptStatus.Passed, QuizAttemptStatus.Failed] },
+    },
+});
 
 /**
  * Batch collects routine stats for a list of users
@@ -290,41 +246,13 @@ const batchRoutines = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRoutinesResult> => {
-    // Initialize return value
-    const result: BatchRoutinesResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchRoutinesResult> => batchGroup<Prisma.routineFindManyArgs, BatchRoutinesResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         routinesCreated: 0,
         routinesCompleted: 0,
         routineCompletionTimeAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all routines created by the users in the period
-        const batch = await prisma.routine.findMany({
-            where: {
-                createdById: { in: userIds },
-                isDeleted: false,
-                OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
-                    { completedAt: { gte: periodStart, lt: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                completedAt: true,
-                created_at: true,
-                createdById: true,
-                hasCompleteVersion: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(routine => {
             const userId = routine.createdById;
@@ -335,16 +263,35 @@ const batchRoutines = async (
                 if (routine.completedAt) result[userId].routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime());
             }
         });
-    } while (currentBatchSize === batchSize);
-    // Calculate averages
-    Object.keys(result).forEach(userId => {
-        const user = result[userId];
-        if (user.routinesCompleted > 0) {
-            user.routineCompletionTimeAverage /= user.routinesCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // Calculate averages
+        Object.keys(result).forEach(userId => {
+            const user = result[userId];
+            if (user.routinesCompleted > 0) {
+                user.routineCompletionTimeAverage /= user.routinesCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "Routine",
+    prisma,
+    select: {
+        id: true,
+        completedAt: true,
+        created_at: true,
+        createdById: true,
+        hasCompleteVersion: true,
+    },
+    where: {
+        createdById: { in: userIds },
+        isDeleted: false,
+        OR: [
+            { created_at: { gte: periodStart, lt: periodEnd } },
+            { completedAt: { gte: periodStart, lt: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Batch collects run project stats for a list of users
@@ -359,44 +306,14 @@ const batchRunProjects = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunProjectsResult> => {
-    // Initialize return value
-    const result: BatchRunProjectsResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchRunProjectsResult> => batchGroup<Prisma.run_projectFindManyArgs, BatchRunProjectsResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         runProjectsStarted: 0,
         runProjectsCompleted: 0,
         runProjectCompletionTimeAverage: 0,
         runProjectContextSwitchesAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all runs associated with the users
-        const batch = await prisma.run_project.findMany({
-            where: {
-                user: { id: { in: userIds } },
-                OR: [
-                    { startedAt: { gte: periodStart, lte: periodEnd } },
-                    { completedAt: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                user: {
-                    select: { id: true },
-                },
-                completedAt: true,
-                contextSwitches: true,
-                startedAt: true,
-                timeElapsed: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const userId = run.user?.id;
@@ -413,16 +330,37 @@ const batchRunProjects = async (
                 result[userId].runProjectContextSwitchesAverage += run.contextSwitches;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(userId => {
-        if (result[userId].runProjectsCompleted > 0) {
-            result[userId].runProjectCompletionTimeAverage /= result[userId].runProjectsCompleted;
-            result[userId].runProjectContextSwitchesAverage /= result[userId].runProjectsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(userId => {
+            if (result[userId].runProjectsCompleted > 0) {
+                result[userId].runProjectCompletionTimeAverage /= result[userId].runProjectsCompleted;
+                result[userId].runProjectContextSwitchesAverage /= result[userId].runProjectsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunProject",
+    prisma,
+    select: {
+        id: true,
+        user: {
+            select: { id: true },
+        },
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        user: { id: { in: userIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Batch collects run routine stats for a list of users
@@ -437,44 +375,14 @@ const batchRunRoutines = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunRoutinesResult> => {
-    // Initialize return value
-    const result: BatchRunRoutinesResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchRunRoutinesResult> => batchGroup<Prisma.run_routineFindManyArgs, BatchRunRoutinesResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         runRoutinesStarted: 0,
         runRoutinesCompleted: 0,
         runRoutineCompletionTimeAverage: 0,
         runRoutineContextSwitchesAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all runs associated with the users
-        const batch = await prisma.run_routine.findMany({
-            where: {
-                user: { id: { in: userIds } },
-                OR: [
-                    { startedAt: { gte: periodStart, lte: periodEnd } },
-                    { completedAt: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                user: {
-                    select: { id: true },
-                },
-                completedAt: true,
-                contextSwitches: true,
-                startedAt: true,
-                timeElapsed: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const userId = run.user?.id;
@@ -491,16 +399,37 @@ const batchRunRoutines = async (
                 result[userId].runRoutineContextSwitchesAverage += run.contextSwitches;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(userId => {
-        if (result[userId].runRoutinesCompleted > 0) {
-            result[userId].runRoutineCompletionTimeAverage /= result[userId].runRoutinesCompleted;
-            result[userId].runRoutineContextSwitchesAverage /= result[userId].runRoutinesCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(userId => {
+            if (result[userId].runRoutinesCompleted > 0) {
+                result[userId].runRoutineCompletionTimeAverage /= result[userId].runRoutinesCompleted;
+                result[userId].runRoutineContextSwitchesAverage /= result[userId].runRoutinesCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunRoutine",
+    prisma,
+    select: {
+        id: true,
+        user: {
+            select: { id: true },
+        },
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        user: { id: { in: userIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Batch collects smart contract stats for a list of users
@@ -515,41 +444,13 @@ const batchSmartContracts = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchSmartContractsResult> => {
-    // Initialize return value
-    const result: BatchSmartContractsResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchSmartContractsResult> => batchGroup<Prisma.smart_contractFindManyArgs, BatchSmartContractsResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         smartContractsCreated: 0,
         smartContractsCompleted: 0,
         smartContractCompletionTimeAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all smartContracts created by the users in the period
-        const batch = await prisma.smart_contract.findMany({
-            where: {
-                createdById: { in: userIds },
-                isDeleted: false,
-                OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
-                    { completedAt: { gte: periodStart, lt: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                completedAt: true,
-                created_at: true,
-                createdById: true,
-                hasCompleteVersion: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(smartContract => {
             const userId = smartContract.createdById;
@@ -560,16 +461,35 @@ const batchSmartContracts = async (
                 if (smartContract.completedAt) result[userId].smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime());
             }
         });
-    } while (currentBatchSize === batchSize);
-    // Calculate averages
-    Object.keys(result).forEach(userId => {
-        const user = result[userId];
-        if (user.smartContractsCompleted > 0) {
-            user.smartContractCompletionTimeAverage /= user.smartContractsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // Calculate averages
+        Object.keys(result).forEach(userId => {
+            const user = result[userId];
+            if (user.smartContractsCompleted > 0) {
+                user.smartContractCompletionTimeAverage /= user.smartContractsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "SmartContract",
+    prisma,
+    select: {
+        id: true,
+        completedAt: true,
+        created_at: true,
+        createdById: true,
+        hasCompleteVersion: true,
+    },
+    where: {
+        createdById: { in: userIds },
+        isDeleted: false,
+        OR: [
+            { created_at: { gte: periodStart, lt: periodEnd } },
+            { completedAt: { gte: periodStart, lt: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Batch collects standard stats for a list of users
@@ -584,41 +504,13 @@ const batchStandards = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchStandardsResult> => {
-    // Initialize return value
-    const result: BatchStandardsResult = Object.fromEntries(userIds.map(id => [id, {
+): Promise<BatchStandardsResult> => batchGroup<Prisma.standardFindManyArgs, BatchStandardsResult>({
+    initialResult: Object.fromEntries(userIds.map(id => [id, {
         standardsCreated: 0,
         standardsCompleted: 0,
         standardCompletionTimeAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all standards created by the users in the period
-        const batch = await prisma.standard.findMany({
-            where: {
-                createdById: { in: userIds },
-                isDeleted: false,
-                OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
-                    { completedAt: { gte: periodStart, lt: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                completedAt: true,
-                created_at: true,
-                createdById: true,
-                hasCompleteVersion: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each, add stats to the user
         batch.forEach(standard => {
             const userId = standard.createdById;
@@ -629,16 +521,35 @@ const batchStandards = async (
                 if (standard.completedAt) result[userId].standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime());
             }
         });
-    } while (currentBatchSize === batchSize);
-    // Calculate averages
-    Object.keys(result).forEach(userId => {
-        const user = result[userId];
-        if (user.standardsCompleted > 0) {
-            user.standardCompletionTimeAverage /= user.standardsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // Calculate averages
+        Object.keys(result).forEach(userId => {
+            const user = result[userId];
+            if (user.standardsCompleted > 0) {
+                user.standardCompletionTimeAverage /= user.standardsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "Standard",
+    prisma,
+    select: {
+        id: true,
+        completedAt: true,
+        created_at: true,
+        createdById: true,
+        hasCompleteVersion: true,
+    },
+    where: {
+        createdById: { in: userIds },
+        isDeleted: false,
+        OR: [
+            { created_at: { gte: periodStart, lt: periodEnd } },
+            { completedAt: { gte: periodStart, lt: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all users

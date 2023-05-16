@@ -1,5 +1,5 @@
 import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/shared";
-import { ReportStatus } from "@prisma/client";
+import { Prisma, ReportStatus } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
@@ -8,6 +8,7 @@ import { getLogic } from "../getters";
 import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models";
 import { initializeRedis } from "../redisConn";
 import { PrismaType, SessionUserToken } from "../types";
+import { batch } from "../utils/batch";
 import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
@@ -344,34 +345,27 @@ const NotifyResult = ({
      * @param excludeUserId The user to exclude from the notification
      */
     toSubscribers: async (objectType, objectId, excludeUserId) => {
-        // Find all subscribers of the object. There may be a lot, 
-        // so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            const batch = await prisma.notification_subscription.findMany({
-                where: {
-                    AND: [
-                        { [subscribableMapper[objectType]]: { id: objectId } },
-                        { subscriberId: { not: excludeUserId ?? undefined } },
-                    ],
-                },
-                select: { subscriberId: true, silent: true },
-                skip,
-                take: batchSize,
-            });
-            skip += batchSize;
-            currentBatchSize = batch.length;
-            // Shape and translate the notification for each subscriber
-            const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
-                languages,
-                silent,
-                userId: subscriberId,
-            })));
-            // Send the notification to each subscriber
-            await push({ bodyKey, category, link, prisma, titleKey, users });
-        } while (currentBatchSize === batchSize);
+        await batch<Prisma.notification_subscriptionFindManyArgs>({
+            objectType: "NotificationSubscription",
+            processBatch: async (batch, prisma) => {
+                // Shape and translate the notification for each subscriber
+                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
+                    languages,
+                    silent,
+                    userId: subscriberId,
+                })));
+                // Send the notification to each subscriber
+                await push({ bodyKey, category, link, prisma, titleKey, users });
+            },
+            select: { subscriberId: true, silent: true },
+            trace: "0467",
+            where: {
+                AND: [
+                    { [subscribableMapper[objectType]]: { id: objectId } },
+                    { subscriberId: { not: excludeUserId ?? undefined } },
+                ],
+            },
+        });
     },
 });
 
