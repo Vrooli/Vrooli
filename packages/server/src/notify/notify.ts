@@ -217,7 +217,7 @@ const replaceLabels = async (
         const { delegate, display } = getLogic(["delegate", "display"], objectType, languages, "replaceLabels");
         const labels = await delegate(prisma).findUnique({
             where: { id: objectId },
-            select: display.select(),
+            select: display.label.select(),
         });
         labelTranslations = labels ?? {};
     };
@@ -235,7 +235,7 @@ const replaceLabels = async (
                     // In each params, replace the matching substring with the label
                     const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
                     for (let i = 0; i < result.length; i++) {
-                        result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
+                        result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
                     }
                 }
             }
@@ -255,7 +255,7 @@ const replaceLabels = async (
                     // In each params, replace the matching substring with the label
                     const { display } = getLogic(["display"], match[1] as GqlModelType, languages, "replaceLabels");
                     for (let i = 0; i < result.length; i++) {
-                        result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
+                        result[i][key] = (result[i][key] as string).replace(match[0], display.label.get(labelTranslations, result[i].languages));
                     }
                 }
             }

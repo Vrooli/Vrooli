@@ -18,7 +18,7 @@ export const StatsOrganizationModel: ModelLogic<{
     GqlModel: StatsOrganization,
     GqlSearch: StatsOrganizationSearchInput,
     GqlSort: StatsOrganizationSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_organizationUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_organizationUpsertArgs["update"],
     PrismaModel: Prisma.stats_organizationGetPayload<SelectWrap<Prisma.stats_organizationSelect>>,
@@ -28,11 +28,13 @@ export const StatsOrganizationModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_organization,
     display: {
-        select: () => ({ id: true, organization: selPad(OrganizationModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: OrganizationModel.display.label(select.organization as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, organization: selPad(OrganizationModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: OrganizationModel.display.label.get(select.organization as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {

@@ -30,9 +30,11 @@ export const MemberInviteModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.member_invite,
     display: {
-        select: () => ({ id: true, user: { select: UserModel.display.select() } }),
-        // Label is the member label
-        label: (select, languages) => UserModel.display.label(select.user as any, languages),
+        label: {
+            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
+            // Label is the member label
+            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

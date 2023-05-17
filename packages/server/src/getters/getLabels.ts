@@ -32,7 +32,7 @@ export async function getLabels(
     let labelsData: any[];
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
-        select = typeof model.display.select === "function" ? model.display.select() : model.display.select;
+        select = typeof model.display.label.select === "function" ? model.display.label.select() : model.display.label.select;
         labelsData = await model.delegate(prisma).findMany({
             where,
             select,
@@ -47,7 +47,7 @@ export async function getLabels(
     const labels = objectsWithLanguages.map(object => {
         const data = labelsData.find(x => x.id === object.id);
         if (!data) return "";
-        return model.display.label(data, object.languages);
+        return model.display.label.get(data, object.languages);
     });
     return labels;
 }

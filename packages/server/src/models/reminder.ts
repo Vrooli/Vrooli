@@ -17,7 +17,7 @@ export const ReminderModel: ModelLogic<{
     GqlModel: Reminder,
     GqlSearch: ReminderSearchInput,
     GqlSort: ReminderSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.reminderUpsertArgs["create"],
     PrismaUpdate: Prisma.reminderUpsertArgs["update"],
     PrismaModel: Prisma.reminderGetPayload<SelectWrap<Prisma.reminderSelect>>,
@@ -27,8 +27,16 @@ export const ReminderModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.reminder,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
+            get: ({ description, name }) => {
+                return JSON.stringify({ description, name });
+            },
+        },
     },
     format: {
         gqlRelMap: {

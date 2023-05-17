@@ -16,7 +16,7 @@ export const FocusModeModel: ModelLogic<{
     GqlModel: FocusMode,
     GqlSearch: FocusModeSearchInput,
     GqlSort: FocusModeSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.focus_modeUpsertArgs["create"],
     PrismaUpdate: Prisma.focus_modeUpsertArgs["update"],
     PrismaModel: Prisma.focus_modeGetPayload<SelectWrap<Prisma.focus_modeSelect>>,
@@ -26,8 +26,10 @@ export const FocusModeModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.focus_mode,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
     },
     format: {
         gqlRelMap: {

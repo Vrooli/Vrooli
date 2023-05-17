@@ -17,7 +17,7 @@ export const ReminderListModel: ModelLogic<{
     GqlModel: ReminderList,
     GqlSearch: undefined,
     GqlSort: undefined,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.reminder_listUpsertArgs["create"],
     PrismaUpdate: Prisma.reminder_listUpsertArgs["update"],
     PrismaModel: Prisma.reminder_listGetPayload<SelectWrap<Prisma.reminder_listSelect>>,
@@ -27,9 +27,11 @@ export const ReminderListModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.reminder_list,
     display: {
-        select: () => ({ id: true, focusMode: { select: FocusModeModel.display.select() } }),
-        // Label is schedule's label
-        label: (select, languages) => FocusModeModel.display.label(select.focusMode as any, languages),
+        label: {
+            select: () => ({ id: true, focusMode: { select: FocusModeModel.display.label.select() } }),
+            // Label is schedule's label
+            get: (select, languages) => FocusModeModel.display.label.get(select.focusMode as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ApiModel } from "./api";
 import { ModelLogic } from "./types";
@@ -29,13 +29,32 @@ export const ApiVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_version,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => {
-            // Return name if exists, or callLink host
-            const name = bestLabel(select.translations, "name", languages);
-            if (name.length > 0) return name;
-            const url = new URL(select.callLink);
-            return url.host;
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            get: ({ callLink, translations }, languages) => {
+                // Return name if exists, or callLink host
+                const name = bestTranslation(translations, languages).name ?? "";
+                if (name.length > 0) return name;
+                const url = new URL(callLink);
+                return url.host;
+            },
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                callLink: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
+            }),
+            get: ({ callLink, root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    callLink,
+                    name: trans.name,
+                    summary: trans.summary,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                });
+            },
         },
     },
     format: {

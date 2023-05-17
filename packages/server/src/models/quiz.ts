@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";
@@ -32,8 +32,20 @@ export const QuizModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({ id: true, translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            get: ({ translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    description: trans.description,
+                    name: trans.name,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

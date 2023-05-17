@@ -4,7 +4,7 @@ import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
@@ -31,8 +31,20 @@ export const OrganizationModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.organization,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({ id: true, translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
+            get: ({ translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    bio: trans.bio,
+                    name: trans.name,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

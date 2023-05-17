@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { NodeRoutineListModel } from "./nodeRoutineList";
 import { RoutineModel } from "./routine";
 import { ModelLogic } from "./types";
@@ -16,7 +16,7 @@ export const NodeRoutineListItemModel: ModelLogic<{
     GqlCreate: NodeRoutineListItemCreateInput,
     GqlUpdate: NodeRoutineListItemUpdateInput,
     GqlModel: NodeRoutineListItem,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_routine_list_itemUpsertArgs["create"],
@@ -28,16 +28,18 @@ export const NodeRoutineListItemModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
     display: {
-        select: () => ({
-            id: true,
-            translations: selPad({ id: true, name: true }),
-            routineVersion: selPad(RoutineModel.display.select),
-        }),
-        label: (select, languages) => {
-            // Prefer item translations over routineVersion's
-            const itemLabel = bestLabel(select.translations, "name", languages);
-            if (itemLabel.length > 0) return itemLabel;
-            return RoutineModel.display.label(select.routineVersion as any, languages);
+        label: {
+            select: () => ({
+                id: true,
+                translations: selPad({ id: true, name: true }),
+                routineVersion: selPad(RoutineModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                // Prefer item translations over routineVersion's
+                const itemLabel = bestTranslation(select.translations, languages)?.name ?? "";
+                if (itemLabel.length > 0) return itemLabel;
+                return RoutineModel.display.label.get(select.routineVersion as any, languages);
+            },
         },
     },
     format: {

@@ -15,7 +15,7 @@ export const NodeRoutineListModel: ModelLogic<{
     GqlCreate: NodeRoutineListCreateInput,
     GqlUpdate: NodeRoutineListUpdateInput,
     GqlModel: NodeRoutineList,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_routine_listUpsertArgs["create"],
@@ -27,8 +27,10 @@ export const NodeRoutineListModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list,
     display: {
-        select: () => ({ id: true, node: selPad(NodeModel.display.select) }),
-        label: (select, languages) => NodeModel.display.label(select.node as any, languages),
+        label: {
+            select: () => ({ id: true, node: selPad(NodeModel.display.label.select) }),
+            get: (select, languages) => NodeModel.display.label.get(select.node as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

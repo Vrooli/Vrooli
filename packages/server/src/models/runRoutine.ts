@@ -59,8 +59,18 @@ export const RunRoutineModel: ModelLogic<{
     },
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            get: ({ name }, languages) => {
+                return JSON.stringify({
+                    name,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

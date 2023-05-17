@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { ModelLogic } from "./types";
 
@@ -15,7 +15,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     GqlCreate: ProjectVersionDirectoryCreateInput,
     GqlUpdate: ProjectVersionDirectoryUpdateInput,
     GqlModel: ProjectVersionDirectory,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.project_version_directoryUpsertArgs["create"],
@@ -27,8 +27,10 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version_directory,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {

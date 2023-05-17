@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
@@ -30,8 +30,21 @@ export const UserModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.user,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name ?? "",
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name ?? "",
+        },
+        embed: {
+            select: () => ({ id: true, name: true, handle: true, translations: { select: { bio: true, embeddingNeedsUpdate: true } } }),
+            get: ({ name, handle, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    bio: trans.bio,
+                    handle,
+                    name,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

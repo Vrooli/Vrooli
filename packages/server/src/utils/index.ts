@@ -1,4 +1,4 @@
-export * from "./bestLabel";
+export * from "./bestTranslation";
 export * from "./calendar";
 export * from "./convertPlaceholders";
 export * from "./cudInputsToMaps";

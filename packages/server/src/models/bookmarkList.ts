@@ -16,7 +16,7 @@ export const BookmarkListModel: ModelLogic<{
     GqlModel: BookmarkList,
     GqlSearch: BookmarkListSearchInput,
     GqlSort: BookmarkListSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.bookmark_listUpsertArgs["create"],
     PrismaUpdate: Prisma.bookmark_listUpsertArgs["update"],
     PrismaModel: Prisma.bookmark_listGetPayload<SelectWrap<Prisma.bookmark_listSelect>>,
@@ -26,8 +26,10 @@ export const BookmarkListModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.bookmark_list,
     display: {
-        select: () => ({ id: true, label: true }),
-        label: (select) => select.label,
+        label: {
+            select: () => ({ id: true, label: true }),
+            get: (select) => select.label,
+        },
     },
     format: {
         gqlRelMap: {

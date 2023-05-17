@@ -15,7 +15,7 @@ export const ApiKeyModel: ModelLogic<{
     IsVersioned: false,
     GqlCreate: ApiKeyCreateInput,
     GqlUpdate: ApiKeyUpdateInput,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlModel: ApiKey,
     GqlSearch: undefined,
     GqlSort: undefined,
@@ -28,13 +28,15 @@ export const ApiKeyModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_key,
     display: {
-        select: () => ({ id: true, key: true }),
-        // Label should be first 4 characters of key, an ellipsis, and last 4 characters of key
-        label: (select) => {
-            // Make sure key is at least 8 characters long
-            // (should always be, but you never know)
-            if (select.key.length < 8) return select.key;
-            return select.key.slice(0, 4) + "..." + select.key.slice(-4);
+        label: {
+            select: () => ({ id: true, key: true }),
+            // Of the form "1234...5678"
+            get: (select) => {
+                // Make sure key is at least 8 characters long
+                // (should always be, but you never know)
+                if (select.key.length < 8) return select.key;
+                return select.key.slice(0, 4) + "..." + select.key.slice(-4);
+            },
         },
     },
     format: {

@@ -18,7 +18,7 @@ export const StatsStandardModel: ModelLogic<{
     GqlModel: StatsStandard,
     GqlSearch: StatsStandardSearchInput,
     GqlSort: StatsStandardSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_standardUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_standardUpsertArgs["update"],
     PrismaModel: Prisma.stats_standardGetPayload<SelectWrap<Prisma.stats_standardSelect>>,
@@ -28,11 +28,13 @@ export const StatsStandardModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_standard,
     display: {
-        select: () => ({ id: true, standard: selPad(StandardModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: StandardModel.display.label(select.standard as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, standard: selPad(StandardModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: StandardModel.display.label.get(select.standard as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {

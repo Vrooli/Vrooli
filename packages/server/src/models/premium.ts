@@ -15,7 +15,7 @@ export const PremiumModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Premium,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.premiumUpsertArgs["create"],
@@ -27,11 +27,13 @@ export const PremiumModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {
-        select: () => ({ id: true, customPlan: true }),
-        label: (select, languages) => {
-            const lng = languages[0];
-            if (select.customPlan) return i18next.t("common:PaymentPlanCustom", { lng });
-            return i18next.t("common:PaymentPlanBasic", { lng });
+        label: {
+            select: () => ({ id: true, customPlan: true }),
+            get: (select, languages) => {
+                const lng = languages[0];
+                if (select.customPlan) return i18next.t("common:PaymentPlanCustom", { lng });
+                return i18next.t("common:PaymentPlanBasic", { lng });
+            },
         },
     },
     format: {

@@ -277,23 +277,25 @@ export const TransferModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: {
-        select: () => ({
-            id: true,
-            api: selPad(ApiModel.display.select),
-            note: selPad(NoteModel.display.select),
-            project: selPad(ProjectModel.display.select),
-            routine: selPad(RoutineModel.display.select),
-            smartContract: selPad(SmartContractModel.display.select),
-            standard: selPad(StandardModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.api) return ApiModel.display.label(select.api as any, languages);
-            if (select.note) return NoteModel.display.label(select.note as any, languages);
-            if (select.project) return ProjectModel.display.label(select.project as any, languages);
-            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
-            if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                api: selPad(ApiModel.display.label.select),
+                note: selPad(NoteModel.display.label.select),
+                project: selPad(ProjectModel.display.label.select),
+                routine: selPad(RoutineModel.display.label.select),
+                smartContract: selPad(SmartContractModel.display.label.select),
+                standard: selPad(StandardModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
+                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
+                return "";
+            },
         },
     },
     format: {

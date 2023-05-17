@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, translationShapeHelper } from "../utils";
+import { bestTranslation, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = "Role" as const;
@@ -14,7 +14,7 @@ export const RoleModel: ModelLogic<{
     GqlCreate: RoleCreateInput,
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: RoleSearchInput,
     GqlSort: RoleSortBy,
     PrismaCreate: Prisma.roleUpsertArgs["create"],
@@ -26,16 +26,18 @@ export const RoleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {
-        select: () => ({
-            id: true,
-            name: true,
-            translations: { select: { language: true, name: true } },
-        }),
-        label: (select, languages) => {
-            // Prefer translated name over default name
-            const translated = bestLabel(select.translations, "name", languages);
-            if (translated.length > 0) return translated;
-            return select.name;
+        label: {
+            select: () => ({
+                id: true,
+                name: true,
+                translations: { select: { language: true, name: true } },
+            }),
+            get: (select, languages) => {
+                // Prefer translated name over default name
+                const translated = bestTranslation(select.translations, languages)?.name ?? "";
+                if (translated.length > 0) return translated;
+                return select.name;
+            },
         },
     },
     format: {

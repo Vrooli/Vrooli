@@ -13,7 +13,7 @@ export const AwardModel: ModelLogic<{
     IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlModel: Award,
     GqlSearch: AwardSearchInput,
     GqlSort: AwardSortBy,
@@ -26,13 +26,15 @@ export const AwardModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.award,
     display: {
-        select: () => ({ id: true, category: true, progress: true }),
-        label: (select, languages) => {
-            // Find name of highest tier achieved
-            const { name, nameVariables } = awardNames[select.category](select.progress);
-            // If key is not found, return empty string
-            if (!name) return "";
-            return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
+        label: {
+            select: () => ({ id: true, category: true, progress: true }),
+            get: (select, languages) => {
+                // Find name of highest tier achieved
+                const { name, nameVariables } = awardNames[select.category](select.progress);
+                // If key is not found, return empty string
+                if (!name) return "";
+                return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
+            },
         },
     },
     format: {

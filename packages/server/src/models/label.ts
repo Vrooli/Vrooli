@@ -29,8 +29,10 @@ export const LabelModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.label,
     display: {
-        select: () => ({ id: true, label: true }),
-        label: (select) => select.label,
+        label: {
+            select: () => ({ id: true, label: true }),
+            get: (select) => select.label,
+        },
     },
     format: {
         gqlRelMap: {

@@ -4,7 +4,7 @@ import { randomString } from "../auth/wallet";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType, SessionUserToken } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { sortify } from "../utils/objectTools";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
@@ -79,7 +79,7 @@ const querier = () => ({
      */
     async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
-        const translatedName = "";//bestLabel(data.translationsCreate ?? [], 'name', languages);
+        const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
         const name = `${data.standardType} ${randomString(5)}`;
@@ -108,8 +108,25 @@ export const StandardVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+            }),
+            get: ({ root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    name: trans.name,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                    description: trans.description,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

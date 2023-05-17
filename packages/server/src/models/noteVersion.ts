@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { NoteModel } from "./note";
 import { ModelLogic } from "./types";
@@ -29,8 +29,25 @@ export const NoteVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, text: true } },
+            }),
+            get: ({ root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    name: trans.name,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                    text: trans.text?.slice(0, 512),
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

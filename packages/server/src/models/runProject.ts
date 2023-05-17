@@ -28,8 +28,18 @@ export const RunProjectModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            get: ({ name }, languages) => {
+                return JSON.stringify({
+                    name,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

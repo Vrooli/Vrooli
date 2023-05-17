@@ -33,7 +33,7 @@ export const ReactionModel: ModelLogic<{
     GqlModel: Reaction,
     GqlSearch: ReactionSearchInput,
     GqlSort: ReactionSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.reactionUpsertArgs["create"],
     PrismaUpdate: Prisma.reactionUpsertArgs["update"],
     PrismaModel: Prisma.reactionGetPayload<SelectWrap<Prisma.reactionSelect>>,
@@ -43,37 +43,39 @@ export const ReactionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.reaction,
     display: {
-        select: () => ({
-            id: true,
-            api: selPad(ApiModel.display.select),
-            chatMessage: selPad(ChatMessageModel.display.select),
-            comment: selPad(CommentModel.display.select),
-            issue: selPad(IssueModel.display.select),
-            note: selPad(NoteModel.display.select),
-            post: selPad(PostModel.display.select),
-            project: selPad(ProjectModel.display.select),
-            question: selPad(QuestionModel.display.select),
-            questionAnswer: selPad(QuestionAnswerModel.display.select),
-            quiz: selPad(QuizModel.display.select),
-            routine: selPad(RoutineModel.display.select),
-            smartContract: selPad(SmartContractModel.display.select),
-            standard: selPad(StandardModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.api) return ApiModel.display.label(select.api as any, languages);
-            if (select.chatMessage) return ChatMessageModel.display.label(select.chatMessage as any, languages);
-            if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-            if (select.issue) return IssueModel.display.label(select.issue as any, languages);
-            if (select.note) return NoteModel.display.label(select.note as any, languages);
-            if (select.post) return PostModel.display.label(select.post as any, languages);
-            if (select.project) return ProjectModel.display.label(select.project as any, languages);
-            if (select.question) return QuestionModel.display.label(select.question as any, languages);
-            if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
-            if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
-            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
-            if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                api: selPad(ApiModel.display.label.select),
+                chatMessage: selPad(ChatMessageModel.display.label.select),
+                comment: selPad(CommentModel.display.label.select),
+                issue: selPad(IssueModel.display.label.select),
+                note: selPad(NoteModel.display.label.select),
+                post: selPad(PostModel.display.label.select),
+                project: selPad(ProjectModel.display.label.select),
+                question: selPad(QuestionModel.display.label.select),
+                questionAnswer: selPad(QuestionAnswerModel.display.label.select),
+                quiz: selPad(QuizModel.display.label.select),
+                routine: selPad(RoutineModel.display.label.select),
+                smartContract: selPad(SmartContractModel.display.label.select),
+                standard: selPad(StandardModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
+                if (select.chatMessage) return ChatMessageModel.display.label.get(select.chatMessage as any, languages);
+                if (select.comment) return CommentModel.display.label.get(select.comment as any, languages);
+                if (select.issue) return IssueModel.display.label.get(select.issue as any, languages);
+                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
+                if (select.post) return PostModel.display.label.get(select.post as any, languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
+                if (select.questionAnswer) return QuestionAnswerModel.display.label.get(select.questionAnswer as any, languages);
+                if (select.quiz) return QuizModel.display.label.get(select.quiz as any, languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
+                return "";
+            },
         },
     },
     format: {

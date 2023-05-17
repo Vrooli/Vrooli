@@ -2,7 +2,7 @@ import { MaxObjects, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateIn
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 
@@ -16,7 +16,7 @@ export const TagModel: ModelLogic<{
     GqlModel: Tag,
     GqlSearch: TagSearchInput,
     GqlSort: TagSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.tagUpsertArgs["create"],
     PrismaUpdate: Prisma.tagUpsertArgs["update"],
     PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
@@ -26,8 +26,20 @@ export const TagModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.tag,
     display: {
-        select: () => ({ id: true, tag: true }),
-        label: (select) => select.tag,
+        label: {
+            select: () => ({ id: true, tag: true }),
+            get: (select) => select.tag,
+        },
+        embed: {
+            select: () => ({ id: true, tag: true, translations: { select: { embeddingNeedsUpdate: true, language: true, description: true } } }),
+            get: ({ tag, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return JSON.stringify({
+                    description: trans.description,
+                    tag,
+                });
+            },
+        },
     },
     format: {
         gqlRelMap: {

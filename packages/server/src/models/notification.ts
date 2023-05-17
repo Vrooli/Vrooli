@@ -15,7 +15,7 @@ export const NotificationModel: ModelLogic<{
     GqlModel: Notification,
     GqlSearch: NotificationSearchInput,
     GqlSort: NotificationSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.notificationUpsertArgs["create"],
     PrismaUpdate: Prisma.notificationUpsertArgs["update"],
     PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,
@@ -25,8 +25,10 @@ export const NotificationModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification,
     display: {
-        select: () => ({ id: true, title: true }),
-        label: (select) => select.title,
+        label: {
+            select: () => ({ id: true, title: true }),
+            get: (select) => select.title,
+        },
     },
     format: {
         gqlRelMap: {
