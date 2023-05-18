@@ -66,7 +66,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
-    const link = useMemo(() => (data && !onClick) ? getObjectUrl(data) : "", [data, onClick]);
+    const link = useMemo(() => (data && (!canNavigate || canNavigate(data))) ? getObjectUrl(data) : "", [data, canNavigate]);
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith("list-item-")) return;
         // If data not supplied, don't open

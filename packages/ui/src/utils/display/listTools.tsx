@@ -415,7 +415,6 @@ export function listToListItems({
                 key={`${keyPrefix}-${i}`}
                 data={null}
                 hideUpdateButton={hideUpdateButton}
-                index={i}
                 loading={true}
                 objectType={dummyItems[i]}
                 zIndex={zIndex}
@@ -432,7 +431,6 @@ export function listToListItems({
             canNavigate={canNavigate}
             data={curr as ListObjectType}
             hideUpdateButton={hideUpdateButton}
-            index={i}
             loading={false}
             objectType={curr.__typename as any}
             onClick={onClick}

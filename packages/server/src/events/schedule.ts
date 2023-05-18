@@ -6,11 +6,11 @@
  */
 export const schedulesWhereInTimeframe = (
     startDate: Date,
-    endDate: Date
+    endDate: Date,
 ) => ({
     endTime: { gte: new Date(startDate).toISOString() },
     startTime: { lt: new Date(endDate).toISOString() },
-})
+});
 
 /**
  * Creates a "where" object to find schedule exceptions that occur within a given time frame.
@@ -19,14 +19,14 @@ export const schedulesWhereInTimeframe = (
  */
 export const scheduleExceptionsWhereInTimeframe = (
     startDate: Date,
-    endDate: Date
+    endDate: Date,
 ) => ({
     originalStartTime: { gte: new Date(startDate).toISOString() },
     OR: [
         { newStartTime: { lte: new Date(endDate).toISOString() } },
         { newStartTime: null },
-    ]
-})
+    ],
+});
 
 /**
  * Creates a "where" object to find schedule recurrences that occur within a given time frame.
@@ -35,7 +35,7 @@ export const scheduleExceptionsWhereInTimeframe = (
  */
 export const scheduleRecurrencesWhereInTimeframe = (
     startDate: Date,
-    endDate: Date
+    endDate: Date,
 ) => ({
     endDate: { gte: new Date(startDate).toISOString() },
-})
+});

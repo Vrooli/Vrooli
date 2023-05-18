@@ -188,7 +188,6 @@ export const DashboardView = ({
     }, [data]);
 
     const noteItems = useMemo(() => listToListItems({
-        canNavigate: () => false,
         dummyItems: new Array(5).fill("Note"),
         items: notes,
         keyPrefix: "note-list-item",
@@ -235,7 +234,6 @@ export const DashboardView = ({
         const first10 = result.slice(0, 10);
         // Convert to list items
         return listToListItems({
-            canNavigate: () => false,
             dummyItems: new Array(5).fill("Event"),
             items: first10,
             keyPrefix: "event-list-item",

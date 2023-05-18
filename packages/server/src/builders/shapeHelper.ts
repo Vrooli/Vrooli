@@ -336,8 +336,14 @@ export const shapeHelper = async<
         // one-to-one's update must not have a where, and must be an object, not an array
         if (Array.isArray(result.update)) result.update = result.update.length ? result.update[0].data : undefined;
     }
-    // If there are some keys which are not undefined, return result wrapped in the relation name
-    if (Object.keys(result).some(key => result[key] !== undefined)) return { [relation]: result } as any;
+    // Remove values that are undefined or empty arrays
+    result = Object.keys(result).reduce((acc, key) => {
+        if (result[key] === undefined || (Array.isArray(result[key]) && result[key].length === 0)) return acc;
+        acc[key] = result[key];
+        return acc;
+    }, {} as any);
+    // If there are keys remaining, return result wrapped in the relation name
+    if (Object.keys(result).length) return { [relation]: result } as any;
     // Otherwise, return empty object
     return {} as any;
 };
