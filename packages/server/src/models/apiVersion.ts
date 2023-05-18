@@ -4,6 +4,7 @@ import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ApiModel } from "./api";
 import { ModelLogic } from "./types";
@@ -98,7 +99,8 @@ export const ApiVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async (params) => {
+                const { createList, updateList, deleteList, prisma, userData } = params;
                 await versionsCheck({
                     createList,
                     deleteList,
@@ -109,6 +111,8 @@ export const ApiVersionModel: ModelLogic<{
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
                 combined.forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -121,7 +125,7 @@ export const ApiVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 callLink: noNull(data.callLink),
@@ -133,7 +137,7 @@ export const ApiVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });

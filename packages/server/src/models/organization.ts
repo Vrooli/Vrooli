@@ -5,6 +5,7 @@ import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
@@ -147,6 +148,9 @@ export const OrganizationModel: ModelLogic<{
                 // Validate AdaHandles
                 const handleData = updateList.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
                 await handlesCheck(prisma, "Organization", handleData, userData.languages);
+                // Find translations that need text embeddings
+                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => {
                 return {
@@ -166,8 +170,8 @@ export const OrganizationModel: ModelLogic<{
                     ...(await shapeHelper({ relation: "memberInvites", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
                     ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest })),
                     ...(await shapeHelper({ relation: "roles", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest })),
-                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
                     ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Organization", relation: "tags", data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => ({
@@ -179,8 +183,8 @@ export const OrganizationModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest })),
                 ...(await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Organization", relation: "tags", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {

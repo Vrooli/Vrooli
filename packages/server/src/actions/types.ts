@@ -117,5 +117,4 @@ export type UpdateHelperProps = {
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
-    where?: (obj: any) => { [x: string]: any };
 }

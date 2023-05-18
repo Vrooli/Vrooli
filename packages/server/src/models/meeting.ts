@@ -4,6 +4,7 @@ import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
@@ -89,6 +90,10 @@ export const MeetingModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList }) => {
+                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                return { ...maps };
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
@@ -106,7 +111,7 @@ export const MeetingModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
                 ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
@@ -123,7 +128,7 @@ export const MeetingModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest })),
                 ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {

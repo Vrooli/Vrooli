@@ -41,7 +41,7 @@ const originalDataSelect = {
  * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database)
  * 2. Calculate data for objectCreated/Updated/Deleted trigger
  * 3. Determine which creates/updates require a transfer request
- * @returns versionMap and triggerMap
+ * @returns maps for version, trigger, and transfer data
  */
 export const preShapeRoot = async ({
     createList,

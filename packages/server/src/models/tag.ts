@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 
@@ -41,6 +42,7 @@ export const TagModel: ModelLogic<{
             },
         },
     },
+    idField: "tag",
     format: {
         gqlRelMap: {
             __typename,
@@ -96,14 +98,18 @@ export const TagModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList }) => {
+                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                return { ...maps };
+            },
             create: async ({ data, ...rest }) => ({
                 tag: data.tag,
                 createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 ...(data.anonymous ? { createdBy: { disconnect: true } } : {}),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest })),
             }),
         },
         yup: tagValidation,

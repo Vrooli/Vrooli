@@ -122,6 +122,7 @@ export const RunRoutineModel: ModelLogic<{
                 // TODO - when scheduling added, don't assume that it is being started right away
                 return {
                     // id: data.id,
+                    // embeddingNeedsUpdate: true,,
                     // startedAt: new Date(),
                     // routineVersionId: data.routineVersionId,
                     // status: RunStatus.InProgress,

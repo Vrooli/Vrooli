@@ -35,6 +35,7 @@ export type ModelLogic<
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
+    idField?: keyof Model["GqlModel"];
     format: Formatter<Model, SuppFields>;
     search?: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :

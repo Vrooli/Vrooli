@@ -4,6 +4,7 @@ import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
@@ -138,6 +139,10 @@ export const UserModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ updateList }) => {
+                const maps = preShapeEmbeddableTranslatable({ createList: [], updateList, objectType: __typename });
+                return { ...maps };
+            },
             update: async ({ data, ...rest }) => ({
                 handle: data.handle ?? null,
                 name: noNull(data.name),
@@ -164,7 +169,7 @@ export const UserModel: ModelLogic<{
                 notificationSettings: data.notificationSettings ?? null,
                 // languages: TODO!!!
                 ...(await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
             }),
         },
         yup: userValidation,
