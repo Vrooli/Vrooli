@@ -32,7 +32,7 @@ export const TagModel: ModelLogic<{
             get: (select) => select.tag,
         },
         embed: {
-            select: () => ({ id: true, tag: true, translations: { select: { embeddingNeedsUpdate: true, language: true, description: true } } }),
+            select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return JSON.stringify({

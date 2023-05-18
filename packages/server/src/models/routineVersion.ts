@@ -59,7 +59,7 @@ export const RoutineVersionModel: ModelLogic<{
             select: () => ({
                 id: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);

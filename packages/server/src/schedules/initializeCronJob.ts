@@ -25,9 +25,6 @@ export const initializeCronJob = (
                 logger.info(`✅${description ? " " + description : ""} cron job completed.`, { trace: "0397" });
             });
         });
-
-        // Log the successful initialization of the cron job
-        logger.info(`✅${description ? " " + description : ""} cron job initialized`);
     } catch (error) {
         // Log the error if the cron job initialization failed
         logger.error(`❌ Failed to initialize${description ? " " + description : ""} cron job.`, { error, trace: "0398" });

@@ -79,8 +79,8 @@ async function getEmbeddings(instruction: string, sentences: string[]): Promise<
                 responseBody += chunk;
             });
             apiRes.on("end", () => {
-                const embeddings = JSON.parse(responseBody);
-                resolve(embeddings);
+                const result = JSON.parse(responseBody);
+                resolve(result.embeddings);
             });
         });
         apiRequest.on("error", error => {
@@ -123,15 +123,11 @@ const updateEmbedding = async (
     prisma: PrismaType,
     tableName: string,
     id: string,
-    embeddings: string[],
+    embeddings: number[],
 ): Promise<void> => {
+    const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;//`${JSON.stringify(embeddings)}::vector`;
     // Use raw query to update the embedding, because the Prisma client doesn't support Postgres vectors
-    await prisma.$executeRaw`
-        UPDATE ${tableName}
-        SET embedding = ${embeddings}::vector,
-            embeddingNeedsUpdate = false
-        WHERE id = ${id}
-    `;
+    await prisma.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
 };
 
 /**
@@ -150,6 +146,7 @@ const processTranslatedBatchHelper = async (
 ): Promise<void> => {
     // Extract sentences from the batch
     const sentences = extractTranslatedSentences(batch, model);
+    if (sentences.length === 0) return;
     // Find embeddings for all versions in the batch
     const embeddings = await getEmbeddings(instruction, sentences);
     // Update the embeddings for each stale translation
@@ -177,6 +174,7 @@ const processUntranslatedBatchHelper = async (
 ): Promise<void> => {
     // Extract sentences from the batch
     const sentences = batch.map(obj => model.display.embed!.get(obj as any, []));
+    if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
     const embeddings = await getEmbeddings(instruction, sentences);
     // Update the embeddings for each object

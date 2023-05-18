@@ -18,7 +18,6 @@ export const initSitemapCronJob = () => {
         genSitemapIfNotExists().then(() => {
             initializeCronJob(cronTimes.sitemaps, genSitemap, "sitemap");
         });
-        logger.info("✅ Sitemap cron job initialized");
     } catch (error) {
         logger.error("❌ Failed to initialize sitemap cron job.", { trace: "0401", error });
     }

@@ -13,7 +13,7 @@ export const ChatModel: ModelLogic<any, any> = ({
             get: ({ translations }, languages) => bestTranslation(translations, languages).name ?? "",
         },
         embed: {
-            select: () => ({ id: true, translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return JSON.stringify({

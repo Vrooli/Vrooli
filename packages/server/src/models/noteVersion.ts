@@ -38,7 +38,7 @@ export const NoteVersionModel: ModelLogic<{
             select: () => ({
                 id: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, text: true } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, text: true } },
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);

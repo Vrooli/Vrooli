@@ -36,7 +36,7 @@ export const UserModel: ModelLogic<{
             get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, name: true, handle: true, translations: { select: { bio: true, embeddingNeedsUpdate: true } } }),
+            select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingNeedsUpdate: true } } }),
             get: ({ name, handle, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return JSON.stringify({

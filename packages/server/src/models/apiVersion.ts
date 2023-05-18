@@ -45,7 +45,7 @@ export const ApiVersionModel: ModelLogic<{
                 id: true,
                 callLink: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
             }),
             get: ({ callLink, root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
