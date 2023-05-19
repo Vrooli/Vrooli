@@ -1,4 +1,5 @@
 export * from "./apis";
+export * from "./base";
 export * from "./chats";
 export * from "./issues";
 export * from "./meetings";

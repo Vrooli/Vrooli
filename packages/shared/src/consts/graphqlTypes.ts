@@ -9171,12 +9171,8 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
-  BookmarksAsc = 'BookmarksAsc',
-  BookmarksDesc = 'BookmarksDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  New = 'New',
+  Top = 'Top'
 }
 
 export type TagTranslation = {

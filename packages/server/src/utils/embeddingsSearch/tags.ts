@@ -1,74 +1,132 @@
-import { PrismaType } from "../../types";
+import { getEmbeddings } from "../getEmbeddings";
+import { getDateLimit, QueryEmbeddingsHelperProps, QueryEmbeddingsProps, SearchTimePeriod } from "./base";
 
-export enum SearchTimePeriod {
-    Day = "Day",
-    Week = "Week",
-    Month = "Month",
-    Year = "Year",
-    AllTime = "AllTime"
-}
-
-export function getDateLimit(period?: SearchTimePeriod): number {
-    let dateLimit: Date = new Date();
-    switch (period) {
-        case SearchTimePeriod.Day:
-            dateLimit.setDate(dateLimit.getDate() - 1);
-            break;
-        case SearchTimePeriod.Week:
-            dateLimit.setDate(dateLimit.getDate() - 7);
-            break;
-        case SearchTimePeriod.Month:
-            dateLimit.setMonth(dateLimit.getMonth() - 1);
-            break;
-        case SearchTimePeriod.Year:
-            dateLimit.setFullYear(dateLimit.getFullYear() - 1);
-            break;
-        case SearchTimePeriod.AllTime:
-        default:
-            dateLimit = new Date(0);
-            break;
-    }
-    return Math.floor(dateLimit.getTime() / 1000); // Convert to seconds
-}
-
-
-interface QueryEmbeddingsBaseProps {
-    prisma: PrismaType;
-    embedding: number[];
-    distanceThreshold?: number;
-    limit?: number;
-    offset?: number;
-    timePeriod?: SearchTimePeriod;
-}
-
-interface QueryTagsBookmarksDescProps extends QueryEmbeddingsBaseProps {
-    bookmarksThreshold?: number;
-}
-
-export const queryTagsBookmarks = async ({
-    prisma,
+export const findTopTagsWithEmbedding = async ({
+    dateLimit,
     embedding,
-    bookmarksThreshold = 0,
-    distanceThreshold = 1,
     limit = 5,
     offset = 0,
-    timePeriod = SearchTimePeriod.Year,
-}: QueryTagsBookmarksDescProps) => {
-    const test1Vector = JSON.stringify(embedding);
-    const dateLimit = getDateLimit(timePeriod);
+    prisma,
+    thresholdBookmarks = 0,
+    thresholdDistance = 1,
+}: QueryEmbeddingsHelperProps) => {
     const test = await prisma.$queryRaw`
         SELECT 
             t."id", 
-            ((1 / (1 + (tt."embedding" <-> ${test1Vector}::vector))) * 2) + t."bookmarks" as points
+            ((1 / (1 + (tt."embedding" <-> ${embedding}::vector))) * 2) + t."bookmarks" as points
         FROM "tag" t
         INNER JOIN "tag_translation" tt ON t."id" = tt."tagId"
-        WHERE t."bookmarks" >= ${bookmarksThreshold} 
-            AND tt."embedding" <-> ${test1Vector}::vector < ${distanceThreshold}
+        WHERE t."bookmarks" >= ${thresholdBookmarks} 
+            AND tt."embedding" <-> ${embedding}::vector < ${thresholdDistance}
             AND EXTRACT(EPOCH FROM t."created_at") >= ${dateLimit}
         ORDER BY points DESC
         LIMIT ${limit}
         OFFSET ${offset}
     `;
-
     return test;
+};
+
+
+export const findTopTagsWithoutEmbedding = async ({
+    dateLimit,
+    limit = 5,
+    offset = 0,
+    prisma,
+    thresholdBookmarks = 0,
+}: QueryEmbeddingsHelperProps) => {
+    const test = await prisma.$queryRaw`
+        SELECT 
+            t."id", 
+            t."bookmarks" as points
+        FROM "tag" t
+        WHERE t."bookmarks" >= ${thresholdBookmarks} 
+            AND EXTRACT(EPOCH FROM t."created_at") >= ${dateLimit}
+        ORDER BY points DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+    `;
+    return test;
+};
+
+
+export const findNewTagsWithEmbedding = async ({
+    dateLimit,
+    embedding,
+    limit = 5,
+    offset = 0,
+    prisma,
+    thresholdBookmarks = 0,
+    thresholdDistance = 1,
+}: QueryEmbeddingsHelperProps) => {
+    const test = await prisma.$queryRaw`
+        SELECT 
+            t."id", 
+            ((1 / (1 + (tt."embedding" <-> ${embedding}::vector))) * 2) + t."bookmarks" as points
+        FROM "tag" t
+        INNER JOIN "tag_translation" tt ON t."id" = tt."tagId"
+        WHERE t."bookmarks" >= ${thresholdBookmarks} 
+            AND tt."embedding" <-> ${embedding}::vector < ${thresholdDistance}
+            AND EXTRACT(EPOCH FROM t."created_at") >= ${dateLimit}
+        ORDER BY t."created_at" DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+    `;
+    return test;
+};
+
+
+export const findNewTagsWithoutEmbedding = async ({
+    dateLimit,
+    limit = 5,
+    offset = 0,
+    prisma,
+    thresholdBookmarks = 0,
+}: QueryEmbeddingsHelperProps) => {
+    const test = await prisma.$queryRaw`
+        SELECT 
+            t."id", 
+            t."bookmarks" as points
+        FROM "tag" t
+        WHERE t."bookmarks" >= ${thresholdBookmarks} 
+            AND EXTRACT(EPOCH FROM t."created_at") >= ${dateLimit}
+        ORDER BY t."created_at" DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+    `;
+    return test;
+};
+
+
+export const findTags = async ({
+    prisma,
+    searchString,
+    sortOption,
+    thresholdBookmarks = 0,
+    timePeriod = SearchTimePeriod.AllTime,
+    limit = 5,
+    offset = 0,
+}: QueryEmbeddingsProps) => {
+    // If searchString is provided, get the embedding for it
+    let embedding = "";
+    const searchStringTrimmed = searchString.trim();
+    if (searchStringTrimmed.length > 0) {
+        const embeddings = await getEmbeddings("Tag", [searchString]);
+        embedding = JSON.stringify(embeddings[0]);
+    }
+    // Common props for all helper functions
+    const dateLimit = getDateLimit(timePeriod);
+    const props = { prisma, dateLimit, embedding, thresholdBookmarks, limit, offset };
+
+    switch (sortOption) {
+        case "Top":
+            return searchStringTrimmed.length > 0 ?
+                findTopTagsWithEmbedding(props) :
+                findTopTagsWithoutEmbedding(props);
+        case "New":
+            return searchStringTrimmed.length > 0 ?
+                findNewTagsWithEmbedding(props) :
+                findNewTagsWithoutEmbedding(props);
+        default:
+            throw new Error(`Invalid sort option: ${sortOption}`);
+    }
 };

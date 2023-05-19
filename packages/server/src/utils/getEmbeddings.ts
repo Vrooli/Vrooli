@@ -7,7 +7,7 @@ export type EmbeddableType = "ApiVersion" | "Chat" | "Issue" | "Meeting" | "Note
 // a specific task. Most of our objects may end up using the same 
 // instruction, but it's possible that some may need a different one. 
 // See https://github.com/Vrooli/text-embedder-tests for more details.
-const INSTRUCTION_COMMON = "Represent the text for classification";
+const INSTRUCTION_COMMON = "Embed this text";
 const Instructions: { [key in EmbeddableType]: string } = {
     "ApiVersion": INSTRUCTION_COMMON,
     "Chat": INSTRUCTION_COMMON,

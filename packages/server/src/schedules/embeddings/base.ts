@@ -18,6 +18,11 @@ import { EmbeddableType, EmbeddingTables, getEmbeddings } from "../../utils/getE
 import { cronTimes } from "../cronTimes";
 import { initializeCronJob } from "../initializeCronJob";
 
+// WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
+// This will take a long time and should only be done during development or if something is 
+// wrong with the existing embeddings.
+const RECALCULATE_EMBEDDINGS = true;
+
 const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embeddings generated at once
 
 /**
@@ -139,7 +144,7 @@ const batchEmbeddingsApiVersion = async () => embeddingBatch<Prisma.api_versionF
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -147,21 +152,27 @@ const batchEmbeddingsChat = async () => embeddingBatch<Prisma.chatFindManyArgs>(
     objectType: "Chat",
     processBatch: processTranslatedBatchHelper,
     trace: "0475",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsIssue = async () => embeddingBatch<Prisma.issueFindManyArgs>({
     objectType: "Issue",
     processBatch: processTranslatedBatchHelper,
     trace: "0476",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsMeeting = async () => embeddingBatch<Prisma.meetingFindManyArgs>({
     objectType: "Meeting",
     processBatch: processTranslatedBatchHelper,
     trace: "0477",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsNoteVersion = async () => embeddingBatch<Prisma.note_versionFindManyArgs>({
@@ -171,7 +182,7 @@ const batchEmbeddingsNoteVersion = async () => embeddingBatch<Prisma.note_versio
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -179,7 +190,9 @@ const batchEmbeddingsOrganization = async () => embeddingBatch<Prisma.organizati
     objectType: "Organization",
     processBatch: processTranslatedBatchHelper,
     trace: "0478",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsPost = async () => embeddingBatch<Prisma.postFindManyArgs>({
@@ -188,7 +201,7 @@ const batchEmbeddingsPost = async () => embeddingBatch<Prisma.postFindManyArgs>(
     trace: "0479",
     where: {
         isDeleted: false,
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -199,7 +212,7 @@ const batchEmbeddingsProjectVersion = async () => embeddingBatch<Prisma.project_
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -207,21 +220,27 @@ const batchEmbeddingsQuestion = async () => embeddingBatch<Prisma.questionFindMa
     objectType: "Question",
     processBatch: processTranslatedBatchHelper,
     trace: "0480",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsQuiz = async () => embeddingBatch<Prisma.quizFindManyArgs>({
     objectType: "Quiz",
     processBatch: processTranslatedBatchHelper,
     trace: "0481",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsReminder = async () => embeddingBatch<Prisma.reminderFindManyArgs>({
     objectType: "Reminder",
     processBatch: processUntranslatedBatchHelper,
     trace: "0482",
-    where: { embeddingNeedsUpdate: true },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { embeddingNeedsUpdate: true }),
+    },
 });
 
 const batchEmbeddingsRoutineVersion = async () => embeddingBatch<Prisma.routine_versionFindManyArgs>({
@@ -231,7 +250,7 @@ const batchEmbeddingsRoutineVersion = async () => embeddingBatch<Prisma.routine_
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -241,9 +260,9 @@ const batchEmbeddingsRunProject = async () => embeddingBatch<Prisma.run_projectF
     trace: "0483",
     // Only update runs which are still active
     where: {
-        embeddingNeedsUpdate: true,
         status: { in: [RunStatus.Scheduled, RunStatus.InProgress] },
         schedule: { endTime: { gte: new Date().toISOString() } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { embeddingNeedsUpdate: true }),
     },
 });
 
@@ -253,9 +272,9 @@ const batchEmbeddingsRunRoutine = async () => embeddingBatch<Prisma.run_routineF
     trace: "0484",
     // Only update runs which are still active
     where: {
-        embeddingNeedsUpdate: true,
         status: { in: [RunStatus.Scheduled, RunStatus.InProgress] },
         schedule: { endTime: { gte: new Date().toISOString() } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { embeddingNeedsUpdate: true }),
     },
 });
 
@@ -266,7 +285,7 @@ const batchEmbeddingsSmartContractVersion = async () => embeddingBatch<Prisma.sm
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -277,7 +296,7 @@ const batchEmbeddingsStandardVersion = async () => embeddingBatch<Prisma.standar
     where: {
         isDeleted: false,
         root: { isDeleted: false },
-        translations: { some: { embeddingNeedsUpdate: true } },
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
     },
 });
 
@@ -285,14 +304,18 @@ const batchEmbeddingsTag = async () => embeddingBatch<Prisma.tagFindManyArgs>({
     objectType: "Tag",
     processBatch: processTranslatedBatchHelper,
     trace: "0485",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const batchEmbeddingsUser = async () => embeddingBatch<Prisma.userFindManyArgs>({
     objectType: "User",
     processBatch: processTranslatedBatchHelper,
     trace: "0486",
-    where: { translations: { some: { embeddingNeedsUpdate: true } } },
+    where: {
+        ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
+    },
 });
 
 const generateEmbeddings = async () => {

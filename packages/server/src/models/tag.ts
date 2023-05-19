@@ -115,7 +115,7 @@ export const TagModel: ModelLogic<{
         yup: tagValidation,
     },
     search: {
-        defaultSort: TagSortBy.BookmarksDesc,
+        defaultSort: TagSortBy.Top,
         sortBy: TagSortBy,
         searchFields: {
             createdById: true,
