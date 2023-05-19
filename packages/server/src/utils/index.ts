@@ -6,6 +6,7 @@ export * from "./calendar";
 export * from "./convertPlaceholders";
 export * from "./cudInputsToMaps";
 export * from "./defaultPermissions";
+export * from "./embeddingsSearch";
 export * from "./fileIO";
 export * from "./getAuthenticatedData";
 export * from "./getEmbeddings";

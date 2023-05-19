@@ -6,7 +6,7 @@ import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
-import { SearchMap } from "../utils";
+import { getEmbeddings, queryTagsBookmarksDesc, SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
@@ -82,14 +82,35 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         throw new CustomError("0383", "InternalError", req.languages, { objectType });
     }
     // TODO for objects with embeddings, need to replace findMany with something like this:
-    //     const results = await prisma.$queryRaw`
-    //     SELECT id, embedding::text, ((1 / (1 + vector <-> ${vecEmbed}::vector)) * 2 + stars) as score
-    //     FROM embedding
-    //     WHERE stars > ${minimumStars} 
-    //     HAVING vector <-> ${vecEmbed}::vector < ${maxDistance}
-    //     ORDER BY score DESC
-    //     LIMIT ${limit}
-    // `
+    const embeddings = await getEmbeddings("Tag", ["ai"]);
+    const embeddingVector = JSON.stringify(embeddings[0]);
+    // Test 1: Validate embedding distance calculation
+    const test1 = await prisma.$queryRaw`
+        SELECT "id", "embedding"::text, "embedding" <-> ${embeddingVector}::vector as "_distance"
+        FROM "tag_translation"
+        ORDER BY "_distance" ASC
+        LIMIT 50;
+    `;
+    // Test 2: Validate distance + bookmarks calculation
+    const test2Vector = JSON.stringify(embeddings[0]);
+    const test2 = await prisma.$queryRaw`
+    SELECT 
+        t."id", 
+        ((1 / (1 + (tt."embedding" <-> ${embeddingVector}::vector))) * 2) + t."bookmarks" as points
+    FROM "tag" t
+    INNER JOIN "tag_translation" tt ON t."id" = tt."tagId"
+    WHERE t."bookmarks" >= ${0} AND tt."embedding" <-> ${embeddingVector}::vector < ${1}
+    ORDER BY points DESC
+    LIMIT ${5}
+`;
+    const test3 = await queryTagsBookmarksDesc({
+        prisma,
+        embedding: embeddings[0],
+        bookmarksThreshold: 0,
+        distanceThreshold: 2,
+        limit: 5,
+        offset: 0,
+    });
     // This allows us to search by embedding similarity, while also factoring in popularity
 
     // If there are results
