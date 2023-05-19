@@ -3,7 +3,7 @@ import { batchCollect, BatchCollectProps, FindManyArgs } from "./batchCollect";
 import { withPrisma } from "./withPrisma";
 
 
-interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, "prisma" | "processBatch"> {
+export interface BatchProps<T extends FindManyArgs> extends Omit<BatchCollectProps<T>, "prisma" | "processBatch"> {
     processBatch: (batch: any[], prisma: PrismaType) => Promise<void>,
     trace: string,
     traceObject?: Record<string, any>,
