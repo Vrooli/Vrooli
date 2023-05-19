@@ -6,7 +6,7 @@ import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
-import { getEmbeddings, queryTagsBookmarksDesc, SearchMap } from "../utils";
+import { getEmbeddings, queryTagsBookmarks, SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
@@ -103,7 +103,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     ORDER BY points DESC
     LIMIT ${5}
 `;
-    const test3 = await queryTagsBookmarksDesc({
+    const test3 = await queryTagsBookmarks({
         prisma,
         embedding: embeddings[0],
         bookmarksThreshold: 0,
