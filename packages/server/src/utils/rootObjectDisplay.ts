@@ -40,10 +40,14 @@ export const rootObjectDisplay = <
 ): Displayer<RootModel> => ({
     label: {
         select: () => ({
-            ...versionModelLogic.display.label.select(),
-            isLatest: true,
-            isPrivate: true,
-            versionIndex: true,
+            versions: {
+                select: {
+                    ...versionModelLogic.display.label.select(),
+                    isLatest: true,
+                    isPrivate: true,
+                    versionIndex: true,
+                },
+            },
         }),
         get: (select, languages) => {
             const version = findBestVersion(select.versions);

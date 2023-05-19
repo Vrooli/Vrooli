@@ -125,7 +125,7 @@ const updateEmbedding = async (
     id: string,
     embeddings: number[],
 ): Promise<void> => {
-    const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;//`${JSON.stringify(embeddings)}::vector`;
+    const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
     // Use raw query to update the embedding, because the Prisma client doesn't support Postgres vectors
     await prisma.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
 };
