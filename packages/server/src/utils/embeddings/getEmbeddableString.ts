@@ -66,10 +66,12 @@ export const getEmbeddableString = (
         for (const key in input) {
             if (typeof input[key] === "string") {
                 processedInput[key] = processString(input[key], language, minimalProcessing);
+            } else if (Array.isArray(input[key])) {
+                processedInput[key] = input[key].map(el => typeof el === "string" ? processString(el, language, minimalProcessing) : el);
             }
         }
     } else {
-        throw new Error("Invalid input: input must be a string or an object.");
+        throw new Error("Invalid input: input must be a string, an array of strings, or an object.");
     }
 
     return JSON.stringify(processedInput);

@@ -9,7 +9,7 @@ export const findTopTagsWithEmbedding = async ({
     prisma,
     thresholdBookmarks = 0,
     thresholdDistance = 1,
-}: QueryEmbeddingsHelperProps) => {
+}: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
     const test = await prisma.$queryRaw`
         SELECT 
             t."id", 
@@ -23,7 +23,7 @@ export const findTopTagsWithEmbedding = async ({
         LIMIT ${limit}
         OFFSET ${offset}
     `;
-    return test;
+    return test as { id: string }[];
 };
 
 
@@ -33,7 +33,7 @@ export const findTopTagsWithoutEmbedding = async ({
     offset = 0,
     prisma,
     thresholdBookmarks = 0,
-}: QueryEmbeddingsHelperProps) => {
+}: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
     const test = await prisma.$queryRaw`
         SELECT 
             t."id", 
@@ -45,7 +45,7 @@ export const findTopTagsWithoutEmbedding = async ({
         LIMIT ${limit}
         OFFSET ${offset}
     `;
-    return test;
+    return test as { id: string }[];
 };
 
 
@@ -57,7 +57,7 @@ export const findNewTagsWithEmbedding = async ({
     prisma,
     thresholdBookmarks = 0,
     thresholdDistance = 1,
-}: QueryEmbeddingsHelperProps) => {
+}: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
     const test = await prisma.$queryRaw`
         SELECT 
             t."id", 
@@ -71,7 +71,7 @@ export const findNewTagsWithEmbedding = async ({
         LIMIT ${limit}
         OFFSET ${offset}
     `;
-    return test;
+    return test as { id: string }[];
 };
 
 
@@ -81,7 +81,7 @@ export const findNewTagsWithoutEmbedding = async ({
     offset = 0,
     prisma,
     thresholdBookmarks = 0,
-}: QueryEmbeddingsHelperProps) => {
+}: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
     const test = await prisma.$queryRaw`
         SELECT 
             t."id", 
@@ -93,7 +93,7 @@ export const findNewTagsWithoutEmbedding = async ({
         LIMIT ${limit}
         OFFSET ${offset}
     `;
-    return test;
+    return test as { id: string }[];
 };
 
 

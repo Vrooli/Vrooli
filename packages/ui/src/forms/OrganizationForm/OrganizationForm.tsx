@@ -136,11 +136,12 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             maxRows={4}
                             name="bio"
                         />
+                        <br />
+                        <TagSelector
+                            name="tags"
+                            zIndex={zIndex}
+                        />
                     </Stack>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
                     <Tooltip placement={"top"} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel
                             label='Open to new members?'

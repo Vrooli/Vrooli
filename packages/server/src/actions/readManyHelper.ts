@@ -6,7 +6,7 @@ import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
-import { getEmbeddings, queryTagsBookmarks, SearchMap } from "../utils";
+import { SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
@@ -70,7 +70,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
-            take: Number.isInteger(input.take) ? input.take : 25,
+            take: Number.isInteger(input.take) ? input.take : DEFAULT_TAKE,
             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
             cursor: input.after ? {
                 id: input.after,
@@ -81,86 +81,39 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
         throw new CustomError("0383", "InternalError", req.languages, { objectType });
     }
-    // TODO for objects with embeddings, need to replace findMany with something like this:
-    const embeddings = await getEmbeddings("Tag", ["ai"]);
-    const embeddingVector = JSON.stringify(embeddings[0]);
-    // Test 1: Validate embedding distance calculation
-    const test1 = await prisma.$queryRaw`
-        SELECT "id", "embedding"::text, "embedding" <-> ${embeddingVector}::vector as "_distance"
-        FROM "tag_translation"
-        ORDER BY "_distance" ASC
-        LIMIT 50;
-    `;
-    // Test 2: Validate distance + bookmarks calculation
-    const test2Vector = JSON.stringify(embeddings[0]);
-    const test2 = await prisma.$queryRaw`
-    SELECT 
-        t."id", 
-        ((1 / (1 + (tt."embedding" <-> ${embeddingVector}::vector))) * 2) + t."bookmarks" as points
-    FROM "tag" t
-    INNER JOIN "tag_translation" tt ON t."id" = tt."tagId"
-    WHERE t."bookmarks" >= ${0} AND tt."embedding" <-> ${embeddingVector}::vector < ${1}
-    ORDER BY points DESC
-    LIMIT ${5}
-`;
-    const test3 = await queryTagsBookmarks({
-        prisma,
-        embedding: embeddings[0],
-        bookmarksThreshold: 0,
-        distanceThreshold: 2,
-        limit: 5,
-        offset: 0,
-    });
-    // This allows us to search by embedding similarity, while also factoring in popularity
-
-    // If there are results
-    let paginatedResults: PaginatedSearchResult;
+    let hasNextPage = false;
+    let endCursor: string | null = null;
+    // If there are results, find the end cursor and hasNextPage flag
     if (searchResults.length > 0) {
         // Find cursor
-        const cursor = searchResults[searchResults.length - 1].id;
+        endCursor = searchResults[searchResults.length - 1].id;
         // Query after the cursor to check if there are more results
-        const hasNextPage = await (model.delegate(prisma) as any).findMany({
+        const nextPage = await (model.delegate(prisma) as any).findMany({
             take: 1,
             cursor: {
-                id: cursor,
+                id: endCursor,
             },
         });
-        paginatedResults = {
-            __typename: `${model.__typename}SearchResult` as const,
-            pageInfo: {
-                __typename: "PageInfo" as const,
-                hasNextPage: hasNextPage.length > 0,
-                endCursor: cursor,
-            },
-            edges: searchResults.map((result: any) => ({
-                __typename: `${model.__typename}Edge` as const,
-                cursor: result.id,
-                node: result,
-            })),
-        };
-    }
-    // If there are no results
-    else {
-        paginatedResults = {
-            __typename: `${model.__typename}SearchResult` as const,
-            pageInfo: {
-                __typename: "PageInfo" as const,
-                endCursor: null,
-                hasNextPage: false,
-            },
-            edges: [],
-        };
+        hasNextPage = nextPage.length > 0;
     }
     //TODO validate that the user has permission to read all of the results, including relationships
-    // If not adding supplemental fields, return the paginated results
-    if (!addSupplemental) return paginatedResults;
+    // Add supplemental fields, if requested
+    if (addSupplemental) {
+        searchResults = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
+        searchResults = await addSupplementalFields(prisma, userData, searchResults, partialInfo);
+    }
     // Return formatted for GraphQL
-    let formattedNodes = paginatedResults.edges.map(({ node }) => node);
-    formattedNodes = formattedNodes.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
     return {
-        ...paginatedResults,
-        pageInfo: paginatedResults.pageInfo,
-        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })),
+        __typename: `${model.__typename}SearchResult` as const,
+        pageInfo: {
+            __typename: "PageInfo" as const,
+            hasNextPage,
+            endCursor,
+        },
+        edges: searchResults.map((result: any) => ({
+            __typename: `${model.__typename}Edge` as const,
+            cursor: result.id,
+            node: result,
+        })),
     };
 }
