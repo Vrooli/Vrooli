@@ -2,7 +2,7 @@ import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, Issue
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -48,10 +48,10 @@ export const IssueModel: ModelLogic<{
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                });
+                }, languages[0]);
             },
         },
     },

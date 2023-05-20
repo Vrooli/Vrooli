@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestTranslation, calculateWeightData, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
@@ -63,11 +63,11 @@ export const RoutineVersionModel: ModelLogic<{
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                });
+                }, languages[0]);
             },
         },
     },

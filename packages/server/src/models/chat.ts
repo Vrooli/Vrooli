@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { bestTranslation } from "../utils";
+import { bestTranslation, getEmbeddableString } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = "Chat" as const;
@@ -16,10 +16,10 @@ export const ChatModel: ModelLogic<any, any> = ({
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                });
+                }, languages[0]);
             },
         },
     },

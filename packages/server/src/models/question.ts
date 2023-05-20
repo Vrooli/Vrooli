@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -49,10 +49,10 @@ export const QuestionModel: ModelLogic<{
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                });
+                }, languages[0]);
             },
         },
     },

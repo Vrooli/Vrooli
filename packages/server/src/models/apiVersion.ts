@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ApiModel } from "./api";
@@ -49,12 +49,12 @@ export const ApiVersionModel: ModelLogic<{
             }),
             get: ({ callLink, root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     callLink,
                     name: trans.name,
                     summary: trans.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                });
+                }, languages[0]);
             },
         },
     },

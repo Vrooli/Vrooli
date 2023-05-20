@@ -4,7 +4,7 @@ import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } fro
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
@@ -66,9 +66,7 @@ export const RunRoutineModel: ModelLogic<{
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
             get: ({ name }, languages) => {
-                return JSON.stringify({
-                    name,
-                });
+                return getEmbeddableString({ name }, languages[0]);
             },
         },
     },

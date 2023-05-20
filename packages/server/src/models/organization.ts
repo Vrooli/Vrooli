@@ -4,7 +4,7 @@ import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -40,10 +40,10 @@ export const OrganizationModel: ModelLogic<{
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     bio: trans.bio,
                     name: trans.name,
-                });
+                }, languages[0]);
             },
         },
     },

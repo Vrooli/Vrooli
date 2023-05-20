@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { NoteModel } from "./note";
@@ -42,11 +42,11 @@ export const NoteVersionModel: ModelLogic<{
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     text: trans.text?.slice(0, 512),
-                });
+                }, languages[0]);
             },
         },
     },

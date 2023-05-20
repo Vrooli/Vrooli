@@ -14,7 +14,7 @@ import { ModelLogic } from "../../models/types";
 import { PrismaType } from "../../types";
 import { FindManyArgs } from "../../utils";
 import { batch, BatchProps } from "../../utils/batch";
-import { EmbeddableType, EmbeddingTables, getEmbeddings } from "../../utils/getEmbeddings";
+import { EmbeddableType, EmbeddingTables, getEmbeddings } from "../../utils/embeddings/getEmbeddings";
 import { cronTimes } from "../cronTimes";
 import { initializeCronJob } from "../initializeCronJob";
 

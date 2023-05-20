@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { getEmbeddableString } from "../utils/embeddings/getEmbeddableString";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
@@ -35,10 +36,10 @@ export const TagModel: ModelLogic<{
             select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
-                return JSON.stringify({
+                return getEmbeddableString({
                     description: trans.description,
                     tag,
-                });
+                }, languages[0]);
             },
         },
     },

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, getEmbeddableString } from "../utils";
 import { ReminderListModel } from "./reminderList";
 import { ModelLogic } from "./types";
 
@@ -33,8 +33,8 @@ export const ReminderModel: ModelLogic<{
         },
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
-            get: ({ description, name }) => {
-                return JSON.stringify({ description, name });
+            get: ({ description, name }, languages) => {
+                return getEmbeddableString({ description, name }, languages[0]);
             },
         },
     },
