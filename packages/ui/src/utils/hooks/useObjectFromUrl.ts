@@ -7,7 +7,7 @@ import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/l
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { useDisplayApolloError } from "./useDisplayApolloError";
-import { useStableObject } from "./useStableObject";
+import { useStableCallback } from "./useStableCallback";
 
 type UseObjectFromUrlProps<
     TData extends ListObjectType,
@@ -45,7 +45,7 @@ export function useObjectFromUrl<
     // Get URL params
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
-    const stableOnInvalidUrlParams = useStableObject(onInvalidUrlParams);
+    const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
 
     // Fetch data
     const [getData, { data, error, loading: isLoading }] = useCustomLazyQuery<TData, TVariables>(query, { errorPolicy: "all" } as any);

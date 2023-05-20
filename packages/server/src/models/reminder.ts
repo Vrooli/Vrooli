@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, getEmbeddableString } from "../utils";
 import { ReminderListModel } from "./reminderList";
 import { ModelLogic } from "./types";
 
@@ -17,7 +17,7 @@ export const ReminderModel: ModelLogic<{
     GqlModel: Reminder,
     GqlSearch: ReminderSearchInput,
     GqlSort: ReminderSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.reminderUpsertArgs["create"],
     PrismaUpdate: Prisma.reminderUpsertArgs["update"],
     PrismaModel: Prisma.reminderGetPayload<SelectWrap<Prisma.reminderSelect>>,
@@ -27,8 +27,16 @@ export const ReminderModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.reminder,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
+            get: ({ description, name }, languages) => {
+                return getEmbeddableString({ description, name }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -47,6 +55,7 @@ export const ReminderModel: ModelLogic<{
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
+                embeddingNeedsUpdate: true,
                 name: data.name,
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
@@ -55,6 +64,7 @@ export const ReminderModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
+                embeddingNeedsUpdate: typeof data.name === "string" || typeof data.description === "string",
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),

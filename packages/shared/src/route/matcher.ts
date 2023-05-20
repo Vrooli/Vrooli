@@ -23,7 +23,7 @@ export interface PatternToRegexpResult {
 
 // creates a matcher function
 export default function makeMatcher(makeRegexpFn: (pattern: string) => PatternToRegexpResult = pathToRegexp) {
-    let cache: { [x: string]: any } = {};
+    const cache: { [x: string]: any } = {};
 
     // obtains a cached regexp version of the pattern
     const getRegexp = (pattern: string) =>

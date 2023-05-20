@@ -25,7 +25,7 @@ export const shapeNoteVersion: ShapeModel<NoteVersionShape, NoteVersionCreateInp
     create: (d) => ({
         ...createPrims(d, "id", "isPrivate", "versionLabel", "versionNotes"),
         ...createRel(d, "directoryListings", ["Connect"], "many"),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeNote),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeNote, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "translations", ["Create"], "many", shapeNoteVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {

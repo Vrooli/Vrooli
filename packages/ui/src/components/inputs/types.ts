@@ -2,7 +2,6 @@ import { Comment, CommentFor, StandardVersion, SvgComponent, SvgProps, Tag } fro
 import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
-import { StringSchema } from "yup";
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
@@ -24,18 +23,6 @@ export interface DropzoneProps {
     onUpload: (files: any[]) => any;
     showThumbs?: boolean;
     uploadText?: string;
-}
-
-export interface EditableLabelProps {
-    canUpdate: boolean;
-    handleUpdate: (newTitle: string) => void;
-    placeholder?: string;
-    onDialogOpen?: (isOpen: boolean) => void;
-    renderLabel: (label: string) => JSX.Element;
-    sxs?: { stack?: { [x: string]: any } };
-    text: string;
-    validationSchema?: StringSchema<string | undefined, any, string | undefined>;
-    zIndex: number;
 }
 
 export interface JsonFormatInputProps {

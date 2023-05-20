@@ -2,7 +2,7 @@ import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, R
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
@@ -28,8 +28,16 @@ export const RunProjectModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            get: ({ name }, languages) => {
+                return getEmbeddableString({ name }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {

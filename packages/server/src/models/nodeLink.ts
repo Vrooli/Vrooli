@@ -14,7 +14,7 @@ export const NodeLinkModel: ModelLogic<{
     GqlCreate: NodeLinkCreateInput,
     GqlUpdate: NodeLinkUpdateInput,
     GqlModel: NodeLink,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_linkUpsertArgs["create"],
@@ -26,14 +26,16 @@ export const NodeLinkModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: {
-        select: () => ({
-            id: true,
-            from: selPad(NodeModel.display.select),
-            to: selPad(NodeModel.display.select),
-        }),
-        // Label combines from and to labels
-        label: (select, languages) => {
-            return `${NodeModel.display.label(select.from as any, languages)} -> ${NodeModel.display.label(select.to as any, languages)}`;
+        label: {
+            select: () => ({
+                id: true,
+                from: selPad(NodeModel.display.label.select),
+                to: selPad(NodeModel.display.label.select),
+            }),
+            // Label combines from and to labels
+            get: (select, languages) => {
+                return `${NodeModel.display.label.get(select.from as any, languages)} -> ${NodeModel.display.label.get(select.to as any, languages)}`;
+            },
         },
     },
     format: {

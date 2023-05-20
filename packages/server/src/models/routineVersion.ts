@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, calculateWeightData, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
+import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
 import { RunRoutineModel } from "./runRoutine";
@@ -50,8 +51,25 @@ export const RoutineVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+            }),
+            get: ({ root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    name: trans.name,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                    description: trans.description,
+                }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -145,7 +163,8 @@ export const RoutineVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async (params) => {
+                const { createList, updateList, deleteList, prisma, userData } = params;
                 await versionsCheck({
                     createList,
                     deleteList,
@@ -172,7 +191,8 @@ export const RoutineVersionModel: ModelLogic<{
                     acc[curr.id] = curr;
                     return acc;
                 }, {});
-                return dataWeightMap;
+                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                return { ...maps, dataWeightMap };
             },
             create: async ({ data, ...rest }) => {
                 return {
@@ -196,7 +216,7 @@ export const RoutineVersionModel: ModelLogic<{
                     ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest })),
                     ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest })),
                     // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
-                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
                 };
             },
             update: async ({ data, ...rest }) => ({
@@ -219,7 +239,7 @@ export const RoutineVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "versions", data, ...rest })),
                 ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest })),
                 // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });

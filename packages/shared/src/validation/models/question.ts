@@ -1,7 +1,9 @@
-import { QuestionForType } from "@local/shared";
-import { bool, description, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
+import { blankToUndefined, maxStrErr, minStrErr, QuestionForType } from "@local/shared";
+import * as yup from "yup";
+import { bool, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
 
 const forObjectType = enumToYup(QuestionForType);
+const description = yup.string().transform(blankToUndefined).min(1, minStrErr).max(16384, maxStrErr);
 
 export const questionTranslationValidation: YupModel = transRel({
     create: {
@@ -11,24 +13,24 @@ export const questionTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
         name: opt(name),
-    }
-})
+    },
+});
 
 export const questionValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
         referencing: opt(referencing),
-        forObjectType: req(forObjectType),
+        forObjectType: opt(forObjectType),
     }, [
-        ['forObject', ['Connect'], 'one', 'opt'],
-        ['translations', ['Create'], 'many', 'opt', questionTranslationValidation],
+        ["forObject", ["Connect"], "one", "opt"],
+        ["translations", ["Create"], "many", "opt", questionTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
-        ['acceptedAnswer', ['Connect'], 'one', 'opt'],
-        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', questionTranslationValidation],
+        ["acceptedAnswer", ["Connect"], "one", "opt"],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", questionTranslationValidation],
     ], [], o),
-}
+};

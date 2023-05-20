@@ -14,7 +14,7 @@ export const PushDeviceModel: ModelLogic<{
     GqlCreate: PushDeviceCreateInput,
     GqlUpdate: PushDeviceUpdateInput,
     GqlModel: PushDevice,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.push_deviceUpsertArgs["create"],
@@ -26,12 +26,14 @@ export const PushDeviceModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.push_device,
     display: {
-        select: () => ({ id: true, name: true, p256dh: true }),
-        label: (select) => {
-            // Return name if it exists
-            if (select.name) return select.name;
-            // Otherwise, return last 4 digits of p256dh
-            return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
+        label: {
+            select: () => ({ id: true, name: true, p256dh: true }),
+            get: (select) => {
+                // Return name if it exists
+                if (select.name) return select.name;
+                // Otherwise, return last 4 digits of p256dh
+                return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
+            },
         },
     },
     format: {

@@ -1,5 +1,5 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
+import { Checkbox, FormControlLabel, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -61,6 +61,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -107,7 +108,11 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -131,11 +136,12 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             maxRows={4}
                             name="bio"
                         />
+                        <br />
+                        <TagSelector
+                            name="tags"
+                            zIndex={zIndex}
+                        />
                     </Stack>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
                     <Tooltip placement={"top"} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel
                             label='Open to new members?'

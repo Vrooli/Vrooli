@@ -15,7 +15,7 @@ export const PhoneModel: ModelLogic<{
     GqlCreate: PhoneCreateInput,
     GqlUpdate: undefined,
     GqlModel: Phone,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.phoneUpsertArgs["create"],
@@ -27,12 +27,14 @@ export const PhoneModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.phone,
     display: {
-        select: () => ({ id: true, phoneNumber: true }),
-        // Only display last 4 digits of phone number
-        label: (select) => {
-            // Make sure number is at least 4 digits long
-            if (select.phoneNumber.length < 4) return select.phoneNumber;
-            return `...${select.phoneNumber.slice(-4)}`;
+        label: {
+            select: () => ({ id: true, phoneNumber: true }),
+            // Only display last 4 digits of phone number
+            get: (select) => {
+                // Make sure number is at least 4 digits long
+                if (select.phoneNumber.length < 4) return select.phoneNumber;
+                return `...${select.phoneNumber.slice(-4)}`;
+            },
         },
     },
     format: {

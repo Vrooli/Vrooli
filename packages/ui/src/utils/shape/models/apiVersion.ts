@@ -26,7 +26,7 @@ export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput,
         ...createPrims(d, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...createRel(d, "directoryListings", ["Connect"], "many"),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeApi),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeApi, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "translations", ["Create"], "many", shapeApiVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {

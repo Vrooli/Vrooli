@@ -1,8 +1,8 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Comment, CommentThread as ThreadType, CreateIcon, uuidValidate } from "@local/shared";
-import { Button, Stack, useTheme } from "@mui/material";
+import { Comment, CommentThread as ThreadType, CreateIcon, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { Button, Palette, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { CommentThread } from "components/lists/comment";
@@ -12,6 +12,20 @@ import { useFindMany } from "utils/hooks/useFindMany";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
+
+/**
+ * Common style applied when displaying this component 
+ * on an object's page
+ */
+export const containerProps = (palette: Palette) => ({
+    boxShadow: 1,
+    background: palette.background.paper,
+    borderRadius: 1,
+    overflow: "overlay",
+    marginTop: 4,
+    marginBottom: 4,
+    padding: 2,
+});
 
 export function CommentContainer({
     forceAddCommentOpen,
@@ -42,7 +56,7 @@ export function CommentContainer({
         searchType: "Comment",
         resolve: (result) => result.threads,
         where: {
-            [`${objectType.toLowerCase()}Id`]: objectId,
+            [`${lowercaseFirstLetter(objectType)}Id`]: objectId,
         },
     });
 

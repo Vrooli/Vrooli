@@ -1,5 +1,5 @@
 import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
-import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
+import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
 import { useCustomMutation } from "api/hooks";
@@ -7,7 +7,7 @@ import { mutationWrapper } from "api/utils";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
+import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
@@ -44,16 +44,6 @@ import { RoutineViewProps } from "../types";
 const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
-const containerProps = (palette: Palette) => ({
-    boxShadow: 1,
-    background: palette.background.paper,
-    borderRadius: 1,
-    overflow: "overlay",
-    marginTop: 4,
-    marginBottom: 4,
-    padding: 2,
-});
-
 export const RoutineView = ({
     display = "page",
     partialData,
@@ -65,7 +55,7 @@ export const RoutineView = ({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { id, isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
         query: routineVersionFindOne,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
@@ -189,6 +179,19 @@ export const RoutineView = ({
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     console.log("formik values", formik.values);
+
+    const comments = useMemo(() => (
+        <Box sx={containerProps(palette)}>
+            <CommentContainer
+                forceAddCommentOpen={isAddCommentOpen}
+                language={language}
+                objectId={existing?.id ?? ""}
+                objectType={CommentFor.RoutineVersion}
+                onAddCommentClose={closeAddCommentDialog}
+                zIndex={zIndex}
+            />
+        </Box>
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
 
     return (
         <>
@@ -327,21 +330,12 @@ export const RoutineView = ({
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
-                        exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                        exclude={[ObjectAction.Edit]} // Handled elsewhere
                         object={existing}
                         zIndex={zIndex}
                     />
                     {/* Comments */}
-                    <Box sx={containerProps(palette)}>
-                        <CommentContainer
-                            forceAddCommentOpen={isAddCommentOpen}
-                            language={language}
-                            objectId={existing?.id ?? ""}
-                            objectType={CommentFor.RoutineVersion}
-                            onAddCommentClose={closeAddCommentDialog}
-                            zIndex={zIndex}
-                        />
-                    </Box>
+                    {comments}
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}

@@ -63,6 +63,7 @@ export const SortMap = {
     MembersDesc: { members: { _count: Order.Desc } },
     NameAsc: { name: Order.Asc },
     NameDesc: { name: Order.Desc },
+    New: {}, // Reserved for embeddable object search, so not applicable here
     OrderAsc: { order: Order.Asc },
     OrderDesc: { order: Order.Desc },
     PeriodStartAsc: { periodStart: Order.Asc },
@@ -101,6 +102,7 @@ export const SortMap = {
     TimeTakenDesc: { timeTaken: Order.Desc },
     TitleAsc: { title: Order.Asc },
     TitleDesc: { title: Order.Desc },
+    Top: {}, // Reserved for embeddable object search, so not applicable here
     BookmarksAsc: { bookmarkedBy: { _count: Order.Asc } },
     BookmarksDesc: { bookmarkedBy: { _count: Order.Desc } },
     UsedForAsc: { usedFor: Order.Asc },

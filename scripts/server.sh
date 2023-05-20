@@ -34,8 +34,8 @@ else
     info 'Running migrations...'
     /usr/local/bin/prisma migrate deploy
     if [ $? -ne 0 ]; then
-        error "Failed to run migrations"
-        exit 1
+        error "Migration or Server start failed, keeping container running for debug..."
+        tail -f /dev/null
     fi
     success 'Migrations completed'
 fi

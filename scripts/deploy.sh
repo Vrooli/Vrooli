@@ -87,7 +87,7 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
     # Check if the NginxSSLReverseProxy directory exists
     if [ ! -d "${NGINX_LOCATION}" ]; then
         info "NginxSSLReverseProxy not installed. Cloning and setting up..."
-        git clone https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
+        git clone --depth 1 --branch main https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
         chmod +x "${NGINX_LOCATION}/scripts/*"
         "${NGINX_LOCATION}/scripts/fullSetup.sh"
     fi
@@ -182,15 +182,6 @@ fi
 # Stop docker containers
 info "Stopping docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod down
-
-# Move and decompress build created by build.sh to the correct location.
-info "Moving and decompressing new build to correct location..."
-rm -rf ${HERE}/../packages/ui/dist
-tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
-if [ $? -ne 0 ]; then
-    error "Could not move and decompress build to correct location"
-    exit 1
-fi
 
 # Restart docker containers.
 info "Restarting docker containers..."

@@ -16,7 +16,7 @@ export const FocusModeFilterModel: ModelLogic<{
     GqlCreate: FocusModeFilterCreateInput,
     GqlUpdate: undefined,
     GqlModel: FocusModeFilter,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: FocusModeSearchInput,
     GqlSort: FocusModeSortBy,
     PrismaCreate: Prisma.focus_mode_filterUpsertArgs["create"],
@@ -28,8 +28,10 @@ export const FocusModeFilterModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.focus_mode_filter,
     display: {
-        select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
-        label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : "",
+        label: {
+            select: () => ({ id: true, tag: { select: TagModel.display.label.select() } }),
+            get: (select, languages) => select.tag ? TagModel.display.label.get(select.tag as any, languages) : "",
+        },
     },
     format: {
         gqlRelMap: {

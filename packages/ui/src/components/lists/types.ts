@@ -1,4 +1,4 @@
-import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -7,7 +7,7 @@ import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 
-export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
+export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | Question | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
@@ -15,28 +15,32 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     zIndex: number;
 }
 
-export interface ObjectListItemProps<T extends ListObjectType> {
+export interface ObjectListItemBaseProps<T extends ListObjectType> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: NavigableObject) => boolean | void,
+    canNavigate?: (item: NavigableObject) => boolean | void,
+    belowSubtitle?: React.ReactNode;
+    belowTags?: React.ReactNode;
     /**
      * True if update button should be hidden
      */
     hideUpdateButton?: boolean;
-    /**
-     * Index in list
-     */
-    index: number;
     /**
      * True if data is still being fetched
      */
     loading: boolean;
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
+    onClick?: (dat: T) => void;
+    toTheRight?: React.ReactNode;
     zIndex: number;
 }
+export type ObjectListItemProps<T extends ListObjectType> = ObjectListItemBaseProps<T>
+export type MemberListItemProps = ObjectListItemBaseProps<Member>
+export type RunProjectListItemProps = ObjectListItemBaseProps<RunProject>
+export type RunRoutineListItemProps = ObjectListItemBaseProps<RunRoutine>
 
 export interface SortMenuProps {
     sortOptions: any[];
@@ -77,6 +81,7 @@ export type RelationshipItemOrganization = Pick<Organization, "handle" | "id"> &
     translations?: Pick<Organization["translations"][0], "name" | "id" | "language">[];
     __typename: "Organization";
 };
+export type RelationshipItemQuestionForObject = { __typename: QuestionForType | `${QuestionForType}`, id: string }
 export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
     __typename: "User";
 }
@@ -131,7 +136,7 @@ export interface SearchListProps {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: any) => boolean,
+    canNavigate?: (item: any) => boolean,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
@@ -146,6 +151,7 @@ export interface SearchListProps {
     sxs?: {
         search?: { [x: string]: any };
     }
+    onItemClick?: (item: any) => void;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     zIndex: number;

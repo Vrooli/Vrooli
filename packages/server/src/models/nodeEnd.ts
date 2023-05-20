@@ -15,7 +15,7 @@ export const NodeEndModel: ModelLogic<{
     GqlCreate: NodeEndCreateInput,
     GqlUpdate: NodeEndUpdateInput,
     GqlModel: NodeEnd,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_endUpsertArgs["create"],
@@ -27,8 +27,10 @@ export const NodeEndModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {
-        select: () => ({ id: true, node: selPad(NodeModel.display.select) }),
-        label: (select, languages) => NodeModel.display.label(select.node as any, languages),
+        label: {
+            select: () => ({ id: true, node: selPad(NodeModel.display.label.select) }),
+            get: (select, languages) => NodeModel.display.label.get(select.node as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

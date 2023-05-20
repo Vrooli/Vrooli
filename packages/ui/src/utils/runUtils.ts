@@ -171,8 +171,9 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     // 1. There is only one start node
     // 2. There is only one linked node which has no incoming edges, and it is the start node
     // 3. Every node that has no outgoing edges is an end node
-    // 4. Validate loop TODO
-    // 5. Validate redirects TODO
+    // 4. There is at least one end node that's marked as a successful end
+    // 5. Validate loop TODO
+    // 6. Validate redirects TODO
     // Check 1
     const startNodes = routineVersion.nodes.filter(node => node.nodeType === NodeType.Start);
     if (startNodes.length === 0) {
@@ -197,6 +198,11 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         if (nodesWithoutOutgoingEdges.some(node => node.nodeType !== NodeType.End)) {
             statuses.push([Status.Invalid, "Not all paths end with an end node"]);
         }
+    }
+    // Check 4
+    const unsuccessfulEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End && node.end && node.end?.wasSuccessful !== true);
+    if (unsuccessfulEndNodes.length > 0) {
+        statuses.push([Status.Invalid, "No successful end node(s) found"]);
     }
     // Performs checks which make the routine incomplete, but not invalid
     // 1. There are unpositioned nodes

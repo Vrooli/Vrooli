@@ -36,6 +36,7 @@ export const SnackStack = () => {
                 // event can define an id, or we generate one
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
+                    autoHideDuration: o.autoHideDuration,
                     buttonClicked: o.buttonClicked,
                     buttonText: o.buttonKey ? t(o.buttonKey, { ...o.buttonVariables, defaultValue: o.buttonKey }) : undefined,
                     data: o.data,

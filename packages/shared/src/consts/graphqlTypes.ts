@@ -3924,6 +3924,7 @@ export type PostCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
 };
 
@@ -4009,6 +4010,9 @@ export type PostUpdateInput = {
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
+  translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ApiVersionTranslationUpdateInput>>;
 };
 
 export type Premium = {
@@ -9167,12 +9171,8 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
-  BookmarksAsc = 'BookmarksAsc',
-  BookmarksDesc = 'BookmarksDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  New = 'New',
+  Top = 'Top'
 }
 
 export type TagTranslation = {

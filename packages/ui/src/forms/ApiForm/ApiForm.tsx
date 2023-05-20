@@ -1,5 +1,5 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Stack, TextField } from "@mui/material";
+import { Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -78,6 +78,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // useEffect(() => {
@@ -131,7 +132,11 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         helperText={"The full URL to the endpoint."}
                         as={TextField}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}

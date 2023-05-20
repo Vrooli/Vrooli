@@ -96,55 +96,74 @@ export const setCookiePreferences = (preferences: CookiePreferences) => {
  * preferences.
  * @param cookieType Cookie type to check
  * @param callback Callback function to call if cookie is allowed
+ * @param fallback Optional fallback value to use if cookie is not allowed
  */
-export const onlyIfCookieAllowed = (cookieType: keyof CookiePreferences, callback: () => any) => {
+export const onlyIfCookieAllowed = (cookieType: keyof CookiePreferences, callback: () => any, fallback?: any) => {
     const preferences = getCookiePreferences();
     if (cookieType === "strictlyNecessary" || preferences?.[cookieType]) {
         return callback();
     }
     else {
         console.warn(`Not allowed to get/set cookie ${cookieType}`);
+        return fallback;
     }
 };
 
 type ThemeType = "light" | "dark";
 export const getCookieTheme = <T extends ThemeType | undefined>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () =>
-        getOrSetCookie(Cookies.Theme, (value: any): value is ThemeType => value === "light" || value === "dark", fallback));
+    onlyIfCookieAllowed("functional",
+        () => getOrSetCookie(Cookies.Theme, (value: any): value is ThemeType => value === "light" || value === "dark", fallback),
+        fallback,
+    );
 
 export const setCookieTheme = (theme: ThemeType) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.Theme, theme));
 
 export const getCookieFontSize = <T extends number | undefined>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () => {
-        const size = getOrSetCookie(Cookies.FontSize, (value: any): value is number => typeof value === "number", fallback);
-        // Ensure font size is not too small or too large. This would make the UI unusable.
-        return size ? Math.max(8, Math.min(24, size)) : undefined;
-    });
+    onlyIfCookieAllowed("functional",
+        () => {
+            const size = getOrSetCookie(Cookies.FontSize, (value: any): value is number => typeof value === "number", fallback);
+            // Ensure font size is not too small or too large. This would make the UI unusable.
+            return size ? Math.max(8, Math.min(24, size)) : undefined;
+        },
+        fallback,
+    );
 
 export const setCookieFontSize = (fontSize: number) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.FontSize, fontSize));
 
 export const getCookieLanguage = <T extends string | undefined>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () => getOrSetCookie(Cookies.Language, (value: any): value is string => typeof value === "string", fallback));
+    onlyIfCookieAllowed("functional",
+        () => getOrSetCookie(Cookies.Language, (value: any): value is string => typeof value === "string", fallback),
+        fallback,
+    );
 
 export const setCookieLanguage = (language: string) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.Language, language));
 
 export const getCookieIsLeftHanded = <T extends boolean | undefined>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () => getOrSetCookie(Cookies.IsLeftHanded, (value: any): value is boolean => typeof value === "boolean", fallback));
+    onlyIfCookieAllowed("functional",
+        () => getOrSetCookie(Cookies.IsLeftHanded, (value: any): value is boolean => typeof value === "boolean", fallback),
+        fallback,
+    );
 
 export const setCookieIsLeftHanded = (isLeftHanded: boolean) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.IsLeftHanded, isLeftHanded));
 
 export const getCookieActiveFocusMode = <T extends ActiveFocusMode | undefined>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () => getOrSetCookie(Cookies.FocusModeActive, (value: any): value is ActiveFocusMode => typeof value === "object", fallback));
+    onlyIfCookieAllowed("functional",
+        () => getOrSetCookie(Cookies.FocusModeActive, (value: any): value is ActiveFocusMode => typeof value === "object", fallback),
+        fallback,
+    );
 
 export const setCookieActiveFocusMode = (focusMode: ActiveFocusMode | null) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.FocusModeActive, focusMode));
 
 export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =>
-    onlyIfCookieAllowed("functional", () => getOrSetCookie(Cookies.FocusModeAll, (value: any): value is FocusMode[] => Array.isArray(value), fallback));
+    onlyIfCookieAllowed("functional",
+        () => getOrSetCookie(Cookies.FocusModeAll, (value: any): value is FocusMode[] => Array.isArray(value), fallback),
+        fallback,
+    );
 
 export const setCookieAllFocusModes = (modes: FocusMode[]) =>
     onlyIfCookieAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));

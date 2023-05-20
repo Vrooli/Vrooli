@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationSearchInput, NotificationSearchResult, openLink, Success, useLocation, VisibleIcon } from "@local/shared";
+import { addSearchParams, CommentIcon, CommonKey, DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, NotificationSearchInput, NotificationSearchResult, openLink, parseSearchParams, Success, SvgProps, useLocation, VisibleIcon } from "@local/shared";
 import { Box, Button, Chip, IconButton, List, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
@@ -7,11 +7,39 @@ import { notificationFindMany } from "api/generated/endpoints/notification_findM
 import { notificationMarkAllAsRead } from "api/generated/endpoints/notification_markAllAsRead";
 import { notificationMarkAsRead } from "api/generated/endpoints/notification_markAsRead";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { NotificationsViewProps } from "../types";
+
+// Tab data type
+type BaseParams = {
+    Icon: (props: SvgProps) => JSX.Element,
+    label: CommonKey;
+    searchType: SearchType;
+    tabType: InboxPageTabOption;
+    where: { [x: string]: any };
+}
+
+// Data for each tab
+const tabParams: BaseParams[] = [{
+    Icon: NotificationsAllIcon,
+    label: "Notification",
+    searchType: SearchType.Notification,
+    tabType: InboxPageTabOption.Notifications,
+    where: { isInternal: false },
+}, {
+    Icon: CommentIcon,
+    label: "Message",
+    searchType: SearchType.Chat,
+    tabType: InboxPageTabOption.Messages,
+    where: {},
+}];
+
 
 export const NotificationsView = ({
     display = "page",
@@ -19,6 +47,31 @@ export const NotificationsView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
+
+    // Handle tabs
+    const tabs = useMemo<PageTab<InboxPageTabOption>[]>(() => {
+        return tabParams.map((tab, i) => ({
+            index: i,
+            Icon: tab.Icon,
+            label: tab.label,
+            value: tab.tabType,
+        }));
+    }, []);
+    const [currTab, setCurrTab] = useState<PageTab<InboxPageTabOption>>(() => {
+        const searchParams = parseSearchParams();
+        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        // Default to routine tab
+        if (index === -1) return tabs[0];
+        // Return tab
+        return tabs[index];
+    });
+    const handleTabChange = useCallback((e: any, tab: PageTab<InboxPageTabOption>) => {
+        e.preventDefault();
+        // Update search params
+        addSearchParams(setLocation, { type: tab.value });
+        // Update curr tab
+        setCurrTab(tab);
+    }, [setLocation]);
 
     const [searchString, setSearchString] = useState("");
     const { data, refetch, loading, error } = useQuery<Wrap<NotificationSearchResult, "notifications">, Wrap<NotificationSearchInput, "input">>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: "all" });
@@ -79,9 +132,15 @@ export const NotificationsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: "Notification",
-                    titleVariables: { count: 2 },
+                    titleKey: currTab.label,
+                    titleVariables: { count: 2, defaultValue: currTab.label },
                 }}
+                below={<PageTabs
+                    ariaLabel="inbox-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
             />
             <Button
                 onClick={onMarkAllAsRead}

@@ -59,38 +59,40 @@ export const PullRequestModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.pull_request,
     display: {
-        select: () => ({
-            id: true,
-            toApi: { select: ApiModel.display.select() },
-            fromApiVersion: { select: ApiVersionModel.display.select() },
-            toNote: { select: NoteModel.display.select() },
-            fromNoteVersion: { select: NoteVersionModel.display.select() },
-            toProject: { select: ProjectModel.display.select() },
-            fromProjectVersion: { select: ProjectVersionModel.display.select() },
-            toRoutine: { select: RoutineModel.display.select() },
-            fromRoutineVersion: { select: RoutineVersionModel.display.select() },
-            toSmartContract: { select: SmartContractModel.display.select() },
-            fromSmartContractVersion: { select: SmartContractVersionModel.display.select() },
-            toStandard: { select: StandardModel.display.select() },
-            fromStandardVersion: { select: StandardVersionModel.display.select() },
-        }),
-        // Label is from -> to
-        label: (select, languages) => {
-            const from = select.fromApiVersion ? ApiVersionModel.display.label(select.fromApiVersion as any, languages) :
-                select.fromNoteVersion ? NoteVersionModel.display.label(select.fromNoteVersion as any, languages) :
-                    select.fromProjectVersion ? ProjectVersionModel.display.label(select.fromProjectVersion as any, languages) :
-                        select.fromRoutineVersion ? RoutineVersionModel.display.label(select.fromRoutineVersion as any, languages) :
-                            select.fromSmartContractVersion ? SmartContractVersionModel.display.label(select.fromSmartContractVersion as any, languages) :
-                                select.fromStandardVersion ? StandardVersionModel.display.label(select.fromStandardVersion as any, languages) :
-                                    "";
-            const to = select.toApi ? ApiModel.display.label(select.toApi as any, languages) :
-                select.toNote ? NoteModel.display.label(select.toNote as any, languages) :
-                    select.toProject ? ProjectModel.display.label(select.toProject as any, languages) :
-                        select.toRoutine ? RoutineModel.display.label(select.toRoutine as any, languages) :
-                            select.toSmartContract ? SmartContractModel.display.label(select.toSmartContract as any, languages) :
-                                select.toStandard ? StandardModel.display.label(select.toStandard as any, languages) :
-                                    "";
-            return `${from} -> ${to}`;
+        label: {
+            select: () => ({
+                id: true,
+                toApi: { select: ApiModel.display.label.select() },
+                fromApiVersion: { select: ApiVersionModel.display.label.select() },
+                toNote: { select: NoteModel.display.label.select() },
+                fromNoteVersion: { select: NoteVersionModel.display.label.select() },
+                toProject: { select: ProjectModel.display.label.select() },
+                fromProjectVersion: { select: ProjectVersionModel.display.label.select() },
+                toRoutine: { select: RoutineModel.display.label.select() },
+                fromRoutineVersion: { select: RoutineVersionModel.display.label.select() },
+                toSmartContract: { select: SmartContractModel.display.label.select() },
+                fromSmartContractVersion: { select: SmartContractVersionModel.display.label.select() },
+                toStandard: { select: StandardModel.display.label.select() },
+                fromStandardVersion: { select: StandardVersionModel.display.label.select() },
+            }),
+            // Label is from -> to
+            get: (select, languages) => {
+                const from = select.fromApiVersion ? ApiVersionModel.display.label.get(select.fromApiVersion as any, languages) :
+                    select.fromNoteVersion ? NoteVersionModel.display.label.get(select.fromNoteVersion as any, languages) :
+                        select.fromProjectVersion ? ProjectVersionModel.display.label.get(select.fromProjectVersion as any, languages) :
+                            select.fromRoutineVersion ? RoutineVersionModel.display.label.get(select.fromRoutineVersion as any, languages) :
+                                select.fromSmartContractVersion ? SmartContractVersionModel.display.label.get(select.fromSmartContractVersion as any, languages) :
+                                    select.fromStandardVersion ? StandardVersionModel.display.label.get(select.fromStandardVersion as any, languages) :
+                                        "";
+                const to = select.toApi ? ApiModel.display.label.get(select.toApi as any, languages) :
+                    select.toNote ? NoteModel.display.label.get(select.toNote as any, languages) :
+                        select.toProject ? ProjectModel.display.label.get(select.toProject as any, languages) :
+                            select.toRoutine ? RoutineModel.display.label.get(select.toRoutine as any, languages) :
+                                select.toSmartContract ? SmartContractModel.display.label.get(select.toSmartContract as any, languages) :
+                                    select.toStandard ? StandardModel.display.label.get(select.toStandard as any, languages) :
+                                        "";
+                return `${from} -> ${to}`;
+            },
         },
     },
     format: {

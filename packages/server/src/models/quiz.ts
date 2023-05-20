@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";
@@ -32,8 +33,20 @@ export const QuizModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            get: ({ translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    description: trans.description,
+                    name: trans.name,
+                }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -75,6 +88,10 @@ export const QuizModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList }) => {
+                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                return { ...maps };
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPrivate: noNull(data.isPrivate),
@@ -87,7 +104,7 @@ export const QuizModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
                 ...(await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
                 ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
@@ -100,7 +117,7 @@ export const QuizModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest })),
                 ...(await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, isRequired: false, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest })),
                 ...(await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         trigger: {

@@ -1,8 +1,7 @@
-import pkg, { PeriodType } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
+import { batchGroup } from "../../utils/batchGroup";
 
 type BatchRunRoutinesResult = Record<string, {
     runRoutinesStarted: number;
@@ -24,44 +23,14 @@ const batchRunRoutines = async (
     organizationIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunRoutinesResult> => {
-    // Initialize return value
-    const result: BatchRunRoutinesResult = Object.fromEntries(organizationIds.map(id => [id, {
+): Promise<BatchRunRoutinesResult> => batchGroup<Prisma.run_routineFindManyArgs, BatchRunRoutinesResult>({
+    initialResult: Object.fromEntries(organizationIds.map(id => [id, {
         runRoutinesStarted: 0,
         runRoutinesCompleted: 0,
         runRoutineCompletionTimeAverage: 0,
         runRoutineContextSwitchesAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all runs associated with the organizations
-        const batch = await prisma.run_routine.findMany({
-            where: {
-                organization: { id: { in: organizationIds } },
-                OR: [
-                    { startedAt: { gte: periodStart, lte: periodEnd } },
-                    { completedAt: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                organization: {
-                    select: { id: true },
-                },
-                completedAt: true,
-                contextSwitches: true,
-                startedAt: true,
-                timeElapsed: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const organizationId = run.organization?.id;
@@ -78,16 +47,37 @@ const batchRunRoutines = async (
                 result[organizationId].runRoutineContextSwitchesAverage += run.contextSwitches;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(organizationId => {
-        if (result[organizationId].runRoutinesCompleted > 0) {
-            result[organizationId].runRoutineCompletionTimeAverage /= result[organizationId].runRoutinesCompleted;
-            result[organizationId].runRoutineContextSwitchesAverage /= result[organizationId].runRoutinesCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(organizationId => {
+            if (result[organizationId].runRoutinesCompleted > 0) {
+                result[organizationId].runRoutineCompletionTimeAverage /= result[organizationId].runRoutinesCompleted;
+                result[organizationId].runRoutineContextSwitchesAverage /= result[organizationId].runRoutinesCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunRoutine",
+    prisma,
+    select: {
+        id: true,
+        organization: {
+            select: { id: true },
+        },
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        organization: { id: { in: organizationIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all organizations
@@ -99,56 +89,35 @@ export const logOrganizationStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // We may be dealing with a lot of data, so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            // Find all organizations
-            const batch = await prisma.organization.findMany({
-                select: {
-                    id: true,
-                    _count: {
-                        select: {
-                            apis: true,
-                            members: true,
-                            notes: true,
-                            projects: true,
-                            routines: true,
-                            smartContracts: true,
-                            standards: true,
-                        },
-                    },
-                },
-                skip,
-                take: batchSize,
-            });
-            // Increment skip
-            skip += batchSize;
-            // Update current batch size
-            currentBatchSize = batch.length;
-            // Batch collect run stats
-            const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
-            // Create stats for each organization
-            await prisma.stats_organization.createMany({
-                data: batch.map(organization => ({
-                    organizationId: organization.id,
-                    periodStart,
-                    periodEnd,
-                    periodType,
-                    ...organization._count,
-                    ...runRoutineStats[organization.id],
-                })),
-            });
-        } while (currentBatchSize === batchSize);
-    } catch (error) {
-        logger.error("Caught error logging organization statistics", { trace: "0419", periodType, periodStart, periodEnd });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
-};
+) => await batch<Prisma.organizationFindManyArgs>({
+    objectType: "Organization",
+    processBatch: async (batch, prisma) => {
+        const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
+        await prisma.stats_organization.createMany({
+            data: batch.map(organization => ({
+                organizationId: organization.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                ...organization._count,
+                ...runRoutineStats[organization.id],
+            })),
+        });
+    },
+    select: {
+        id: true,
+        _count: {
+            select: {
+                apis: true,
+                members: true,
+                notes: true,
+                projects: true,
+                routines: true,
+                smartContracts: true,
+                standards: true,
+            },
+        },
+    },
+    trace: "0419",
+    traceObject: { periodType, periodStart, periodEnd },
+});

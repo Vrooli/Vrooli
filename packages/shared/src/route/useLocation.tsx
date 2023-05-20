@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { stringifySearchParams } from "./searchParams";
 
 export type Path = string;
@@ -130,37 +130,37 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
     const setLocation = useCallback((to: Path, { replace = false, searchParams = {} } = {}) => {
-        console.log('calling setLocation', to, replace, searchParams)
+        console.log("calling setLocation", to, replace, searchParams);
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");
         // Get current path and search params. "to" might contain search params, 
         // so we need to split it
         const toShaped = to[0] === "~" ? to.slice(1) : to;
-        const currPath = toShaped.split('?')[0];
-        let currSearchParams: string | undefined = toShaped.split('?')[1];
+        const currPath = toShaped.split("?")[0];
+        let currSearchParams: string | undefined = toShaped.split("?")[1];
         if (currSearchParams) currSearchParams = `?${currSearchParams}`;
         else if (Object.keys(searchParams).length > 0) currSearchParams = stringifySearchParams(searchParams);
         // Store last data in sessionStorage
         if (lastPath && lastPath !== currPath) {
-            console.log('USELOCATION: changing last path', lastPath, currPath)
+            console.log("USELOCATION: changing last path", lastPath, currPath);
             sessionStorage.setItem("lastPath", lastPath);
         }
         if (lastSearchParams && lastSearchParams !== currSearchParams) {
-            console.log('USELOCATION: changing last search params', lastSearchParams, currSearchParams)
+            console.log("USELOCATION: changing last search params", lastSearchParams, currSearchParams);
             sessionStorage.setItem("lastSearchParams", lastSearchParams);
         }
         // Store current data in sessionStorage
         sessionStorage.setItem("currentPath", currPath);
         sessionStorage.setItem("currentSearchParams", currSearchParams ?? JSON.stringify({}));
         // Update history
-        console.log('USELOCATION: updating history', currSearchParams ? `${currPath}${currSearchParams}` : currPath)
+        console.log("USELOCATION: updating history", currSearchParams ? `${currPath}${currSearchParams}` : currPath);
         history[replace ? eventReplaceState : eventPushState](
             null,
             "",
             // Combine path and search params
-            currSearchParams ? `${currPath}${currSearchParams}` : currPath
-        )
+            currSearchParams ? `${currPath}${currSearchParams}` : currPath,
+        );
     }, [base]);
 
     return [path, setLocation];

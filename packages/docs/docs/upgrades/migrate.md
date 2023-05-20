@@ -19,6 +19,7 @@ Before you even think about migrating your schema, make sure you have already cr
 6. Edit schema.prisma to how you'd like it to look, and save the file  
 7. `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION>`  
 8. Type `exit` to exit the shell.  
+9. Move the new migration folder in `packages/server/dist/db/migrations` to `packages/server/src/db/migrations`.
 
 
 ## Resolving Migration Issues

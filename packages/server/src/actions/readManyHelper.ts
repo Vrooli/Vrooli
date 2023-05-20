@@ -70,7 +70,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
-            take: Number.isInteger(input.take) ? input.take : 25,
+            take: Number.isInteger(input.take) ? input.take : DEFAULT_TAKE,
             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
             cursor: input.after ? {
                 id: input.after,
@@ -81,54 +81,39 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
         throw new CustomError("0383", "InternalError", req.languages, { objectType });
     }
-    // If there are results
-    let paginatedResults: PaginatedSearchResult;
+    let hasNextPage = false;
+    let endCursor: string | null = null;
+    // If there are results, find the end cursor and hasNextPage flag
     if (searchResults.length > 0) {
         // Find cursor
-        const cursor = searchResults[searchResults.length - 1].id;
+        endCursor = searchResults[searchResults.length - 1].id;
         // Query after the cursor to check if there are more results
-        const hasNextPage = await (model.delegate(prisma) as any).findMany({
+        const nextPage = await (model.delegate(prisma) as any).findMany({
             take: 1,
             cursor: {
-                id: cursor,
+                id: endCursor,
             },
         });
-        paginatedResults = {
-            __typename: `${model.__typename}SearchResult` as const,
-            pageInfo: {
-                __typename: "PageInfo" as const,
-                hasNextPage: hasNextPage.length > 0,
-                endCursor: cursor,
-            },
-            edges: searchResults.map((result: any) => ({
-                __typename: `${model.__typename}Edge` as const,
-                cursor: result.id,
-                node: result,
-            })),
-        };
-    }
-    // If there are no results
-    else {
-        paginatedResults = {
-            __typename: `${model.__typename}SearchResult` as const,
-            pageInfo: {
-                __typename: "PageInfo" as const,
-                endCursor: null,
-                hasNextPage: false,
-            },
-            edges: [],
-        };
+        hasNextPage = nextPage.length > 0;
     }
     //TODO validate that the user has permission to read all of the results, including relationships
-    // If not adding supplemental fields, return the paginated results
-    if (!addSupplemental) return paginatedResults;
+    // Add supplemental fields, if requested
+    if (addSupplemental) {
+        searchResults = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
+        searchResults = await addSupplementalFields(prisma, userData, searchResults, partialInfo);
+    }
     // Return formatted for GraphQL
-    let formattedNodes = paginatedResults.edges.map(({ node }) => node);
-    formattedNodes = formattedNodes.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
     return {
-        ...paginatedResults,
-        pageInfo: paginatedResults.pageInfo,
-        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })),
+        __typename: `${model.__typename}SearchResult` as const,
+        pageInfo: {
+            __typename: "PageInfo" as const,
+            hasNextPage,
+            endCursor,
+        },
+        edges: searchResults.map((result: any) => ({
+            __typename: `${model.__typename}Edge` as const,
+            cursor: result.id,
+            node: result,
+        })),
     };
 }

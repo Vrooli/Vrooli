@@ -18,7 +18,7 @@ export const RunRoutineInputModel: ModelLogic<{
     GqlModel: RunRoutineInput,
     GqlSearch: RunRoutineInputSearchInput,
     GqlSort: RunRoutineInputSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.run_routine_inputUpsertArgs["create"],
     PrismaUpdate: Prisma.run_routine_inputUpsertArgs["update"],
     PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
@@ -28,19 +28,21 @@ export const RunRoutineInputModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
     display: {
-        select: () => ({
-            id: true,
-            input: selPad(RoutineVersionInputModel.display.select),
-            runRoutine: selPad(RunRoutineModel.display.select),
-        }),
-        // Label combines runRoutine's label and input's label
-        label: (select, languages) => {
-            const runRoutineLabel = RunRoutineModel.display.label(select.runRoutine as any, languages);
-            const inputLabel = RoutineVersionInputModel.display.label(select.input as any, languages);
-            if (runRoutineLabel.length > 0) {
-                return `${runRoutineLabel} - ${inputLabel}`;
-            }
-            return inputLabel;
+        label: {
+            select: () => ({
+                id: true,
+                input: selPad(RoutineVersionInputModel.display.label.select),
+                runRoutine: selPad(RunRoutineModel.display.label.select),
+            }),
+            // Label combines runRoutine's label and input's label
+            get: (select, languages) => {
+                const runRoutineLabel = RunRoutineModel.display.label.get(select.runRoutine as any, languages);
+                const inputLabel = RoutineVersionInputModel.display.label.get(select.input as any, languages);
+                if (runRoutineLabel.length > 0) {
+                    return `${runRoutineLabel} - ${inputLabel}`;
+                }
+                return inputLabel;
+            },
         },
     },
     format: {

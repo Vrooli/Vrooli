@@ -29,9 +29,11 @@ export const MeetingInviteModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.meeting_invite,
     display: {
-        select: () => ({ id: true, meeting: { select: MeetingModel.display.select() } }),
-        // Label is the meeting label
-        label: (select, languages) => MeetingModel.display.label(select.meeting as any, languages),
+        label: {
+            select: () => ({ id: true, meeting: { select: MeetingModel.display.label.select() } }),
+            // Label is the meeting label
+            get: (select, languages) => MeetingModel.display.label.get(select.meeting as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

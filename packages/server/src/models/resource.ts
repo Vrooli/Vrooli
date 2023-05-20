@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, translationShapeHelper } from "../utils";
+import { bestTranslation, translationShapeHelper } from "../utils";
 import { ResourceListModel } from "./resourceList";
 import { ModelLogic } from "./types";
 
@@ -15,7 +15,7 @@ type Model = {
     GqlModel: Resource,
     GqlSearch: ResourceSearchInput,
     GqlSort: ResourceSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.resourceUpsertArgs["create"],
     PrismaUpdate: Prisma.resourceUpsertArgs["update"],
     PrismaModel: Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
@@ -29,8 +29,10 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {

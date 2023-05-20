@@ -4,7 +4,7 @@ import { findFirstRel, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { ApiModel } from "./api";
 import { FocusModeModel } from "./focusMode";
 import { OrganizationModel } from "./organization";
@@ -25,7 +25,7 @@ export const ResourceListModel: ModelLogic<{
     GqlModel: ResourceList,
     GqlSearch: ResourceListSearchInput,
     GqlSort: ResourceListSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.resource_listUpsertArgs["create"],
     PrismaUpdate: Prisma.resource_listUpsertArgs["update"],
     PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
@@ -35,8 +35,10 @@ export const ResourceListModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {

@@ -4,8 +4,9 @@ import { randomString } from "../auth/wallet";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType, SessionUserToken } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { sortify } from "../utils/objectTools";
+import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
@@ -79,7 +80,7 @@ const querier = () => ({
      */
     async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
-        const translatedName = "";//bestLabel(data.translationsCreate ?? [], 'name', languages);
+        const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
         const name = `${data.standardType} ${randomString(5)}`;
@@ -108,8 +109,25 @@ export const StandardVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+            }),
+            get: ({ root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    name: trans.name,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                    description: trans.description,
+                }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -150,7 +168,8 @@ export const StandardVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async (params) => {
+                const { createList, updateList, deleteList, prisma, userData } = params;
                 await versionsCheck({
                     createList,
                     deleteList,
@@ -161,11 +180,13 @@ export const StandardVersionModel: ModelLogic<{
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
                 combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest });
+                const { translations } = await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map(t => {
                         t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
@@ -191,7 +212,7 @@ export const StandardVersionModel: ModelLogic<{
             },
             update: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest });
+                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map(t => {
                         t.data = {

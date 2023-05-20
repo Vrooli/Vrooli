@@ -35,6 +35,7 @@ export type ModelLogic<
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
+    idField?: keyof Model["GqlModel"];
     format: Formatter<Model, SuppFields>;
     search?: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
@@ -520,13 +521,19 @@ export type Displayer<
     }
 > = {
     /**
-     * Select query for object's label
+     * Display the object for push notifications, etc.
      */
-    select: () => Model["PrismaSelect"],
+    label: {
+        select: () => Model["PrismaSelect"],
+        get: (select: Model["PrismaModel"], languages: string[]) => string,
+    }
     /**
-     * Uses labelSelect to get label for object
+     * Object representation for text embedding, which is used for search
      */
-    label: (select: Model["PrismaModel"], languages: string[]) => string,
+    embed?: {
+        select: () => Model["PrismaSelect"],
+        get: (select: Model["PrismaModel"], languages: string[]) => string,
+    }
 }
 
 /**

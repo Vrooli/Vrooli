@@ -29,20 +29,28 @@
     var input = document.getElementById("searchInput");
     var filter = input.value.toUpperCase();
     var items = document.getElementsByClassName("item");
+    var count = 0;
 
     for (var i = 0; i < items.length; i++) {
       var fileName = items[i].getElementsByTagName("p")[0].innerHTML;
       if (fileName.toUpperCase().indexOf(filter) > -1) {
         items[i].style.display = "block";
+        count++;
       } else {
         items[i].style.display = "none";
       }
     }
+    document.getElementById("totalResults").innerText = "(" + count + " results)";
+  }
+
+  function updateTotalResults() {
+    var items = document.getElementsByClassName("item");
+    document.getElementById("totalResults").innerText = "(" + items.length + " results)";
   }
 </script>
 </head>
-<body>
-<h1>SVG Gallery</h1>
+<body onload="updateTotalResults()">
+<h1>SVG Gallery <span id="totalResults"></span></h1>
 <div style="text-align: center;">
   <label for="sizeSlider">Icon size:</label>
   <input type="range" id="sizeSlider" name="sizeSlider" min="50" max="300" value="100" onchange="resizeIcons()" style="width: 50%;">
@@ -207,6 +215,10 @@
     <p>DarkModeIcon.svg</p>
   </div>
   <div class="item">
+    <img src="svgs/DayIcon.svg" alt="DayIcon.svg">
+    <p>DayIcon.svg</p>
+  </div>
+  <div class="item">
     <img src="svgs/DefaultSocialIcon.svg" alt="DefaultSocialIcon.svg">
     <p>DefaultSocialIcon.svg</p>
   </div>
@@ -243,6 +255,10 @@
     <p>DownvoteWideIcon.svg</p>
   </div>
   <div class="item">
+    <img src="svgs/DragIcon.svg" alt="DragIcon.svg">
+    <p>DragIcon.svg</p>
+  </div>
+  <div class="item">
     <img src="svgs/EditIcon.svg" alt="EditIcon.svg">
     <p>EditIcon.svg</p>
   </div>
@@ -261,6 +277,14 @@
   <div class="item">
     <img src="svgs/ExpandMoreIcon.svg" alt="ExpandMoreIcon.svg">
     <p>ExpandMoreIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/FocusModeIcon.svg" alt="FocusModeIcon.svg">
+    <p>FocusModeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/GridIcon.svg" alt="GridIcon.svg">
+    <p>GridIcon.svg</p>
   </div>
   <div class="item">
     <img src="svgs/Header1Icon.svg" alt="Header1Icon.svg">
@@ -355,6 +379,10 @@
     <p>LogOutIcon.svg</p>
   </div>
   <div class="item">
+    <img src="svgs/MagicIcon.svg" alt="MagicIcon.svg">
+    <p>MagicIcon.svg</p>
+  </div>
+  <div class="item">
     <img src="svgs/Microphone.svg" alt="Microphone.svg">
     <p>Microphone.svg</p>
   </div>
@@ -369,6 +397,10 @@
   <div class="item">
     <img src="svgs/MinusIcon.svg" alt="MinusIcon.svg">
     <p>MinusIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MonthIcon.svg" alt="MonthIcon.svg">
+    <p>MonthIcon.svg</p>
   </div>
   <div class="item">
     <img src="svgs/MoveDownIcon.svg" alt="MoveDownIcon.svg">
@@ -397,6 +429,10 @@
   <div class="item">
     <img src="svgs/MoveUpIcon.svg" alt="MoveUpIcon.svg">
     <p>MoveUpIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/NoActionIcon.svg" alt="NoActionIcon.svg">
+    <p>NoActionIcon.svg</p>
   </div>
   <div class="item">
     <img src="svgs/NoteIcon.svg" alt="NoteIcon.svg">
@@ -483,6 +519,14 @@
     <p>ResearchIcon.svg</p>
   </div>
   <div class="item">
+    <img src="svgs/RoutineActiveIcon.svg" alt="RoutineActiveIcon.svg">
+    <p>RoutineActiveIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RoutineCompleteIcon.svg" alt="RoutineCompleteIcon.svg">
+    <p>RoutineCompleteIcon.svg</p>
+  </div>
+  <div class="item">
     <img src="svgs/RoutineIcon.svg" alt="RoutineIcon.svg">
     <p>RoutineIcon.svg</p>
   </div>
@@ -555,6 +599,10 @@
     <p>ThoughtIcon.svg</p>
   </div>
   <div class="item">
+    <img src="svgs/TodayIcon.svg" alt="TodayIcon.svg">
+    <p>TodayIcon.svg</p>
+  </div>
+  <div class="item">
     <img src="svgs/UndoIcon.svg" alt="UndoIcon.svg">
     <p>UndoIcon.svg</p>
   </div>
@@ -589,6 +637,10 @@
   <div class="item">
     <img src="svgs/WarningIcon.svg" alt="WarningIcon.svg">
     <p>WarningIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/WeekIcon.svg" alt="WeekIcon.svg">
+    <p>WeekIcon.svg</p>
   </div>
   <div class="item">
     <img src="svgs/WholeWordIcon.svg" alt="WholeWordIcon.svg">

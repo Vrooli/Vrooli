@@ -1,7 +1,7 @@
 /**
  * Converts data in Routes.tsx to a sitemap.xml file. This ensures that sitemap.xml is always up to date. 
  * Doing this in a script during the build process - as opposed to options like react-dynamic-sitemap - 
- * allows us to view the generated sitemap in the public folder to check that it's correct.
+ * allows us to view the generated sitemap in the dist folder to check that it's correct.
  */
 import { generateSitemap, SitemapEntryMain } from "@local/shared";
 import fs from "fs";
@@ -11,7 +11,7 @@ import fs from "fs";
  * @returns Map of route names to route paths
  */
 const getRouteMap = async (): Promise<{ [x: string]: string }> => {
-    const routeMapLocation = new URL("../../../shared/consts/src/ui.ts", import.meta.url);
+    const routeMapLocation = new URL("../../../shared/src/consts/ui.ts", import.meta.url);
     const routeMapName = "LINKS";
     console.info(`Reading ${routeMapName} from ${routeMapLocation}...`);
     try {
@@ -104,7 +104,7 @@ const main = async () => {
         const sitemap = generateSitemap("https://vrooli.com", { main: entries });
         console.info("Generated sitemap: ", sitemap);
         // Check if sitemap save directory exists
-        const sitemapDir = new URL("../../public/sitemaps", import.meta.url);
+        const sitemapDir = new URL("../../dist/sitemaps", import.meta.url);
         if (!fs.existsSync(sitemapDir)) {
             console.info("Creating sitemap directory", sitemapDir.pathname);
             fs.mkdirSync(sitemapDir);

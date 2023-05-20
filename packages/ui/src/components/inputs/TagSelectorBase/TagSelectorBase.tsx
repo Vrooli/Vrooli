@@ -6,6 +6,7 @@ import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
+import { useDebounce } from "utils/hooks/useDebounce";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
 import { TagSelectorBaseProps } from "../types";
@@ -100,12 +101,13 @@ export const TagSelectorBase = ({
                         .map(t => (t as Tag).id) as string[] :
                     [],
                 searchString: inputValue,
-                sortBy: TagSortBy.BookmarksDesc,
+                sortBy: TagSortBy.Top,
                 take: 25,
             },
         },
     });
-    useEffect(() => { refetchAutocomplete(); }, [inputValue, refetchAutocomplete]);
+    const debounceRefetch = useDebounce(() => refetchAutocomplete(), 250);
+    useEffect(() => { debounceRefetch({}); }, [debounceRefetch, inputValue]);
 
     /**
      * Store queried tags in the tag ref

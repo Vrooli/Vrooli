@@ -79,7 +79,7 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-    console.log("register 1", config, import.meta.env, "serviceWorker" in navigator);
+    console.log("register 1", config, "serviceWorker" in navigator);
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
         console.log("register 2");
         // The URL constructor is available in all browsers that support SW.

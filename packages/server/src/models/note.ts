@@ -153,7 +153,7 @@ export const NoteModel: ModelLogic<{
     validate: {
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        isDeleted: (data) => data.isDeleted === false,
+        isDeleted: (data) => data.isDeleted === true,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
         maxObjects: MaxObjects[__typename],

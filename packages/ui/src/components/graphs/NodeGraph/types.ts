@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, RoutineVersion } from "@local/shared";
+import { Node, NodeEnd, NodeLink, NodeRoutineList, RoutineVersion } from "@local/shared";
 import { BuildAction } from "utils/consts";
 
 export interface NodeContextMenuProps {
@@ -113,10 +113,20 @@ export interface NodeColumnProps {
     isEditing: boolean;
     labelVisible: boolean;
     links: NodeLink[];
+    columnsLength: number;
     columnIndex: number;
     nodes: Node[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
+    language: string;
+    zIndex: number;
+}
+
+export interface NodeRoutineListDialogProps {
+    handleClose: (updatedNode?: Node & { routineList: NodeRoutineList }) => void;
+    isEditing: boolean;
+    isOpen: boolean;
+    node: Node & { routineList: NodeRoutineList } | null;
     language: string;
     zIndex: number;
 }

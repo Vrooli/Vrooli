@@ -8,7 +8,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Default SVG directory
-DIRECTORY="packages/shared/icons/svgs"
+DIRECTORY="packages/shared/svgs"
 
 # Read arguments
 while getopts "d:ho:" opt; do
@@ -85,20 +85,28 @@ cat >$OUT_FILE <<EOL
     var input = document.getElementById("searchInput");
     var filter = input.value.toUpperCase();
     var items = document.getElementsByClassName("item");
+    var count = 0;
 
     for (var i = 0; i < items.length; i++) {
       var fileName = items[i].getElementsByTagName("p")[0].innerHTML;
       if (fileName.toUpperCase().indexOf(filter) > -1) {
         items[i].style.display = "block";
+        count++;
       } else {
         items[i].style.display = "none";
       }
     }
+    document.getElementById("totalResults").innerText = "(" + count + " results)";
+  }
+
+  function updateTotalResults() {
+    var items = document.getElementsByClassName("item");
+    document.getElementById("totalResults").innerText = "(" + items.length + " results)";
   }
 </script>
 </head>
-<body>
-<h1>SVG Gallery</h1>
+<body onload="updateTotalResults()">
+<h1>SVG Gallery <span id="totalResults"></span></h1>
 <div style="text-align: center;">
   <label for="sizeSlider">Icon size:</label>
   <input type="range" id="sizeSlider" name="sizeSlider" min="50" max="300" value="100" onchange="resizeIcons()" style="width: 50%;">

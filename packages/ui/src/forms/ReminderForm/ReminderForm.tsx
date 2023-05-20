@@ -141,6 +141,8 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 name="description"
                                 label={t("Description")}
                                 as={TextField}
+                                minRows={2}
+                                maxRows={8}
                             />
                         </Stack>
                         <Field

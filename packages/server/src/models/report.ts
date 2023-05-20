@@ -54,35 +54,37 @@ export const ReportModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.report,
     display: {
-        select: () => ({
-            id: true,
-            apiVersion: selPad(ApiVersionModel.display.select),
-            comment: selPad(CommentModel.display.select),
-            issue: selPad(IssueModel.display.select),
-            noteVersion: selPad(NoteVersionModel.display.select),
-            organization: selPad(OrganizationModel.display.select),
-            post: selPad(PostModel.display.select),
-            projectVersion: selPad(ProjectVersionModel.display.select),
-            routineVersion: selPad(RoutineVersionModel.display.select),
-            smartContractVersion: selPad(SmartContractVersionModel.display.select),
-            standardVersion: selPad(StandardVersionModel.display.select),
-            tag: selPad(TagModel.display.select),
-            user: selPad(UserModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.apiVersion) return ApiVersionModel.display.label(select.apiVersion as any, languages);
-            if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-            if (select.issue) return IssueModel.display.label(select.issue as any, languages);
-            if (select.noteVersion) return NoteVersionModel.display.label(select.noteVersion as any, languages);
-            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-            if (select.post) return PostModel.display.label(select.post as any, languages);
-            if (select.projectVersion) return ProjectVersionModel.display.label(select.projectVersion as any, languages);
-            if (select.routineVersion) return RoutineVersionModel.display.label(select.routineVersion as any, languages);
-            if (select.smartContractVersion) return SmartContractVersionModel.display.label(select.smartContractVersion as any, languages);
-            if (select.standardVersion) return StandardVersionModel.display.label(select.standardVersion as any, languages);
-            if (select.tag) return TagModel.display.label(select.tag as any, languages);
-            if (select.user) return UserModel.display.label(select.user as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                apiVersion: selPad(ApiVersionModel.display.label.select),
+                comment: selPad(CommentModel.display.label.select),
+                issue: selPad(IssueModel.display.label.select),
+                noteVersion: selPad(NoteVersionModel.display.label.select),
+                organization: selPad(OrganizationModel.display.label.select),
+                post: selPad(PostModel.display.label.select),
+                projectVersion: selPad(ProjectVersionModel.display.label.select),
+                routineVersion: selPad(RoutineVersionModel.display.label.select),
+                smartContractVersion: selPad(SmartContractVersionModel.display.label.select),
+                standardVersion: selPad(StandardVersionModel.display.label.select),
+                tag: selPad(TagModel.display.label.select),
+                user: selPad(UserModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.apiVersion) return ApiVersionModel.display.label.get(select.apiVersion as any, languages);
+                if (select.comment) return CommentModel.display.label.get(select.comment as any, languages);
+                if (select.issue) return IssueModel.display.label.get(select.issue as any, languages);
+                if (select.noteVersion) return NoteVersionModel.display.label.get(select.noteVersion as any, languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
+                if (select.post) return PostModel.display.label.get(select.post as any, languages);
+                if (select.projectVersion) return ProjectVersionModel.display.label.get(select.projectVersion as any, languages);
+                if (select.routineVersion) return RoutineVersionModel.display.label.get(select.routineVersion as any, languages);
+                if (select.smartContractVersion) return SmartContractVersionModel.display.label.get(select.smartContractVersion as any, languages);
+                if (select.standardVersion) return StandardVersionModel.display.label.get(select.standardVersion as any, languages);
+                if (select.tag) return TagModel.display.label.get(select.tag as any, languages);
+                if (select.user) return UserModel.display.label.get(select.user as any, languages);
+                return "";
+            },
         },
     },
     format: {

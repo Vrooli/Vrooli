@@ -45,8 +45,8 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             await TransferModel.transfer(prisma).requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === 'Organization' ? owner.id : undefined,
-                toUserConnect: owner.__typename === 'User' ? owner.id : undefined,
+                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }
     }
@@ -80,8 +80,8 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             await TransferModel.transfer(prisma).requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === 'Organization' ? owner.id : undefined,
-                toUserConnect: owner.__typename === 'User' ? owner.id : undefined,
+                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }
     }
@@ -104,4 +104,4 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             wasCompleteAndPublic,
         });
     }
-}
+};

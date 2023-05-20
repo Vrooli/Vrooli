@@ -4,7 +4,7 @@ import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } fro
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
@@ -59,8 +59,16 @@ export const RunRoutineModel: ModelLogic<{
     },
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            get: ({ name }, languages) => {
+                return getEmbeddableString({ name }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -112,6 +120,7 @@ export const RunRoutineModel: ModelLogic<{
                 // TODO - when scheduling added, don't assume that it is being started right away
                 return {
                     // id: data.id,
+                    // embeddingNeedsUpdate: true,,
                     // startedAt: new Date(),
                     // routineVersionId: data.routineVersionId,
                     // status: RunStatus.InProgress,

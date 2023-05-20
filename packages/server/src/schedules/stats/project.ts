@@ -1,8 +1,7 @@
-import pkg, { PeriodType } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
+import { batchGroup } from "../../utils/batchGroup";
 
 type BatchDirectoryCountsResult = Record<string, {
     directories: number;
@@ -31,9 +30,8 @@ type BatchDirectoryRunCountsResult = Record<string, {
 const batchDirectoryCounts = async (
     prisma: PrismaType,
     projectVersionIds: string[],
-): Promise<BatchDirectoryCountsResult> => {
-    // Initialize return value
-    const result: BatchDirectoryCountsResult = Object.fromEntries(projectVersionIds.map(id => [id, {
+): Promise<BatchDirectoryCountsResult> => batchGroup<Prisma.project_version_directoryFindManyArgs, BatchDirectoryCountsResult>({
+    initialResult: Object.fromEntries(projectVersionIds.map(id => [id, {
         directories: 0,
         apis: 0,
         notes: 0,
@@ -42,40 +40,8 @@ const batchDirectoryCounts = async (
         routines: 0,
         smartContracts: 0,
         standards: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all directories associated with the project versions
-        const batch = await prisma.project_version_directory.findMany({
-            where: {
-                projectVersion: { id: { in: projectVersionIds } },
-            },
-            select: {
-                id: true,
-                projectVersion: {
-                    select: { id: true },
-                },
-                _count: {
-                    select: {
-                        childApiVersions: true,
-                        childNoteVersions: true,
-                        childOrganizations: true,
-                        childProjectVersions: true,
-                        childRoutineVersions: true,
-                        childSmartContractVersions: true,
-                        childStandardVersions: true,
-                    },
-                },
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each directory, increment the counts for the project version
         batch.forEach(directory => {
             const versionId = directory.projectVersion.id;
@@ -89,9 +55,30 @@ const batchDirectoryCounts = async (
             result[versionId].smartContracts += directory._count.childSmartContractVersions;
             result[versionId].standards += directory._count.childStandardVersions;
         });
-    } while (currentBatchSize === batchSize);
-    return result;
-};
+    },
+    objectType: "ProjectVersionDirectory",
+    prisma,
+    select: {
+        id: true,
+        projectVersion: {
+            select: { id: true },
+        },
+        _count: {
+            select: {
+                childApiVersions: true,
+                childNoteVersions: true,
+                childOrganizations: true,
+                childProjectVersions: true,
+                childRoutineVersions: true,
+                childSmartContractVersions: true,
+                childStandardVersions: true,
+            },
+        },
+    },
+    where: {
+        projectVersion: { id: { in: projectVersionIds } },
+    },
+});
 
 /**
  * Batch collects run counts for a list of project versions
@@ -106,44 +93,14 @@ const batchRunCounts = async (
     projectVersionIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchDirectoryRunCountsResult> => {
-    // Initialize return value
-    const result: BatchDirectoryRunCountsResult = Object.fromEntries(projectVersionIds.map(id => [id, {
+): Promise<BatchDirectoryRunCountsResult> => batchGroup<Prisma.run_projectFindManyArgs, BatchDirectoryRunCountsResult>({
+    initialResult: Object.fromEntries(projectVersionIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
         runCompletionTimeAverage: 0,
         runContextSwitchesAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all runs associated with the project versions
-        const batch = await prisma.run_project.findMany({
-            where: {
-                projectVersion: { id: { in: projectVersionIds } },
-                OR: [
-                    { startedAt: { gte: periodStart, lte: periodEnd } },
-                    { completedAt: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                projectVersion: {
-                    select: { id: true },
-                },
-                completedAt: true,
-                contextSwitches: true,
-                startedAt: true,
-                timeElapsed: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const versionId = run.projectVersion?.id;
@@ -160,16 +117,37 @@ const batchRunCounts = async (
                 result[versionId].runContextSwitchesAverage += run.contextSwitches;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of runs completed
-    Object.keys(result).forEach(versionId => {
-        if (result[versionId].runsCompleted > 0) {
-            result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
-            result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of runs completed
+        Object.keys(result).forEach(versionId => {
+            if (result[versionId].runsCompleted > 0) {
+                result[versionId].runCompletionTimeAverage /= result[versionId].runsCompleted;
+                result[versionId].runContextSwitchesAverage /= result[versionId].runsCompleted;
+            }
+        });
+        return result;
+    },
+    objectType: "RunProject",
+    prisma,
+    select: {
+        id: true,
+        projectVersion: {
+            select: { id: true },
+        },
+        completedAt: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+    },
+    where: {
+        projectVersion: { id: { in: projectVersionIds } },
+        OR: [
+            { startedAt: { gte: periodStart, lte: periodEnd } },
+            { completedAt: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all projects
@@ -181,66 +159,47 @@ export const logProjectStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // We may be dealing with a lot of data, so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            // Find all latest (so should only be associated with one project) project versions
-            const batch = await prisma.project_version.findMany({
-                where: {
-                    isDeleted: false,
-                    isLatest: true,
-                    root: { isDeleted: false },
-                },
-                select: {
-                    id: true,
-                    root: {
-                        select: { id: true },
-                    },
-                },
-                skip,
-                take: batchSize,
-            });
-            // Increment skip
-            skip += batchSize;
-            // Update current batch size
-            currentBatchSize = batch.length;
-            // Find and count all directories associated with the latest project versions
-            const directoryCountsByVersion = await batchDirectoryCounts(prisma, batch.map(version => version.id));
-            // Find and count all runs associated with the latest project versions, which 
-            // have been started or completed within the period
-            const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
-            // Create stats for each project
-            await prisma.stats_project.createMany({
-                data: batch.map(projectVersion => ({
-                    projectId: projectVersion.root.id,
-                    periodStart,
-                    periodEnd,
-                    periodType,
-                    directories: directoryCountsByVersion[projectVersion.id].directories,
-                    apis: directoryCountsByVersion[projectVersion.id].apis,
-                    notes: directoryCountsByVersion[projectVersion.id].notes,
-                    organizations: directoryCountsByVersion[projectVersion.id].organizations,
-                    projects: directoryCountsByVersion[projectVersion.id].projects,
-                    routines: directoryCountsByVersion[projectVersion.id].routines,
-                    smartContracts: directoryCountsByVersion[projectVersion.id].smartContracts,
-                    standards: directoryCountsByVersion[projectVersion.id].standards,
-                    runsStarted: runCountsByVersion[projectVersion.id].runsStarted,
-                    runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
-                    runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
-                    runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
-                })),
-            });
-        } while (currentBatchSize === batchSize);
-    } catch (error) {
-        logger.error("Caught error logging project statistics", { trace: "0420", periodType, periodStart, periodEnd });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
-};
+) => await batch<Prisma.project_versionFindManyArgs>({
+    objectType: "ProjectVersion",
+    processBatch: async (batch, prisma) => {
+        // Find and count all directories associated with the latest project versions
+        const directoryCountsByVersion = await batchDirectoryCounts(prisma, batch.map(version => version.id));
+        // Find and count all runs associated with the latest project versions, which 
+        // have been started or completed within the period
+        const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
+        // Create stats for each project
+        await prisma.stats_project.createMany({
+            data: batch.map(projectVersion => ({
+                projectId: projectVersion.root.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                directories: directoryCountsByVersion[projectVersion.id].directories,
+                apis: directoryCountsByVersion[projectVersion.id].apis,
+                notes: directoryCountsByVersion[projectVersion.id].notes,
+                organizations: directoryCountsByVersion[projectVersion.id].organizations,
+                projects: directoryCountsByVersion[projectVersion.id].projects,
+                routines: directoryCountsByVersion[projectVersion.id].routines,
+                smartContracts: directoryCountsByVersion[projectVersion.id].smartContracts,
+                standards: directoryCountsByVersion[projectVersion.id].standards,
+                runsStarted: runCountsByVersion[projectVersion.id].runsStarted,
+                runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
+                runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
+                runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
+            })),
+        });
+    },
+    select: {
+        id: true,
+        root: {
+            select: { id: true },
+        },
+    },
+    trace: "0420",
+    traceObject: { periodType, periodStart, periodEnd },
+    where: {
+        isDeleted: false,
+        isLatest: true,
+        root: { isDeleted: false },
+    },
+});

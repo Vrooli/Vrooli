@@ -20,6 +20,7 @@ export const VersionInput = ({
 
     const [field, meta, helpers] = useField(name);
     const [internalValue, setInternalValue] = useState<string>(field.value);
+    console.log("in version input", field.value, name, internalValue);
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
         setInternalValue(newValue);
@@ -40,18 +41,23 @@ export const VersionInput = ({
 
     const bumpMajor = useCallback(() => {
         const changedVersion = `${major + 1}.${moderate}.${minor}`;
+        setInternalValue(changedVersion);
         helpers.setValue(changedVersion);
     }, [major, moderate, minor, helpers]);
 
     const bumpModerate = useCallback(() => {
         const changedVersion = `${major}.${moderate + 1}.${minor}`;
+        setInternalValue(changedVersion);
         helpers.setValue(changedVersion);
     }, [major, moderate, minor, helpers]);
 
     const bumpMinor = useCallback(() => {
         const changedVersion = `${major}.${moderate}.${minor + 1}`;
+        console.log("in version input bump minor", changedVersion);
+        setInternalValue(changedVersion);
         helpers.setValue(changedVersion);
     }, [major, moderate, minor, helpers]);
+
 
     /**
      * On blur, update value

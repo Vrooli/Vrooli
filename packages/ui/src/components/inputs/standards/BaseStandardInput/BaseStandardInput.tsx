@@ -41,6 +41,7 @@ export const BaseStandardInput = ({
             }
         }
         console.log("storedProps", typeKey, storedProps);
+        console.log("getting input data", inputType);
         switch (inputType) {
             case InputType.TextField:
                 return {

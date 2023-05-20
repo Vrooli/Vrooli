@@ -14,7 +14,7 @@ export const PaymentModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Payment,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: PaymentSearchInput,
     GqlSort: PaymentSortBy,
     PrismaCreate: Prisma.paymentUpsertArgs["create"],
@@ -26,9 +26,11 @@ export const PaymentModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {
-        select: () => ({ id: true, description: true }),
-        // Cut off the description at 20 characters
-        label: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
+        label: {
+            select: () => ({ id: true, description: true }),
+            // Cut off the description at 20 characters TODO should do this for every label
+            get: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
+        },
     },
     format: {
         gqlRelMap: {

@@ -3,6 +3,7 @@ import { Router } from "@local/shared";
 import { initializeApollo } from "api/utils/initialize";
 import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
 import ReactDOM from "react-dom/client";
+import ReactGA from "react-ga";
 import { App } from "./App";
 import "./i18n"; // Must import for translations to work
 import reportWebVitals from "./reportWebVitals";
@@ -30,7 +31,7 @@ serviceWorkerRegistration.register({
     onUpdate: (registration) => {
         if (registration && registration.waiting) {
             registration.waiting.postMessage({ type: "SKIP_WAITING" });
-            if (confirm("New version available! The site will now update. Press \"Cancel\" if you need to save any unsaved data.")) {
+            if (window.confirm("New version available! The site will now update. Press \"Cancel\" if you need to save any unsaved data.")) {
                 window.location.reload();
             }
         }
@@ -53,8 +54,17 @@ if ("serviceWorker" in navigator) {
     });
 }
 
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+// Measure performance with Google Analytics. 
+// See results at https://analytics.google.com/
+ReactGA.initialize(import.meta.env.VITE_GOOGLE_TRACKING_ID);
+const sendToAnalytics = ({ name, delta, id }) => {
+    console.log("sendToAnalytics", { name, delta, id }, import.meta.env.VITE_GOOGLE_TRACKING_ID);
+    ReactGA.event({
+        category: "Web Vitals",
+        action: name,
+        value: Math.round(name === "CLS" ? delta * 1000 : delta), // CLS is reported as a fraction, so multiply by 1000 to make it more readable
+        label: id,
+        nonInteraction: true,
+    });
+};
+reportWebVitals(sendToAnalytics);

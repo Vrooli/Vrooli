@@ -19,7 +19,7 @@ export const ScheduleModel: ModelLogic<{
     GqlCreate: ScheduleCreateInput,
     GqlUpdate: ScheduleUpdateInput,
     GqlModel: Schedule,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: ScheduleSearchInput,
     GqlSort: ScheduleSortBy,
     PrismaCreate: Prisma.scheduleUpsertArgs["create"],
@@ -31,19 +31,21 @@ export const ScheduleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule,
     display: {
-        select: () => ({
-            id: true,
-            focusModes: selPad(FocusModeModel.display.select),
-            meetings: selPad(MeetingModel.display.select),
-            runProjects: selPad(RunProjectModel.display.select),
-            runRoutines: selPad(RunRoutineModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.focusModes) return FocusModeModel.display.label(select.focusModes as any, languages);
-            if (select.meetings) return MeetingModel.display.label(select.meetings as any, languages);
-            if (select.runProjects) return RunProjectModel.display.label(select.runProjects as any, languages);
-            if (select.runRoutines) return RunRoutineModel.display.label(select.runRoutines as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                focusModes: selPad(FocusModeModel.display.label.select),
+                meetings: selPad(MeetingModel.display.label.select),
+                runProjects: selPad(RunProjectModel.display.label.select),
+                runRoutines: selPad(RunRoutineModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.focusModes) return FocusModeModel.display.label.get(select.focusModes as any, languages);
+                if (select.meetings) return MeetingModel.display.label.get(select.meetings as any, languages);
+                if (select.runProjects) return RunProjectModel.display.label.get(select.runProjects as any, languages);
+                if (select.runRoutines) return RunRoutineModel.display.label.get(select.runRoutines as any, languages);
+                return "";
+            },
         },
     },
     format: {

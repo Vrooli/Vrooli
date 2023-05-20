@@ -14,9 +14,10 @@ export type UseObjectActionsProps = {
     /**
      * Checks if navigation away from the current page is allowed
      */
-    beforeNavigation?: ((item: NavigableObject) => boolean | void) | null | undefined
+    canNavigate?: ((item: NavigableObject) => boolean | void) | null | undefined
     object: ListObjectType | null | undefined;
     objectType: GqlModelType | `${GqlModelType}`;
+    onClick?: (item: NavigableObject) => void;
     openAddCommentDialog?: () => void;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
@@ -65,9 +66,10 @@ const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
  * Hook for updating state and navigating upon completing an action
  */
 export const useObjectActions = ({
-    beforeNavigation,
+    canNavigate,
     object,
     objectType,
+    onClick,
     openAddCommentDialog,
     setLocation,
     setObject,
@@ -173,14 +175,15 @@ export const useObjectActions = ({
                 openDialogIfExists(openDonateDialog);
                 break;
             case ObjectAction.Edit:
-                if (beforeNavigation && !beforeNavigation(object)) return;
+                if (onClick) onClick(object);
+                if (canNavigate && !canNavigate(object)) return;
                 openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
                 PubSub.get().publishFindInPage();
                 break;
             case ObjectAction.Fork:
-                if (beforeNavigation && !beforeNavigation(object)) return;
+                if (canNavigate && !canNavigate(object)) return;
                 handleCopy();
                 break;
             case ObjectAction.Report:
@@ -201,7 +204,7 @@ export const useObjectActions = ({
                 handleVote(action === ObjectAction.VoteUp ? "👍" : "👎");
                 break;
         }
-    }, [beforeNavigation, handleBookmark, handleCopy, handleVote, object, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, setLocation]);
+    }, [canNavigate, handleBookmark, handleCopy, handleVote, object, onClick, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, setLocation]);
 
     return {
         availableActions,

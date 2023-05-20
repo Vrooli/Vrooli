@@ -14,6 +14,7 @@ export const FindSubroutineDialog = ({
     const [ownerField] = useField<OwnerShape | null | undefined>("root.owner");
 
     const onComplete = useCallback((item: any) => {
+        console.log('onCompleteeeee', item)
         handleComplete(nodeId, item as RoutineVersion);
     }, [handleComplete, nodeId]);
 

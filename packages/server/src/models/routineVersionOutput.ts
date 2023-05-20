@@ -15,7 +15,7 @@ export const RoutineVersionOutputModel: ModelLogic<{
     GqlCreate: RoutineVersionOutputCreateInput,
     GqlUpdate: RoutineVersionOutputUpdateInput,
     GqlModel: RoutineVersionOutput,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.routine_version_outputUpsertArgs["create"],
@@ -27,12 +27,14 @@ export const RoutineVersionOutputModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_output,
     display: {
-        select: () => ({
-            id: true,
-            name: true,
-            routineVersion: selPad(RoutineModel.display.select),
-        }),
-        label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
+        label: {
+            select: () => ({
+                id: true,
+                name: true,
+                routineVersion: selPad(RoutineModel.display.label.select),
+            }),
+            get: (select, languages) => select.name ?? RoutineModel.display.label.get(select.routineVersion as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

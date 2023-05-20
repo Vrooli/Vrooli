@@ -15,7 +15,7 @@ export const NodeLoopWhileModel: ModelLogic<{
     GqlCreate: NodeLoopWhileCreateInput,
     GqlUpdate: NodeLoopWhileUpdateInput,
     GqlModel: NodeLoopWhile,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_loop_whileUpsertArgs["create"],
@@ -28,8 +28,10 @@ export const NodeLoopWhileModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.node_loop_while,
     // Doesn't make sense to have a displayer for this model
     display: {
-        select: () => ({ id: true }),
-        label: () => "",
+        label: {
+            select: () => ({ id: true }),
+            get: () => "",
+        },
     },
     format: {
         gqlRelMap: {

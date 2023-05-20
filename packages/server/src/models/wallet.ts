@@ -15,7 +15,7 @@ export const WalletModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: WalletUpdateInput,
     GqlModel: Wallet,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.walletUpsertArgs["create"],
@@ -27,8 +27,10 @@ export const WalletModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name ?? "",
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {

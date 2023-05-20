@@ -8,7 +8,7 @@ export const scheduleExceptionValidation: YupModel = {
         newStartTime: opt(newStartTime),
         newEndTime: req(newEndTime),
     }, [
-        ['schedule', ['Connect'], 'one', 'req', scheduleValidation],
+        ["schedule", ["Connect"], "one", "req", scheduleValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -16,4 +16,4 @@ export const scheduleExceptionValidation: YupModel = {
         newStartTime: opt(newStartTime),
         newEndTime: opt(newEndTime),
     }, [], [], o),
-}
+};

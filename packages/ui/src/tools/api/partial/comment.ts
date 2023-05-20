@@ -1,4 +1,4 @@
-import { Comment, CommentThread, CommentTranslation, CommentYou } from "@local/shared";
+import { Comment, CommentSearchResult, CommentThread, CommentTranslation, CommentYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
@@ -104,5 +104,14 @@ export const commentThread: GqlPartial<CommentThread> = {
         comment: () => rel(comment, "list"),
         endCursor: true,
         totalInThread: true,
+    },
+};
+
+export const commentSearchResult: GqlPartial<CommentSearchResult> = {
+    __typename: "CommentSearchResult",
+    common: {
+        endCursor: true,
+        threads: () => rel(commentThread, "common"),
+        totalThreads: true,
     },
 };

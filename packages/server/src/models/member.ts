@@ -18,7 +18,7 @@ export const MemberModel: ModelLogic<{
     GqlModel: Member,
     GqlSearch: MemberSearchInput,
     GqlSort: MemberSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.memberUpsertArgs["create"],
     PrismaUpdate: Prisma.memberUpsertArgs["update"],
     PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,
@@ -28,11 +28,13 @@ export const MemberModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.member,
     display: {
-        select: () => ({
-            id: true,
-            user: selPad(UserModel.display.select),
-        }),
-        label: (select, languages) => UserModel.display.label(select.user as any, languages),
+        label: {
+            select: () => ({
+                id: true,
+                user: selPad(UserModel.display.label.select),
+            }),
+            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

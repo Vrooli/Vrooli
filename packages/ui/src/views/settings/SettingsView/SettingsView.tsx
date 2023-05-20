@@ -84,7 +84,7 @@ export const SettingsView = ({
                 ))}
             </CardGrid>
             <Header title={t("Display")} sxs={{ text: { paddingTop: 2 } }} />
-            <CardGrid minWidth={300}>
+            <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                 {displaySettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard
                         buttonText={t("Open")}

@@ -96,6 +96,11 @@ export enum CalendarPageTabOption {
     RunRoutines = "RunRoutines",
 }
 
+export enum InboxPageTabOption {
+    Notifications = "Notifications",
+    Messages = "Messages",
+}
+
 
 /**
  * Maps search types to values needed to query and display results

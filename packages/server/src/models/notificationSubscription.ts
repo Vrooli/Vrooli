@@ -49,7 +49,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
     GqlModel: NotificationSubscription,
     GqlSearch: NotificationSubscriptionSearchInput,
     GqlSort: NotificationSubscriptionSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.notification_subscriptionUpsertArgs["create"],
     PrismaUpdate: Prisma.notification_subscriptionUpsertArgs["update"],
     PrismaModel: Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>,
@@ -59,42 +59,44 @@ export const NotificationSubscriptionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification_subscription,
     display: {
-        select: () => ({
-            id: true,
-            api: { select: ApiModel.display.select() },
-            comment: { select: CommentModel.display.select() },
-            issue: { select: IssueModel.display.select() },
-            meeting: { select: MeetingModel.display.select() },
-            note: { select: NoteModel.display.select() },
-            organization: { select: OrganizationModel.display.select() },
-            project: { select: ProjectModel.display.select() },
-            pullRequest: { select: PullRequestModel.display.select() },
-            question: { select: QuestionModel.display.select() },
-            quiz: { select: QuizModel.display.select() },
-            report: { select: ReportModel.display.select() },
-            routine: { select: RoutineModel.display.select() },
-            schedule: { select: ScheduleModel.display.select() },
-            smartContract: { select: SmartContractModel.display.select() },
-            standard: { select: StandardModel.display.select() },
-        }),
-        // Label is first relation that is not null
-        label: (select, languages) => {
-            if (select.api) return ApiModel.display.label(select.api as any, languages);
-            if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-            if (select.issue) return IssueModel.display.label(select.issue as any, languages);
-            if (select.meeting) return MeetingModel.display.label(select.meeting as any, languages);
-            if (select.note) return NoteModel.display.label(select.note as any, languages);
-            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-            if (select.project) return ProjectModel.display.label(select.project as any, languages);
-            if (select.pullRequest) return PullRequestModel.display.label(select.pullRequest as any, languages);
-            if (select.question) return QuestionModel.display.label(select.question as any, languages);
-            if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
-            if (select.report) return ReportModel.display.label(select.report as any, languages);
-            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-            if (select.schedule) return ScheduleModel.display.label(select.schedule as any, languages);
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
-            if (select.standard) return SmartContractModel.display.label(select.standard as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                api: { select: ApiModel.display.label.select() },
+                comment: { select: CommentModel.display.label.select() },
+                issue: { select: IssueModel.display.label.select() },
+                meeting: { select: MeetingModel.display.label.select() },
+                note: { select: NoteModel.display.label.select() },
+                organization: { select: OrganizationModel.display.label.select() },
+                project: { select: ProjectModel.display.label.select() },
+                pullRequest: { select: PullRequestModel.display.label.select() },
+                question: { select: QuestionModel.display.label.select() },
+                quiz: { select: QuizModel.display.label.select() },
+                report: { select: ReportModel.display.label.select() },
+                routine: { select: RoutineModel.display.label.select() },
+                schedule: { select: ScheduleModel.display.label.select() },
+                smartContract: { select: SmartContractModel.display.label.select() },
+                standard: { select: StandardModel.display.label.select() },
+            }),
+            // Label is first relation that is not null
+            get: (select, languages) => {
+                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
+                if (select.comment) return CommentModel.display.label.get(select.comment as any, languages);
+                if (select.issue) return IssueModel.display.label.get(select.issue as any, languages);
+                if (select.meeting) return MeetingModel.display.label.get(select.meeting as any, languages);
+                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
+                if (select.pullRequest) return PullRequestModel.display.label.get(select.pullRequest as any, languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
+                if (select.quiz) return QuizModel.display.label.get(select.quiz as any, languages);
+                if (select.report) return ReportModel.display.label.get(select.report as any, languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
+                if (select.schedule) return ScheduleModel.display.label.get(select.schedule as any, languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
+                if (select.standard) return SmartContractModel.display.label.get(select.standard as any, languages);
+                return "";
+            },
         },
     },
     format: {

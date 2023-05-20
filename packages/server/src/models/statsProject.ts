@@ -18,7 +18,7 @@ export const StatsProjectModel: ModelLogic<{
     GqlModel: StatsProject,
     GqlSearch: StatsProjectSearchInput,
     GqlSort: StatsProjectSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_projectUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_projectUpsertArgs["update"],
     PrismaModel: Prisma.stats_projectGetPayload<SelectWrap<Prisma.stats_projectSelect>>,
@@ -28,11 +28,13 @@ export const StatsProjectModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_project,
     display: {
-        select: () => ({ id: true, project: selPad(ProjectModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: ProjectModel.display.label(select.project as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, project: selPad(ProjectModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: ProjectModel.display.label.get(select.project as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {
