@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, UserIcon, VisibleIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, UserIcon, VisibleIcon } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -39,7 +39,7 @@ type CreateViewTypes = Exclude<RemoveVersion<SelectOrCreateObjectType>, "User">;
 
 type AllTabOptions = "All" | SearchPageTabOption | CalendarPageTabOption;
 type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: "All" | SearchType;
     tabType: AllTabOptions;
     where: { [x: string]: any };

@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, HelpIcon, LINKS, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, HelpIcon, LINKS, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
@@ -34,7 +34,7 @@ enum TabOptions {
 }
 
 type TabParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: TabOptions;
     where: { [x: string]: any };

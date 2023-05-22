@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -30,7 +30,7 @@ enum TabOptions {
 }
 
 type TabParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: TabOptions;
     where: { [x: string]: any };

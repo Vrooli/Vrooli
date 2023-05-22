@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { addSearchParams, CommentIcon, CommonKey, DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, NotificationSearchInput, NotificationSearchResult, openLink, parseSearchParams, Success, SvgProps, useLocation, VisibleIcon } from "@local/shared";
+import { CommentIcon, CommonKey, DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, NotificationSearchInput, NotificationSearchResult, openLink, Success, useLocation, VisibleIcon } from "@local/shared";
 import { Box, Button, Chip, IconButton, List, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
@@ -8,33 +8,23 @@ import { notificationMarkAllAsRead } from "api/generated/endpoints/notification_
 import { notificationMarkAsRead } from "api/generated/endpoints/notification_markAsRead";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useTabs } from "utils/hooks/useTabs";
 import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { NotificationsViewProps } from "../types";
 
-// Tab data type
-type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
-    label: CommonKey;
-    searchType: SearchType;
-    tabType: InboxPageTabOption;
-    where: { [x: string]: any };
-}
-
-// Data for each tab
-const tabParams: BaseParams[] = [{
+const tabParams = [{
     Icon: NotificationsAllIcon,
-    label: "Notification",
+    titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
     tabType: InboxPageTabOption.Notifications,
     where: { isInternal: false },
 }, {
     Icon: CommentIcon,
-    label: "Message",
+    titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Messages,
     where: {},
@@ -48,30 +38,8 @@ export const NotificationsView = ({
     const { t } = useTranslation();
     const { palette } = useTheme();
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<InboxPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
-            index: i,
-            Icon: tab.Icon,
-            label: tab.label,
-            value: tab.tabType,
-        }));
-    }, []);
-    const [currTab, setCurrTab] = useState<PageTab<InboxPageTabOption>>(() => {
-        const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
-        // Default to routine tab
-        if (index === -1) return tabs[0];
-        // Return tab
-        return tabs[index];
-    });
-    const handleTabChange = useCallback((e: any, tab: PageTab<InboxPageTabOption>) => {
-        e.preventDefault();
-        // Update search params
-        addSearchParams(setLocation, { type: tab.value });
-        // Update curr tab
-        setCurrTab(tab);
-    }, [setLocation]);
+    const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<InboxPageTabOption>(tabParams, 0);
+    console.log("usetabs data", tabParams, currTab, handleTabChange, searchType, tabs, title, where);
 
     const [searchString, setSearchString] = useState("");
     const { data, refetch, loading, error } = useQuery<Wrap<NotificationSearchResult, "notifications">, Wrap<NotificationSearchInput, "input">>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: "all" });
@@ -132,8 +100,7 @@ export const NotificationsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: currTab.label,
-                    titleVariables: { count: 2, defaultValue: currTab.label },
+                    title,
                 }}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"

@@ -1,4 +1,4 @@
-import { Comment, CommentFor, StandardVersion, SvgComponent, SvgProps, Tag } from "@local/shared";
+import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/shared";
 import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
@@ -297,8 +297,8 @@ export interface ToggleSwitchProps {
     checked: boolean;
     name?: string;
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    OffIcon?: (props: SvgProps) => JSX.Element;
-    OnIcon?: (props: SvgProps) => JSX.Element;
+    OffIcon?: SvgComponent;
+    OnIcon?: SvgComponent;
     label?: string;
     tooltip?: string;
     disabled?: boolean;

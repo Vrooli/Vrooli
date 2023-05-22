@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, WeekIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgComponent, TodayIcon, useLocation, WeekIcon } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -26,7 +26,7 @@ import { CalendarViewProps } from "views/types";
 
 // Tab data type
 type CalendarBaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     titleKey: CommonKey;
     tabType: CalendarPageTabOption;
 }

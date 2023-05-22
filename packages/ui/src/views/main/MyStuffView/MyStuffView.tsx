@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, VisibilityType } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -19,7 +19,7 @@ import { MyStuffViewProps } from "../types";
 
 // Tab data type
 type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: SearchPageTabOption;
     where: (userId: string) => { [x: string]: any };
@@ -135,8 +135,6 @@ export const MyStuffView = ({
 
     // On tab change, update BaseParams, document title, where, and URL
     const { searchType, where } = useMemo<Omit<BaseParams, "where"> & { where: { [x: string]: any } }>(() => {
-        // Update tab title
-        document.title = `${t("Search")} | ${currTab.label}`;
         const params = tabs[currTab.index];
         return {
             ...params,
