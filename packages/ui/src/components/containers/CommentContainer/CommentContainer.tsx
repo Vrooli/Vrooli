@@ -52,7 +52,8 @@ export function CommentContainer({
         sortByOptions,
         timeFrame,
     } = useFindMany<ThreadType>({
-        canSearch: uuidValidate(objectId),
+        canSearch: (params) => uuidValidate(Object.values(params.where)[0]),
+        controlsUrl: false,
         searchType: "Comment",
         resolve: (result) => result.threads,
         where: {

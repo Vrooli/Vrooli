@@ -363,7 +363,7 @@ export const CalendarView = ({
         loading,
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
-        canSearch: true,
+        canSearch: () => true,
         searchType: "Schedule",
         where: {
             // Only find schedules that hav not ended, 

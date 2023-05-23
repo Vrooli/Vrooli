@@ -200,7 +200,7 @@ export const ProjectView = ({
                 {/* TODO */}
                 {/* List of items in current directory */}
                 {/* <SearchList
-                    canSearch={Boolean(projectVersion?.id)}
+                    canSearch={() => Boolean(projectVersion?.id)}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
                     hideUpdateButton={true}
                     id="directory-view-list"

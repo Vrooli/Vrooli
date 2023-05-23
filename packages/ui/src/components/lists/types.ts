@@ -137,7 +137,7 @@ export interface SearchListProps {
      * If the callback returns false, the list item will not be selected.
      */
     canNavigate?: (item: any) => boolean,
-    canSearch?: boolean;
+    canSearch?: (where: any) => boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
      * True if update button should be hidden

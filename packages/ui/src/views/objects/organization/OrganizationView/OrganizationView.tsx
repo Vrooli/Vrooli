@@ -338,7 +338,7 @@ export const OrganizationView = ({
                     {
                         currTab.value === TabOptions.Resource ? resources : (
                             <SearchList
-                                canSearch={uuidValidate(organization?.id)}
+                                canSearch={() => uuidValidate(organization?.id)}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="organization-view-list"
