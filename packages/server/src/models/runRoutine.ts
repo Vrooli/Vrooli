@@ -7,6 +7,7 @@ import { PrismaType, SessionUserToken } from "../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
+import { RoutineVersionModel } from "./routineVersion";
 import { ModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
@@ -316,7 +317,7 @@ export const RunRoutineModel: ModelLogic<{
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: RunRoutineModel.search!.searchStringQuery() },
+                { routineVersion: RoutineVersionModel.search!.searchStringQuery() },
             ],
         }),
     },

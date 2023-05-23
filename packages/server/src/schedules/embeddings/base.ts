@@ -21,7 +21,7 @@ import { initializeCronJob } from "../initializeCronJob";
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
 // This will take a long time and should only be done during development or if something is 
 // wrong with the existing embeddings.
-const RECALCULATE_EMBEDDINGS = false;
+const RECALCULATE_EMBEDDINGS = true;
 
 const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embeddings generated at once
 

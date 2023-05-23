@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
+import { ProjectVersionModel } from "./projectVersion";
 import { ModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
@@ -106,7 +107,7 @@ export const RunProjectModel: ModelLogic<{
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { projectVersion: RunProjectModel.search!.searchStringQuery() },
+                { projectVersion: ProjectVersionModel.search!.searchStringQuery() },
             ],
         }),
     },
