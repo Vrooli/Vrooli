@@ -12,6 +12,29 @@ query runRoutines($input: RunRoutineSearchInput!) {
     edges {
         cursor
         node {
+            routineVersion {
+                id
+                complexity
+                isAutomatable
+                isComplete
+                isDeleted
+                isLatest
+                isPrivate
+                root {
+                    id
+                    isInternal
+                    isPrivate
+                }
+                translations {
+                    id
+                    language
+                    description
+                    instructions
+                    name
+                }
+                versionIndex
+                versionLabel
+            }
             id
             isPrivate
             completedComplexity

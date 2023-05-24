@@ -15,7 +15,7 @@ import { openObject } from "utils/navigation/openObject";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
-    canNavigate = true,
+    canNavigate = () => true,
     canSearch = () => true,
     handleAdd,
     hideUpdateButton,
@@ -67,7 +67,7 @@ export function SearchList<DataType extends NavigableObject>({
         loading,
         onClick: onItemClick,
         zIndex,
-    }), [canNavigate, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex]);
+    }), [canNavigate, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button

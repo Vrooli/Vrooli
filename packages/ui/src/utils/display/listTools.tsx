@@ -277,9 +277,10 @@ export const getDisplay = (
         const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
+        const { subtitle: routineVersionSubtitle } = getDisplay(routineVersion!, langs);
         return {
-            title: started ? `${title} (started)` : title,
-            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+            title,
+            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (routineVersionSubtitle ? " | " + routineVersionSubtitle : ""),
         };
     }
     // If a run project, use the project version's display and the startedAt/completedAt date
@@ -288,9 +289,10 @@ export const getDisplay = (
         const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
+        const { subtitle: projectVersionSubtitle } = getDisplay(projectVersion!, langs);
         return {
-            title: started ? `${title} (started)` : title,
-            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+            title,
+            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
         };
     }
     // If a member, use the user's display

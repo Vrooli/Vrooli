@@ -12,21 +12,9 @@ query runProjects($input: RunProjectSearchInput!) {
     edges {
         cursor
         node {
-            id
-            isPrivate
-            completedComplexity
-            contextSwitches
-            startedAt
-            timeElapsed
-            completedAt
-            name
-            status
-            stepsCount
-            organization {
-                ...Organization_nav
-            }
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -41,6 +29,19 @@ query runProjects($input: RunProjectSearchInput!) {
                     description
                     name
                 }
+            }
+            id
+            isPrivate
+            completedComplexity
+            contextSwitches
+            startedAt
+            timeElapsed
+            completedAt
+            name
+            status
+            stepsCount
+            organization {
+                ...Organization_nav
             }
             schedule {
                 labels {

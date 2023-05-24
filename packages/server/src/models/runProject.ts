@@ -102,6 +102,7 @@ export const RunProjectModel: ModelLogic<{
             scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
+            statuses: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({

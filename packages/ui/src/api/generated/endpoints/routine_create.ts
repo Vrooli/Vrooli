@@ -2,14 +2,14 @@ import gql from "graphql-tag";
 import { ApiVersion_full } from "../fragments/ApiVersion_full";
 import { Label_full } from "../fragments/Label_full";
 import { Label_list } from "../fragments/Label_list";
-import { NodeLink_full } from "../fragments/NodeLink_full";
 import { Node_full } from "../fragments/Node_full";
+import { NodeLink_full } from "../fragments/NodeLink_full";
 import { Organization_nav } from "../fragments/Organization_nav";
 import { PullRequest_full } from "../fragments/PullRequest_full";
 import { ResourceList_full } from "../fragments/ResourceList_full";
+import { RoutineVersion_nav } from "../fragments/RoutineVersion_nav";
 import { RoutineVersionInput_full } from "../fragments/RoutineVersionInput_full";
 import { RoutineVersionOutput_full } from "../fragments/RoutineVersionOutput_full";
-import { RoutineVersion_nav } from "../fragments/RoutineVersion_nav";
 import { SmartContractVersion_full } from "../fragments/SmartContractVersion_full";
 import { Tag_list } from "../fragments/Tag_list";
 import { User_nav } from "../fragments/User_nav";
@@ -33,6 +33,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
   routineCreate(input: $input) {
     parent {
         id
+        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -93,7 +94,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
         created_at
         updated_at
         completedAt
-        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -173,6 +173,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     step
                     subroutine {
                         id
+                        complexity
                         isAutomatable
                         isComplete
                         isDeleted

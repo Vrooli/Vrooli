@@ -1,5 +1,6 @@
 export const ProjectVersion_nav = `fragment ProjectVersion_nav on ProjectVersion {
 id
+complexity
 isLatest
 isPrivate
 versionIndex

@@ -125,6 +125,7 @@ export const SettingsProfileForm = ({
                     <TranslatedMarkdownInput
                         language={language}
                         minRows={4}
+                        name="bio"
                     />
                 </Grid>
             </Grid>

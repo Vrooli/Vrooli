@@ -84,6 +84,7 @@ export const typeDef = gql`
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
         status: RunStatus
+        statuses: [RunStatus!]
         projectVersionId: ID
         searchString: String
         sortBy: RunProjectSortBy

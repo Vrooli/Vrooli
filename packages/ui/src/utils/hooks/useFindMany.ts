@@ -1,4 +1,4 @@
-import { addSearchParams, exists, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
+import { addSearchParams, exists, lowercaseFirstLetter, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
 import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -146,15 +146,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
     }, [stableCanSearch, searchType, stableWhere]);
 
     /**
-     * Cursor for pagination. Resets when search params change
+     * Cursor for pagination. Resets when search params change.
+     * In most cases, there is only one cursor (and thus only one "after" field). But when searching unions, there can be multiple.
+     * To decide the name of the "after" field, we use these rules:
+     * 1. "endCursor" -> "after"
+     * 2. "endCursorSomeObjectType" -> "someObjectTypeAfter"
      */
-    const after = useRef<string | undefined>(undefined);
+    const after = useRef<Record<string, string>>({});
 
     console.log("brussel sprouts rendering usefindmany...");
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
     const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.current.query, {
         variables: ({
-            after: after.current,
             take,
             sortBy: params.current.sortBy,
             searchString: params.current.searchString,
@@ -162,6 +165,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 after: params.current.timeFrame.after?.toISOString(),
                 before: params.current.timeFrame.before?.toISOString(),
             } : undefined,
+            ...after.current,
             ...params.current.where,
             ...advancedSearchParams,
         } as any),
@@ -184,7 +188,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // On search filters/sort change, reset the page
     useEffect(() => {
         // Reset the pagination cursor and hasMore
-        after.current = undefined;
+        after.current = {};
         setHasMore(true);
         // Only get data if we can search
         if (paramsReady) getPageData();
@@ -196,11 +200,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
         console.log("brussel sprout in load more");
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
-            const { endCursor } = pageData.pageInfo;
-            if (endCursor) {
-                after.current = endCursor;
-                getPageData();
+            // Find every field starting with "endCursor" and add the appropriate "after" field
+            after.current = {};
+            for (const [key, value] of Object.entries(pageData.pageInfo)) {
+                // "endCursor" -> "after"
+                if (key === "endCursor") (after.current as any).after = value;
+                // "endCursorSomeObjectType" -> "someObjectTypeAfter"
+                else if (key.startsWith("endCursor")) {
+                    const afterKeyLower = lowercaseFirstLetter(key.replace("endCursor", ""));
+                    (after.current as any)[afterKeyLower + "After"] = value;
+                }
             }
+            getPageData();
         } else {
             setHasMore(false);
         }
@@ -214,7 +225,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             setAllData([]);
             return;
         }
-        if (after.current) {
+        if (Object.keys(after.current).length > 0) {
             setAllData(curr => [...curr, ...parsedData]);
         } else {
             setAllData(parsedData);

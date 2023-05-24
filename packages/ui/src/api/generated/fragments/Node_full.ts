@@ -10,6 +10,7 @@ end {
     wasSuccessful
     suggestedNextRoutineVersions {
         id
+        complexity
         isAutomatable
         isComplete
         isDeleted

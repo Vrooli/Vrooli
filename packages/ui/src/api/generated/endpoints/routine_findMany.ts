@@ -28,7 +28,6 @@ query routines($input: RoutineSearchInput!) {
                 created_at
                 updated_at
                 completedAt
-                complexity
                 isAutomatable
                 isComplete
                 isDeleted
@@ -108,6 +107,7 @@ query routines($input: RoutineSearchInput!) {
                             step
                             subroutine {
                                 id
+                                complexity
                                 isAutomatable
                                 isComplete
                                 isDeleted

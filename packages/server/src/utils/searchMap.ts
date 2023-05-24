@@ -312,6 +312,7 @@ export const SearchMap = {
     startTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startTime", time),
     startedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startedAt", time),
     status: <T>(status: Maybe<T>) => ({ status }),
+    statuses: <T>(statuses: Maybe<T[]>) => ({ status: { in: statuses } }),
     tagId: (id: Maybe<string>) => oneToOneId(id, "tag"),
     tagsId: (id: Maybe<string>) => oneToManyId(id, "tags"),
     tags: (tags: Maybe<string[]>) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),

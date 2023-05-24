@@ -3,7 +3,6 @@ import { Api_list } from "../fragments/Api_list";
 import { Api_nav } from "../fragments/Api_nav";
 import { Issue_list } from "../fragments/Issue_list";
 import { Label_common } from "../fragments/Label_common";
-import { Label_full } from "../fragments/Label_full";
 import { Label_list } from "../fragments/Label_list";
 import { Note_list } from "../fragments/Note_list";
 import { Note_nav } from "../fragments/Note_nav";
@@ -27,7 +26,6 @@ export const viewFindMany = gql`${Api_list}
 ${Api_nav}
 ${Issue_list}
 ${Label_common}
-${Label_full}
 ${Label_list}
 ${Note_list}
 ${Note_nav}

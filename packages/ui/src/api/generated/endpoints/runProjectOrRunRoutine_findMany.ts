@@ -25,8 +25,9 @@ query runProjectOrRunRoutines($input: RunProjectOrRunRoutineSearchInput!) {
         }
     }
     pageInfo {
-        endCursor
         hasNextPage
+        endCursorRunProject
+        endCursorRunRoutine
     }
   }
 }`;

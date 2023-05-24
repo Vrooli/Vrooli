@@ -60,6 +60,7 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
     },
     nav: {
         id: true,
+        complexity: true, // Used by RunProject
         isLatest: true,
         isPrivate: true,
         versionIndex: true,

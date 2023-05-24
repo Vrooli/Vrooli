@@ -1,4 +1,27 @@
 export const RunRoutine_list = `fragment RunRoutine_list on RunRoutine {
+routineVersion {
+    id
+    complexity
+    isAutomatable
+    isComplete
+    isDeleted
+    isLatest
+    isPrivate
+    root {
+        id
+        isInternal
+        isPrivate
+    }
+    translations {
+        id
+        language
+        description
+        instructions
+        name
+    }
+    versionIndex
+    versionLabel
+}
 id
 isPrivate
 completedComplexity

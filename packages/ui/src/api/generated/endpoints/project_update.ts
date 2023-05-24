@@ -13,6 +13,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
   projectUpdate(input: $input) {
     parent {
         id
+        complexity
         isLatest
         isPrivate
         versionIndex
@@ -38,6 +39,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                 isRoot
                 projectVersion {
                     id
+                    complexity
                     isLatest
                     isPrivate
                     versionIndex
@@ -113,6 +115,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             }
             childProjectVersions {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -130,6 +133,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             }
             childRoutineVersions {
                 id
+                complexity
                 isAutomatable
                 isComplete
                 isDeleted
@@ -194,6 +198,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                 isRoot
                 projectVersion {
                     id
+                    complexity
                     isLatest
                     isPrivate
                     versionIndex
@@ -223,6 +228,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex

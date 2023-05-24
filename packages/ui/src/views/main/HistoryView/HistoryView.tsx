@@ -1,4 +1,4 @@
-import { BookmarkFilledIcon, CommonKey, RoutineActiveIcon, RoutineCompleteIcon, VisibleIcon } from "@local/shared";
+import { BookmarkFilledIcon, CommonKey, RoutineActiveIcon, RoutineCompleteIcon, RunStatus, VisibleIcon } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -23,13 +23,13 @@ const tabParams = [{
     titleKey: "Active" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
-    where: {},
+    where: { statuses: [RunStatus.InProgress, RunStatus.Scheduled] },
 }, {
     Icon: RoutineCompleteIcon,
     titleKey: "Complete" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
-    where: {},
+    where: { statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] },
 }];
 
 /**

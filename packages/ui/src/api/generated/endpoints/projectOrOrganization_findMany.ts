@@ -27,8 +27,9 @@ query projectOrOrganizations($input: ProjectOrOrganizationSearchInput!) {
         }
     }
     pageInfo {
-        endCursor
         hasNextPage
+        endCursorProject
+        endCursorOrganization
     }
   }
 }`;

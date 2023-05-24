@@ -91,6 +91,7 @@ export const typeDef = gql`
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
         status: RunStatus
+        statuses: [RunStatus!]
         routineVersionId: ID
         searchString: String
         sortBy: RunRoutineSortBy

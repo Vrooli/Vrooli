@@ -23,7 +23,6 @@ query routineVersions($input: RoutineVersionSearchInput!) {
             created_at
             updated_at
             completedAt
-            complexity
             isAutomatable
             isComplete
             isDeleted
@@ -103,6 +102,7 @@ query routineVersions($input: RoutineVersionSearchInput!) {
                         step
                         subroutine {
                             id
+                            complexity
                             isAutomatable
                             isComplete
                             isDeleted

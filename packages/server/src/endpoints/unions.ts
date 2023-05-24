@@ -164,6 +164,7 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         status: RunStatus
+        statuses: [RunStatus!]
         objectType: String
         projectVersionId: ID
         routineVersionId: ID
@@ -181,8 +182,8 @@ export const typeDef = gql`
     }
     type RunProjectOrRunRoutinePageInfo {
         hasNextPage: Boolean!
-        endCursorProject: String
-        endCursorRoutine: String
+        endCursorRunProject: String
+        endCursorRunRoutine: String
     }
     type RunProjectOrRunRoutineEdge {
         cursor: String!
@@ -459,6 +460,7 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         status: input.status,
+                        statuses: input.statuses,
                         projectVersionId: input.projectVersionId,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
@@ -484,6 +486,7 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         status: input.status,
+                        statuses: input.statuses,
                         routineVersionId: input.routineVersionId,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
@@ -519,8 +522,8 @@ export const resolvers: {
                 pageInfo: {
                     __typename: "RunProjectOrRunRoutinePageInfo" as const,
                     hasNextPage: runProjects?.pageInfo?.hasNextPage ?? runRoutines?.pageInfo?.hasNextPage ?? false,
-                    endCursorProject: runProjects?.pageInfo?.endCursor ?? "",
-                    endCursorRoutine: runRoutines?.pageInfo?.endCursor ?? "",
+                    endCursorRunProject: runProjects?.pageInfo?.endCursor ?? "",
+                    endCursorRunRoutine: runRoutines?.pageInfo?.endCursor ?? "",
                 },
                 edges: nodes.map((node) => ({ __typename: "RunProjectOrRunRoutineEdge" as const, cursor: node.id, node })),
             };

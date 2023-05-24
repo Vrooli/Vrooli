@@ -312,6 +312,7 @@ export const RunRoutineModel: ModelLogic<{
             scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
+            statuses: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({

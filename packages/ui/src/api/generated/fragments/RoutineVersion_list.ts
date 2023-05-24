@@ -10,7 +10,6 @@ id
 created_at
 updated_at
 completedAt
-complexity
 isAutomatable
 isComplete
 isDeleted
@@ -90,6 +89,7 @@ you {
             step
             subroutine {
                 id
+                complexity
                 isAutomatable
                 isComplete
                 isDeleted

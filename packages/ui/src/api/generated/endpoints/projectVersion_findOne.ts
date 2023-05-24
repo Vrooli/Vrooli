@@ -20,6 +20,7 @@ query projectVersion($input: FindVersionInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -95,6 +96,7 @@ query projectVersion($input: FindVersionInput!) {
         }
         childProjectVersions {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex
@@ -112,6 +114,7 @@ query projectVersion($input: FindVersionInput!) {
         }
         childRoutineVersions {
             id
+            complexity
             isAutomatable
             isComplete
             isDeleted
@@ -176,6 +179,7 @@ query projectVersion($input: FindVersionInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -205,6 +209,7 @@ query projectVersion($input: FindVersionInput!) {
         isRoot
         projectVersion {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex
@@ -248,6 +253,7 @@ query projectVersion($input: FindVersionInput!) {
     root {
         parent {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex
