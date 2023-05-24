@@ -17,6 +17,6 @@ export const preShapeVersion = ({
 }): {
     embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }>,
 } => {
-    const embeddingNeedsUpdateMap = preShapeEmbeddableTranslatable({ createList, updateList, objectType });
+    const { embeddingNeedsUpdateMap } = preShapeEmbeddableTranslatable({ createList, updateList, objectType });
     return { embeddingNeedsUpdateMap };
 };

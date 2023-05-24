@@ -14,13 +14,13 @@ export const TimeButton = ({
     const { t } = useTranslation();
 
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
+    const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
     const handleTimeOpen = (event: any) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, frame?: TimeFrame) => {
         setTimeAnchorEl(null);
         setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
+        if (label) setTimeFrameLabel(label === "All Time" ? "" : label);
     };
 
     return (
@@ -29,7 +29,7 @@ export const TimeButton = ({
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
-            <Tooltip title={t(`TimeCreated`)} placement="top">
+            <Tooltip title={t("TimeCreated")} placement="top">
                 <Box
                     onClick={handleTimeOpen}
                     sx={searchButtonStyle(palette)}
@@ -39,5 +39,5 @@ export const TimeButton = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

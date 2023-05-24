@@ -38,7 +38,7 @@ export const typeDef = gql`
     }
     input RoutineVersionOutputTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         helpText: String
     }

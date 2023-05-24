@@ -2,6 +2,7 @@ import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, Qu
 import { ShapeModel } from "types";
 import { shapeTag, TagShape } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type QuestionTranslationShape = Pick<QuestionTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "QuestionTranslation";
@@ -18,7 +19,7 @@ export type QuestionShape = Pick<Question, "id" | "isPrivate"> & {
 
 export const shapeQuestionTranslation: ShapeModel<QuestionTranslationShape, QuestionTranslationCreateInput, QuestionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "language", "description", "name"), a),
 };
 
 export const shapeQuestion: ShapeModel<QuestionShape, QuestionCreateInput, QuestionUpdateInput> = {

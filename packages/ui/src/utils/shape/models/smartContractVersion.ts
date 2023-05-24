@@ -4,6 +4,7 @@ import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./pr
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { shapeSmartContract, SmartContractShape } from "./smartContract";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, "id" | "language" | "description" | "name" | "jsonVariable"> & {
     __typename?: "SmartContractVersionTranslation";
@@ -20,7 +21,7 @@ export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "conte
 
 export const shapeSmartContractVersionTranslation: ShapeModel<SmartContractVersionTranslationShape, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name", "jsonVariable"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name", "jsonVariable"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "language", "description", "name", "jsonVariable"), a),
 };
 
 export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, SmartContractVersionCreateInput, SmartContractVersionUpdateInput> = {

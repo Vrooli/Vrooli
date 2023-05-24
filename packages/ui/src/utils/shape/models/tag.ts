@@ -1,6 +1,7 @@
 import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { createPrims, createRel, shapeUpdate, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type TagTranslationShape = Pick<TagTranslation, "id" | "language" | "description"> & {
     __typename?: "TagTranslation";
@@ -14,7 +15,7 @@ export type TagShape = Pick<Tag, "tag"> & {
 
 export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslationCreateInput, TagTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description"), a),
 };
 
 export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {

@@ -130,7 +130,7 @@ export const typeDef = gql`
     }
     input UserTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         bio: String
     }
     type UserTranslation {

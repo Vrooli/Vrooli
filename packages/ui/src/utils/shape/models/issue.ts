@@ -2,6 +2,7 @@ import { Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCr
 import { ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type IssueTranslationShape = Pick<IssueTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "IssueTranslation";
@@ -17,7 +18,7 @@ export type IssueShape = Pick<Issue, "id"> & {
 
 export const shapeIssueTranslation: ShapeModel<IssueTranslationShape, IssueTranslationCreateInput, IssueTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name"), a),
 };
 
 export const shapeIssue: ShapeModel<IssueShape, IssueCreateInput, IssueUpdateInput> = {

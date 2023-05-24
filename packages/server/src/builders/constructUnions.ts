@@ -15,14 +15,14 @@ export const constructUnions = <
 >(
     data: { [x: string]: any },
     partialInfo: { [x: string]: any },
-    gqlRelMap: GqlRelMap<GQLObject, PrismaObject>
+    gqlRelMap: GqlRelMap<GQLObject, PrismaObject>,
 ): { data: { [x: string]: any }, partialInfo: { [x: string]: any } } => {
     // Create result objects
-    let resultData: { [x: string]: any } = data;
-    let resultPartialInfo: { [x: string]: any } = { ...partialInfo };
+    const resultData: { [x: string]: any } = data;
+    const resultPartialInfo: { [x: string]: any } = { ...partialInfo };
     // Any value in the gqlRelMap which is an object is a union.
     // All other values can be ignored.
-    const unionFields: [string, { [x: string]: GqlModelType }][] = Object.entries(gqlRelMap).filter(([, value]) => typeof value === 'object') as any[];
+    const unionFields: [string, { [x: string]: GqlModelType }][] = Object.entries(gqlRelMap).filter(([, value]) => typeof value === "object") as any[];
     // For each union field
     for (const [gqlField, unionData] of unionFields) {
         // For each entry in the union
@@ -46,4 +46,4 @@ export const constructUnions = <
         }
     }
     return { data: resultData, partialInfo: resultPartialInfo };
-}
+};

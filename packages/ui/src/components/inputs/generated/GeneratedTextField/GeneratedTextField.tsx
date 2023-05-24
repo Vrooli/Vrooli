@@ -10,9 +10,9 @@ export const GeneratedTextField = ({
     const [field, meta] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as TextFieldProps, [fieldData]);
     const multiLineProps = props.maxRows ? { multiline: true, rows: props.maxRows } : {};
-    const hasDescription = typeof fieldData.description === 'string' && fieldData.description.trim().length > 0;
+    const hasDescription = typeof fieldData.description === "string" && fieldData.description.trim().length > 0;
 
-    console.log('rendering text field');
+    console.log("rendering text field");
 
     return (
         <TextField
@@ -34,4 +34,4 @@ export const GeneratedTextField = ({
             {...multiLineProps}
         />
     );
-}
+};

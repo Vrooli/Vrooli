@@ -56,7 +56,7 @@ export const typeDef = gql`
     }
     input TagTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
     }
     type TagTranslation {

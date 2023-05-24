@@ -1,6 +1,7 @@
 import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type RoleTranslationShape = Pick<RoleTranslation, "id" | "language" | "description"> & {
     __typename?: "RoleTranslation";
@@ -15,7 +16,7 @@ export type RoleShape = Pick<Role, "id" | "name" | "permissions"> & {
 
 export const shapeRoleTranslation: ShapeModel<RoleTranslationShape, RoleTranslationCreateInput, RoleTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description")),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description")),
 };
 
 export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> = {

@@ -56,7 +56,6 @@ export const BasicSnack = ({
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     // Timeout starts immediately
     useEffect(() => {
-        console.log("in basic snack useeffect timeout", autoHideDuration, timeoutRef.current);
         if (autoHideDuration === "persist") return;
         timeoutRef.current = setTimeout(() => {
             // First set to close
@@ -68,7 +67,6 @@ export const BasicSnack = ({
         }, autoHideDuration ?? 5000);
         return () => {
             if (timeoutRef.current) {
-                console.log("in basic snack useeffect timeout clear", autoHideDuration, timeoutRef.current);
                 clearTimeout(timeoutRef.current);
             }
         };

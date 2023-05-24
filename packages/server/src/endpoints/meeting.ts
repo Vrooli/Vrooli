@@ -75,7 +75,7 @@ export const typeDef = gql`
     }
     input MeetingTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         name: String
         description: String
         link: String

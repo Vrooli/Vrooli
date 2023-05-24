@@ -91,7 +91,7 @@ export const typeDef = gql`
     }
     input LabelTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
     }
     type LabelTranslation {

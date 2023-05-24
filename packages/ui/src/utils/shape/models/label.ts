@@ -1,6 +1,7 @@
 import { Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput, LabelTranslationUpdateInput, LabelUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type LabelTranslationShape = Pick<LabelTranslation, "id" | "language" | "description"> & {
     __typename?: "LabelTranslation";
@@ -15,7 +16,7 @@ export type LabelShape = Pick<Label, "id" | "label" | "color"> & {
 
 export const shapeLabelTranslation: ShapeModel<LabelTranslationShape, LabelTranslationCreateInput, LabelTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description"), a),
 };
 
 export const shapeLabel: ShapeModel<LabelShape, LabelCreateInput, LabelUpdateInput> = {

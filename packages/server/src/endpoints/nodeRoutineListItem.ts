@@ -35,7 +35,7 @@ export const typeDef = gql`
     }
     input NodeRoutineListItemTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

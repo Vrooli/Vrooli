@@ -4,7 +4,7 @@ import { useCustomLazyQuery } from "api";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useState } from "react";
@@ -122,14 +122,9 @@ export const SettingsProfileForm = ({
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
                 </Grid>
                 <Grid item xs={12}>
-                    <TranslatedTextField
-                        fullWidth
-                        name="bio"
-                        label={t("Bio")}
+                    <TranslatedMarkdownInput
                         language={language}
-                        multiline
                         minRows={4}
-                        maxRows={10}
                     />
                 </Grid>
             </Grid>

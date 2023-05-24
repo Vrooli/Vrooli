@@ -5,6 +5,7 @@ import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";
 import { shapeTag, TagShape } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | "language" | "bio" | "name"> & {
     __typename?: "OrganizationTranslation";
@@ -22,7 +23,7 @@ export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNe
 
 export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationShape, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "bio", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "bio", "name"), a),
 };
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {

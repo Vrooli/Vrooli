@@ -126,7 +126,7 @@ export const typeDef = gql`
     }
     input OrganizationTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         bio: String
         name: String
     }

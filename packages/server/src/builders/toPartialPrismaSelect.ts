@@ -30,7 +30,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case}
     const type = partial.__typename;
-    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const format = typeof type === "string" ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (type && format) {
         result = removeSupplementalFields(type, result);
         result = deconstructUnions(result, format.gqlRelMap);
@@ -38,4 +38,4 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         result = addCountFields(result, format.countFields);
     }
     return result;
-}
+};

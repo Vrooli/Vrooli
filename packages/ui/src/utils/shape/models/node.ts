@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
 import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "NodeTranslation";
@@ -19,7 +20,7 @@ export type NodeShape = Pick<Node, "id" | "columnIndex" | "rowIndex" | "nodeType
 
 export const shapeNodeTranslation: ShapeModel<NodeTranslationShape, NodeTranslationCreateInput, NodeTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name"), a),
 };
 
 export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> = {

@@ -52,7 +52,7 @@ export const typeDef = gql`
     }
     input QuestionAnswerTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         text: String
     }
     type QuestionAnswerTranslation {

@@ -2,6 +2,7 @@ import { ResourceList, ResourceListCreateInput, ResourceListTranslation, Resourc
 import { ShapeModel } from "types";
 import { ResourceShape, shapeResource } from "./resource";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type ResourceListTranslationShape = Pick<ResourceListTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "ResourceListTranslation";
@@ -15,7 +16,7 @@ export type ResourceListShape = Pick<ResourceList, "id"> & {
 
 export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationShape, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name")),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name")),
 };
 
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {

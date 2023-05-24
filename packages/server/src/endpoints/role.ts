@@ -73,7 +73,7 @@ export const typeDef = gql`
     }
     input RoleTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
     }
     type RoleTranslation {

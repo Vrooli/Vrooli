@@ -7,19 +7,19 @@
  */
 export const removeHiddenFields = <T extends { [x: string]: any }>(
     obj: T,
-    fields: string[] | undefined
+    fields: string[] | undefined,
 ): T => {
     if (!fields) return obj;
     // Initialize result
-    let result: any = {};
+    const result: any = {};
     // Iterate over object
     for (const [key, value] of Object.entries(obj)) {
         // If key is in fields, skip
         if (fields.includes(key)) continue;
         // If value is an object
-        if (typeof value === 'object') {
+        if (typeof value === "object") {
             // Find nested fields
-            const nestedFields = fields.filter((field) => field.startsWith(`${key}.`)).map((field) => field.replace(`${key}.`, ''));
+            const nestedFields = fields.filter((field) => field.startsWith(`${key}.`)).map((field) => field.replace(`${key}.`, ""));
             // If there are nested fields, recurse
             if (nestedFields.length > 0) {
                 // Recurse
@@ -34,4 +34,4 @@ export const removeHiddenFields = <T extends { [x: string]: any }>(
         else result[key] = value;
     }
     return result;
-}
+};

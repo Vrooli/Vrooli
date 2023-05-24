@@ -4,6 +4,7 @@ import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
 import { OrganizationShape } from "./organization";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type MeetingTranslationShape = Pick<MeetingTranslation, "id" | "language" | "description" | "link" | "name"> & {
     __typename?: "MeetingTranslation";
@@ -21,7 +22,7 @@ export type MeetingShape = Pick<Meeting, "id" | "openToAnyoneWithInvite" | "show
 
 export const shapeMeetingTranslation: ShapeModel<MeetingTranslationShape, MeetingTranslationCreateInput, MeetingTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "link", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "link", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "link", "name"), a),
 };
 
 export const shapeMeeting: ShapeModel<MeetingShape, MeetingCreateInput, MeetingUpdateInput> = {
