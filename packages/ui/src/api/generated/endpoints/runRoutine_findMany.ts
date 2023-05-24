@@ -23,7 +23,7 @@ query runRoutines($input: RunRoutineSearchInput!) {
             status
             stepsCount
             inputsCount
-            wasRunAutomaticaly
+            wasRunAutomatically
             organization {
                 ...Organization_nav
             }

@@ -123,7 +123,7 @@ versions {
             status
             stepsCount
             inputsCount
-            wasRunAutomaticaly
+            wasRunAutomatically
             organization {
                 ...Organization_nav
             }

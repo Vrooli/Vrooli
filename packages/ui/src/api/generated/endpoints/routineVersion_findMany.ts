@@ -135,7 +135,7 @@ query routineVersions($input: RoutineVersionSearchInput!) {
                     status
                     stepsCount
                     inputsCount
-                    wasRunAutomaticaly
+                    wasRunAutomatically
                     organization {
                         ...Organization_nav
                     }

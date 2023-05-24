@@ -258,7 +258,6 @@ export const RoutineView = ({
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        title={"Resources"}
                         list={resourceList as ResourceList}
                         canUpdate={false}
                         handleUpdate={() => { }} // Intentionally blank
@@ -275,7 +274,7 @@ export const RoutineView = ({
                     {/* Box with inputs, if this is a single-step routine */}
                     {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
-                            isOpen={false}
+                            isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (

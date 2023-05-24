@@ -328,7 +328,7 @@ export const RunRoutineModel: ModelLogic<{
             id: true,
             isPrivate: true,
             organization: "Organization",
-            routineVersion: "Routine",
+            routineVersion: "RoutineVersion",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,

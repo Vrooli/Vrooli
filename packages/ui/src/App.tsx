@@ -297,6 +297,7 @@ export function App() {
                 if (!isInvalidSession) {
                     PubSub.get().publishSnack({
                         messageKey: "CannotConnectToServer",
+                        autoHideDuration: "persist",
                         severity: "Error",
                         buttonKey: "Reload",
                         buttonClicked: () => window.location.reload(),

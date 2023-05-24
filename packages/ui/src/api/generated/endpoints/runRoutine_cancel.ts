@@ -98,7 +98,7 @@ mutation runRoutineCancel($input: RunRoutineCancelInput!) {
     status
     stepsCount
     inputsCount
-    wasRunAutomaticaly
+    wasRunAutomatically
     organization {
         ...Organization_nav
     }

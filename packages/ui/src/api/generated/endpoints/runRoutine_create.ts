@@ -98,7 +98,7 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
     status
     stepsCount
     inputsCount
-    wasRunAutomaticaly
+    wasRunAutomatically
     organization {
         ...Organization_nav
     }

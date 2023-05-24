@@ -118,7 +118,7 @@ export const RunProjectModel: ModelLogic<{
             id: true,
             isPrivate: true,
             organization: "Organization",
-            projectVersion: "Routine",
+            projectVersion: "ProjectVersion",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,

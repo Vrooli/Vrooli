@@ -62,7 +62,7 @@ export const typeDef = gql`
         completedAt: Date
         name: String!
         status: RunStatus!
-        wasRunAutomaticaly: Boolean!
+        wasRunAutomatically: Boolean!
         routineVersion: RoutineVersion
         runProject: RunProject
         schedule: Schedule
