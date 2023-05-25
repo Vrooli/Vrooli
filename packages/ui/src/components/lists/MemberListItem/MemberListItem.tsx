@@ -24,7 +24,7 @@ export function MemberListItem({
                     /> : null
             }
             data={data}
-            objectType="RunProject"
+            objectType="Member"
         />
     );
 }

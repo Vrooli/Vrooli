@@ -14,7 +14,7 @@ const {
     HistoryView,
     CreateView,
     MyStuffView,
-    NotificationsView,
+    InboxView,
 } = lazily(() => import("./views/main"));
 const {
     SettingsView,
@@ -172,14 +172,14 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <NoteView />
                 </NavRoute>
                 <NavRoute
-                    path={LINKS.Notifications}
+                    path={LINKS.Inbox}
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <NotificationsView />
+                    <InboxView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
                     <OrganizationUpsert display='page' isCreate={true} />

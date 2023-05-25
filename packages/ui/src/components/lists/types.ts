@@ -1,4 +1,4 @@
-import { ApiVersion, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -15,12 +15,24 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     zIndex: number;
 }
 
-export interface ObjectListItemBaseProps<T extends ListObjectType> {
+
+type ActionFunctions<T> = {
+    [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
+};
+
+type ActionsType<A = undefined> = A extends undefined
+    ? { actions?: undefined, onAction?: undefined }
+    : {
+        actions?: A,
+        onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void
+    }
+
+type ObjectListItemBaseProps<T extends ListObjectType> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    canNavigate?: (item: NavigableObject) => boolean | void,
+    canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     /**
@@ -37,10 +49,22 @@ export interface ObjectListItemBaseProps<T extends ListObjectType> {
     toTheRight?: React.ReactNode;
     zIndex: number;
 }
-export type ObjectListItemProps<T extends ListObjectType> = ObjectListItemBaseProps<T>
-export type MemberListItemProps = ObjectListItemBaseProps<Member>
-export type RunProjectListItemProps = ObjectListItemBaseProps<RunProject>
-export type RunRoutineListItemProps = ObjectListItemBaseProps<RunRoutine>
+export type ObjectListItemProps<T extends ListObjectType, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+
+export type ChatListItemProps = ObjectListItemProps<Chat>
+
+export type MemberListItemProps = ObjectListItemProps<Member>
+
+export type NotificationListItemActions = {
+    MarkAsRead: (id: string) => void;
+    Delete: (id: string, anotherProp: boolean) => void;
+};
+export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
+
+export type RunProjectListItemProps = ObjectListItemProps<RunProject>
+
+export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
+
 
 export interface SortMenuProps {
     sortOptions: any[];

@@ -1,11 +1,13 @@
 import { useQuery } from "@apollo/client";
-import { CommentIcon, CommonKey, DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, NotificationSearchInput, NotificationSearchResult, openLink, Success, useLocation, VisibleIcon } from "@local/shared";
+import { AddIcon, CommentIcon, CommonKey, DeleteIcon, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, NotificationSearchInput, NotificationSearchResult, openLink, Success, useLocation, VisibleIcon } from "@local/shared";
 import { Box, Button, Chip, IconButton, List, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { notificationFindMany } from "api/generated/endpoints/notification_findMany";
 import { notificationMarkAllAsRead } from "api/generated/endpoints/notification_markAllAsRead";
 import { notificationMarkAsRead } from "api/generated/endpoints/notification_markAsRead";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useCallback, useMemo, useState } from "react";
@@ -14,7 +16,7 @@ import { Wrap } from "types";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { useTabs } from "utils/hooks/useTabs";
 import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { NotificationsViewProps } from "../types";
+import { InboxViewProps } from "../types";
 
 const tabParams = [{
     Icon: NotificationsAllIcon,
@@ -31,9 +33,9 @@ const tabParams = [{
 }];
 
 
-export const NotificationsView = ({
+export const InboxView = ({
     display = "page",
-}: NotificationsViewProps) => {
+}: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -119,7 +121,7 @@ export const NotificationsView = ({
                     marginBottom: 2,
                     display: "block",
                 }}
-            >Mark all as read</Button>
+            >{t("MarkAllAsRead")}</Button>
             <Box sx={{
                 marginTop: 2,
                 maxWidth: "1000px",
@@ -187,6 +189,16 @@ export const NotificationsView = ({
                     ) : (<Typography variant="h6" textAlign="center">{t("NoResults", { ns: "error" })}</Typography>)
                 }
             </Box>
+            {/* New Chat button */}
+            {currTab.value === InboxPageTabOption.Messages && <SideActionButtons
+                display={display}
+                zIndex={201}
+                sx={{ position: "fixed" }}
+            >
+                <ColorIconButton aria-label="new-chat" background={palette.secondary.main} onClick={() => { }} >
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
+            </SideActionButtons>}
         </>
     );
 };
