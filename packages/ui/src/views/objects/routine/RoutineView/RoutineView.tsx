@@ -272,7 +272,7 @@ export const RoutineView = ({
                         <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
-                    {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
+                    {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"

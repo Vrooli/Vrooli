@@ -1,4 +1,11 @@
 import { SvgComponent } from "@local/shared";
+import { LinearProgressProps } from "@mui/material";
+
+export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
+    isLoading?: boolean;
+    showLabel?: boolean;
+    value: number;
+}
 
 export interface DiagonalWaveLoaderProps {
     size?: number;

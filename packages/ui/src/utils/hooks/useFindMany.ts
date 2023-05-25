@@ -154,7 +154,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
      */
     const after = useRef<Record<string, string>>({});
 
-    console.log("brussel sprouts rendering usefindmany...");
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
     const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.current.query, {
         variables: ({
@@ -197,7 +196,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
         if (!paramsReady || !pageData) return;
-        console.log("brussel sprout in load more");
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
             // Find every field starting with "endCursor" and add the appropriate "after" field

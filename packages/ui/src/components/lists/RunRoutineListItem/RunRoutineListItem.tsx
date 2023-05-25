@@ -34,7 +34,7 @@ export function RunRoutineListItem({
                 0;
         return (<CompletionBar
             color={statusToColor(data?.status)}
-            variant={loading ? "indeterminate" : "determinate"}
+            isLoading={loading}
             value={percentComplete}
             sx={{ height: "15px" }}
         />);

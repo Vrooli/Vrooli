@@ -13,6 +13,7 @@ export const typeDef = gql`
         contextSwitches: Int
         name: String!
         order: Int!
+        status: RunProjectStepStatus
         step: [Int!]!
         timeElapsed: Int
         directoryConnect: ID

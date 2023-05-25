@@ -71,6 +71,7 @@ export const RunPickerMenu = ({
             });
         }
         else {
+            console.log("creating run routine");
             mutationWrapper<RunRoutine, RunRoutineCreateInput>({
                 mutation: createRunRoutine,
                 input: {
@@ -81,7 +82,7 @@ export const RunPickerMenu = ({
                 },
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => {
-                    onAdd(data);
+                    onAdd(data); //TODO for morning: both onAdd and onSelect breaking somewhere. Looks like RunView for the latter
                     onSelect(data);
                     handleClose();
                 },

@@ -12,7 +12,7 @@ export const updateTranslationPrims = <T extends { language: string }, K extends
     updated: T | null | undefined,
     primary: PK | null,
     ...fields: K[]
-): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] }) => {
+): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] } & { language: string }) => {
     const updatePrimsResult = updatePrims(original, updated, primary, ...fields);
     return { ...updatePrimsResult, language: original?.language ?? updated?.language } as any;
 };

@@ -7404,7 +7404,7 @@ export type RunProjectCreateInput = {
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
-  organizationId?: InputMaybe<Scalars['ID']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   projectVersionConnect: Scalars['ID'];
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   status: RunStatus;
@@ -7538,6 +7538,7 @@ export type RunProjectStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  status?: InputMaybe<RunProjectStepStatus>;
   step: Array<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
@@ -7560,9 +7561,9 @@ export type RunProjectUpdateInput = {
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  isStarted?: InputMaybe<Scalars['Boolean']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+  status?: InputMaybe<RunStatus>;
   stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunProjectStepUpdateInput>>;
@@ -7625,7 +7626,7 @@ export type RunRoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
-  organizationId?: InputMaybe<Scalars['ID']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   routineVersionConnect: Scalars['ID'];
   runProjectConnect?: InputMaybe<Scalars['ID']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
@@ -7751,6 +7752,7 @@ export type RunRoutineStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  status?: InputMaybe<RunRoutineStepStatus>;
   step: Array<Scalars['Int']>;
   subroutineVersionConnect?: InputMaybe<Scalars['ID']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
@@ -7790,9 +7792,9 @@ export type RunRoutineUpdateInput = {
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  isStarted?: InputMaybe<Scalars['Boolean']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+  status?: InputMaybe<RunStatus>;
   stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunRoutineStepUpdateInput>>;

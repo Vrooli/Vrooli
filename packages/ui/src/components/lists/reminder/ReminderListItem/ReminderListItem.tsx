@@ -60,7 +60,6 @@ export function ReminderListItem({
             belowSubtitle={
                 stepsTotal > 0 ? <CompletionBar
                     color="secondary"
-                    variant={"determinate"}
                     value={percentComplete}
                     sx={{ height: "15px" }}
                 /> : null

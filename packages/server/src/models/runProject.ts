@@ -1,5 +1,6 @@
-import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, runProjectValidation, RunProjectYou } from "@local/shared";
+import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, runProjectValidation, RunProjectYou, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
@@ -73,20 +74,37 @@ export const RunProjectModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ updateList }) => {
-                if (updateList.length) {
-                    // TODO if status passed in for update, make sure it's not the same 
-                    // as the current status, or an invalid transition (e.g. failed -> in progress)
-                }
+            create: async ({ data, ...rest }) => {
+                return {
+                    id: data.id,
+                    completedComplexity: noNull(data.completedComplexity),
+                    contextSwitches: noNull(data.contextSwitches),
+                    embeddingNeedsUpdate: true,
+                    isPrivate: noNull(data.isPrivate),
+                    name: data.name,
+                    status: noNull(data.status),
+                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
+                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
+                    ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
+                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, ...rest }) => ({
-                id: data.id,
-                //TODO
-            } as any),
+            update: async ({ data, ...rest }) => {
+                return {
+                    completedComplexity: noNull(data.completedComplexity),
+                    contextSwitches: noNull(data.contextSwitches),
+                    isPrivate: noNull(data.isPrivate),
+                    status: noNull(data.status),
+                    timeElapsed: noNull(data.timeElapsed),
+                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
+                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                };
+            },
         },
         yup: runProjectValidation,
     },
