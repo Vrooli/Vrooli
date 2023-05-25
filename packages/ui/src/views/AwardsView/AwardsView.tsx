@@ -63,7 +63,8 @@ export const AwardsView = ({
                 {/* Display earned awards as a list of tags. Press or hover to see description */}
                 <ContentCollapse
                     isOpen={true}
-                    titleKey="Earned"
+                    title={t("Earned") + "🏆"}
+                    sxs={{ titleContainer: { marginBottom: 2 } }}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
@@ -78,7 +79,8 @@ export const AwardsView = ({
                 {/* Display progress of awards as cards */}
                 <ContentCollapse
                     isOpen={true}
-                    titleKey="InProgress"
+                    title={t("InProgress") + "🏃‍♂️"}
+                    sxs={{ titleContainer: { marginBottom: 2 } }}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.map((award) => (

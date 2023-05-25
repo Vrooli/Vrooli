@@ -62,6 +62,10 @@ export enum RoutineStepType {
     Subroutine = "Subroutine",
 }
 
+export enum ProjectStepType {
+    Directory = "Directory",
+}
+
 /**
  * Supported types of resources
  */

@@ -1,7 +1,7 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
 import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
-import { RoutineStepType } from "utils/consts";
+import { ProjectStepType, RoutineStepType } from "utils/consts";
 
 export type CalendarEvent = {
     __typename: "CalendarEvent",
@@ -126,6 +126,18 @@ export interface RoutineListStep extends BaseStep {
     steps: RoutineStep[],
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
+
+export interface DirectoryStep extends BaseStep {
+    /**
+     * Directory's ID if object was created from a directory
+     */
+    directoryId?: string | null,
+    isOrdered: boolean,
+    isRoot: boolean,
+    type: ProjectStepType.Directory,
+    steps: ProjectStep[],
+}
+export type ProjectStep = DirectoryStep | RoutineStep;
 
 export interface ObjectOption {
     __typename: `${GqlModelType}`;

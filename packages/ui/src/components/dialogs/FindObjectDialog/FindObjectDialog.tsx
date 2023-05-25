@@ -455,7 +455,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
-                        canNavigate={false}
+                        canNavigate={() => false}
                         onItemClick={onInputSelect}
                         take={20}
                         // Combine results for each object type

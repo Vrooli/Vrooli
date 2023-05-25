@@ -246,7 +246,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         setParamsReady(stableCanSearch(params.current));
     }, [stableCanSearch, updateUrl]);
 
-    const setTimeFrame = useCallback((timeFrame: TimeFrame) => {
+    const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         setParamsReady(false);
         params.current.timeFrame = timeFrame;
         updateUrl();
