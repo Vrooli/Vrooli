@@ -1,5 +1,5 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { Checkbox, FormControlLabel, Stack, Tooltip, useTheme } from "@mui/material";
+import { Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -7,7 +7,6 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -79,8 +78,6 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
         validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    const [fieldIsOpen] = useField("isOpenToNewMembers");
-
     return (
         <>
             <BaseForm
@@ -130,7 +127,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         />
                         <TranslatedMarkdownInput
                             language={language}
-                            minRows={2}
+                            minRows={4}
                             name="bio"
                         />
                         <br />
@@ -139,21 +136,6 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             zIndex={zIndex}
                         />
                     </Stack>
-                    <Tooltip placement={"top"} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
-                        <FormControlLabel
-                            label='Open to new members?'
-                            control={
-                                <Checkbox
-                                    id='organization-is-open-to-new-members'
-                                    size="medium"
-                                    name='isOpenToNewMembers'
-                                    color='secondary'
-                                    checked={fieldIsOpen.value}
-                                    onChange={fieldIsOpen.onChange}
-                                />
-                            }
-                        />
-                    </Tooltip>
                 </Stack>
                 <GridSubmitButtons
                     display={display}

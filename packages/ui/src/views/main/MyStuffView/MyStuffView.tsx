@@ -220,6 +220,7 @@ export const MyStuffView = ({
             </Stack>
             {searchType && <SearchList
                 id="main-search-page-list"
+                dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}

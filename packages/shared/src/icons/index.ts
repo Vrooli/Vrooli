@@ -153,6 +153,7 @@ export * from "./TwitterIcon";
 export * from "./UndoIcon";
 export * from "./UnlinkedNodesIcon";
 export * from "./UnlinkNodeIcon";
+export * from "./UnlockIcon";
 export * from "./UpvoteTallIcon";
 export * from "./UpvoteWideIcon";
 export * from "./UserIcon";

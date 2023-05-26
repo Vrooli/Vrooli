@@ -174,6 +174,12 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
+    /**
+     * How many dummy lists to display while loading. Smaller is better for lists displayed 
+     * in dialogs, since a large dummy list with a small number of results will give 
+     * an annoying grow/shrink effect.
+     */
+    dummyLength?: number;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
      * True if update button should be hidden

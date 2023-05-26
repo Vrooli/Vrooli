@@ -19,6 +19,11 @@ export type CalendarViewProps = BaseViewProps
 
 export type HistorySearchViewProps = BaseViewProps
 
+export type MemberManageViewProps = BaseViewProps & {
+    onClose: () => void;
+    organizationId: string;
+}
+
 export type ObjectViewProps = BaseViewProps
 
 export type PremiumViewProps = BaseViewProps

@@ -77,6 +77,11 @@ export enum HistoryPageTabOption {
     Bookmarked = "Bookmarked",
 }
 
+export enum MemberManagePageTabOption {
+    Members = "Members",
+    MemberInvites = "MemberInvites",
+}
+
 export enum SearchPageTabOption {
     Apis = "Apis",
     Notes = "Notes",

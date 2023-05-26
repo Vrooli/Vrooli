@@ -59,6 +59,7 @@ export const HistoryView = ({
             />
             {searchType && <SearchList
                 id="history-page-list"
+                dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
                 zIndex={200}

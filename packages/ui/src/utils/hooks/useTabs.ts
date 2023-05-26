@@ -16,7 +16,7 @@ type UseTabsParams<T, U extends Record<string, any> = {}> = TabParams<T> & U;
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <T, U extends Record<string, any> = {}>(tabParams: UseTabsParams<T, U>[], defaultTab: number) => {
+export const useTabs = <T, U extends Record<string, any> = {}>(tabParams: readonly UseTabsParams<T, U>[], defaultTab: number) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 

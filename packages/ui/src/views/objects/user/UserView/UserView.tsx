@@ -360,6 +360,7 @@ export const UserView = ({
                         currTab.value === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={() => (Boolean(user?.id) && uuidValidate(user?.id))}
+                                dummyLength={display === "page" ? 5 : 3}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="user-view-list"

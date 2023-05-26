@@ -17,6 +17,7 @@ import { SearchListProps } from "../types";
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
     canSearch = () => true,
+    dummyLength = 5,
     handleAdd,
     hideUpdateButton,
     id,
@@ -60,7 +61,7 @@ export function SearchList<DataType extends NavigableObject>({
 
     const listItems = useMemo(() => listToListItems({
         canNavigate,
-        dummyItems: new Array(5).fill(searchType),
+        dummyItems: new Array(dummyLength).fill(searchType),
         hideUpdateButton,
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: `${searchType}-list-item`,

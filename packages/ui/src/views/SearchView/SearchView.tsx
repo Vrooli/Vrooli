@@ -177,8 +177,6 @@ export const SearchView = ({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
-    console.log("search typeeee", searchType, currTab);
-
     return (
         <>
             <TopBar
@@ -217,6 +215,7 @@ export const SearchView = ({
             </Stack>
             {searchType && <SearchList
                 id="main-search-page-list"
+                dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
