@@ -1,6 +1,6 @@
 import { BookmarkFor, CommonKey, DotNotation, exists, GqlModelType, isOfType } from "@local/shared";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
-import { SearchListGenerator } from "components/lists/types";
+import { ActionsType, ListActions, SearchListGenerator } from "components/lists/types";
 import { AutocompleteOption, NavigableObject } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 import { valueFromDot } from "utils/shape/general";
@@ -364,7 +364,8 @@ export function listToAutocomplete(
     }));
 }
 
-export interface ListToListItemProps {
+
+export type ListToListItemProps<T extends keyof ListActions | undefined> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -392,13 +393,13 @@ export interface ListToListItemProps {
     loading: boolean,
     onClick?: (item: NavigableObject) => void,
     zIndex: number,
-}
+} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : {});
 
 /**
  * Converts a list of objects to a list of ListItems
  * @returns A list of ListItems
  */
-export function listToListItems({
+export function listToListItems<T extends keyof ListActions | undefined>({
     canNavigate,
     dummyItems,
     keyPrefix,
@@ -407,7 +408,7 @@ export function listToListItems({
     loading,
     onClick,
     zIndex,
-}: ListToListItemProps): JSX.Element[] {
+}: ListToListItemProps<T>): JSX.Element[] {
     const listItems: JSX.Element[] = [];
     // If loading, display dummy items
     if (loading) {

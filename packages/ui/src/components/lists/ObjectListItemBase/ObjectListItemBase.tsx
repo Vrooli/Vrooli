@@ -20,7 +20,7 @@ import { SessionContext } from "utils/SessionContext";
 import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
-import { ObjectListItemBaseProps } from "../types";
+import { ObjectListItemProps } from "../types";
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -44,7 +44,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
     onClick,
     toTheRight,
     zIndex,
-}: ObjectListItemBaseProps<T>) {
+}: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();

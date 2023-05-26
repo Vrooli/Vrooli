@@ -71,7 +71,7 @@ export function SearchList<DataType extends NavigableObject>({
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
-    const handleScroll = useCallback(() => { //TODO THIS DOESN"T WORK YET
+    const handleScroll = useCallback(() => {
         const scrolledY = window.scrollY;
         const windowHeight = window.innerHeight;
         if (!loading && scrolledY > windowHeight - 500) {

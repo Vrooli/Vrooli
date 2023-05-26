@@ -20,12 +20,9 @@ type ActionFunctions<T> = {
     [K in keyof T]: T[K] extends (...args: infer U) => any ? U : never;
 };
 
-type ActionsType<A = undefined> = A extends undefined
-    ? { actions?: undefined, onAction?: undefined }
-    : {
-        actions?: A,
-        onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void
-    }
+export type ActionsType<A = undefined> = A extends undefined
+    ? { onAction?: undefined }
+    : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
 
 type ObjectListItemBaseProps<T extends ListObjectType> = {
     /**
@@ -51,14 +48,29 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
 }
 export type ObjectListItemProps<T extends ListObjectType, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
 
-export type ChatListItemProps = ObjectListItemProps<Chat>
+export type ChatListItemActions = {
+    MarkAsRead: (id: string) => void;
+    Delete: (id: string) => void;
+};
+export type NotificationListItemActions = {
+    MarkAsRead: (id: string) => void;
+    Delete: (id: string) => void;
+};
+/**
+ * Maps object types to their list item's custom actions.
+ * Not all object types have custom actions.
+ */
+export interface ListActions {
+    Chat: ChatListItemActions;
+    Notification: NotificationListItemActions;
+}
+
+
+export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
 
 export type MemberListItemProps = ObjectListItemProps<Member>
 
-export type NotificationListItemActions = {
-    MarkAsRead: (id: string) => void;
-    Delete: (id: string, anotherProp: boolean) => void;
-};
+
 export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
 
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
