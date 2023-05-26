@@ -170,6 +170,7 @@ export const SearchMap = {
     maxTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { lte: timesCompleted } }),
     maxViews: (views: Maybe<number>) => ({ views: { lte: views } }),
     maxViewsRoot: (views: Maybe<number>) => ({ root: { views: { lte: views } } }),
+    memberInOrganizationId: (id: Maybe<string>) => ({ memberships: { some: { organization: { id } } } }),
     memberUserIds: (ids: Maybe<string[]>) => ({ members: { some: { user: { id: { in: ids } } } } }),
     meetingId: (id: Maybe<string>) => oneToOneId(id, "meeting"),
     meetingsId: (id: Maybe<string>) => oneToManyId(id, "meetings"),

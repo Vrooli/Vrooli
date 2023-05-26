@@ -181,6 +181,7 @@ export const UserModel: ModelLogic<{
             createdTimeFrame: true,
             maxBookmarks: true,
             maxViews: true,
+            memberInOrganizationId: true,
             minBookmarks: true,
             minViews: true,
             translationLanguages: true,

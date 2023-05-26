@@ -9447,6 +9447,7 @@ export type UserSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  memberInOrganizationId?: InputMaybe<Scalars['ID']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;

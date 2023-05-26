@@ -191,6 +191,7 @@ export const typeDef = gql`
     input UserSearchInput {
         maxBookmarks: Int
         maxViews: Int
+        memberInOrganizationId: ID
         minBookmarks: Int
         minViews: Int
         ids: [ID!]
