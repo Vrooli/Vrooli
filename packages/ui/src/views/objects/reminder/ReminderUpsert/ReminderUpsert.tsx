@@ -31,7 +31,7 @@ export const ReminderUpsert = ({
     const { t } = useTranslation();
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const id = useMemo(() => isCreate ? undefined : (partialData?.id ?? parseSingleItemUrl()?.id), [isCreate, partialData?.id]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
     useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 

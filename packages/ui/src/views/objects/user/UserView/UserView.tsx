@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, HelpIcon, LINKS, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
@@ -8,7 +8,6 @@ import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceListVertical } from "components/lists/resource";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -29,7 +28,6 @@ import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
 enum TabOptions {
-    Resource = "Resource",
     Project = "Project",
     Organization = "Organization",
 }
@@ -43,11 +41,6 @@ type TabParams = {
 
 // Data for each tab
 const tabParams: TabParams[] = [{
-    Icon: HelpIcon,
-    searchType: SearchType.Resource,
-    tabType: TabOptions.Resource,
-    where: {},
-}, {
     Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: TabOptions.Project,
@@ -94,14 +87,12 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | undefined = undefined;// TODO user?.resourceList;
+    const { bio, name, handle } = useMemo(() => {
         const { bio } = getTranslation(user ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
-            resourceList,
         };
     }, [language, partialData, user]);
 
@@ -110,38 +101,18 @@ export const UserView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
-        <ResourceListVertical
-            list={resourceList}
-            canUpdate={permissions.canUpdate}
-            handleUpdate={(updatedList) => {
-                if (!user) return;
-                setUser({
-                    ...user,
-                    //resourceList: updatedList TODO
-                });
-            }}
-            loading={isLoading}
-            mutate={true}
-            zIndex={zIndex}
-        />
-    ) : null, [isLoading, permissions.canUpdate, resourceList, setUser, user, zIndex]);
-
-
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs = tabParams;
-        // Remove resources if there are none, and you cannot add them
-        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
+        const tabs = tabParams;
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? "#8e6b00" : palette.secondary.dark, // Custom color for resources
+            color: palette.secondary.dark,
             index: i,
             Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [permissions.canUpdate, resources, t]);
+    }, [palette.secondary.dark, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
@@ -151,7 +122,6 @@ export const UserView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Organization)
             return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user?.id!], visibility: VisibilityType.All });
         return toSearchListData("Project", "SearchProject", { ownedByUserId: user?.id!, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
@@ -338,12 +308,12 @@ export const UserView = ({
                     right: 8,
                     paddingRight: "1em",
                 }}>
-                    <SelectLanguageMenu
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
                         zIndex={zIndex}
-                    />
+                    />}
                 </Box>
                 {overviewComponent}
             </Box>
@@ -356,22 +326,18 @@ export const UserView = ({
                     tabs={tabs}
                 />
                 <Box p={2}>
-                    {
-                        currTab.value === TabOptions.Resource ? resources : (
-                            <SearchList
-                                canSearch={() => (Boolean(user?.id) && uuidValidate(user?.id))}
-                                dummyLength={display === "page" ? 5 : 3}
-                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                                hideUpdateButton={true}
-                                id="user-view-list"
-                                searchType={searchType}
-                                searchPlaceholder={placeholder}
-                                take={20}
-                                where={where}
-                                zIndex={zIndex}
-                            />
-                        )
-                    }
+                    <SearchList
+                        canSearch={() => Boolean(user?.id) && uuidValidate(user?.id)}
+                        dummyLength={display === "page" ? 5 : 3}
+                        handleAdd={permissions.canUpdate ? toAddNew : undefined}
+                        hideUpdateButton={true}
+                        id="user-view-list"
+                        searchType={searchType}
+                        searchPlaceholder={placeholder}
+                        take={20}
+                        where={where}
+                        zIndex={zIndex}
+                    />
                 </Box>
             </Box>
         </>

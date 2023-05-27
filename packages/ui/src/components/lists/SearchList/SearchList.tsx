@@ -68,7 +68,7 @@ export function SearchList<DataType extends NavigableObject>({
         loading,
         onClick: onItemClick,
         zIndex,
-    }), [canNavigate, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
+    }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button

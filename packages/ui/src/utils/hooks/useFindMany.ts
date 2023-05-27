@@ -74,7 +74,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
-    const stableCanSearch = useStableCallback(canSearch);
     const stableResolve = useStableCallback(resolve);
     const stableWhere = useStableObject(where);
 
@@ -140,10 +139,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 sortBy,
                 where: stableWhere ?? {},
             };
-            setParamsReady(stableCanSearch(params.current) && sortBy?.length > 0);
+            setParamsReady(canSearch(params.current) && sortBy?.length > 0);
         };
         fetchParams();
-    }, [stableCanSearch, searchType, stableWhere]);
+    }, [canSearch, searchType, stableWhere]);
 
     /**
      * Cursor for pagination. Resets when search params change.
@@ -236,22 +235,22 @@ export const useFindMany = <DataType extends Record<string, any>>({
         setParamsReady(false);
         params.current.sortBy = updateSortBy(params.current, sortBy);
         updateUrl();
-        setParamsReady(stableCanSearch(params.current));
-    }, [stableCanSearch, updateUrl]);
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
 
     const setSearchString = useCallback((searchString: string) => {
         setParamsReady(false);
         params.current.searchString = searchString;
         updateUrl();
-        setParamsReady(stableCanSearch(params.current));
-    }, [stableCanSearch, updateUrl]);
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
 
     const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         setParamsReady(false);
         params.current.timeFrame = timeFrame;
         updateUrl();
-        setParamsReady(stableCanSearch(params.current));
-    }, [stableCanSearch, updateUrl]);
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
 
     return {
         advancedSearchParams,

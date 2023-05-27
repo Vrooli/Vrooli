@@ -226,12 +226,12 @@ export const ApiView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageMenu
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
                         zIndex={zIndex}
-                    />
+                    />}
                 </Box>
                 {overviewComponent}
             </Box>

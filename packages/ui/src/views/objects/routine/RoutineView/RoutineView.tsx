@@ -19,6 +19,7 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -298,7 +299,15 @@ export const RoutineView = ({
                         </ContentCollapse>
                     </Box>}
                     {/* "View Graph" button if this is a multi-step routine */}
-                    {existing?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+                    {
+                        existing?.nodes?.length ? <Box>
+                            <Subheader
+                                title={"This is a multi-step routine."}
+                                help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                            />
+                            <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                        </Box> : null
+                    }
                     {/* Tags */}
                     {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}

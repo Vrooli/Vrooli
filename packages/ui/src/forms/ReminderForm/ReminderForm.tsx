@@ -1,6 +1,7 @@
 import { AddIcon, CloseIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
 import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Subheader } from "components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -11,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
+import { ReminderItemShape } from "utils/shape/models/reminderItem";
 
 export const reminderInitialValues = (
     session: Session | undefined,
@@ -19,7 +21,7 @@ export const reminderInitialValues = (
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,
-    description: null,
+    description: "",
     dueDate: null,
     index: 0,
     isComplete: false,
@@ -79,6 +81,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
             ...reminderItemsField.value,
             {
                 id: Date.now(),
+                index: reminderItemsField.value.length,
                 name: "",
                 description: "",
                 dueDate: null,
@@ -92,6 +95,11 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         const newReminderItems = Array.from(reminderItemsField.value);
         const [reorderedItem] = newReminderItems.splice(result.source.index, 1);
         newReminderItems.splice(result.destination.index, 0, reorderedItem);
+
+        // Update the index property of each item in the list
+        newReminderItems.forEach((item: ReminderItemShape, index) => {
+            item.index = index;
+        });
 
         reminderItemsHelpers.setValue(newReminderItems);
     };
@@ -136,13 +144,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 label={t("Name")}
                                 as={TextField}
                             />
-                            <Field
-                                fullWidth
+                            <MarkdownInput
+                                minRows={4}
                                 name="description"
-                                label={t("Description")}
-                                as={TextField}
-                                minRows={2}
-                                maxRows={8}
+                                placeholder="Description (optional)"
                             />
                         </Stack>
                         <Field
@@ -183,14 +188,14 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                         sx={{
                                                             borderRadius: 2,
                                                             border: `2px solid ${palette.divider}`,
+                                                            boxShadow: 6,
                                                             marginBottom: 2,
-                                                            padding: 1,
+                                                            padding: 2,
                                                         }}>
                                                         <Stack
                                                             direction="row"
                                                             alignItems="flex-start"
                                                             spacing={2}
-                                                            sx={{ boxShadow: 6 }}
                                                         >
                                                             <Stack spacing={1} sx={{ width: "100%" }}>
                                                                 <Field

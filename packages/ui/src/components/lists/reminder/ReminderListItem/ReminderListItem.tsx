@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { DeleteIcon } from "@local/shared";
+import { DeleteIcon, ScheduleIcon } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
@@ -55,6 +55,19 @@ export function ReminderListItem({
         handleDelete(reminder);
     }, [handleDelete, reminder]);
 
+    const dueDateIcon = useMemo(() => {
+        if (!reminder.dueDate) return null;
+        const dueDate = new Date(reminder.dueDate);
+        // Check if due Date is today, in the past, or in the future to determine color
+        const today = new Date();
+        const isToday = dueDate.getDate() === today.getDate() &&
+            dueDate.getMonth() === today.getMonth() &&
+            dueDate.getFullYear() === today.getFullYear();
+        const isPast = dueDate < today;
+        const color = isToday ? palette.warning.main : isPast ? palette.error.main : palette.background.textPrimary;
+        return <ScheduleIcon fill={color} style={{ margin: "auto", pointerEvents: "none" }} />;
+    }, [palette.background.textPrimary, palette.error.main, palette.warning.main, reminder.dueDate]);
+
     return (
         <ObjectListItemBase
             belowSubtitle={
@@ -64,12 +77,14 @@ export function ReminderListItem({
                     sx={{ height: "15px" }}
                 /> : null
             }
+            canNavigate={() => false}
             data={reminder}
             loading={false}
             objectType="Reminder"
             onClick={() => { handleOpen(); }}
             toTheRight={
-                <Stack direction="row" spacing={1}>
+                <Stack id="list-item-right-stack" direction="row" spacing={1}>
+                    {dueDateIcon}
                     <Tooltip placement={"top"} title={checkTooltip}>
                         <Checkbox
                             id='reminder-checkbox'
