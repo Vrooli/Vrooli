@@ -1,5 +1,5 @@
 import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList, useLocation } from "@local/shared";
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -100,28 +100,27 @@ export const ApiView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
+            <Avatar
+                src="/broken-image.jpg" //TODO
                 sx={{
-                    border: "1px solid black",
                     backgroundColor: profileColors[0],
+                    color: profileColors[1],
+                    boxShadow: 2,
                     transform: "translateX(-50%)",
+                    width: "min(100px, 25vw)",
+                    height: "min(100px, 25vw)",
+                    left: "50%",
+                    top: "-55px",
+                    position: "absolute",
+                    fontSize: "min(50px, 10vw)",
                 }}
             >
-                <ApiIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
+                <ApiIcon fill="white" width='75%' height='75%' />
+            </Avatar>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"

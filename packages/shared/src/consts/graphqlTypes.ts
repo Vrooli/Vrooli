@@ -563,7 +563,7 @@ export type Chat = {
   messages: Array<ChatMessage>;
   openToAnyoneWithInvite: Scalars['Boolean'];
   organization?: Maybe<Organization>;
-  participants: Array<User>;
+  participants: Array<ChatParticipant>;
   participantsCount: Scalars['Int'];
   restrictedToRoles: Array<Role>;
   translations: Array<ChatTranslation>;
@@ -877,6 +877,7 @@ export type ChatYou = {
   __typename: 'ChatYou';
   canDelete: Scalars['Boolean'];
   canInvite: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
 };
 
@@ -9342,6 +9343,7 @@ export type User = {
   bookmarked?: Maybe<Array<Bookmark>>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
+  botSettings?: Maybe<Scalars['String']>;
   comments?: Maybe<Array<Comment>>;
   created_at: Scalars['Date'];
   emails?: Maybe<Array<Email>>;
@@ -9350,6 +9352,7 @@ export type User = {
   id: Scalars['ID'];
   invitedByUser?: Maybe<User>;
   invitedUsers?: Maybe<Array<User>>;
+  isBot: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
@@ -11272,7 +11275,7 @@ export type ChatResolvers<ContextType = any, ParentType extends ResolversParentT
   messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
   openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  participants?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  participants?: Resolver<Array<ResolversTypes['ChatParticipant']>, ParentType, ContextType>;
   participantsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
@@ -11403,6 +11406,7 @@ export type ChatTranslationResolvers<ContextType = any, ParentType extends Resol
 export type ChatYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatYou'] = ResolversParentTypes['ChatYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -14406,6 +14410,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  botSettings?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   comments?: Resolver<Maybe<Array<ResolversTypes['Comment']>>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   emails?: Resolver<Maybe<Array<ResolversTypes['Email']>>, ParentType, ContextType>;
@@ -14414,6 +14419,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invitedByUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   invitedUsers?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
+  isBot?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;

@@ -1,5 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
 import { userProfile } from "api/generated/endpoints/user_profile";
@@ -154,29 +154,25 @@ export const UserView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                border={`4px solid ${palette.primary.dark}`}
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
+            <Avatar
+                src="/broken-image.jpg" //TODO
                 sx={{
-                    border: "1px solid black",
                     backgroundColor: profileColors[0],
+                    color: profileColors[1],
+                    boxShadow: 2,
                     transform: "translateX(-50%)",
+                    width: "min(100px, 25vw)",
+                    height: "min(100px, 25vw)",
+                    left: "50%",
+                    top: "-55px",
+                    position: "absolute",
+                    fontSize: "min(50px, 10vw)",
                 }}
-            >
-                <UserIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
+            />
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"

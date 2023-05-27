@@ -17,6 +17,8 @@ export type AwardsViewProps = BaseViewProps
 
 export type CalendarViewProps = BaseViewProps
 
+export type ChatViewProps = BaseViewProps
+
 export type HistorySearchViewProps = BaseViewProps
 
 export type MemberManageViewProps = BaseViewProps & {

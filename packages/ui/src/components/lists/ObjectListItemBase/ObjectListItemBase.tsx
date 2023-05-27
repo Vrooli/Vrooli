@@ -1,5 +1,5 @@
 import { EditIcon, isOfType, OrganizationIcon, ReactionFor, SvgComponent, useLocation, UserIcon, uuid } from "@local/shared";
-import { Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
@@ -117,26 +117,17 @@ export function ObjectListItemBase<T extends ListObjectType>({
         if (isOfType(object, "Organization", "User", "Member")) {
             const Icon: SvgComponent = object?.__typename === "Organization" ? OrganizationIcon : UserIcon;
             return (
-                <Box
-                    width={isMobile ? "40px" : "50px"}
-                    minWidth={isMobile ? "40px" : "50px"}
-                    height={isMobile ? "40px" : "50px"}
-                    marginBottom={isMobile ? "auto" : "unset"}
-                    borderRadius='100%'
-                    bgcolor={profileColors[0]}
-                    justifyContent='center'
-                    alignItems='center'
+                <Avatar
+                    src="/broken-image.jpg" //TODO
                     sx={{
-                        display: "flex",
+                        backgroundColor: profileColors[0],
+                        width: isMobile ? "40px" : "50px",
+                        height: isMobile ? "40px" : "50px",
                         pointerEvents: "none",
                     }}
                 >
-                    <Icon
-                        fill={profileColors[1]}
-                        width={isMobile ? "25px" : "35px"}
-                        height={isMobile ? "25px" : "35px"}
-                    />
-                </Box>
+                    <Icon fill={profileColors[1]} width="75%" height="75%" />
+                </Avatar>
             );
         }
         // Otherwise, only show on wide screens

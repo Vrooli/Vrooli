@@ -1,4 +1,4 @@
-import { EllipsisIcon, FindByIdInput, HelpIcon, Schedule, useLocation } from "@local/shared";
+import { EllipsisIcon, FindByIdInput, Schedule, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { scheduleFindOne } from "api/generated/endpoints/schedule_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -54,28 +54,10 @@ export const ScheduleView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
-                sx={{
-                    border: "1px solid black",
-                    backgroundColor: profileColors[0],
-                    transform: "translateX(-50%)",
-                }}
-            >
-                <HelpIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"

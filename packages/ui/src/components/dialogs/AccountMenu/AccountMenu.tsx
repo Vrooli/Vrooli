@@ -1,5 +1,5 @@
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
-import { Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { authSwitchCurrentAccount } from "api/generated/endpoints/auth_switchCurrentAccount";
@@ -165,9 +165,17 @@ export const AccountMenu = ({
                 background: account.id === userId ? palette.secondary.light : palette.background.default,
             }}
         >
-            <ListItemIcon>
-                <UserIcon fill={palette.background.textPrimary} />
-            </ListItemIcon>
+            <Avatar
+                src="/broken-image.jpg" //TODO
+                sx={{
+                    marginRight: 2,
+                }}
+            >
+                <UserIcon
+                    width="75%"
+                    height="75%"
+                />
+            </Avatar>
             <ListItemText primary={account.name ?? account.handle} />
         </ListItem>
     ), [accounts, handleUserClick]);

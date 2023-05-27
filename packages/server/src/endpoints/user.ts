@@ -21,7 +21,9 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date
+        botSettings: String
         handle: String
+        isBot: Boolean!
         isPrivate: Boolean!
         isPrivateApis: Boolean!
         isPrivateApisCreated: Boolean!
