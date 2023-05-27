@@ -190,6 +190,7 @@ export interface MarkdownInputProps {
 export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     autoFocus?: boolean;
     disabled?: boolean;
+    disableAssistant?: boolean;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     minRows?: number;
@@ -199,7 +200,12 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     placeholder?: string;
     tabIndex?: number;
     value: string;
-    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    sxs?: {
+        bar?: { [x: string]: any };
+        root?: { [x: string]: any };
+        textArea?: { [x: string]: any };
+    };
+    zIndex: number;
 }
 
 export type PasswordTextFieldProps = TextFieldProps & {

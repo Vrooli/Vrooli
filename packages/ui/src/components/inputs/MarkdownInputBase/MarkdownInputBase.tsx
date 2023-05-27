@@ -1,13 +1,17 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
 import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
+import { AssistantDialogProps } from "components/dialogs/types";
 import Markdown from "markdown-to-jsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { linkColors, noSelect } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
 import { useDebounce } from "utils/hooks/useDebounce";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { MarkdownInputBaseProps } from "../types";
 
 enum Headers {
@@ -109,6 +113,7 @@ const getSelection = (id: string): { selectionStart: number, selectionEnd: numbe
 export const MarkdownInputBase = ({
     autoFocus = false,
     disabled = false,
+    disableAssistant = false,
     error = false,
     helperText,
     minRows = 4,
@@ -119,8 +124,11 @@ export const MarkdownInputBase = ({
     tabIndex,
     value,
     sxs,
+    zIndex,
 }: MarkdownInputBaseProps) => {
     const { palette } = useTheme();
+    const session = useContext(SessionContext);
+    const { hasPremium, id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
     const changeStack = useRef<string[]>([value]);
@@ -375,8 +383,32 @@ export const MarkdownInputBase = ({
         return () => textarea.removeEventListener("keydown", handleKeyDown);
     }, [bold, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, togglePreview, undo]);
 
+    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+        context: undefined,
+        isOpen: false,
+        task: "note",
+        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        zIndex: zIndex + 1,
+    });
+    const openAssistantDialog = useCallback(() => {
+        // Get highlighted text
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
+        let highlightedText: string | undefined = textArea.value.substring(selectionStart, selectionEnd).trim();
+        if (highlightedText === "") highlightedText = undefined;
+        else if (highlightedText.length > 1500) highlightedText = highlightedText.substring(0, 1500);
+        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: highlightedText }));
+    }, [name]);
+
     return (
-        <Stack direction="column" spacing={0} onMouseDown={handleMouseDown}>
+        <Stack
+            direction="column"
+            spacing={0}
+            onMouseDown={handleMouseDown}
+            sx={{ ...(sxs?.root ?? {}) }}
+        >
+            {/* Assistant dialog for generating text */}
+            <AssistantDialog {...assistantDialogProps} />
             {/* Bar above TextField, for inserting markdown and previewing */}
             <Box sx={{
                 display: "flex",
@@ -388,12 +420,23 @@ export const MarkdownInputBase = ({
                 borderRadius: "0.5rem 0.5rem 0 0",
                 ...(sxs?.bar ?? {}),
             }}>
-                {/* To the left is a stack for inserting titles, italics/bold, lists, and links */}
+                {/* To the left is a stack for ai assistant, inserting titles, italics/bold, lists, and links */}
                 <Stack
                     direction="row"
                     spacing={{ xs: 0, sm: 0.5, md: 1 }}
                     sx={{ marginRight: "auto" }}
                 >
+                    {/* AI assistant */}
+                    {!hasPremium && !disableAssistant && <Tooltip title="AI assistant" placement="top">
+                        <IconButton
+                            aria-describedby={`markdown-input-assistant-popover-${name}`}
+                            disabled={disabled}
+                            size="small"
+                            onClick={openAssistantDialog}
+                        >
+                            <MagicIcon fill={palette.primary.contrastText} />
+                        </IconButton>
+                    </Tooltip>}
                     {/* Insert header selector */}
                     <Tooltip title="Insert header (Title)" placement="top">
                         <IconButton
@@ -580,8 +623,10 @@ export const MarkdownInputBase = ({
                             borderRadius: "0 0 0.5rem 0.5rem",
                             borderTop: "none",
                             padding: "12px",
+                            wordBreak: "break-word",
                             ...noSelect,
                             ...linkColors(palette),
+                            ...(sxs?.textArea ?? {}),
                         }}>
                             <Markdown>{internalValue}</Markdown>
                         </Box>
@@ -610,6 +655,7 @@ export const MarkdownInputBase = ({
                                 borderTop: "none",
                                 fontFamily: "inherit",
                                 fontSize: "inherit",
+                                lineHeight: "inherit",
                                 color: palette.text.primary,
                                 ...(sxs?.textArea ?? {}),
                             }}

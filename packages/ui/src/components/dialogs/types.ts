@@ -18,6 +18,19 @@ export interface AccountMenuProps {
     onClose: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
+/**
+ * A task mode supported by Valyxa
+ */
+export type AssistantTask = "note";
+export interface AssistantDialogProps {
+    context?: string;
+    task?: AssistantTask;
+    handleClose: () => void;
+    handleComplete: (data: any) => void;
+    isOpen: boolean;
+    zIndex: number;
+}
+
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
     /**
