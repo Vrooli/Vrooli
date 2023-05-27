@@ -237,7 +237,7 @@ export async function getMultiTypePermissions(
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ["en"]);
-        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id] });
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id], userId: userData?.id });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
         const permissions = await Promise.all(
@@ -286,7 +286,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
         const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ["en"]);
-        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem });
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem, userId: userData?.id });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
         const permissionsObject = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));

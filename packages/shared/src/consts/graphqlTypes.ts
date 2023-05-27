@@ -1926,6 +1926,7 @@ export type MemberInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MemberInviteSortBy>;
   status?: InputMaybe<MemberInviteStatus>;
+  statuses?: InputMaybe<Array<MemberInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;

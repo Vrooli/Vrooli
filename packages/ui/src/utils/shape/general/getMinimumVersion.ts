@@ -10,10 +10,10 @@ import { meetsMinVersion } from "@local/shared";
 */
 export const getMinimumVersion = (versions: string[]): string => {
     // If no versions, return 0.0.1
-    if (versions.length === 0) return '0.0.1';
+    if (versions.length === 0) return "0.0.1";
     // Sort using meetsMinVersion, which determines if a version is greater than or equal to another version
     versions.sort((a, b) => meetsMinVersion(a, b) ? 1 : -1);
     // Get the highest version
     const highestVersion = versions[versions.length - 1];
     return highestVersion;
-} 
+}; 
