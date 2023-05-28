@@ -11,6 +11,7 @@ export type ViewDisplayType = "dialog" | "page";
 export type BaseViewProps = {
     display?: ViewDisplayType;
     onClose: () => void;
+    zIndex: number;
 }
 
 export type AboutViewProps = BaseViewProps

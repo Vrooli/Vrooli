@@ -19,6 +19,7 @@ export const MemberManageView = ({
     display = "dialog",
     onClose,
     organizationId,
+    zIndex,
 }: MemberManageViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -145,7 +146,7 @@ export const MemberManageView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                zIndex={200}
+                zIndex={zIndex}
                 where={where}
             />}
             {popupButtonContainer}

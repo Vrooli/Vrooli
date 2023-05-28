@@ -6,6 +6,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -111,18 +112,19 @@ export const ChatView = ({
                     // for now, just add the message to the list
                     const newMessage: ChatMessage = {
                         __typename: "ChatMessage" as const,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                         translations: [{
+                            __typename: "ChatMessageTranslation" as const,
                             id: DUMMY_ID,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
                             language: lng,
                             text: values.newMessage,
                         }],
                         user: {
                             __typename: "User" as const,
-                            id: session.user.id,
+                            id: getCurrentUser(session).id,
                             isBot: false,
-                            name: session.user.name,
+                            name: getCurrentUser(session).name,
                         },
                         you: {
                             canDelete: true,
@@ -132,7 +134,7 @@ export const ChatView = ({
                             canReact: true,
                             reaction: null,
                         },
-                    };
+                    } as any;
                     setMessages([...messages, newMessage]);
                     helpers.setFieldValue("newMessage", "");
                 }
@@ -197,7 +199,7 @@ export const ChatView = ({
                                             <IconButton onClick={() => {
                                                 const message = messages.find((m) => m.id === message.id);
                                                 if (!message) return;
-                                                formik.setFieldValue("editingMessage", getTranslation(message, getUserLanguages(session), true)?.text ?? "");
+                                                formik.setFieldValue("editingMessage", getTranslation(message as ChatMessage, getUserLanguages(session), true)?.text ?? "");
                                             }} sx={{ position: "absolute", top: 0, right: 0 }}>
                                                 <EditIcon />
                                             </IconButton>

@@ -40,6 +40,7 @@ type InboxObject = Chat | Notification;
 export const InboxView = ({
     display = "page",
     onClose,
+    zIndex,
 }: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -192,7 +193,7 @@ export const InboxView = ({
             {/* New Chat button */}
             {currTab.value === InboxPageTabOption.Messages && <SideActionButtons
                 display={display}
-                zIndex={201}
+                zIndex={zIndex + 1}
                 sx={{ position: "fixed" }}
             >
                 <ColorIconButton aria-label="new-chat" background={palette.secondary.main} onClick={() => { }} >

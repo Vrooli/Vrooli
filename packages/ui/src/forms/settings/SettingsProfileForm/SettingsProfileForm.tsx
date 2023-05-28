@@ -83,7 +83,7 @@ export const SettingsProfileForm = ({
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
-                        zIndex={200}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 {/* <Grid item xs={12}>

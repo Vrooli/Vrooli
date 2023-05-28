@@ -92,7 +92,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
 
-        const newReminderItems = Array.from(reminderItemsField.value);
+        const newReminderItems: ReminderItemShape[] = Array.from(reminderItemsField.value);
         const [reorderedItem] = newReminderItems.splice(result.source.index, 1);
         newReminderItems.splice(result.destination.index, 0, reorderedItem);
 
@@ -148,6 +148,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 minRows={4}
                                 name="description"
                                 placeholder="Description (optional)"
+                                zIndex={zIndex}
                             />
                         </Stack>
                         <Field

@@ -97,6 +97,7 @@ const viewProps = ({
     display: "page" as const,
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     onClose: () => { },
+    zIndex: 200,
 });
 
 export const Routes = (props: { sessionChecked: boolean }) => {

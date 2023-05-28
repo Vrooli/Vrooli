@@ -249,6 +249,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                 language,
                                 placeholder: "Instructions",
                                 minRows: 3,
+                                zIndex,
                             }}
                             title={t("Instructions")}
                         />

@@ -279,6 +279,7 @@ const DayColumnHeader = ({ label }) => {
 export const CalendarView = ({
     display = "page",
     onClose,
+    zIndex,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -444,7 +445,7 @@ export const CalendarView = ({
                 onClose={handleCloseScheduleDialog}
                 isOpen={isScheduleDialogOpen}
                 titleId={""}
-                zIndex={202}
+                zIndex={zIndex + 2}
             >
                 <ScheduleUpsert
                     defaultTab={currTab.value}
@@ -455,14 +456,14 @@ export const CalendarView = ({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={202}
+                    zIndex={zIndex + 2}
                 />
             </LargeDialog>
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={display}
-                zIndex={201}
+                zIndex={zIndex + 1}
             >
                 <ColorIconButton
                     aria-label="create event"

@@ -22,6 +22,7 @@ import { SettingsAuthenticationViewProps } from "../types";
 export const SettingsAuthenticationView = ({
     display = "page",
     onClose,
+    zIndex,
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -75,7 +76,7 @@ export const SettingsAuthenticationView = ({
             <DeleteAccountDialog
                 isOpen={deleteOpen}
                 handleClose={closeDelete}
-                zIndex={100}
+                zIndex={zIndex + 1}
             />
             <SettingsTopBar
                 display={display}
@@ -136,6 +137,7 @@ export const SettingsAuthenticationView = ({
                             display={display}
                             isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
+                            zIndex={zIndex}
                             {...formik}
                         />}
                     </Formik>

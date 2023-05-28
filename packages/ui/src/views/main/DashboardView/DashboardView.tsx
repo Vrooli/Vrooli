@@ -36,6 +36,7 @@ const zIndex = 200;
 export const DashboardView = ({
     display = "page",
     onClose,
+    zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -251,14 +252,14 @@ export const DashboardView = ({
                 id="add-note-dialog"
                 onClose={closeCreateNote}
                 isOpen={isCreateNoteOpen}
-                zIndex={201}
+                zIndex={zIndex + 1}
             >
                 <NoteUpsert
                     display="dialog"
                     isCreate={true}
                     onCancel={closeCreateNote}
                     onCompleted={onNoteCreated}
-                    zIndex={201}
+                    zIndex={zIndex + 1}
                 />
             </LargeDialog>
             <TopBar

@@ -17,6 +17,7 @@ export const BaseStandardInput = ({
     isEditing,
     label,
     storageKey,
+    zIndex,
 }: BaseStandardInputProps) => {
     const [field, , helpers] = useField(fieldName ?? "");
 
@@ -172,7 +173,8 @@ export const BaseStandardInput = ({
                     {...formik}
                     isEditing={isEditing}
                     fieldName={fieldName}
-                // yup={field.value.yup}
+                    // yup={field.value.yup}
+                    zIndex={zIndex}
                 />
                 <Grid container spacing={2} mt={2} sx={{
                     padding: 2,

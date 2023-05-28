@@ -228,8 +228,10 @@ export const RoutineView = ({
                     >
                         <BuildView
                             handleCancel={stopBuild}
-                            handleClose={stopBuild}
-                            handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
+                            onClose={stopBuild}
+                            // Intentionally blank, since this is a read-only view
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
+                            handleSubmit={() => { }}
                             isEditing={false}
                             loading={isLoading}
                             routineVersion={existing}
@@ -237,7 +239,9 @@ export const RoutineView = ({
                                 language,
                                 languages: availableLanguages,
                                 setLanguage,
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleAddLanguage: () => { },
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleDeleteLanguage: () => { },
                             }}
                             zIndex={zIndex + 1}
@@ -262,7 +266,8 @@ export const RoutineView = ({
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                         list={resourceList as ResourceList}
                         canUpdate={false}
-                        handleUpdate={() => { }} // Intentionally blank
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleUpdate={() => { }}
                         loading={isLoading}
                         zIndex={zIndex}
                     />}

@@ -71,6 +71,7 @@ const tabParams: BaseParams[] = [{
 export const MyStuffView = ({
     display = "page",
     onClose,
+    zIndex,
 }: MyStuffViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -225,7 +226,7 @@ export const MyStuffView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                zIndex={200}
+                zIndex={zIndex}
                 where={where}
             />}
             {popupButtonContainer}

@@ -96,6 +96,7 @@ const tabParams = [{
 export const SearchView = ({
     display = "page",
     onClose,
+    zIndex,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -197,7 +198,7 @@ export const SearchView = ({
             <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
-                zIndex={200}
+                zIndex={zIndex + 2}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>
@@ -219,7 +220,7 @@ export const SearchView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                zIndex={200}
+                zIndex={zIndex}
                 where={where}
             />}
             {popupButtonContainer}

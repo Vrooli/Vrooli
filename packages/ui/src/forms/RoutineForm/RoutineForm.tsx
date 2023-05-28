@@ -301,7 +301,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     >
                                         <BuildView
                                             handleCancel={handleGraphClose}
-                                            handleClose={handleGraphClose}
+                                            onClose={handleGraphClose}
                                             handleSubmit={handleGraphSubmit}
                                             isEditing={true}
                                             loading={false}

@@ -1088,7 +1088,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 isOpen={Boolean(openedRoutineList)}
                 language={translationData.language}
-                node={openedRoutineList}
+                node={openedRoutineList as any}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}

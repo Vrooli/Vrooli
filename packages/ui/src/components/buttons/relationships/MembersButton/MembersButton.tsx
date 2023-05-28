@@ -69,7 +69,7 @@ export const MembersButton = ({
         return newIcons as [IconType, IconType, IconType, IconType];
     }, [membersField.value, isEditing, isOpenToNewMembersField.value]);
 
-    if (!isAvailable || (!isEditing && (!Array.isArray(membersField.value) || membersField.value.length == 0))) return null;
+    if (!isAvailable || (!isEditing && (!Array.isArray(membersField.value) || membersField.value.length === 0))) return null;
 
     return (
         <>
@@ -87,6 +87,7 @@ export const MembersButton = ({
                 <MemberManageView
                     onClose={closeDialog}
                     organizationId={idField.value ?? ""}
+                    zIndex={zIndex + 1}
                 />
             </LargeDialog>
             <Stack

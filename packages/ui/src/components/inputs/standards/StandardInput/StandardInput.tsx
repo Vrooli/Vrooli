@@ -55,6 +55,7 @@ export const StandardInput = ({
                     (field.value && <GeneratedInputComponent
                         disabled={true} // Always disabled, since this is a preview
                         fieldData={field.value}
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
                         zIndex={zIndex}
                     />) :
@@ -75,6 +76,7 @@ export const StandardInput = ({
                             inputType={inputType.value}
                             isEditing={true}
                             storageKey={schemaKey}
+                            zIndex={zIndex}
                         />
                     </Box>
             }

@@ -38,6 +38,7 @@ const tabParams = [{
 export const HistoryView = ({
     display = "page",
     onClose,
+    zIndex,
 }: HistoryViewProps) => {
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
 
@@ -63,7 +64,7 @@ export const HistoryView = ({
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={200}
+                zIndex={zIndex}
                 sxs={{
                     search: {
                         marginTop: 2,
