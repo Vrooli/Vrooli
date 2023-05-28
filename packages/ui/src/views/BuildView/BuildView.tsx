@@ -47,10 +47,10 @@ type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 export const BuildView = ({
     display = "dialog",
     handleCancel,
-    handleClose,
     handleSubmit,
     isEditing,
     loading,
+    onClose,
     routineVersion,
     translationData,
     zIndex = 200,
@@ -298,15 +298,15 @@ export const BuildView = ({
     /**
      * If closing with unsaved changes, prompt user to save
      */
-    const onClose = useCallback(() => {
+    const handleClose = useCallback(() => {
         if (isEditing) {
             revertChanges();
         } else {
             keepSearchParams(setLocation, []);
             if (!uuidValidate(id)) window.history.back();
-            else handleClose();
+            else onClose();
         }
-    }, [handleClose, id, isEditing, setLocation, revertChanges]);
+    }, [onClose, id, isEditing, setLocation, revertChanges]);
 
     /**
      * Calculates the new set of links for an routineVersion when a node is 
@@ -1118,7 +1118,7 @@ export const BuildView = ({
                 <IconButton
                     edge="start"
                     aria-label="close"
-                    onClick={onClose}
+                    onClick={handleClose}
                     color="inherit"
                     sx={{
                         position: "absolute",

@@ -14,6 +14,7 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
     meeting {
         attendees {
             id
+            isBot
             name
             handle
         }

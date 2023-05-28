@@ -95,6 +95,7 @@ const tabParams = [{
  */
 export const SearchView = ({
     display = "page",
+    onClose,
 }: SearchViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -114,7 +115,6 @@ export const SearchView = ({
         popupTooltipKey,
         searchType,
         tabs,
-        title,
         where,
     } = useTabs<SearchPageTabOption, { popupTitleKey: CommonKey, popupTooltipKey: CommonKey }>(tabParams, 0);
 
@@ -181,7 +181,7 @@ export const SearchView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: "Search",

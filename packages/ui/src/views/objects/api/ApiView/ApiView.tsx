@@ -19,6 +19,7 @@ import { ApiViewProps } from "../types";
 
 export const ApiView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ApiViewProps) => {
@@ -199,7 +200,7 @@ export const ApiView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Api",
                 }}

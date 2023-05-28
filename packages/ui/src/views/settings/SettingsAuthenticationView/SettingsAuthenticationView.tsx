@@ -21,6 +21,7 @@ import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({
     display = "page",
+    onClose,
 }: SettingsAuthenticationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -78,7 +79,7 @@ export const SettingsAuthenticationView = ({
             />
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Authentication",
                 }}

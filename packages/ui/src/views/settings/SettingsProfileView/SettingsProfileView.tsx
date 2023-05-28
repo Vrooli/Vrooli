@@ -17,6 +17,7 @@ import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
     display = "page",
+    onClose,
 }: SettingsProfileViewProps) => {
     const session = useContext(SessionContext);
 
@@ -27,7 +28,7 @@ export const SettingsProfileView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Profile",
                 }}

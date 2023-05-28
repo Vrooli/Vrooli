@@ -23,6 +23,7 @@ const categoryList = Object.values(AwardCategory);
 
 export const AwardsView = ({
     display = "page",
+    onClose,
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -53,7 +54,7 @@ export const AwardsView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Award",
                     titleVariables: { count: 2 },

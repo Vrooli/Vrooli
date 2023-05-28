@@ -1,4 +1,4 @@
-import { EditIcon, isOfType, OrganizationIcon, ReactionFor, SvgComponent, useLocation, UserIcon, uuid } from "@local/shared";
+import { BotIcon, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, useLocation, User, UserIcon, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -115,7 +115,15 @@ export function ObjectListItemBase<T extends ListObjectType>({
     const leftColumn = useMemo(() => {
         // Show icons for organizations, users, and members
         if (isOfType(object, "Organization", "User", "Member")) {
-            const Icon: SvgComponent = object?.__typename === "Organization" ? OrganizationIcon : UserIcon;
+            console.log("calculating left column", object);
+            let Icon: SvgComponent;
+            if (object.__typename === "Organization") {
+                Icon = OrganizationIcon;
+            } else if ((object as unknown as User).isBot || (object as unknown as Member).user?.isBot) {
+                Icon = BotIcon;
+            } else {
+                Icon = UserIcon;
+            }
             return (
                 <Avatar
                     src="/broken-image.jpg" //TODO

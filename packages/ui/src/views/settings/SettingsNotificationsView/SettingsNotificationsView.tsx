@@ -15,6 +15,7 @@ import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
     display = "page",
+    onClose,
 }: SettingsNotificationsViewProps) => {
 
     const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
@@ -25,7 +26,7 @@ export const SettingsNotificationsView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Notification",
                     titleVariables: { count: 2 },

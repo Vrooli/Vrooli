@@ -26,6 +26,7 @@ const buttonProps = {
 
 export const WelcomeView = ({
     display = "page",
+    onClose,
 }: WelcomeViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -46,7 +47,7 @@ export const WelcomeView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "WelcomeToVrooli",
                 }}

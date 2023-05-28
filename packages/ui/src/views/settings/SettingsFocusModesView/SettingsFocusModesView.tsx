@@ -18,6 +18,7 @@ import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
     display = "page",
+    onClose,
 }: SettingsFocusModesViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -168,7 +169,7 @@ export const SettingsFocusModesView = ({
             </LargeDialog>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "FocusMode",
                     titleVariables: { count: 2 },

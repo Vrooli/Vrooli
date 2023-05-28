@@ -18,6 +18,7 @@ export * from "./AwardIcon";
 export * from "./BoldIcon";
 export * from "./BookmarkFilledIcon";
 export * from "./BookmarkOutlineIcon";
+export * from "./BotIcon";
 export * from "./BranchIcon";
 export * from "./BuildIcon";
 export * from "./BumpMajorIcon";

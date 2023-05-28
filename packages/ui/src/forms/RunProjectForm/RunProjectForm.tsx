@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, RunProject, runProjectValidation, Schedule, Session } from "@local/shared";
+import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, RunProject, runProjectValidation, RunStatus, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -8,6 +8,8 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RunProjectFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
@@ -19,8 +21,15 @@ export const runProjectInitialValues = (
 ): RunProjectShape => ({
     __typename: "RunProject" as const,
     id: DUMMY_ID,
+    completedComplexity: 0,
+    contextSwitches: 0,
+    isPrivate: true,
+    name: existing?.name ?? getDisplay(existing?.projectVersion, getUserLanguages(session)).title ?? "Run",
+    schedule: null,
+    status: RunStatus.Scheduled,
+    steps: [],
+    timeElapsed: 0,
     ...existing,
-    //TODO
 });
 
 export function transformRunProjectValues(values: RunProjectShape, existing?: RunProjectShape) {

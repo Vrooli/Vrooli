@@ -70,6 +70,7 @@ const tabParams: BaseParams[] = [{
 
 export const MyStuffView = ({
     display = "page",
+    onClose,
 }: MyStuffViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -140,7 +141,7 @@ export const MyStuffView = ({
             ...params,
             where: params.where(userId!),
         } as any;
-    }, [currTab.index, currTab.label, t, tabs, userId]);
+    }, [currTab.index, tabs, userId]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
@@ -192,7 +193,7 @@ export const MyStuffView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: "MyStuff",

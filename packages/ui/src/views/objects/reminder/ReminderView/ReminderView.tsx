@@ -11,6 +11,7 @@ import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ReminderViewProps) => {
@@ -73,13 +74,13 @@ export const ReminderView = ({
                 </IconButton>
             </Tooltip>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, profileColors, openMoreMenu]);
+    ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Reminder",
                 }}

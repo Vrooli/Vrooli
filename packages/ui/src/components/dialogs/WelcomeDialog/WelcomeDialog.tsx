@@ -13,7 +13,7 @@ export const WelcomeDialog = ({
             onClose={onClose}
             zIndex={10000}
         >
-            <WelcomeView display="dialog" />
+            <WelcomeView display="dialog" onClose={onClose} />
         </LargeDialog>
-    )
-}
+    );
+};

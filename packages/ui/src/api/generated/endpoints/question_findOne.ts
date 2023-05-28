@@ -63,6 +63,7 @@ query question($input: FindByIdInput!) {
         updated_at
         createdBy {
             id
+            isBot
             name
             handle
         }
@@ -82,6 +83,7 @@ query question($input: FindByIdInput!) {
     updated_at
     createdBy {
         id
+        isBot
         name
         handle
     }

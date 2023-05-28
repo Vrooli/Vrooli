@@ -9,6 +9,7 @@ created_at
 updated_at
 user {
     id
+    isBot
     name
     handle
 }

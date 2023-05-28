@@ -9449,6 +9449,7 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isBot?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   memberInOrganizationId?: InputMaybe<Scalars['ID']>;

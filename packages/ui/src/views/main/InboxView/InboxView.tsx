@@ -39,6 +39,7 @@ type InboxObject = Chat | Notification;
 
 export const InboxView = ({
     display = "page",
+    onClose,
 }: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -160,7 +161,7 @@ export const InboxView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     title,
                 }}

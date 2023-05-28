@@ -30,11 +30,13 @@ mutation transferUpdate($input: TransferUpdateInput!) {
     status
     fromOwner {
         id
+        isBot
         name
         handle
     }
     toOwner {
         id
+        isBot
         name
         handle
     }

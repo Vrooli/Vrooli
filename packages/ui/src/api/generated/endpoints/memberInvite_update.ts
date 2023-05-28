@@ -33,6 +33,7 @@ mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
     }
     user {
         id
+        isBot
         name
         handle
     }

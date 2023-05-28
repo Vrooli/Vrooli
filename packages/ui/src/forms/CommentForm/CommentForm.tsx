@@ -90,6 +90,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={3}
+                        zIndex={zIndex}
                     />
                 </Stack>
                 <GridSubmitButtons

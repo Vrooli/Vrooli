@@ -278,6 +278,7 @@ const DayColumnHeader = ({ label }) => {
 
 export const CalendarView = ({
     display = "page",
+    onClose,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -479,7 +480,7 @@ export const CalendarView = ({
             <TopBar
                 ref={ref}
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{ title: currTab.label }}
                 below={<PageTabs
                     ariaLabel="calendar-tabs"

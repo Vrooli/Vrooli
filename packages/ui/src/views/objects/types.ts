@@ -9,7 +9,7 @@ export interface ViewProps<T> extends BaseViewProps {
     zIndex?: number;
 }
 
-export interface UpsertProps<T> extends BaseViewProps {
+export interface UpsertProps<T> extends Omit<BaseViewProps, "onClose"> {
     isCreate: boolean;
     onCancel?: () => any;
     onCompleted?: (data: T) => any;

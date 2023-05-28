@@ -23,11 +23,13 @@ query issue($input: FindByIdInput!) {
   issue(input: $input) {
     closedBy {
         id
+        isBot
         name
         handle
     }
     createdBy {
         id
+        isBot
         name
         handle
     }

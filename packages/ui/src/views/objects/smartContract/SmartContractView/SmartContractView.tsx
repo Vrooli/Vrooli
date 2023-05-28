@@ -18,6 +18,7 @@ import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: SmartContractViewProps) => {
@@ -176,7 +177,7 @@ export const SmartContractView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "SmartContract",
                 }}

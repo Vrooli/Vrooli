@@ -129,6 +129,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             language={language}
                             minRows={4}
                             name="bio"
+                            zIndex={zIndex}
                         />
                         <br />
                         <TagSelector

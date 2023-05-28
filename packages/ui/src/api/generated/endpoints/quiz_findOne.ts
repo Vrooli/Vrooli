@@ -24,6 +24,7 @@ query quiz($input: FindByIdInput!) {
                     updated_at
                     createdBy {
                         id
+                        isBot
                         name
                         handle
                     }
@@ -53,6 +54,7 @@ query quiz($input: FindByIdInput!) {
                 }
                 user {
                     id
+                    isBot
                     name
                     handle
                 }
@@ -123,6 +125,7 @@ query quiz($input: FindByIdInput!) {
     updated_at
     createdBy {
         id
+        isBot
         name
         handle
     }

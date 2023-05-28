@@ -5,6 +5,7 @@ query chatParticipant($input: FindByIdInput!) {
   chatParticipant(input: $input) {
     user {
         id
+        isBot
         name
         handle
     }

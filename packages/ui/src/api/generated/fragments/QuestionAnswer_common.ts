@@ -4,6 +4,7 @@ created_at
 updated_at
 createdBy {
     id
+    isBot
     name
     handle
 }

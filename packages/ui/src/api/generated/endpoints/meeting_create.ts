@@ -13,6 +13,7 @@ mutation meetingCreate($input: MeetingCreateInput!) {
   meetingCreate(input: $input) {
     attendees {
         id
+        isBot
         name
         handle
     }

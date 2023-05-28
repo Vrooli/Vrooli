@@ -1,5 +1,3 @@
-import { useTheme } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import { ChatView } from "views/ChatView/ChatView";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { AssistantDialogProps } from "../types";
@@ -14,8 +12,6 @@ export const AssistantDialog = ({
     isOpen,
     zIndex,
 }: AssistantDialogProps) => {
-    const theme = useTheme();
-    const { t } = useTranslation();
 
     return (
         <LargeDialog
@@ -25,7 +21,14 @@ export const AssistantDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <ChatView />
+            <ChatView
+                chatId="Valyxa"
+                context={context}
+                display="dialog"
+                onClose={handleClose}
+                task={task}
+                zIndex={zIndex}
+            />
         </LargeDialog>
     );
 };

@@ -240,6 +240,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

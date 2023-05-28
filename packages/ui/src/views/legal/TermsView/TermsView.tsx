@@ -17,6 +17,7 @@ enum TabOptions {
 
 export const TermsView = ({
     display = "page",
+    onClose,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -37,7 +38,7 @@ export const TermsView = ({
     return <>
         <TopBar
             display={display}
-            onClose={() => { }}
+            onClose={onClose}
             titleData={{
                 titleKey: "Terms",
             }}

@@ -94,6 +94,7 @@ export const SearchMap = {
     hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
     ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
+    isBot: (isBot: Maybe<boolean>) => ({ isBot }),
     isComplete: (isComplete: Maybe<boolean>) => ({ isComplete }),
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [

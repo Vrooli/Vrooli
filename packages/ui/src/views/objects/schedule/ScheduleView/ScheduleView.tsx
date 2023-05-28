@@ -11,6 +11,7 @@ import { ScheduleViewProps } from "../types";
 
 export const ScheduleView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ScheduleViewProps) => {
@@ -73,13 +74,13 @@ export const ScheduleView = ({
                 </IconButton>
             </Tooltip>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, profileColors, openMoreMenu]);
+    ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Schedule",
                 }}

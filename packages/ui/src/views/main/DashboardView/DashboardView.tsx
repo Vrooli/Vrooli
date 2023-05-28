@@ -35,6 +35,7 @@ const zIndex = 200;
  */
 export const DashboardView = ({
     display = "page",
+    onClose,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -262,7 +263,7 @@ export const DashboardView = ({
             </LargeDialog>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 // Navigate between for you and history pages
                 below={showTabs && (
                     <PageTabs

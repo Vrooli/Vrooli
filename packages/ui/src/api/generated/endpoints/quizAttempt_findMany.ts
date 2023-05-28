@@ -20,6 +20,7 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
                 updated_at
                 createdBy {
                     id
+                    isBot
                     name
                     handle
                 }
@@ -49,6 +50,7 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
             }
             user {
                 id
+                isBot
                 name
                 handle
             }

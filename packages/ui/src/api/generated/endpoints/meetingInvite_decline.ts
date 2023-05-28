@@ -14,6 +14,7 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
     meeting {
         attendees {
             id
+            isBot
             name
             handle
         }

@@ -319,7 +319,7 @@ const convertProjectVersionToStep = (
 
 export const RunView = ({
     display = "page",
-    handleClose,
+    onClose,
     runnableObject,
     zIndex = 400,
 }: RunViewProps) => {
@@ -744,11 +744,11 @@ export const RunView = ({
                 onSuccess: () => {
                     PubSub.get().publishCelebration();
                     removeSearchParams(setLocation, ["run", "step"]);
-                    handleClose();
+                    onClose();
                 },
             });
         }
-    }, [currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, run, session, setLocation, steps, testMode]);
+    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, session, setLocation, steps, testMode]);
 
     /**
      * End routine after reaching end node using a decision step. 
@@ -768,7 +768,7 @@ export const RunView = ({
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
             removeSearchParams(setLocation, ["run", "step"]);
-            handleClose();
+            onClose();
             return;
         }
         // Log complete. No step data because this function was called from a decision node, 
@@ -786,10 +786,10 @@ export const RunView = ({
             onSuccess: () => {
                 PubSub.get().publishCelebration();
                 removeSearchParams(setLocation, ["run", "step"]);
-                handleClose();
+                onClose();
             },
         });
-    }, [testMode, run, logRunComplete, session, setLocation, handleClose]);
+    }, [testMode, run, logRunComplete, session, setLocation, onClose]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -823,8 +823,8 @@ export const RunView = ({
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
         removeSearchParams(setLocation, ["run", "step"]);
-        handleClose();
-    }, [handleClose, saveProgress, setLocation]);
+        onClose();
+    }, [onClose, saveProgress, setLocation]);
 
     /**
      * Navigate to selected decision

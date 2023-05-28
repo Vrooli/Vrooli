@@ -139,6 +139,7 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                                     background: palette.background.paper,
                                 },
                             }}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     <TagSelector

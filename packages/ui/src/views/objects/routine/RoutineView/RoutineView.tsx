@@ -47,6 +47,7 @@ const statsHelpText =
 
 export const RoutineView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: RoutineViewProps) => {
@@ -198,7 +199,7 @@ export const RoutineView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Routine",
                 }}

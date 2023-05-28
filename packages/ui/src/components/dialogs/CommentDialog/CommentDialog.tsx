@@ -86,6 +86,7 @@ export const CommentDialog = ({
                             background: palette.background.paper,
                         },
                     }}
+                    zIndex={zIndex}
                 />
                 {/* Display parent underneath */}
                 {parent && (

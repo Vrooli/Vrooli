@@ -20,6 +20,7 @@ import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ProjectViewProps) => {
@@ -181,7 +182,7 @@ export const ProjectView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Project",
                 }}

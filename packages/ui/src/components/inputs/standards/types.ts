@@ -11,6 +11,7 @@ export interface BaseStandardInputProps {
     label?: FieldDataBase["label"];
     storageKey: string;
     yup?: FieldData["yup"];
+    zIndex: number;
 }
 
 /**

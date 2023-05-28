@@ -17,6 +17,7 @@ import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({
     display = "page",
+    onClose,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -29,7 +30,7 @@ export const SettingsDisplayView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Display",
                     helpKey: "DisplaySettingsDescription",

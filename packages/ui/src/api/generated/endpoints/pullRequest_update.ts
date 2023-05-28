@@ -16,6 +16,7 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
     status
     createdBy {
         id
+        isBot
         name
         handle
     }

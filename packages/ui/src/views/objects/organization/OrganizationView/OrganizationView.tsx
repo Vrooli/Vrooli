@@ -57,6 +57,7 @@ const tabParams: TabParams[] = [{
 
 export const OrganizationView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: OrganizationViewProps) => {
@@ -290,7 +291,7 @@ export const OrganizationView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Organization",
                 }}

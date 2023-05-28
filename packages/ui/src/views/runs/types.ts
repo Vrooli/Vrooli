@@ -11,7 +11,7 @@ export interface DecisionViewProps extends BaseViewProps {
 }
 
 export interface RunViewProps extends ViewProps<RoutineVersion> {
-    handleClose: () => void;
+    onClose: () => void;
     runnableObject: ProjectVersion | RoutineVersion;
 }
 
@@ -22,7 +22,7 @@ export interface SubroutineViewProps extends BaseViewProps {
     /**
      * Owner of overall routine, not subroutine
      */
-    owner: RoutineVersion['root']['owner'] | null | undefined;
+    owner: RoutineVersion["root"]["owner"] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
     zIndex: number;

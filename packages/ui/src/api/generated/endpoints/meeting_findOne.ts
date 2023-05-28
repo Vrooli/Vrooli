@@ -13,6 +13,7 @@ query meeting($input: FindByIdInput!) {
   meeting(input: $input) {
     attendees {
         id
+        isBot
         name
         handle
     }

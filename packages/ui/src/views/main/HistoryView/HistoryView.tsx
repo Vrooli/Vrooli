@@ -37,6 +37,7 @@ const tabParams = [{
  */
 export const HistoryView = ({
     display = "page",
+    onClose,
 }: HistoryViewProps) => {
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
 
@@ -44,7 +45,7 @@ export const HistoryView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     hideOnDesktop: true,
                     title,

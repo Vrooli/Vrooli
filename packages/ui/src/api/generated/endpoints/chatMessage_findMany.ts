@@ -16,6 +16,7 @@ query chatMessages($input: ChatMessageSearchInput!) {
             updated_at
             user {
                 id
+                isBot
                 name
                 handle
             }

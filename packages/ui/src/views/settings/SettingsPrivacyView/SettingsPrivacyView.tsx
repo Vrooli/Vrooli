@@ -13,6 +13,7 @@ import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({
     display = "page",
+    onClose,
 }: SettingsPrivacyViewProps) => {
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
@@ -22,7 +23,7 @@ export const SettingsPrivacyView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Authentication",
                 }}

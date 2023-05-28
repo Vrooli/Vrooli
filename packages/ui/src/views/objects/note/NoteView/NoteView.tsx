@@ -15,6 +15,7 @@ import { NoteViewProps } from "../types";
 
 export const NoteView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: NoteViewProps) => {
@@ -58,7 +59,7 @@ export const NoteView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Note",
                 }}
@@ -91,6 +92,7 @@ export const NoteView = ({
                             background: palette.background.paper,
                         },
                     }}
+                    zIndex={zIndex}
                 />
             </>
         </>

@@ -240,6 +240,7 @@ query projectVersion($input: FindVersionInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

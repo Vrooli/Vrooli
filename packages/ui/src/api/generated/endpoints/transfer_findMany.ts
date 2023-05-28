@@ -33,11 +33,13 @@ query transfers($input: TransferSearchInput!) {
             status
             fromOwner {
                 id
+                isBot
                 name
                 handle
             }
             toOwner {
                 id
+                isBot
                 name
                 handle
             }

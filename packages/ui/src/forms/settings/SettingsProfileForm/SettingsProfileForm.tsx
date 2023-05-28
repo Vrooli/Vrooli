@@ -22,6 +22,7 @@ export const SettingsProfileForm = ({
     numVerifiedWallets,
     onCancel,
     values,
+    zIndex,
     ...props
 }: SettingsProfileFormProps) => {
     const session = useContext(SessionContext);
@@ -126,6 +127,7 @@ export const SettingsProfileForm = ({
                         language={language}
                         minRows={4}
                         name="bio"
+                        zIndex={zIndex}
                     />
                 </Grid>
             </Grid>

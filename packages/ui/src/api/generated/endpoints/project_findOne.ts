@@ -259,6 +259,7 @@ query project($input: FindByIdOrHandleInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

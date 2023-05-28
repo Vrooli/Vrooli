@@ -259,6 +259,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

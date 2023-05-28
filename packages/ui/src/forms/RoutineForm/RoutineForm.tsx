@@ -237,6 +237,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             language={language}
                             name="instructions"
                             minRows={4}
+                            zIndex={zIndex}
                         />
                         <br />
                         <TagSelector

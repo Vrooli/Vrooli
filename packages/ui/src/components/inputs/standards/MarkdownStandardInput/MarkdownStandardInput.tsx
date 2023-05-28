@@ -8,6 +8,7 @@ import { MarkdownStandardInputProps } from "../types";
  */
 export const MarkdownStandardInput = ({
     isEditing,
+    zIndex,
 }: MarkdownStandardInputProps) => {
     return (
         <Grid container spacing={2}>
@@ -17,6 +18,7 @@ export const MarkdownStandardInput = ({
                     name="defaultValue"
                     placeholder="Default value"
                     minRows={3}
+                    zIndex={zIndex}
                 />
             </Grid>
         </Grid>

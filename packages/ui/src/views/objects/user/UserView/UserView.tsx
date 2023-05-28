@@ -54,6 +54,7 @@ const tabParams: TabParams[] = [{
 
 export const UserView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: UserViewProps) => {
@@ -264,7 +265,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
+    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
 
     /**
      * Opens add new page
@@ -277,7 +278,7 @@ export const UserView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "User",
                 }}

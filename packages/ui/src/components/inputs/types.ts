@@ -180,11 +180,15 @@ export interface LinkInputProps {
 export interface MarkdownInputProps {
     autoFocus?: boolean;
     disabled?: boolean;
+    disableAssistant?: boolean;
+    fullWidth?: boolean;
+    maxRows?: number;
     minRows?: number;
     name: string;
     placeholder?: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
     tabIndex?: number;
+    zIndex: number;
 }
 
 export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
@@ -318,6 +322,7 @@ export interface TranslatedMarkdownInputProps {
     name: string;
     placeholder?: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    zIndex: number;
 }
 
 export interface TranslatedTextFieldProps {

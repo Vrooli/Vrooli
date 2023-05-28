@@ -64,6 +64,7 @@ const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
 export const AboutView = ({
     display = "page",
+    onClose,
 }: AboutViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -72,7 +73,7 @@ export const AboutView = ({
         <Box ml={2} mr={2}>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "AboutUs",
                     hideOnDesktop: true,

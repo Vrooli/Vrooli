@@ -12,6 +12,7 @@ commentsCount
 status
 createdBy {
     id
+    isBot
     name
     handle
 }

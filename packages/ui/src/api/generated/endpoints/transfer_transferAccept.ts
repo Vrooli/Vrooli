@@ -30,11 +30,13 @@ mutation transferAccept($input: FindByIdInput!) {
     status
     fromOwner {
         id
+        isBot
         name
         handle
     }
     toOwner {
         id
+        isBot
         name
         handle
     }

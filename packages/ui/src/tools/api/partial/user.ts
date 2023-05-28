@@ -47,6 +47,7 @@ export const user: GqlPartial<User> = {
     },
     nav: {
         id: true,
+        isBot: true,
         name: true,
         handle: true,
     },

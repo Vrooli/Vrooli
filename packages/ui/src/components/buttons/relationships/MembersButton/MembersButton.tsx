@@ -1,4 +1,4 @@
-import { AddIcon, LockIcon, UserIcon, uuidValidate } from "@local/shared";
+import { AddIcon, BotIcon, LockIcon, User, UserIcon, uuidValidate } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -56,7 +56,7 @@ export const MembersButton = ({
         const hasMoreMembers = (membersField.value ?? []).length > maxUserIcons;
         if (hasMoreMembers) maxUserIcons--;
         // Add the first X members
-        newIcons = (membersField.value ?? []).slice(0, maxUserIcons).map(user => UserIcon); // TODO Replace with User's profile pic in the future
+        newIcons = (membersField.value ?? []).slice(0, maxUserIcons).map((user: User) => user.isBot ? BotIcon : UserIcon); // TODO Replace with User's profile pic in the future
         // Add the "+X" icon if there are more members than allowed
         if (hasMoreMembers) newIcons.push(`+${membersField.value.length - maxUserIcons}`);
         // Add the "Add" or "Lock" icon if editing

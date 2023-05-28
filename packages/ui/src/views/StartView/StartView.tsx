@@ -33,6 +33,7 @@ const emailTitleId = "email-login-dialog-title";
 
 export const StartView = ({
     display = "page",
+    onClose,
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -184,7 +185,7 @@ export const StartView = ({
             {/* App bar */}
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Start",
                 }}

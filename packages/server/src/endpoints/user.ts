@@ -197,6 +197,7 @@ export const typeDef = gql`
         minBookmarks: Int
         minViews: Int
         ids: [ID!]
+        isBot: Boolean
         sortBy: UserSortBy
         searchString: String
         createdTimeFrame: TimeFrame
