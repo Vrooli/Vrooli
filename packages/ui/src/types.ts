@@ -89,11 +89,11 @@ export type AwardDisplay = {
  * input objects for the GraphQL API.
  */
 export type ShapeModel<
-    T extends {},
-    TCreate extends {} | null,
-    TUpdate extends {} | null
-> = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? {} : {
+    T extends object,
+    TCreate extends object | null,
+    TUpdate extends object | null
+> = (TCreate extends null ? object : { create: (item: T) => TCreate }) &
+    (TUpdate extends null ? object : {
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
@@ -127,6 +127,7 @@ export interface RoutineListStep extends BaseStep {
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
+// Project-related props
 export interface DirectoryStep extends BaseStep {
     /**
      * Directory's ID if object was created from a directory

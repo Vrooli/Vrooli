@@ -107,12 +107,12 @@ const locationFromRoutineId = (routineId: string, step: RoutineStep | null, loca
  * Uses a location array to find the step at a given location 
  * NOTE: Must have been queried already
  * @param locationArray Array of step numbers that describes nesting of requested step
- * @param steps RoutineStep for the overall routine being run
- * @returns RoutineStep for the requested step, or null if not found
+ * @param steps ProjectStep for the overall project or routine being run
+ * @returns ProjectStep for the requested step, or null if not found
  */
-const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): RoutineStep | null => {
+const stepFromLocation = (locationArray: number[], steps: ProjectStep | null): ProjectStep | null => {
     if (!steps) return null;
-    let currNestedSteps: RoutineStep | null = steps;
+    let currNestedSteps: ProjectStep | null = steps;
     // If array too large, probably an error
     if (locationArray.length > MAX_NESTING) {
         console.error(`Location array too large in findStep: ${locationArray}`);
@@ -120,27 +120,40 @@ const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): R
     }
     // Loop through location array
     for (let i = 0; i < locationArray.length; i++) {
-        // Can only continue if end not reached and step is a routine list (no other step type has substeps)
-        if (currNestedSteps !== null && currNestedSteps.type === RoutineStepType.RoutineList) {
-            currNestedSteps = currNestedSteps.steps.length > Math.max(locationArray[i] - 1, 0) ? currNestedSteps.steps[Math.max(locationArray[i] - 1, 0)] : null;
+        // Can only continue if end not reached and step is a routine list or directory (no other step type has substeps)
+        if (
+            currNestedSteps !== null &&
+            (currNestedSteps.type === RoutineStepType.RoutineList || currNestedSteps.type === ProjectStepType.Directory)
+        ) {
+            currNestedSteps =
+                currNestedSteps.steps.length > Math.max(locationArray[i] - 1, 0)
+                    ? currNestedSteps.steps[Math.max(locationArray[i] - 1, 0)]
+                    : null;
         }
     }
     return currNestedSteps;
 };
 
 /**
- * Determines if a subroutine step needs additional queries, or if it already 
+ * Determines if a step (either subroutine or directory) needs additional queries, or if it already 
  * has enough data to render
- * @param step The subroutine step to check
- * @returns True if the subroutine step needs additional queries, false otherwise
+ * @param step The step to check
+ * @returns True if the step needs additional queries, false otherwise
  */
-const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
-    // Check for valid parameters
-    if (!step || step.type !== RoutineStepType.Subroutine) return false;
-    const currSubroutine: Partial<RoutineVersion> = (step as SubroutineStep).routineVersion;
-    // If routine has its own subrotines, then it needs querying (since it would be a RoutineList 
-    // if it was loaded)
-    return routineVersionHasSubroutines(currSubroutine);
+const stepNeedsQuerying = (step: ProjectStep | null | undefined): boolean => {
+    if (!step) return false;
+    // Handle SubroutineStep
+    if (step.type === RoutineStepType.Subroutine) {
+        const currSubroutine: Partial<RoutineVersion> = (step as SubroutineStep).routineVersion;
+        return routineVersionHasSubroutines(currSubroutine);
+    }
+    // Handle DirectoryStep
+    if (step.type === ProjectStepType.Directory) {
+        const currDirectory: Partial<DirectoryStep> = step as DirectoryStep;
+        // If DirectoryStep has its own substeps, then it needs querying
+        return Boolean(currDirectory.steps && currDirectory.steps.length > 0);
+    }
+    return false;
 };
 
 /**
@@ -415,16 +428,28 @@ export const RunView = ({
         if (!currStepLocation || !steps) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
         // If it doesn't exist, return -1;
-        let currNestedSteps: RoutineStep = steps;
+        let currNestedSteps: RoutineStep | DirectoryStep = steps;
         for (let i = 0; i < currStepLocation.length - 1; i++) {
             if (currNestedSteps.type === RoutineStepType.RoutineList) {
                 const currStepNum = Math.max(0, currStepLocation[i] - 1);
                 const curr = currNestedSteps.steps.length > currStepNum ? currNestedSteps.steps[currStepNum] : null;
-                if (curr) currNestedSteps = curr;
+                if (curr && "type" in curr) currNestedSteps = curr;
+            } else if (currNestedSteps.type === ProjectStepType.Directory) {
+                const currStepNum = Math.max(0, currStepLocation[i] - 1);
+                const curr = currNestedSteps.steps.length > currStepNum ? currNestedSteps.steps[currStepNum] : null;
+                if (curr && "type" in curr) currNestedSteps = curr;
             }
         }
-        return currNestedSteps.type === RoutineStepType.RoutineList ? (currNestedSteps as RoutineListStep).steps.length : -1;
+        // Return number of steps in current node
+        if (currNestedSteps.type === RoutineStepType.RoutineList) {
+            return (currNestedSteps as RoutineListStep).steps.length;
+        } else if (currNestedSteps.type === ProjectStepType.Directory) {
+            return (currNestedSteps as DirectoryStep).steps.length;
+        } else {
+            return -1;
+        }
     }, [currStepLocation, steps]);
+
 
     /**
      * Current step run data
@@ -442,15 +467,17 @@ export const RunView = ({
         currUserInputs.current = inputs;
     }, []);
     useEffect(() => {
-        if (!run?.inputs || !Array.isArray(run?.inputs)) return;
         const inputs: { [inputId: string]: string } = {};
-        for (const input of run.inputs) {
-            inputs[input.input.id] = input.data;
+        // Only set inputs for RunRoutine
+        if (run && run.__typename === "RunRoutine" && Array.isArray(run.inputs)) {
+            for (const input of run.inputs) {
+                inputs[input.input.id] = input.data;
+            }
         }
         if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
             handleUserInputsUpdate(inputs);
         }
-    }, [run?.inputs, handleUserInputsUpdate]);
+    }, [run, handleUserInputsUpdate]);
 
     // Track user behavior during step (time elapsed, context switches)
     /**
@@ -488,7 +515,7 @@ export const RunView = ({
     /**
      * Calculates the percentage of routine completed so far, measured in complexity / total complexity * 100
      */
-    const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, routineVersion.complexity), [completedComplexity, routineVersion]);
+    const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, (run as RunProject)?.projectVersion?.complexity ?? (run as RunRoutine)?.routineVersion?.complexity), [completedComplexity, run]);
 
     // Query current subroutine, if needed. Main routine may have the data
     const [getSubroutine, { data: subroutine, loading: subroutineLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindMany, { errorPolicy: "all" });
@@ -531,7 +558,7 @@ export const RunView = ({
             return;
         }
         // If current step is a subroutine, then query if not all data is available
-        if (subroutineNeedsQuerying(currStep)) {
+        if (stepNeedsQuerying(currStep)) {
             console.log("find step 8", currStep);
             getSubroutine({ variables: { id: (currStep as SubroutineStep).routineVersion.id } });
         } else {
