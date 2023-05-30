@@ -5,6 +5,7 @@ mutation chatParticipantUpdate($input: ChatParticipantUpdateInput!) {
   chatParticipantUpdate(input: $input) {
     user {
         id
+        isBot
         name
         handle
     }

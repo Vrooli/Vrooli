@@ -2,7 +2,8 @@ import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation
 import { ShapeModel } from "types";
 import { ResourceListShape } from "./resourceList";
 import { StandardShape } from "./standard";
-import { createPrims, shapeUpdate, updatePrims } from "./tools";
+import { createPrims, shapeUpdate } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "id" | "language" | "description" | "jsonVariable" | "name"> & {
     __typename?: "StandardVersionTranslation";
@@ -18,7 +19,7 @@ export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "
 
 export const shapeStandardVersionTranslation: ShapeModel<StandardVersionTranslationShape, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "jsonVariable", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "jsonVariable", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "jsonVariable", "name"), a),
 };
 
 export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVersionCreateInput, StandardVersionUpdateInput> = {

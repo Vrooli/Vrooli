@@ -13,9 +13,9 @@ export const LINKS = {
     ForgotPassword: "/forgot-password",
     History: "/history",
     Home: "/", // Main dashboard for logged in users
+    Inbox: "/inbox",
     MyStuff: "/my",
     Note: "/note",
-    Notifications: "/inbox",
     Organization: "/org",
     Premium: "/premium",
     Privacy: "/privacy", // Privacy policy

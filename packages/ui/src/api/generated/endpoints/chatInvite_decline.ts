@@ -12,6 +12,7 @@ mutation chatInviteDecline($input: FindByIdInput!) {
     chat {
         participants {
             id
+            isBot
             name
             handle
         }
@@ -26,6 +27,7 @@ mutation chatInviteDecline($input: FindByIdInput!) {
             updated_at
             user {
                 id
+                isBot
                 name
                 handle
             }

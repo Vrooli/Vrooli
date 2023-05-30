@@ -38,6 +38,7 @@ const containerProps = (palette: Palette) => ({
 
 export const StandardView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: StandardViewProps) => {
@@ -86,7 +87,7 @@ export const StandardView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Standard",
                 }}

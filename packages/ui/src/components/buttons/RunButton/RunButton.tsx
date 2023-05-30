@@ -97,7 +97,7 @@ export const RunButton = ({
                 messageKey: "RunInvalidRoutineConfirm",
                 buttons: [
                     { labelKey: "Yes", onClick: () => { startRun(e); } },
-                    { labelKey: "Cancel", onClick: () => { } },
+                    { labelKey: "Cancel" },
                 ],
             });
         }
@@ -130,7 +130,7 @@ export const RunButton = ({
                 zIndex={zIndex + 3}
             >
                 {runnableObject && <RunView
-                    handleClose={runStop}
+                    onClose={runStop}
                     runnableObject={runnableObject}
                     zIndex={zIndex + 3}
                 />}

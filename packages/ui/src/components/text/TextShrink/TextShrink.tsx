@@ -64,6 +64,7 @@ export const TextShrink = ({
             id={id}
             sx={{
                 ...(props.sx ?? {}),
+                color: "inherit",
                 overflow: "visible",
                 textOverflow: "unset",
                 whiteSpace: "nowrap",

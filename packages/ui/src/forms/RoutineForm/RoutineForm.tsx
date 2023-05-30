@@ -115,8 +115,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    console.log("valuesssssss", values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)));
-
     const [idField] = useField<string>("id");
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
     const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");
@@ -237,6 +235,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             language={language}
                             name="instructions"
                             minRows={4}
+                            zIndex={zIndex}
                         />
                         <br />
                         <TagSelector
@@ -300,7 +299,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     >
                                         <BuildView
                                             handleCancel={handleGraphClose}
-                                            handleClose={handleGraphClose}
+                                            onClose={handleGraphClose}
                                             handleSubmit={handleGraphSubmit}
                                             isEditing={true}
                                             loading={false}

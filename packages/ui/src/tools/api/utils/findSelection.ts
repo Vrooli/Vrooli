@@ -10,21 +10,21 @@ import { GqlPartial } from "../types";
  */
 export const findSelection = (
     obj: GqlPartial<any>,
-    selection: 'common' | 'list' | 'full' | 'nav',
-): 'common' | 'list' | 'full' | 'nav' => {
-    let result: 'common' | 'full' | 'list' | 'nav' | undefined;
+    selection: "common" | "list" | "full" | "nav",
+): "common" | "list" | "full" | "nav" => {
+    let result: "common" | "full" | "list" | "nav" | undefined;
     // Common prefers common -> list -> full -> nav
-    if (selection === 'common')
-        result = exists(obj.common) ? 'common' : exists(obj.list) ? 'list' : exists(obj.full) ? 'full' : exists(obj.nav) ? 'nav' : undefined;
+    if (selection === "common")
+        result = exists(obj.common) ? "common" : exists(obj.list) ? "list" : exists(obj.full) ? "full" : exists(obj.nav) ? "nav" : undefined;
     // List prefers list -> common -> full -> nav
-    else if (selection === 'list')
-        result = exists(obj.list) ? 'list' : exists(obj['common']) ? 'common' : exists(obj.full) ? 'full' : exists(obj.nav) ? 'nav' : undefined;
+    else if (selection === "list")
+        result = exists(obj.list) ? "list" : exists(obj["common"]) ? "common" : exists(obj.full) ? "full" : exists(obj.nav) ? "nav" : undefined;
     // Full prefers full -> list -> common -> nav
-    else if (selection === 'full')
-        result = exists(obj.full) ? 'full' : exists(obj.list) ? 'list' : exists(obj['common']) ? 'common' : exists(obj.nav) ? 'nav' : undefined;
+    else if (selection === "full")
+        result = exists(obj.full) ? "full" : exists(obj.list) ? "list" : exists(obj["common"]) ? "common" : exists(obj.nav) ? "nav" : undefined;
     // Nav prefers nav -> common -> list -> full
-    else if (selection === 'nav')
-        result = exists(obj.nav) ? 'nav' : exists(obj['common']) ? 'common' : exists(obj.list) ? 'list' : exists(obj.full) ? 'full' : undefined;
+    else if (selection === "nav")
+        result = exists(obj.nav) ? "nav" : exists(obj["common"]) ? "common" : exists(obj.list) ? "list" : exists(obj.full) ? "full" : undefined;
     // If result is undefined, throw an error
     if (!exists(result)) {
         throw new Error(`Could not determine actual selection type for '${obj.__typename}' '${selection}'`);
@@ -34,4 +34,4 @@ export const findSelection = (
         console.warn(`Specified selection type '${selection}' for '${obj.__typename}' does not exist. Using '${result}' instead.`);
     }
     return result;
-}
+};

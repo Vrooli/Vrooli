@@ -300,13 +300,25 @@ export const endpoints = {
     projectOrOrganization: async () => {
         const { projectOrOrganization: projectOrOrganizationPartial } = await import("./partial/projectOrOrganization");
         return {
-            findMany: toQuery("projectOrOrganizations", "ProjectOrOrganizationSearchInput", ...(await toSearch(projectOrOrganizationPartial))),
+            findMany: toQuery("projectOrOrganizations", "ProjectOrOrganizationSearchInput", ...(await toSearch(projectOrOrganizationPartial, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorProject: true,
+                    endCursorOrganization: true,
+                },
+            }))),
         };
     },
     projectOrRoutine: async () => {
         const { projectOrRoutine: projectOrRoutinePartial } = await import("./partial/projectOrRoutine");
         return {
-            findMany: toQuery("projectOrRoutines", "ProjectOrRoutineSearchInput", ...(await toSearch(projectOrRoutinePartial))),
+            findMany: toQuery("projectOrRoutines", "ProjectOrRoutineSearchInput", ...(await toSearch(projectOrRoutinePartial, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorProject: true,
+                    endCursorRoutine: true,
+                },
+            }))),
         };
     },
     projectVersion: async () => {
@@ -316,6 +328,12 @@ export const endpoints = {
             findMany: toQuery("projectVersions", "ProjectVersionSearchInput", ...(await toSearch(projectVersionPartial))),
             create: toMutation("projectVersionCreate", "ProjectVersionCreateInput", projectVersionPartial, "full"),
             update: toMutation("projectVersionUpdate", "ProjectVersionUpdateInput", projectVersionPartial, "full"),
+        };
+    },
+    projectVersionDirectory: async () => {
+        const { projectVersionDirectory: projectVersionDirectoryPartial } = await import("./partial/projectVersionDirectory");
+        return {
+            findMany: toQuery("projectVersionDirectories", "ProjectVersionDirectorySearchInput", ...(await toSearch(projectVersionDirectoryPartial))),
         };
     },
     pullRequest: async () => {
@@ -502,7 +520,13 @@ export const endpoints = {
     runProjectOrRunRoutine: async () => {
         const { runProjectOrRunRoutine: runProjectOrRunRoutinePartial } = await import("./partial/runProjectOrRunRoutine");
         return {
-            findMany: toQuery("runProjectOrRunRoutines", "RunProjectOrRunRoutineSearchInput", ...(await toSearch(runProjectOrRunRoutinePartial))),
+            findMany: toQuery("runProjectOrRunRoutines", "RunProjectOrRunRoutineSearchInput", ...(await toSearch(runProjectOrRunRoutinePartial, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorRunProject: true,
+                    endCursorRunRoutine: true,
+                },
+            }))),
         };
     },
     runRoutine: async () => {

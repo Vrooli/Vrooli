@@ -6,7 +6,11 @@ export const MarkdownInput = ({
     name,
     ...props
 }: MarkdownInputProps) => {
-    const [field, meta] = useField(name);
+    const [field, meta, helpers] = useField(name);
+
+    const handleChange = (value) => {
+        helpers.setValue(value);
+    };
 
     return (
         <MarkdownInputBase
@@ -16,7 +20,7 @@ export const MarkdownInput = ({
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error}
             onBlur={field.onBlur}
-            onChange={field.onChange}
+            onChange={handleChange}
         />
     );
 };

@@ -1,4 +1,5 @@
-import { Card, CardContent, LinearProgress, Typography, useTheme } from "@mui/material";
+import { Card, CardContent, Typography, useTheme } from "@mui/material";
+import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { useMemo } from "react";
 import { AwardCardProps } from "../types";
 
@@ -30,6 +31,10 @@ export const AwardCard = ({
         return Math.round((award.progress / level) * 100);
     }, [award.progress, level]);
 
+    const isAlmostThere = useMemo(() => {
+        return percentage > 90 && percentage < 100 || level - award.progress === 1;
+    }, [percentage, award.progress, level]);
+
     return (
         <Card sx={{
             width: "100%",
@@ -60,23 +65,29 @@ export const AwardCard = ({
                 >{description}</Typography>
                 {/* Display progress */}
                 {percentage >= 0 && <>
-                    <LinearProgress
-                        variant="determinate"
+                    <CompletionBar
+                        showLabel={false}
                         value={percentage}
-                        sx={{
-                            margin: 2,
-                            marginBottom: 1,
-                            height: "12px",
-                            borderRadius: "12px",
-                        }}
                     />
                     <Typography
                         variant="body2"
                         component="p"
                         textAlign="center"
+                        mt={1}
                     >
                         {award.progress} / {level} ({percentage}%)
                     </Typography>
+                    {isAlmostThere &&
+                        <Typography
+                            variant="body2"
+                            component="p"
+                            textAlign="center"
+                            mt={1}
+                            style={{ fontStyle: "italic" }}
+                        >
+                            Almost there!
+                        </Typography>
+                    }
                 </>}
             </CardContent>
         </Card>

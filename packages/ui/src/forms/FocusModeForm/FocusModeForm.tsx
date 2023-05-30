@@ -40,7 +40,6 @@ export const focusModeInitialValues = (
 });
 
 export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
-    console.log("transformFocusModeValues", values, shapeFocusMode.create(values));
     return existing === undefined
         ? shapeFocusMode.create(values)
         : shapeFocusMode.update(existing, values);

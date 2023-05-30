@@ -47,10 +47,10 @@ type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 export const BuildView = ({
     display = "dialog",
     handleCancel,
-    handleClose,
     handleSubmit,
     isEditing,
     loading,
+    onClose,
     routineVersion,
     translationData,
     zIndex = 200,
@@ -83,7 +83,6 @@ export const BuildView = ({
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("undoing");
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -95,7 +94,6 @@ export const BuildView = ({
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("redoing");
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -110,7 +108,6 @@ export const BuildView = ({
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("adding to change stack", changedRoutine);
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -298,15 +295,15 @@ export const BuildView = ({
     /**
      * If closing with unsaved changes, prompt user to save
      */
-    const onClose = useCallback(() => {
+    const handleClose = useCallback(() => {
         if (isEditing) {
             revertChanges();
         } else {
             keepSearchParams(setLocation, []);
             if (!uuidValidate(id)) window.history.back();
-            else handleClose();
+            else onClose();
         }
-    }, [handleClose, id, isEditing, setLocation, revertChanges]);
+    }, [onClose, id, isEditing, setLocation, revertChanges]);
 
     /**
      * Calculates the new set of links for an routineVersion when a node is 
@@ -1088,7 +1085,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 isOpen={Boolean(openedRoutineList)}
                 language={translationData.language}
-                node={openedRoutineList}
+                node={openedRoutineList as any}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}
@@ -1118,7 +1115,7 @@ export const BuildView = ({
                 <IconButton
                     edge="start"
                     aria-label="close"
-                    onClick={onClose}
+                    onClick={handleClose}
                     color="inherit"
                     sx={{
                         position: "absolute",

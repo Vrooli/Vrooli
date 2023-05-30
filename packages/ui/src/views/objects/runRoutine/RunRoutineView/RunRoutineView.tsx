@@ -11,6 +11,7 @@ import { RunRoutineViewProps } from "../types";
 
 export const RunRoutineView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: RunRoutineViewProps) => {
@@ -40,7 +41,7 @@ export const RunRoutineView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Run",
                     titleVariables: { count: 1 },

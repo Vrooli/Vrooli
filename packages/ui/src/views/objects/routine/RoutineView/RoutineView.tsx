@@ -19,6 +19,7 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -46,6 +47,7 @@ const statsHelpText =
 
 export const RoutineView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: RoutineViewProps) => {
@@ -178,8 +180,6 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    console.log("formik values", formik.values);
-
     const comments = useMemo(() => (
         <Box sx={containerProps(palette)}>
             <CommentContainer
@@ -197,7 +197,7 @@ export const RoutineView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Routine",
                 }}
@@ -226,8 +226,10 @@ export const RoutineView = ({
                     >
                         <BuildView
                             handleCancel={stopBuild}
-                            handleClose={stopBuild}
-                            handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
+                            onClose={stopBuild}
+                            // Intentionally blank, since this is a read-only view
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
+                            handleSubmit={() => { }}
                             isEditing={false}
                             loading={isLoading}
                             routineVersion={existing}
@@ -235,7 +237,9 @@ export const RoutineView = ({
                                 language,
                                 languages: availableLanguages,
                                 setLanguage,
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleAddLanguage: () => { },
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleDeleteLanguage: () => { },
                             }}
                             zIndex={zIndex + 1}
@@ -258,10 +262,10 @@ export const RoutineView = ({
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        title={"Resources"}
                         list={resourceList as ResourceList}
                         canUpdate={false}
-                        handleUpdate={() => { }} // Intentionally blank
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleUpdate={() => { }}
                         loading={isLoading}
                         zIndex={zIndex}
                     />}
@@ -273,9 +277,9 @@ export const RoutineView = ({
                         <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
-                    {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
+                    {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
-                            isOpen={false}
+                            isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
@@ -299,7 +303,15 @@ export const RoutineView = ({
                         </ContentCollapse>
                     </Box>}
                     {/* "View Graph" button if this is a multi-step routine */}
-                    {existing?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+                    {
+                        existing?.nodes?.length ? <Box>
+                            <Subheader
+                                title={"This is a multi-step routine."}
+                                help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                            />
+                            <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                        </Box> : null
+                    }
                     {/* Tags */}
                     {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}

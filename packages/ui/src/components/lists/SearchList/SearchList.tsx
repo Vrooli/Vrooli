@@ -15,8 +15,9 @@ import { openObject } from "utils/navigation/openObject";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
-    canNavigate = true,
-    canSearch = true,
+    canNavigate = () => true,
+    canSearch = () => true,
+    dummyLength = 5,
     handleAdd,
     hideUpdateButton,
     id,
@@ -60,18 +61,18 @@ export function SearchList<DataType extends NavigableObject>({
 
     const listItems = useMemo(() => listToListItems({
         canNavigate,
-        dummyItems: new Array(5).fill(searchType),
+        dummyItems: new Array(dummyLength).fill(searchType),
         hideUpdateButton,
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: `${searchType}-list-item`,
         loading,
         onClick: onItemClick,
         zIndex,
-    }), [canNavigate, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex]);
+    }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
-    const handleScroll = useCallback(() => { //TODO THIS DOESN"T WORK YET
+    const handleScroll = useCallback(() => {
         const scrolledY = window.scrollY;
         const windowHeight = window.innerHeight;
         if (!loading && scrolledY > windowHeight - 500) {

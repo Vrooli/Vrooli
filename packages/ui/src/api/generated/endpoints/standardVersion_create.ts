@@ -26,6 +26,7 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

@@ -1,6 +1,6 @@
 import { BookmarkFor, CommonKey, DotNotation, exists, GqlModelType, isOfType } from "@local/shared";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
-import { SearchListGenerator } from "components/lists/types";
+import { ActionsType, ListActions, SearchListGenerator } from "components/lists/types";
 import { AutocompleteOption, NavigableObject } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 import { valueFromDot } from "utils/shape/general";
@@ -277,9 +277,10 @@ export const getDisplay = (
         const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
+        const { subtitle: routineVersionSubtitle } = getDisplay(routineVersion!, langs);
         return {
-            title: started ? `${title} (started)` : title,
-            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+            title,
+            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (routineVersionSubtitle ? " | " + routineVersionSubtitle : ""),
         };
     }
     // If a run project, use the project version's display and the startedAt/completedAt date
@@ -288,9 +289,10 @@ export const getDisplay = (
         const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
+        const { subtitle: projectVersionSubtitle } = getDisplay(projectVersion!, langs);
         return {
-            title: started ? `${title} (started)` : title,
-            subtitle: started ? "Started: " + started : completed ? "Completed: " + completed : "",
+            title,
+            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
         };
     }
     // If a member, use the user's display
@@ -362,7 +364,8 @@ export function listToAutocomplete(
     }));
 }
 
-export interface ListToListItemProps {
+
+export type ListToListItemProps<T extends keyof ListActions | undefined> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -390,13 +393,13 @@ export interface ListToListItemProps {
     loading: boolean,
     onClick?: (item: NavigableObject) => void,
     zIndex: number,
-}
+} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : {});
 
 /**
  * Converts a list of objects to a list of ListItems
  * @returns A list of ListItems
  */
-export function listToListItems({
+export function listToListItems<T extends keyof ListActions | undefined>({
     canNavigate,
     dummyItems,
     keyPrefix,
@@ -405,7 +408,7 @@ export function listToListItems({
     loading,
     onClick,
     zIndex,
-}: ListToListItemProps): JSX.Element[] {
+}: ListToListItemProps<T>): JSX.Element[] {
     const listItems: JSX.Element[] = [];
     // If loading, display dummy items
     if (loading) {

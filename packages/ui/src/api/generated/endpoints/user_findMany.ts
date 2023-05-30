@@ -14,6 +14,7 @@ query users($input: UserSearchInput!) {
             id
             created_at
             handle
+            isBot
             name
             bookmarks
             reportsReceivedCount

@@ -85,7 +85,7 @@ export const ResourceListVertical = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { console.log("open dialog"); setIsDialogOpen(true); }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);

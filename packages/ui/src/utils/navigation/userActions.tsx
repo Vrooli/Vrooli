@@ -46,7 +46,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     if (isLoggedIn) {
         actions.push(
             ["Create", ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ["Inbox", ACTION_TAGS.Inbox, LINKS.Notifications, NotificationsAllIcon, 0],
+            ["Inbox", ACTION_TAGS.Inbox, LINKS.Inbox, NotificationsAllIcon, 0],
             ["MyStuff", ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         );
     }

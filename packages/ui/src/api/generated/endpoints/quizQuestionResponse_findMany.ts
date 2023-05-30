@@ -25,6 +25,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                     updated_at
                     createdBy {
                         id
+                        isBot
                         name
                         handle
                     }
@@ -54,6 +55,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                 }
                 user {
                     id
+                    isBot
                     name
                     handle
                 }

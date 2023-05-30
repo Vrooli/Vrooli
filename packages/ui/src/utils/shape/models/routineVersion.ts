@@ -7,6 +7,7 @@ import { RoutineShape, shapeRoutine } from "./routine";
 import { RoutineVersionInputShape, shapeRoutineVersionInput } from "./routineVersionInput";
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "./routineVersionOutput";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id" | "language" | "description" | "instructions" | "name"> & {
     __typename?: "RoutineVersionTranslation";
@@ -29,7 +30,7 @@ export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | 
 
 export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslationShape, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "instructions", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "instructions", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "instructions", "name"), a),
 };
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {

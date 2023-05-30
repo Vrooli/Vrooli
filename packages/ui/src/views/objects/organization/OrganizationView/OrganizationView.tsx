@@ -1,5 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -13,6 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
+import Markdown from "markdown-to-jsx";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
@@ -30,7 +31,7 @@ enum TabOptions {
 }
 
 type TabParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: TabOptions;
     where: { [x: string]: any };
@@ -56,6 +57,7 @@ const tabParams: TabParams[] = [{
 
 export const OrganizationView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: OrganizationViewProps) => {
@@ -162,28 +164,27 @@ export const OrganizationView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
+            <Avatar
+                src="/broken-image.jpg" //TODO
                 sx={{
-                    border: "1px solid black",
                     backgroundColor: profileColors[0],
+                    color: profileColors[1],
+                    boxShadow: 2,
                     transform: "translateX(-50%)",
+                    width: "min(100px, 25vw)",
+                    height: "min(100px, 25vw)",
+                    left: "50%",
+                    top: "-55px",
+                    position: "absolute",
+                    fontSize: "min(50px, 10vw)",
                 }}
             >
-                <OrganizationIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
+                <OrganizationIcon fill="white" width='75%' height='75%' />
+            </Avatar>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -252,7 +253,7 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Typography>
+                        <Markdown variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Markdown>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -290,7 +291,7 @@ export const OrganizationView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Organization",
                 }}
@@ -317,12 +318,12 @@ export const OrganizationView = ({
                     right: 8,
                     paddingRight: "1em",
                 }}>
-                    <SelectLanguageMenu
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
                         zIndex={zIndex}
-                    />
+                    />}
                 </Box>
                 {overviewComponent}
             </Box>
@@ -338,7 +339,8 @@ export const OrganizationView = ({
                     {
                         currTab.value === TabOptions.Resource ? resources : (
                             <SearchList
-                                canSearch={uuidValidate(organization?.id)}
+                                canSearch={() => uuidValidate(organization?.id)}
+                                dummyLength={display === "page" ? 5 : 3}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="organization-view-list"

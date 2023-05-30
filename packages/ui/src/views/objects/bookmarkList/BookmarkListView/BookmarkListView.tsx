@@ -15,6 +15,7 @@ import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: BookmarkListViewProps) => {
@@ -58,7 +59,7 @@ export const BookmarkListView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "BookmarkList",
                     titleVariables: { count: 1 },

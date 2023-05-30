@@ -3,19 +3,19 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ViewDisplayType } from "views/types";
 
 interface Props {
-    display?: ViewDisplayType;
-    title: string;
     autocomplete?: string;
     children: JSX.Element;
+    display?: ViewDisplayType;
     maxWidth?: string | number;
+    title: string;
 }
 
 export const FormView = ({
-    display = "page",
-    title,
     autocomplete = "on",
     children,
+    display = "page",
     maxWidth = "90%",
+    title,
 }: Props) => {
     const { palette } = useTheme();
 

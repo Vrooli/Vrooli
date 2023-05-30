@@ -292,12 +292,13 @@ export type Validator<
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
-    permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }: {
+    permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }: {
         data: Model["PrismaModel"],
         isAdmin: boolean,
         isDeleted: boolean,
         isLoggedIn: boolean,
         isPublic: boolean,
+        userId: string | null | undefined,
     }) => { [x in keyof Omit<Model["GqlPermission"], "type">]: () => any } & { [x in Exclude<QueryAction, "Create"> as `can${x}`]: () => boolean | Promise<boolean> };
     /**
      * Partial queries for various visibility checks

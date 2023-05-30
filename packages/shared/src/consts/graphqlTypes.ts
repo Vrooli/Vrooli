@@ -305,7 +305,7 @@ export type ApiVersionTranslationCreateInput = {
 export type ApiVersionTranslationUpdateInput = {
   details?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
   summary?: InputMaybe<Scalars['String']>;
 };
@@ -563,7 +563,7 @@ export type Chat = {
   messages: Array<ChatMessage>;
   openToAnyoneWithInvite: Scalars['Boolean'];
   organization?: Maybe<Organization>;
-  participants: Array<User>;
+  participants: Array<ChatParticipant>;
   participantsCount: Scalars['Int'];
   restrictedToRoles: Array<Role>;
   translations: Array<ChatTranslation>;
@@ -731,7 +731,7 @@ export type ChatMessageTranslationCreateInput = {
 
 export type ChatMessageTranslationUpdateInput = {
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -853,7 +853,7 @@ export type ChatTranslationCreateInput = {
 export type ChatTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -877,6 +877,7 @@ export type ChatYou = {
   __typename: 'ChatYou';
   canDelete: Scalars['Boolean'];
   canInvite: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
 };
 
@@ -985,7 +986,7 @@ export type CommentTranslationCreateInput = {
 
 export type CommentTranslationUpdateInput = {
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -1516,7 +1517,7 @@ export type IssueTranslationCreateInput = {
 export type IssueTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -1633,7 +1634,7 @@ export type LabelTranslationCreateInput = {
 export type LabelTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type LabelUpdateInput = {
@@ -1840,7 +1841,7 @@ export type MeetingTranslationCreateInput = {
 export type MeetingTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   link?: InputMaybe<Scalars['String']>;
   name?: InputMaybe<Scalars['String']>;
 };
@@ -1926,6 +1927,7 @@ export type MemberInviteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MemberInviteSortBy>;
   status?: InputMaybe<MemberInviteStatus>;
+  statuses?: InputMaybe<Array<MemberInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -2999,7 +3001,7 @@ export type NodeLinkWhenTranslationCreateInput = {
 export type NodeLinkWhenTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -3073,7 +3075,7 @@ export type NodeLoopWhileTranslationCreateInput = {
 export type NodeLoopWhileTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -3139,7 +3141,7 @@ export type NodeRoutineListItemTranslationCreateInput = {
 export type NodeRoutineListItemTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -3180,7 +3182,7 @@ export type NodeTranslationCreateInput = {
 export type NodeTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -3427,7 +3429,7 @@ export type NoteVersionTranslationCreateInput = {
 export type NoteVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
   text?: InputMaybe<Scalars['String']>;
 };
@@ -3731,7 +3733,7 @@ export type OrganizationTranslationCreateInput = {
 export type OrganizationTranslationUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -3998,7 +4000,7 @@ export type PostTranslationCreateInput = {
 export type PostTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -4454,6 +4456,36 @@ export type ProjectVersionDirectoryCreateInput = {
   translationsCreate?: InputMaybe<Array<ProjectVersionDirectoryTranslationCreateInput>>;
 };
 
+export type ProjectVersionDirectoryEdge = {
+  __typename: 'ProjectVersionDirectoryEdge';
+  cursor: Scalars['String'];
+  node: ProjectVersionDirectory;
+};
+
+export type ProjectVersionDirectorySearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  isRoot?: InputMaybe<Scalars['Boolean']>;
+  parentDirectoryId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectVersionDirectorySortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ProjectVersionDirectorySearchResult = {
+  __typename: 'ProjectVersionDirectorySearchResult';
+  edges: Array<ProjectVersionDirectoryEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ProjectVersionDirectorySortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
 export type ProjectVersionDirectoryTranslation = {
   __typename: 'ProjectVersionDirectoryTranslation';
   description?: Maybe<Scalars['String']>;
@@ -4472,7 +4504,7 @@ export type ProjectVersionDirectoryTranslationCreateInput = {
 export type ProjectVersionDirectoryTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -4587,7 +4619,7 @@ export type ProjectVersionTranslationCreateInput = {
 export type ProjectVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -4741,7 +4773,7 @@ export type PullRequestTranslationCreateInput = {
 
 export type PullRequestTranslationUpdateInput = {
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -4845,6 +4877,7 @@ export type Query = {
   projectOrRoutines: ProjectOrRoutineSearchResult;
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionContents: ProjectVersionContentsSearchResult;
+  projectVersionDirectories: ProjectVersionDirectorySearchResult;
   projectVersions: ProjectVersionSearchResult;
   projects: ProjectSearchResult;
   pullRequest?: Maybe<PullRequest>;
@@ -5194,6 +5227,11 @@ export type QueryProjectVersionArgs = {
 
 export type QueryProjectVersionContentsArgs = {
   input: ProjectVersionContentsSearchInput;
+};
+
+
+export type QueryProjectVersionDirectoriesArgs = {
+  input: ProjectVersionDirectorySearchInput;
 };
 
 
@@ -5661,7 +5699,7 @@ export type QuestionAnswerTranslationCreateInput = {
 
 export type QuestionAnswerTranslationUpdateInput = {
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -5765,7 +5803,7 @@ export type QuestionTranslationCreateInput = {
 export type QuestionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -6066,7 +6104,7 @@ export type QuizQuestionTranslationCreateInput = {
 export type QuizQuestionTranslationUpdateInput = {
   helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   questionText?: InputMaybe<Scalars['String']>;
 };
 
@@ -6147,7 +6185,7 @@ export type QuizTranslationCreateInput = {
 export type QuizTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -6693,7 +6731,7 @@ export type ResourceListTranslationCreateInput = {
 export type ResourceListTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -6754,7 +6792,7 @@ export type ResourceTranslationCreateInput = {
 export type ResourceTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -6866,7 +6904,7 @@ export type RoleTranslationCreateInput = {
 export type RoleTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type RoleUpdateInput = {
@@ -7136,7 +7174,7 @@ export type RoutineVersionInputTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type RoutineVersionInputUpdateInput = {
@@ -7191,7 +7229,7 @@ export type RoutineVersionOutputTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type RoutineVersionOutputUpdateInput = {
@@ -7295,7 +7333,7 @@ export type RoutineVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   instructions?: InputMaybe<Scalars['String']>;
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -7404,7 +7442,7 @@ export type RunProjectCreateInput = {
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
-  organizationId?: InputMaybe<Scalars['ID']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   projectVersionConnect: Scalars['ID'];
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   status: RunStatus;
@@ -7427,8 +7465,8 @@ export type RunProjectOrRunRoutineEdge = {
 
 export type RunProjectOrRunRoutinePageInfo = {
   __typename: 'RunProjectOrRunRoutinePageInfo';
-  endCursorProject?: Maybe<Scalars['String']>;
-  endCursorRoutine?: Maybe<Scalars['String']>;
+  endCursorRunProject?: Maybe<Scalars['String']>;
+  endCursorRunRoutine?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
 };
 
@@ -7446,6 +7484,7 @@ export type RunProjectOrRunRoutineSearchInput = {
   sortBy?: InputMaybe<RunProjectOrRunRoutineSortBy>;
   startedTimeFrame?: InputMaybe<TimeFrame>;
   status?: InputMaybe<RunStatus>;
+  statuses?: InputMaybe<Array<RunStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7485,6 +7524,7 @@ export type RunProjectSearchInput = {
   sortBy?: InputMaybe<RunProjectSortBy>;
   startedTimeFrame?: InputMaybe<TimeFrame>;
   status?: InputMaybe<RunStatus>;
+  statuses?: InputMaybe<Array<RunStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7536,6 +7576,7 @@ export type RunProjectStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  status?: InputMaybe<RunProjectStepStatus>;
   step: Array<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
@@ -7558,9 +7599,9 @@ export type RunProjectUpdateInput = {
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  isStarted?: InputMaybe<Scalars['Boolean']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+  status?: InputMaybe<RunStatus>;
   stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunProjectStepUpdateInput>>;
@@ -7594,7 +7635,7 @@ export type RunRoutine = {
   stepsCount: Scalars['Int'];
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
-  wasRunAutomaticaly: Scalars['Boolean'];
+  wasRunAutomatically: Scalars['Boolean'];
   you: RunRoutineYou;
 };
 
@@ -7623,7 +7664,7 @@ export type RunRoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
-  organizationId?: InputMaybe<Scalars['ID']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   routineVersionConnect: Scalars['ID'];
   runProjectConnect?: InputMaybe<Scalars['ID']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
@@ -7700,6 +7741,7 @@ export type RunRoutineSearchInput = {
   sortBy?: InputMaybe<RunRoutineSortBy>;
   startedTimeFrame?: InputMaybe<TimeFrame>;
   status?: InputMaybe<RunStatus>;
+  statuses?: InputMaybe<Array<RunStatus>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7748,6 +7790,7 @@ export type RunRoutineStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  status?: InputMaybe<RunRoutineStepStatus>;
   step: Array<Scalars['Int']>;
   subroutineVersionConnect?: InputMaybe<Scalars['ID']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
@@ -7787,9 +7830,9 @@ export type RunRoutineUpdateInput = {
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  isStarted?: InputMaybe<Scalars['Boolean']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+  status?: InputMaybe<RunStatus>;
   stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunRoutineStepUpdateInput>>;
@@ -8332,7 +8375,7 @@ export type SmartContractVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -8633,7 +8676,7 @@ export type StandardVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -9191,7 +9234,7 @@ export type TagTranslationCreateInput = {
 export type TagTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type TagUpdateInput = {
@@ -9336,6 +9379,7 @@ export type User = {
   bookmarked?: Maybe<Array<Bookmark>>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
+  botSettings?: Maybe<Scalars['String']>;
   comments?: Maybe<Array<Comment>>;
   created_at: Scalars['Date'];
   emails?: Maybe<Array<Email>>;
@@ -9344,6 +9388,7 @@ export type User = {
   id: Scalars['ID'];
   invitedByUser?: Maybe<User>;
   invitedUsers?: Maybe<Array<User>>;
+  isBot: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
@@ -9440,8 +9485,10 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isBot?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  memberInOrganizationId?: InputMaybe<Scalars['ID']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -9482,7 +9529,7 @@ export type UserTranslationCreateInput = {
 export type UserTranslationUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
 };
 
 export type UserYou = {
@@ -9995,6 +10042,10 @@ export type ResolversTypes = {
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ResolverTypeWrapper<ProjectVersionDirectory>;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
+  ProjectVersionDirectoryEdge: ResolverTypeWrapper<ProjectVersionDirectoryEdge>;
+  ProjectVersionDirectorySearchInput: ProjectVersionDirectorySearchInput;
+  ProjectVersionDirectorySearchResult: ResolverTypeWrapper<ProjectVersionDirectorySearchResult>;
+  ProjectVersionDirectorySortBy: ProjectVersionDirectorySortBy;
   ProjectVersionDirectoryTranslation: ResolverTypeWrapper<ProjectVersionDirectoryTranslation>;
   ProjectVersionDirectoryTranslationCreateInput: ProjectVersionDirectoryTranslationCreateInput;
   ProjectVersionDirectoryTranslationUpdateInput: ProjectVersionDirectoryTranslationUpdateInput;
@@ -10703,6 +10754,9 @@ export type ResolversParentTypes = {
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ProjectVersionDirectory;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
+  ProjectVersionDirectoryEdge: ProjectVersionDirectoryEdge;
+  ProjectVersionDirectorySearchInput: ProjectVersionDirectorySearchInput;
+  ProjectVersionDirectorySearchResult: ProjectVersionDirectorySearchResult;
   ProjectVersionDirectoryTranslation: ProjectVersionDirectoryTranslation;
   ProjectVersionDirectoryTranslationCreateInput: ProjectVersionDirectoryTranslationCreateInput;
   ProjectVersionDirectoryTranslationUpdateInput: ProjectVersionDirectoryTranslationUpdateInput;
@@ -11265,7 +11319,7 @@ export type ChatResolvers<ContextType = any, ParentType extends ResolversParentT
   messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
   openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  participants?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  participants?: Resolver<Array<ResolversTypes['ChatParticipant']>, ParentType, ContextType>;
   participantsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
@@ -11396,6 +11450,7 @@ export type ChatTranslationResolvers<ContextType = any, ParentType extends Resol
 export type ChatYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatYou'] = ResolversParentTypes['ChatYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12581,6 +12636,18 @@ export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType exten
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ProjectVersionDirectoryEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectoryEdge'] = ResolversParentTypes['ProjectVersionDirectoryEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectVersionDirectorySearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectorySearchResult'] = ResolversParentTypes['ProjectVersionDirectorySearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ProjectVersionDirectoryEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ProjectVersionDirectoryTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectoryTranslation'] = ResolversParentTypes['ProjectVersionDirectoryTranslation']> = {
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -12752,6 +12819,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   projectOrRoutines?: Resolver<ResolversTypes['ProjectOrRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrRoutinesArgs, 'input'>>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType, RequireFields<QueryProjectVersionArgs, 'input'>>;
   projectVersionContents?: Resolver<ResolversTypes['ProjectVersionContentsSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionContentsArgs, 'input'>>;
+  projectVersionDirectories?: Resolver<ResolversTypes['ProjectVersionDirectorySearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionDirectoriesArgs, 'input'>>;
   projectVersions?: Resolver<ResolversTypes['ProjectVersionSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionsArgs, 'input'>>;
   projects?: Resolver<ResolversTypes['ProjectSearchResult'], ParentType, ContextType, RequireFields<QueryProjectsArgs, 'input'>>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType, RequireFields<QueryPullRequestArgs, 'input'>>;
@@ -13566,8 +13634,8 @@ export type RunProjectOrRunRoutineEdgeResolvers<ContextType = any, ParentType ex
 };
 
 export type RunProjectOrRunRoutinePageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectOrRunRoutinePageInfo'] = ResolversParentTypes['RunProjectOrRunRoutinePageInfo']> = {
-  endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  endCursorRoutine?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorRunProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorRunRoutine?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13626,7 +13694,7 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   stepsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
-  wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  wasRunAutomatically?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunRoutineYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -14399,6 +14467,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  botSettings?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   comments?: Resolver<Maybe<Array<ResolversTypes['Comment']>>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   emails?: Resolver<Maybe<Array<ResolversTypes['Email']>>, ParentType, ContextType>;
@@ -14407,6 +14476,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invitedByUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   invitedUsers?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
+  isBot?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14714,6 +14784,8 @@ export type Resolvers<ContextType = any> = {
   ProjectVersion?: ProjectVersionResolvers<ContextType>;
   ProjectVersionContentsSearchResult?: ProjectVersionContentsSearchResultResolvers<ContextType>;
   ProjectVersionDirectory?: ProjectVersionDirectoryResolvers<ContextType>;
+  ProjectVersionDirectoryEdge?: ProjectVersionDirectoryEdgeResolvers<ContextType>;
+  ProjectVersionDirectorySearchResult?: ProjectVersionDirectorySearchResultResolvers<ContextType>;
   ProjectVersionDirectoryTranslation?: ProjectVersionDirectoryTranslationResolvers<ContextType>;
   ProjectVersionEdge?: ProjectVersionEdgeResolvers<ContextType>;
   ProjectVersionSearchResult?: ProjectVersionSearchResultResolvers<ContextType>;

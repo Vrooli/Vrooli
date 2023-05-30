@@ -52,6 +52,7 @@ export const displaySettingsData: SettingsData[] = [
 
 export const SettingsView = ({
     display = "page",
+    onClose,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -65,7 +66,7 @@ export const SettingsView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Settings",
                 }}

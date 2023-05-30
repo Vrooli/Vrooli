@@ -72,7 +72,7 @@ export const typeDef = gql`
     }
     input ResourceTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

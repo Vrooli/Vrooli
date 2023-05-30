@@ -33,6 +33,7 @@ const emailTitleId = "email-login-dialog-title";
 
 export const StartView = ({
     display = "page",
+    onClose,
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -162,7 +163,7 @@ export const StartView = ({
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
-                zIndex={200}
+                zIndex={zIndex + 1}
             />
             <WalletInstallDialog
                 open={installOpen}
@@ -174,7 +175,7 @@ export const StartView = ({
                 isOpen={emailPopupOpen}
                 onClose={closeEmailPopup}
                 titleId={emailTitleId}
-                zIndex={201}
+                zIndex={zIndex + 1}
             >
                 <Form
                     onClose={closeEmailPopup}
@@ -184,7 +185,7 @@ export const StartView = ({
             {/* App bar */}
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Start",
                 }}

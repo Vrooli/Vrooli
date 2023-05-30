@@ -153,7 +153,7 @@ export const typeDef = gql`
     }
     input RoutineVersionTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         instructions: String
         name: String

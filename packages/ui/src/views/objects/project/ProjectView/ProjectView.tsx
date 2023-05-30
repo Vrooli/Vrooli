@@ -11,6 +11,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -19,6 +20,7 @@ import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ProjectViewProps) => {
@@ -92,7 +94,7 @@ export const ProjectView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
@@ -180,7 +182,7 @@ export const ProjectView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Project",
                 }}
@@ -200,7 +202,8 @@ export const ProjectView = ({
                 {/* TODO */}
                 {/* List of items in current directory */}
                 {/* <SearchList
-                    canSearch={Boolean(projectVersion?.id)}
+                    canSearch={() => Boolean(projectVersion?.id)}
+                    dummyLength={display === "page" ? 5 : 3}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
                     hideUpdateButton={true}
                     id="directory-view-list"

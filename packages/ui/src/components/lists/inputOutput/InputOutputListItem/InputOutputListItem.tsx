@@ -175,7 +175,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedMarkdown'
                                 isEditing={isEditing}
                                 name='helpText'
-                                props={{ placeholder: "Detailed information (optional)", language }}
+                                props={{ placeholder: "Detailed information (optional)", language, zIndex }}
                             />
                         </Grid>
                         {/* Select standard */}

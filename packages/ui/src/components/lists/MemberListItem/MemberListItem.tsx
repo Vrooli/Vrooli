@@ -1,4 +1,5 @@
 import { useTheme } from "@mui/material";
+import { useMemo } from "react";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { RoleList } from "../RoleList/RoleList";
 import { smallHorizontalScrollbar } from "../styles";
@@ -10,18 +11,20 @@ export function MemberListItem({
 }: MemberListItemProps) {
     const { palette } = useTheme();
 
+    const roles = useMemo(() => data?.roles ?? [], [data?.roles]);
+
     return (
         <ObjectListItemBase
             {...props}
             belowTags={
-                data?.roles?.length > 0 ?
+                roles.length > 0 ?
                     <RoleList
-                        roles={data.roles}
+                        roles={roles}
                         sx={{ ...smallHorizontalScrollbar(palette) }}
                     /> : null
             }
             data={data}
-            objectType="RunProject"
+            objectType="Member"
         />
     );
 }

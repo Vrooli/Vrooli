@@ -25,23 +25,23 @@ export const typeDef = gql`
     input RunRoutineCreateInput {
         id: ID!
         isPrivate: Boolean
-        status: RunStatus!
-        name: String!
         completedComplexity: Int
         contextSwitches: Int
+        name: String!
+        status: RunStatus!
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]
         scheduleCreate: ScheduleCreateInput
         routineVersionConnect: ID!
         runProjectConnect: ID
-        organizationId: ID
+        organizationConnect: ID
     }
     input RunRoutineUpdateInput {
         id: ID!
         isPrivate: Boolean
-        isStarted: Boolean # True if the run has started, and previously was scheduled
         completedComplexity: Int # Total completed complexity, including what was completed before this update
         contextSwitches: Int # Total contextSwitches, including what was completed before this update
+        status: RunStatus
         timeElapsed: Int # Total time elapsed, including what was completed before this update
         stepsDelete: [ID!]
         stepsCreate: [RunRoutineStepCreateInput!]
@@ -62,7 +62,7 @@ export const typeDef = gql`
         completedAt: Date
         name: String!
         status: RunStatus!
-        wasRunAutomaticaly: Boolean!
+        wasRunAutomatically: Boolean!
         routineVersion: RoutineVersion
         runProject: RunProject
         schedule: Schedule
@@ -91,6 +91,7 @@ export const typeDef = gql`
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
         status: RunStatus
+        statuses: [RunStatus!]
         routineVersionId: ID
         searchString: String
         sortBy: RunRoutineSortBy

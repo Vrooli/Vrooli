@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { hasObjectChanged } from "../general";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, "id" | "language" | "description" | "helpText"> & {
     __typename?: "RoutineVersionOutputTranslation";
@@ -17,7 +18,7 @@ export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, "id" | "index
 
 export const shapeRoutineVersionOutputTranslation: ShapeModel<RoutineVersionOutputTranslationShape, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "helpText"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "helpText"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "helpText"), a),
 };
 
 export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput> = {

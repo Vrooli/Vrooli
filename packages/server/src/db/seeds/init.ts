@@ -14,7 +14,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     logger.info("🌱 Starting database initial seed...");
     // Check for required .env variables
-    if (["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME"].some(name => !process.env[name])) {
+    if (["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME", "VALYXA_PASSWORD"].some(name => !process.env[name])) {
         logger.error("🚨 Missing required .env variables. Not seeding database.", { trace: "0006" });
         return;
     }
@@ -50,16 +50,16 @@ export async function init(prisma: PrismaType) {
         createTag("CIP", "Cardano Improvement Proposals: Formalized suggestions for changes or improvements to the Cardano protocol"),
         createTag("Entrepreneurship", "Process of starting, organizing, and managing a new business venture"),
         createTag("Vrooli", "Vrooli-related content, including the platform's features, updates, and community activities"),
+        createTag("Artificial Intelligence (AI)", "Development of computer systems capable of performing tasks that typically require human intelligence"),
+        createTag("Automation", "Use of technology to perform tasks with minimal or no human intervention"),
+        createTag("Collaboration", "Working together with others to achieve a common goal or complete a task"),
         // Other tags to cover a wide range of topics
         createTag("Idea Validation", "Process of evaluating the feasibility, market potential, and demand for a new product or business idea"),
         createTag("Learn", "Educational content focused on teaching new skills, concepts, or information"),
         createTag("Research", "Research-related content, including studies, findings, and analysis"),
         createTag("Discover", "Informative content that introduces new products, technologies, or ideas"),
-        createTag("Artificial Intelligence (AI)", "Development of computer systems capable of performing tasks that typically require human intelligence"),
         createTag("Cryptocurrency", "Digital or virtual currency using cryptography for security, enabling decentralized financial transactions"),
         createTag("Cryptography", "Practice of securing communication and data through the use of codes and encryption"),
-        createTag("Collaboration", "Working together with others to achieve a common goal or complete a task"),
-        createTag("Automation", "Use of technology to perform tasks with minimal or no human intervention"),
         createTag("Decentralization", "Distribution of power, authority, or resources away from a central control or location"),
         createTag("Prototyping", "Creating a preliminary model or sample version of a product to test and refine before full-scale production"),
         createTag("No-Code", "Development of applications or software without the need for traditional coding or programming"),
@@ -309,19 +309,38 @@ export async function init(prisma: PrismaType) {
     const tagCip = tags[1];
     const tagEntrepreneurship = tags[2];
     const tagVrooli = tags[3];
+    const tagAi = tags[4];
+    const tagAutomation = tags[5];
+    const tagCollaboration = tags[6];
     //==============================================================
     /* #endregion Create Tags */
     //==============================================================
 
     //==============================================================
-    /* #region Create Admin */
+    /* #region Create Users */
     //==============================================================
+    // Admin
     const adminId = "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2";
     const admin = await prisma.user.upsert({
         where: {
             id: adminId,
         },
-        update: {},
+        update: {
+            premium: {
+                upsert: {
+                    create: {
+                        enabledAt: new Date(),
+                        expiresAt: new Date("2069-04-20"),
+                        isActive: true,
+                    },
+                    update: {
+                        enabledAt: new Date(),
+                        expiresAt: new Date("2069-04-20"),
+                        isActive: true,
+                    },
+                },
+            },
+        },
         create: {
             id: adminId,
             name: "Matt Halloran",
@@ -361,6 +380,65 @@ export async function init(prisma: PrismaType) {
                     progress: 1,
                 }],
             },
+            premium: {
+                create: {
+                    enabledAt: new Date(),
+                    expiresAt: new Date("2069-04-20"),
+                    isActive: true,
+                },
+            },
+        },
+    });
+    // AI assistant
+    const valyxaId = "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f";
+    const valyxa = await prisma.user.upsert({
+        where: {
+            id: valyxaId,
+        },
+        update: {},
+        create: {
+            id: valyxaId,
+            isBot: true,
+            name: "Valyxa",
+            password: hashPassword(process.env.VALYXA_PASSWORD ?? ""),
+            reputation: 1000000, // TODO temporary until community grows
+            status: "Unlocked",
+            languages: {
+                create: [{ language: EN }],
+            },
+            translations: {
+                create: [{
+                    language: EN,
+                    bio: "The official AI assistant for Vrooli. Ask me anything!",
+                }],
+            },
+            focusModes: {
+                create: [{
+                    name: "Work",
+                    description: "This is an auto-generated focus mode. You can edit or delete it.",
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
+                }, {
+                    name: "Study",
+                    description: "This is an auto-generated focus mode. You can edit or delete it.",
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
+                }],
+            },
+            awards: {
+                create: [{
+                    timeCurrentTierCompleted: new Date(),
+                    category: "AccountNew",
+                    progress: 1,
+                }],
+            },
+            premium: {
+                create: {
+                    enabledAt: new Date(),
+                    expiresAt: new Date("9999-12-31"),
+                    isActive: true,
+                },
+            },
         },
     });
     //==============================================================
@@ -394,7 +472,7 @@ export async function init(prisma: PrismaType) {
                         {
                             language: EN,
                             name: "Vrooli",
-                            bio: "Entrepreneurship is not accessible to all unless it can be accomplished using little money, time, and prior knowledge. Let's make that possible.",
+                            bio: "Building an automated, self-improving productivity assistant",
                         },
                     ],
                 },
@@ -418,8 +496,9 @@ export async function init(prisma: PrismaType) {
                 tags: {
                     create: [
                         { tagTag: tagVrooli.tag },
-                        { tagTag: tagEntrepreneurship.tag },
-                        { tagTag: tagCardano.tag },
+                        { tagTag: tagAi.tag },
+                        { tagTag: tagAutomation.tag },
+                        { tagTag: tagCollaboration.tag },
                     ],
                 },
                 resourceList: {
@@ -440,6 +519,14 @@ export async function init(prisma: PrismaType) {
                                     link: "https://twitter.com/VrooliOfficial",
                                     translations: {
                                         create: [{ language: EN, name: "Twitter", description: "Follow us on Twitter" }],
+                                    },
+                                },
+                                {
+                                    usedFor: "Tutorial",
+                                    index: 1,
+                                    link: "https://docs.vrooli.com",
+                                    translations: {
+                                        create: [{ language: EN, name: "Vrooli Docs", description: "Interested in how Vrooli works? Want to become a developer? Check out our docs!" }],
                                     },
                                 },
                             ],

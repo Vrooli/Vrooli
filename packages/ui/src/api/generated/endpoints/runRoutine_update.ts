@@ -54,6 +54,39 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
             }
         }
     }
+    routineVersion {
+        translations {
+            id
+            language
+            description
+            instructions
+            name
+        }
+        id
+        created_at
+        updated_at
+        completedAt
+        isAutomatable
+        isComplete
+        isDeleted
+        isLatest
+        isPrivate
+        simplicity
+        timesStarted
+        timesCompleted
+        smartContractCallData
+        apiCallData
+        versionIndex
+        versionLabel
+        commentsCount
+        directoryListingsCount
+        forksCount
+        inputsCount
+        nodesCount
+        nodeLinksCount
+        outputsCount
+        reportsCount
+    }
     steps {
         id
         order
@@ -66,6 +99,7 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
         step
         subroutine {
             id
+            complexity
             isAutomatable
             isComplete
             isDeleted
@@ -98,7 +132,7 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
     status
     stepsCount
     inputsCount
-    wasRunAutomaticaly
+    wasRunAutomatically
     organization {
         ...Organization_nav
     }

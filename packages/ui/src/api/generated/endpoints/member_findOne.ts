@@ -98,6 +98,7 @@ query member($input: FindByIdInput!) {
         }
     }
     user {
+        botSettings
         translations {
             id
             language
@@ -106,6 +107,7 @@ query member($input: FindByIdInput!) {
         id
         created_at
         handle
+        isBot
         name
         bookmarks
         reportsReceivedCount

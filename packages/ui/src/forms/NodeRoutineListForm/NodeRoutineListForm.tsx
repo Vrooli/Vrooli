@@ -118,6 +118,7 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
                         name="description"
                         props={{
                             language,
+                            zIndex,
                         }}
                         title={t("Description")}
                     />

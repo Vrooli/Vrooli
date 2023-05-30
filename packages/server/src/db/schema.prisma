@@ -251,6 +251,7 @@ model chat_participants {
     id         String   @id @default(uuid()) @db.Uuid
     created_at DateTime @default(now()) @db.Timestamptz(6)
     updated_at DateTime @default(now()) @db.Timestamptz(6)
+    hasUnread  Boolean  @default(true)
     chatId     String   @db.Uuid
     chat       chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
     userId     String   @db.Uuid

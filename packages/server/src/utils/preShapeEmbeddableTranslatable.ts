@@ -14,7 +14,7 @@ export const preShapeEmbeddableTranslatable = ({
     createList: { [x: string]: any }[],
     updateList: { where: { id: string }, data: { [x: string]: any } }[],
     objectType: GqlModelType | `${GqlModelType}`,
-}): Record<string, { [language in string]: boolean }> => {
+}): { embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> } => {
     // Initialize map
     const embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> = {};
     // Find id field
@@ -30,5 +30,5 @@ export const preShapeEmbeddableTranslatable = ({
             ...update.data.translationsUpdate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>),
         };
     }
-    return embeddingNeedsUpdateMap;
+    return { embeddingNeedsUpdateMap };
 };

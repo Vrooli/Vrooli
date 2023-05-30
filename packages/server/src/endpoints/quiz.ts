@@ -92,7 +92,7 @@ export const typeDef = gql`
     }
     input QuizTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

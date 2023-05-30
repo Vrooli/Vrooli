@@ -6,12 +6,10 @@ export interface ViewProps<T> extends BaseViewProps {
      * such as its name. Can be displayed while fetching the full object
      */
     partialData?: Partial<T>;
-    zIndex?: number;
 }
 
-export interface UpsertProps<T> extends BaseViewProps {
+export interface UpsertProps<T> extends Omit<BaseViewProps, "onClose"> {
     isCreate: boolean;
     onCancel?: () => any;
     onCompleted?: (data: T) => any;
-    zIndex?: number;
 }

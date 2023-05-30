@@ -29,8 +29,9 @@ query projectOrRoutines($input: ProjectOrRoutineSearchInput!) {
         }
     }
     pageInfo {
-        endCursor
         hasNextPage
+        endCursorProject
+        endCursorRoutine
     }
   }
 }`;

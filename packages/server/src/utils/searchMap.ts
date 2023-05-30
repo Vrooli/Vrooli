@@ -75,6 +75,7 @@ export const SearchMap = {
         },
     }),
     cardLast4: (cardLast4: Maybe<string>) => ({ cardLast4 }),
+    chatId: (id: Maybe<string>) => oneToOneId(id, "chat"),
     commentId: (id: Maybe<string>) => oneToOneId(id, "comment"),
     commentsId: (id: Maybe<string>) => oneToManyId(id, "comments"),
     completedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("completedAt", time),
@@ -93,6 +94,7 @@ export const SearchMap = {
     hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
     ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
+    isBot: (isBot: Maybe<boolean>) => ({ isBot }),
     isComplete: (isComplete: Maybe<boolean>) => ({ isComplete }),
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [
@@ -170,6 +172,7 @@ export const SearchMap = {
     maxTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { lte: timesCompleted } }),
     maxViews: (views: Maybe<number>) => ({ views: { lte: views } }),
     maxViewsRoot: (views: Maybe<number>) => ({ root: { views: { lte: views } } }),
+    memberInOrganizationId: (id: Maybe<string>) => ({ memberships: { some: { organization: { id } } } }),
     memberUserIds: (ids: Maybe<string[]>) => ({ members: { some: { user: { id: { in: ids } } } } }),
     meetingId: (id: Maybe<string>) => oneToOneId(id, "meeting"),
     meetingsId: (id: Maybe<string>) => oneToManyId(id, "meetings"),
@@ -312,6 +315,7 @@ export const SearchMap = {
     startTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startTime", time),
     startedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startedAt", time),
     status: <T>(status: Maybe<T>) => ({ status }),
+    statuses: <T>(statuses: Maybe<T[]>) => ({ status: { in: statuses } }),
     tagId: (id: Maybe<string>) => oneToOneId(id, "tag"),
     tagsId: (id: Maybe<string>) => oneToManyId(id, "tags"),
     tags: (tags: Maybe<string[]>) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),

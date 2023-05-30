@@ -73,6 +73,64 @@ export const MaxObjects = {
         },
         Organization: 0,
     },
+    Chat: {
+        User: {
+            private: {
+                noPremium: 20,
+                premium: 500,
+            },
+            public: {
+                noPremium: 20,
+                premium: 500,
+            },
+        },
+        Organization: {
+            private: {
+                noPremium: 10,
+                premium: 500,
+            },
+            public: {
+                noPremium: 10,
+                premium: 500,
+            },
+        },
+    },
+    ChatMessage: {
+        User: {
+            private: {
+                noPremium: 5000,
+                premium: 50000,
+            },
+            public: 0,
+        },
+        Organization: 0,
+    },
+    ChatInvite: {
+        User: 0,
+        Organization: {
+            private: {
+                noPremium: 10,
+                premium: 500,
+            },
+            public: {
+                noPremium: 10,
+                premium: 500,
+            },
+        },
+    },
+    ChatParticipant: {
+        User: 0,
+        Organization: {
+            private: {
+                noPremium: 10,
+                premium: 500,
+            },
+            public: {
+                noPremium: 10,
+                premium: 500,
+            },
+        },
+    },
     Comment: {
         User: {
             private: 0,

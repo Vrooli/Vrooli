@@ -1,21 +1,22 @@
 import { PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, shapeUpdate, updatePrims } from "./tools";
+import { createPrims, shapeUpdate } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
-export type PullRequestTranslationShape = Pick<PullRequestTranslation, 'id' | 'language' | 'text'> & {
-    __typename?: 'PullRequestTranslation';
+export type PullRequestTranslationShape = Pick<PullRequestTranslation, "id" | "language" | "text"> & {
+    __typename?: "PullRequestTranslation";
 }
 
-export type PullRequestShape = Pick<PullRequest, 'id'> & {
-    __typename?: 'PullRequest';
+export type PullRequestShape = Pick<PullRequest, "id"> & {
+    __typename?: "PullRequest";
 }
 
 export const shapePullRequestTranslation: ShapeModel<PullRequestTranslationShape, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput> = {
-    create: (d) => createPrims(d, 'id', 'language', 'text'),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'text'), a)
-}
+    create: (d) => createPrims(d, "id", "language", "text"),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "text"), a),
+};
 
 export const shapePullRequest: ShapeModel<PullRequestShape, PullRequestCreateInput, PullRequestUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u, a) => shapeUpdate(u, {}, a) as any
-}
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any,
+};

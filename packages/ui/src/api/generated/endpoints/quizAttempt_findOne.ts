@@ -23,6 +23,7 @@ query quizAttempt($input: FindByIdInput!) {
                 updated_at
                 createdBy {
                     id
+                    isBot
                     name
                     handle
                 }
@@ -52,6 +53,7 @@ query quizAttempt($input: FindByIdInput!) {
             }
             user {
                 id
+                isBot
                 name
                 handle
             }
@@ -79,6 +81,7 @@ query quizAttempt($input: FindByIdInput!) {
         updated_at
         createdBy {
             id
+            isBot
             name
             handle
         }
@@ -108,6 +111,7 @@ query quizAttempt($input: FindByIdInput!) {
     }
     user {
         id
+        isBot
         name
         handle
     }

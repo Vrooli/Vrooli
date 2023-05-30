@@ -8,6 +8,7 @@ query chatParticipants($input: ChatParticipantSearchInput!) {
         node {
             user {
                 id
+                isBot
                 name
                 handle
             }

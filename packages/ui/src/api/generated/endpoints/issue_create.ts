@@ -23,11 +23,13 @@ mutation issueCreate($input: IssueCreateInput!) {
   issueCreate(input: $input) {
     closedBy {
         id
+        isBot
         name
         handle
     }
     createdBy {
         id
+        isBot
         name
         handle
     }

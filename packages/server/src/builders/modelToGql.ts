@@ -17,11 +17,11 @@ export function modelToGql<
     GraphQLModel extends Record<string, any>
 >(
     data: { [x: string]: any },
-    partialInfo: PartialGraphQLInfo
+    partialInfo: PartialGraphQLInfo,
 ): GraphQLModel {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
-    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const format = typeof type === "string" ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (format) {
         const unionData = constructUnions(data, partialInfo, format.gqlRelMap);
         data = unionData.data;

@@ -32,12 +32,14 @@ export const user: GqlPartial<User> = {
         id: true,
         created_at: true,
         handle: true,
+        isBot: true,
         name: true,
         bookmarks: true,
         reportsReceivedCount: true,
         you: () => rel(userYou, "full"),
     },
     full: {
+        botSettings: true,
         translations: () => rel(userTranslation, "full"),
     },
     list: {
@@ -45,6 +47,7 @@ export const user: GqlPartial<User> = {
     },
     nav: {
         id: true,
+        isBot: true,
         name: true,
         handle: true,
     },

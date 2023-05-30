@@ -18,6 +18,8 @@ import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: SettingsFocusModesViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -155,7 +157,7 @@ export const SettingsFocusModesView = ({
                 onClose={handleCloseDialog}
                 isOpen={isDialogOpen}
                 titleId={""}
-                zIndex={1000}
+                zIndex={zIndex + 2}
             >
                 <FocusModeUpsert
                     display="dialog"
@@ -163,12 +165,12 @@ export const SettingsFocusModesView = ({
                     onCancel={handleCloseDialog}
                     onCompleted={handleCompleted}
                     partialData={editingFocusMode ?? undefined}
-                    zIndex={1000}
+                    zIndex={zIndex + 2}
                 />
             </LargeDialog>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "FocusMode",
                     titleVariables: { count: 2 },

@@ -13,6 +13,7 @@ query project($input: FindByIdOrHandleInput!) {
   project(input: $input) {
     parent {
         id
+        complexity
         isLatest
         isPrivate
         versionIndex
@@ -38,6 +39,7 @@ query project($input: FindByIdOrHandleInput!) {
                 isRoot
                 projectVersion {
                     id
+                    complexity
                     isLatest
                     isPrivate
                     versionIndex
@@ -113,6 +115,7 @@ query project($input: FindByIdOrHandleInput!) {
             }
             childProjectVersions {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -130,6 +133,7 @@ query project($input: FindByIdOrHandleInput!) {
             }
             childRoutineVersions {
                 id
+                complexity
                 isAutomatable
                 isComplete
                 isDeleted
@@ -194,6 +198,7 @@ query project($input: FindByIdOrHandleInput!) {
                 isRoot
                 projectVersion {
                     id
+                    complexity
                     isLatest
                     isPrivate
                     versionIndex
@@ -223,6 +228,7 @@ query project($input: FindByIdOrHandleInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -253,6 +259,7 @@ query project($input: FindByIdOrHandleInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

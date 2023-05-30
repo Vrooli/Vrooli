@@ -179,8 +179,10 @@ export const UserModel: ModelLogic<{
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
+            isBot: true,
             maxBookmarks: true,
             maxViews: true,
+            memberInOrganizationId: true,
             minBookmarks: true,
             minViews: true,
             translationLanguages: true,

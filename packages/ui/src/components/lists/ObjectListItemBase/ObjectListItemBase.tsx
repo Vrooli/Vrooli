@@ -1,10 +1,11 @@
-import { EditIcon, isOfType, OrganizationIcon, ReactionFor, SvgComponent, useLocation, UserIcon, uuid } from "@local/shared";
-import { Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { BotIcon, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, useLocation, User, UserIcon, uuid } from "@local/shared";
+import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import Markdown from "markdown-to-jsx";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
@@ -19,7 +20,7 @@ import { SessionContext } from "utils/SessionContext";
 import { smallHorizontalScrollbar } from "../styles";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
-import { ObjectListItemBaseProps } from "../types";
+import { ObjectListItemProps } from "../types";
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -43,7 +44,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
     onClick,
     toTheRight,
     zIndex,
-}: ObjectListItemBaseProps<T>) {
+}: ObjectListItemProps<T>) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -114,28 +115,27 @@ export function ObjectListItemBase<T extends ListObjectType>({
     const leftColumn = useMemo(() => {
         // Show icons for organizations, users, and members
         if (isOfType(object, "Organization", "User", "Member")) {
-            const Icon: SvgComponent = object?.__typename === "Organization" ? OrganizationIcon : UserIcon;
+            console.log("calculating left column", object);
+            let Icon: SvgComponent;
+            if (object.__typename === "Organization") {
+                Icon = OrganizationIcon;
+            } else if ((object as unknown as User).isBot || (object as unknown as Member).user?.isBot) {
+                Icon = BotIcon;
+            } else {
+                Icon = UserIcon;
+            }
             return (
-                <Box
-                    width={isMobile ? "40px" : "50px"}
-                    minWidth={isMobile ? "40px" : "50px"}
-                    height={isMobile ? "40px" : "50px"}
-                    marginBottom={isMobile ? "auto" : "unset"}
-                    borderRadius='100%'
-                    bgcolor={profileColors[0]}
-                    justifyContent='center'
-                    alignItems='center'
+                <Avatar
+                    src="/broken-image.jpg" //TODO
                     sx={{
-                        display: "flex",
+                        backgroundColor: profileColors[0],
+                        width: isMobile ? "40px" : "50px",
+                        height: isMobile ? "40px" : "50px",
                         pointerEvents: "none",
                     }}
                 >
-                    <Icon
-                        fill={profileColors[1]}
-                        width={isMobile ? "25px" : "35px"}
-                        height={isMobile ? "25px" : "35px"}
-                    />
-                </Box>
+                    <Icon fill={profileColors[1]} width="75%" height="75%" />
+                </Avatar>
             );
         }
         // Otherwise, only show on wide screens
@@ -287,10 +287,9 @@ export function ObjectListItemBase<T extends ListObjectType>({
                         )
                     }
                     {/* Subtitle */}
-                    {loading ? <TextLoading /> : <ListItemText
-                        primary={subtitle}
-                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                    />}
+                    {loading ? <TextLoading /> : <Markdown
+                        style={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                    >{subtitle}</Markdown>}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: "none" }}>

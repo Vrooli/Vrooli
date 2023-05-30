@@ -33,6 +33,7 @@ query routine($input: FindByIdInput!) {
   routine(input: $input) {
     parent {
         id
+        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -93,7 +94,6 @@ query routine($input: FindByIdInput!) {
         created_at
         updated_at
         completedAt
-        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -173,6 +173,7 @@ query routine($input: FindByIdInput!) {
                     step
                     subroutine {
                         id
+                        complexity
                         isAutomatable
                         isComplete
                         isDeleted
@@ -205,7 +206,7 @@ query routine($input: FindByIdInput!) {
                 status
                 stepsCount
                 inputsCount
-                wasRunAutomaticaly
+                wasRunAutomatically
                 organization {
                     ...Organization_nav
                 }

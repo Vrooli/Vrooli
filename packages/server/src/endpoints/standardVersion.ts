@@ -101,7 +101,7 @@ export const typeDef = gql`
     }
     input StandardVersionTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
         jsonVariable: String

@@ -297,6 +297,7 @@ export function App() {
                 if (!isInvalidSession) {
                     PubSub.get().publishSnack({
                         messageKey: "CannotConnectToServer",
+                        autoHideDuration: "persist",
                         severity: "Error",
                         buttonKey: "Reload",
                         buttonClicked: () => window.location.reload(),
@@ -309,7 +310,6 @@ export function App() {
             },
         });
     }, [validateSession]);
-    console.log("CURRENT SESSION", session);
 
     useEffect(() => {
         checkSession();

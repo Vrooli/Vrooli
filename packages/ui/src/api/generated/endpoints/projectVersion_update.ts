@@ -20,6 +20,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -95,6 +96,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         }
         childProjectVersions {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex
@@ -112,6 +114,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         }
         childRoutineVersions {
             id
+            complexity
             isAutomatable
             isComplete
             isDeleted
@@ -176,6 +179,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
             isRoot
             projectVersion {
                 id
+                complexity
                 isLatest
                 isPrivate
                 versionIndex
@@ -205,6 +209,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         isRoot
         projectVersion {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex
@@ -235,6 +240,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }
@@ -248,6 +254,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
     root {
         parent {
             id
+            complexity
             isLatest
             isPrivate
             versionIndex

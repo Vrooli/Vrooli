@@ -45,6 +45,7 @@ mutation standardCreate($input: StandardCreateInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

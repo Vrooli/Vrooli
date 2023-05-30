@@ -42,7 +42,6 @@ export const ObjectActionDialogs = ({
     zIndex,
 }: ObjectActionDialogsProps) => {
     const session = useContext(SessionContext);
-    console.log("isDeleteDialogOpen", isDeleteDialogOpen, object?.id, hasDeletingSupport);
 
     return (
         <>

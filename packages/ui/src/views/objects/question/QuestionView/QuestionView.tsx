@@ -26,6 +26,7 @@ import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: QuestionViewProps) => {
@@ -83,7 +84,7 @@ export const QuestionView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Question",
                 }}

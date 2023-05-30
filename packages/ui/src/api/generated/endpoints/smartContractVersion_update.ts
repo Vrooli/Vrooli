@@ -26,6 +26,7 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

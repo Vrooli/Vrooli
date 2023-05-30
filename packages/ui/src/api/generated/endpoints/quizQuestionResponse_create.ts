@@ -22,6 +22,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
             updated_at
             createdBy {
                 id
+                isBot
                 name
                 handle
             }
@@ -51,6 +52,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
         }
         user {
             id
+            isBot
             name
             handle
         }

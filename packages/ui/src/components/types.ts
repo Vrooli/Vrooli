@@ -1,4 +1,11 @@
-import { SvgProps } from "@local/shared";
+import { SvgComponent } from "@local/shared";
+import { LinearProgressProps } from "@mui/material";
+
+export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
+    isLoading?: boolean;
+    showLabel?: boolean;
+    value: number;
+}
 
 export interface DiagonalWaveLoaderProps {
     size?: number;
@@ -12,7 +19,7 @@ export type PageTab<T> = {
     /**
      * If set, icon is displayed and label becomes a toolip
      */
-    Icon?: (props: SvgProps) => JSX.Element,
+    Icon?: SvgComponent;
     index: number,
     label: string,
     value: T

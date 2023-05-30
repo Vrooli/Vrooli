@@ -122,6 +122,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                             background: palette.background.paper,
                         },
                     }}
+                    zIndex={zIndex}
                 />
                 <GridSubmitButtons
                     display={display}

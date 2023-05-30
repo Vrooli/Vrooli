@@ -83,7 +83,7 @@ export const typeDef = gql`
     }
     input PullRequestTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         text: String
     }
     type PullRequestTranslation {

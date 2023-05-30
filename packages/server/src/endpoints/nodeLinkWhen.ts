@@ -31,7 +31,7 @@ export const typeDef = gql`
     }
     input NodeLinkWhenTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

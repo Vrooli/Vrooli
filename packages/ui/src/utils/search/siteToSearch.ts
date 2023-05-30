@@ -111,7 +111,6 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
  * @returns A list of matches.
  */
 export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] => {
-    console.log("findSearchResults start", { ...items }, inputValue);
     // Shape the search term
     const shapedTerm = shapeSearchText(inputValue);
     // Filter out items which don't contain the shaped search term in their keywords

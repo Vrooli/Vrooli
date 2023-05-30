@@ -21,7 +21,9 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date
+        botSettings: String
         handle: String
+        isBot: Boolean!
         isPrivate: Boolean!
         isPrivateApis: Boolean!
         isPrivateApisCreated: Boolean!
@@ -130,7 +132,7 @@ export const typeDef = gql`
     }
     input UserTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         bio: String
     }
     type UserTranslation {
@@ -191,9 +193,11 @@ export const typeDef = gql`
     input UserSearchInput {
         maxBookmarks: Int
         maxViews: Int
+        memberInOrganizationId: ID
         minBookmarks: Int
         minViews: Int
         ids: [ID!]
+        isBot: Boolean
         sortBy: UserSortBy
         searchString: String
         createdTimeFrame: TimeFrame

@@ -24,6 +24,7 @@ const objectTypeToIdField = {
 
 export const ReportsView = ({
     display = "page",
+    onClose,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -33,7 +34,7 @@ export const ReportsView = ({
 
     const { data } = useQuery<Wrap<ReportSearchResult, "reports">, Wrap<ReportSearchInput, "input">>(
         reportFindMany,
-        { variables: { input: { [(objectTypeToIdField as any)[objectType]]: id } } },
+        { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
     );
     const reports = useMemo<Report[]>(() => {
         if (!data) return [];
@@ -44,7 +45,7 @@ export const ReportsView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Reports",
                     helpKey: "ReportsHelp",

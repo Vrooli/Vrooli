@@ -1,4 +1,4 @@
-import { addSearchParams, exists, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
+import { addSearchParams, exists, lowercaseFirstLetter, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
 import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -13,11 +13,19 @@ import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";
 
 type UseFindManyProps = {
-    canSearch: boolean;
+    canSearch: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
+    controlsUrl?: boolean; // If true, URL search params update to reflect search state
     searchType: SearchType | `${SearchType}`;
     resolve?: (data: any) => any;
     take?: number;
-    where?: any;
+    where?: Record<string, any>;
+}
+
+type FullSearchParams = Partial<SearchParams> & {
+    searchString: string;
+    sortBy: string;
+    timeFrame: TimeFrame | undefined;
+    where: Record<string, any>;
 }
 
 /**
@@ -39,10 +47,25 @@ export const parseData = (data: any, resolve?: (data: any) => any) => {
 };
 
 /**
+ * Finds updated value for sortBy
+ * @returns the sortBy param if it's valid, or searchParams.defaultSortBy if it's not
+ */
+const updateSortBy = (searchParams: Partial<SearchParams>, sortBy: string) => {
+    if (typeof sortBy === "string") {
+        if (exists(searchParams.sortByOptions) && sortBy in searchParams.sortByOptions) {
+            return sortBy;
+        } else {
+            return searchParams.defaultSortBy ?? "";
+        }
+    }
+};
+
+/**
  * Logic for displaying search options and querying a findMany endpoint
  */
 export const useFindMany = <DataType extends Record<string, any>>({
     canSearch,
+    controlsUrl = true,
     searchType,
     resolve,
     take = 20,
@@ -54,63 +77,20 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const stableResolve = useStableCallback(resolve);
     const stableWhere = useStableObject(where);
 
-    const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
-    const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? "");
-    const [searchString, setSearchString] = useState<string>("");
-    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-
-    const updateSortBy = useCallback((newParams: Partial<SearchParams>) => {
-        const searchParams = parseSearchParams();
-        if (typeof searchParams.sort === "string") {
-            if (exists(newParams.sortByOptions) && searchParams.sort in newParams.sortByOptions) {
-                setSortBy(searchParams.sort);
-            } else {
-                setSortBy(newParams.defaultSortBy ?? "");
-            }
-        }
-    }, []);
-
-    const updateWhere = useCallback((newWhere: any) => {
-        setParams((prevParams) => ({
-            ...prevParams,
-            where: newWhere,
-        }));
-    }, []);
-
-    useEffect(() => {
-        const fetchParams = async () => {
-            const newParams = searchTypeToParams[searchType];
-            if (!newParams) return;
-            const resolvedParams = await newParams();
-            setParams({ ...resolvedParams, where: stableWhere });
-            updateSortBy(resolvedParams);
-            updateWhere(stableWhere);
-        };
-        fetchParams();
-    }, [searchType, stableWhere, updateSortBy, updateWhere]);
-
-
-    useEffect(() => {
-        const searchParams = parseSearchParams();
-        if (typeof searchParams.search === "string") setSearchString(searchParams.search);
-        if (typeof searchParams.sort === "string") {
-            updateSortBy(params);
-        }
-        if (typeof searchParams.time === "object" &&
-            !Array.isArray(searchParams.time) &&
-            Object.prototype.hasOwnProperty.call(searchParams.time, "after") &&
-            Object.prototype.hasOwnProperty.call(searchParams.time, "before")) {
-            setTimeFrame({
-                after: new Date((searchParams.time as any).after),
-                before: new Date((searchParams.time as any).before),
-            });
-        }
-    }, [params, updateSortBy]);
+    const params = useRef<FullSearchParams>({
+        searchString: "",
+        sortBy: "",
+        timeFrame: undefined,
+        where: stableWhere ?? {},
+    });
+    const [paramsReady, setParamsReady] = useState<boolean>(false);
 
     /**
      * When sort and filter options change, update the URL
      */
-    useEffect(() => {
+    const updateUrl = useCallback(() => {
+        if (!controlsUrl) return;
+        const { searchString, sortBy, timeFrame } = params.current;
         addSearchParams(setLocation, {
             search: searchString.length > 0 ? searchString : undefined,
             sort: sortBy,
@@ -119,26 +99,72 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: timeFrame.before?.toISOString() ?? "",
             } : undefined,
         });
-    }, [searchString, sortBy, timeFrame, setLocation]);
+    }, [controlsUrl, setLocation]);
 
     /**
-     * Cursor for pagination. Resets when search params change
+     * Read URL search params on first render
      */
-    const after = useRef<string | undefined>(undefined);
+    useEffect(() => {
+        if (!controlsUrl) return;
+        const searchParams = parseSearchParams();
+        if (typeof searchParams.search === "string") params.current.searchString = searchParams.search;
+        if (typeof searchParams.sort === "string") {
+            params.current.sortBy = updateSortBy(params.current, searchParams.sort);
+        }
+        if (typeof searchParams.time === "object" &&
+            !Array.isArray(searchParams.time) &&
+            Object.prototype.hasOwnProperty.call(searchParams.time, "after") &&
+            Object.prototype.hasOwnProperty.call(searchParams.time, "before")) {
+            params.current.timeFrame = {
+                after: new Date((searchParams.time as any).after),
+                before: new Date((searchParams.time as any).before),
+            };
+        }
+        updateUrl();
+    }, [controlsUrl, updateUrl]);
 
-    console.log("brussel sprouts rendering usefindmany...");
+    /**
+     * Update params when search conditions change
+     */
+    useEffect(() => {
+        const fetchParams = async () => {
+            const newParams = searchTypeToParams[searchType];
+            if (!newParams) return;
+            setParamsReady(false);
+            const resolvedParams = await newParams();
+            const sortBy = updateSortBy(resolvedParams, params.current.sortBy);
+            params.current = {
+                ...params.current,
+                ...resolvedParams,
+                sortBy,
+                where: stableWhere ?? {},
+            };
+            setParamsReady(canSearch(params.current) && sortBy?.length > 0);
+        };
+        fetchParams();
+    }, [canSearch, searchType, stableWhere]);
+
+    /**
+     * Cursor for pagination. Resets when search params change.
+     * In most cases, there is only one cursor (and thus only one "after" field). But when searching unions, there can be multiple.
+     * To decide the name of the "after" field, we use these rules:
+     * 1. "endCursor" -> "after"
+     * 2. "endCursorSomeObjectType" -> "someObjectTypeAfter"
+     */
+    const after = useRef<Record<string, string>>({});
+
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.query, {
+    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.current.query, {
         variables: ({
-            after: after.current,
             take,
-            sortBy,
-            searchString,
-            createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                after: timeFrame.after?.toISOString(),
-                before: timeFrame.before?.toISOString(),
+            sortBy: params.current.sortBy,
+            searchString: params.current.searchString,
+            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
+                after: params.current.timeFrame.after?.toISOString(),
+                before: params.current.timeFrame.before?.toISOString(),
             } : undefined,
-            ...params.where,
+            ...after.current,
+            ...params.current.where,
             ...advancedSearchParams,
         } as any),
         errorPolicy: "all",
@@ -156,35 +182,37 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     // Track if there is more data to fetch
     const [hasMore, setHasMore] = useState<boolean>(true);
-    // Reset hasMore when search params change
-    useEffect(() => {
-        console.log("resetting hasMore");
-        setHasMore(true);
-    }, [advancedSearchParams, searchString, sortBy, timeFrame]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        // Reset the pagination cursor
-        after.current = undefined;
+        // Reset the pagination cursor and hasMore
+        after.current = {};
+        setHasMore(true);
         // Only get data if we can search
-        if (canSearch && sortBy?.length > 0) getPageData();
-    }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, getPageData]);
+        if (paramsReady) getPageData();
+    }, [advancedSearchParams, paramsReady, getPageData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        if (!pageData || !canSearch || sortBy?.length === 0) return;
-        console.log("brussel sprout in load more");
+        if (!paramsReady || !pageData) return;
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
-            const { endCursor } = pageData.pageInfo;
-            if (endCursor) {
-                after.current = endCursor;
-                getPageData();
+            // Find every field starting with "endCursor" and add the appropriate "after" field
+            after.current = {};
+            for (const [key, value] of Object.entries(pageData.pageInfo)) {
+                // "endCursor" -> "after"
+                if (key === "endCursor") (after.current as any).after = value;
+                // "endCursorSomeObjectType" -> "someObjectTypeAfter"
+                else if (key.startsWith("endCursor")) {
+                    const afterKeyLower = lowercaseFirstLetter(key.replace("endCursor", ""));
+                    (after.current as any)[afterKeyLower + "After"] = value;
+                }
             }
+            getPageData();
         } else {
             setHasMore(false);
         }
-    }, [canSearch, getPageData, pageData, sortBy]);
+    }, [getPageData, pageData, paramsReady]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -194,39 +222,55 @@ export const useFindMany = <DataType extends Record<string, any>>({
             setAllData([]);
             return;
         }
-        if (after.current) {
+        if (Object.keys(after.current).length > 0) {
             setAllData(curr => [...curr, ...parsedData]);
         } else {
             setAllData(parsedData);
         }
     }, [pageData, stableResolve]);
 
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        console.log("LISTTOAUTOCOMPLETE allData", allData);
-        return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
-            return b.bookmarks - a.bookmarks; //TODO not all objects have bookmarks
-        });
-    }, [allData, session]);
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => listToAutocomplete(allData as any, getUserLanguages(session)), [allData, session]);
+
+    const setSortBy = useCallback((sortBy: string) => {
+        setParamsReady(false);
+        params.current.sortBy = updateSortBy(params.current, sortBy);
+        updateUrl();
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
+
+    const setSearchString = useCallback((searchString: string) => {
+        setParamsReady(false);
+        params.current.searchString = searchString;
+        updateUrl();
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
+
+    const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
+        setParamsReady(false);
+        params.current.timeFrame = timeFrame;
+        updateUrl();
+        setParamsReady(canSearch(params.current));
+    }, [canSearch, updateUrl]);
 
     return {
         advancedSearchParams,
-        advancedSearchSchema: params?.advancedSearchSchema,
+        advancedSearchSchema: params?.current?.advancedSearchSchema,
         allData,
         autocompleteOptions,
-        defaultSortBy: params?.defaultSortBy,
+        defaultSortBy: params?.current?.defaultSortBy,
         hasMore,
         loading,
         loadMore,
         pageData,
         parseData,
-        searchString,
+        searchString: params?.current?.searchString,
         setAdvancedSearchParams,
         setAllData,
         setSortBy,
         setSearchString,
         setTimeFrame,
-        sortBy,
-        sortByOptions: params?.sortByOptions,
-        timeFrame,
+        sortBy: params?.current?.sortBy,
+        sortByOptions: params?.current?.sortByOptions,
+        timeFrame: params?.current?.timeFrame,
     };
 };

@@ -10,7 +10,8 @@
    inkscape:export-filename="ProfileIcon.svg"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96"
-   sodipodi:docname="UserIcon.svg"
+   sodipodi:docname="ProfileIcon.svg"
+   inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -26,7 +27,16 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="mm"
      showgrid="false"
-     showguides="true" />
+     showguides="true"
+     inkscape:zoom="17.270833"
+     inkscape:cx="20.844391"
+     inkscape:cy="10.595899"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
   <defs
      id="defs2" />
   <g
@@ -34,9 +44,8 @@
      inkscape:groupmode="layer"
      id="layer1">
     <path
-       id="path2494"
+       id="path948"
        style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:0.398329"
-       d="M 12,1.6347659 C 7.9240013,1.5777744 3.9928802,4.1975959 2.4490684,7.9652196 0.83755816,11.666468 1.6710196,16.264247 4.4966539,19.151665 7.2153077,22.077663 11.694308,23.1445 15.444649,21.779388 19.332006,20.459061 22.198146,16.640255 22.351793,12.533414 22.610022,8.5411142 20.296211,4.5504426 16.71898,2.7684482 15.265747,2.0217078 13.633497,1.6321296 12,1.6347659 Z m -0.0078,2.96875 c 2.248422,-0.074334 4.158955,2.1867476 3.720701,4.390625 C 15.417195,11.150083 13.022521,12.665679 10.94754,11.996341 8.8439532,11.457042 7.6182446,8.9125454 8.509677,6.9314287 9.0664428,5.542436 10.49672,4.5897358 11.9922,4.6035159 Z m -0.07031,8.8886721 c 2.673622,-0.0065 5.367325,1.062989 7.203125,3.02734 -1.894055,3.09441 -5.915683,4.658718 -9.3975337,3.617145 C 7.7038073,19.576966 5.9157366,18.226261 4.820314,16.435537 6.6493423,14.527424 9.2930711,13.491801 11.92189,13.492188 Z"
-       sodipodi:nodetypes="cccccscccccccccccccccccccccccccccccccccccccccsscccccccccccccccccccccccccccc" />
+       d="M 11.992188 4.6035156 C 10.496709 4.5897355 9.0665309 5.5426493 8.5097656 6.9316406 C 7.6183341 8.9127553 8.8436809 11.456795 10.947266 11.996094 C 13.022245 12.665431 15.417185 11.150081 15.712891 8.9941406 C 16.151144 6.7902654 14.240607 4.5291817 11.992188 4.6035156 z M 11.921875 13.492188 C 9.2930587 13.491801 6.649339 14.527436 4.8203125 16.435547 C 5.915734 18.226269 7.7028905 19.577012 9.7265625 20.136719 C 13.20841 21.178291 17.230947 19.613938 19.125 16.519531 C 17.289202 14.555182 14.595494 13.485688 11.921875 13.492188 z " />
   </g>
 </svg>

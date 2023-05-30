@@ -44,6 +44,7 @@ mutation noteCreate($input: NoteCreateInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

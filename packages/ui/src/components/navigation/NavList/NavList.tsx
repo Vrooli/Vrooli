@@ -1,5 +1,5 @@
 import { LINKS, LogInIcon, openLink, ProfileIcon, useLocation } from "@local/shared";
-import { Button, Container, IconButton, Palette, useTheme } from "@mui/material";
+import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { AccountMenu } from "components/dialogs/AccountMenu/AccountMenu";
 import React, { useCallback, useContext, useMemo, useState } from "react";
@@ -92,13 +92,19 @@ export const NavList = () => {
             )}
             {/* Profile icon */}
             {checkIfLoggedIn(session) && (
-                <IconButton
-                    color="inherit"
+                <Avatar
+                    src="/broken-image.jpg" //TODO
                     onClick={openAccountMenu}
-                    aria-label="profile"
+                    sx={{
+                        background: palette.primary.contrastText,
+                        width: "40px",
+                        height: "40px",
+                        margin: "auto",
+                        cursor: "pointer",
+                    }}
                 >
-                    <ProfileIcon fill='white' width='40px' height='40px' />
-                </IconButton>
+                    <ProfileIcon fill={palette.primary.dark} width="100%" height="100%" />
+                </Avatar>
             )}
         </Container>
     );

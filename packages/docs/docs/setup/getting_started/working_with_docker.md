@@ -40,3 +40,11 @@ To view the logs for a container, enter: `docker logs <container-name>`. To foll
 Sometimes you'll need to view the contents of a container. To do this, enter: `docker exec -it <container-name> sh`. This will open a bash terminal in the container. To exit the container, enter: `exit`.
 
 Sometimes it's more helpful to enter the container using a different command. For example, the database container is often accessed using `psql` instead. To do this, enter: `docker exec -it <container-name> psql -U <POSTGRES_USER>`, where `<POSTGRES_USER>` is found in the `docker-compose.yml` file.
+
+## Developing Inside a Container
+Using the [Dev Containers VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), you can develop inside of a container. When working with Python, this is required for modules linting and autocomplete to work correctly. To set this up, follow these steps:  
+1. Install the [Dev Containers VSCode extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Make sure the docker container you want to develop in is running
+3. Open the Command Palette (Ctrl+Shift+P) and select: `Dev Containers: Attach to Running Container...`
+4. Select the container you want to develop in, and VSCode will open a new window with the container attached
+5. Inside the new VSCode window, go to the Extensions tab and make sure the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) (and other recommended extensions) are installed

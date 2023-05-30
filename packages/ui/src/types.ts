@@ -1,7 +1,7 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
 import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
-import { RoutineStepType } from "utils/consts";
+import { ProjectStepType, RoutineStepType } from "utils/consts";
 
 export type CalendarEvent = {
     __typename: "CalendarEvent",
@@ -89,11 +89,11 @@ export type AwardDisplay = {
  * input objects for the GraphQL API.
  */
 export type ShapeModel<
-    T extends {},
-    TCreate extends {} | null,
-    TUpdate extends {} | null
-> = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? {} : {
+    T extends object,
+    TCreate extends object | null,
+    TUpdate extends object | null
+> = (TCreate extends null ? object : { create: (item: T) => TCreate }) &
+    (TUpdate extends null ? object : {
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
@@ -106,26 +106,67 @@ export interface BaseStep {
 export interface DecisionStep extends BaseStep {
     links: NodeLink[]
     type: RoutineStepType.Decision,
+    /**
+     * The ID of the routine containing this step
+     */
+    parentRoutineVersionId: string,
+}
+// Not a real step, but need this info in certain places
+export interface EndStep extends BaseStep {
+    type: "End",
+    /**
+     * The ID of this node
+     */
+    nodeId: string,
+    wasSuccessful: boolean,
 }
 export interface SubroutineStep extends BaseStep {
     index: number,
     routineVersion: RoutineVersion
     type: RoutineStepType.Subroutine,
+    /**
+     * The ID of this node
+     */
+    nodeId: string,
+    /**
+     * The ID of the routine containing this step
+     */
+    parentRoutineVersionId: string,
 }
 export interface RoutineListStep extends BaseStep {
     /**
-     * Node's ID if object was created from a node
+     * Node's ID if object was created from a node (and does not 
+     * represent a full routine)
      */
     nodeId?: string | null,
     /**
-     * Subroutine's ID if object was created from a subroutine
+     * If this object represents a routine (and not a routine list node), 
+     * this is the routine's ID.
      */
     routineVersionId?: string | null,
+    /**
+     * The ID of the routine containing this node
+     */
+    parentRoutineVersionId: string,
     isOrdered: boolean,
     type: RoutineStepType.RoutineList,
     steps: RoutineStep[],
+    endSteps: EndStep[],
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
+
+// Project-related props
+export interface DirectoryStep extends BaseStep {
+    /**
+     * Directory's ID if object was created from a directory
+     */
+    directoryId?: string | null,
+    isOrdered: boolean,
+    isRoot: boolean,
+    type: ProjectStepType.Directory,
+    steps: ProjectStep[],
+}
+export type ProjectStep = DirectoryStep | RoutineStep;
 
 export interface ObjectOption {
     __typename: `${GqlModelType}`;
@@ -218,3 +259,8 @@ export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNulla
  * Makes a value lazy or not
  */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
+
+/**
+ * A task mode supported by Valyxa
+ */
+export type AssistantTask = "start" | "note";
