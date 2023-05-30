@@ -220,7 +220,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
-        console.log("onCloseeeeee", item);
         // Clear search params
         removeSearchParams(setLocation, [
             ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
@@ -265,12 +264,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // On tab change, update search params
     const { searchType, where } = useMemo<Pick<BaseParams, "searchType" | "where">>(() => {
-        console.log("yeet calculating search type", searchData, currTab, tabs);
         if (searchData) return searchData as any;
         if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
         return { searchType: "All", where: {} };
     }, [currTab, searchData, tabs]);
-    console.log("yotes search type", searchType, searchData, currTab, tabs);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
@@ -371,7 +368,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    console.log("yeeeet searchType", searchType);
     return (
         <>
             {/* Invite user dialog (when you select 'User' as create type) */}

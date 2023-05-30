@@ -1,4 +1,4 @@
-import { AddIcon, BotIcon, LockIcon, User, UserIcon, uuidValidate } from "@local/shared";
+import { AddIcon, BotIcon, LockIcon, User, UserIcon } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -42,7 +42,6 @@ export const MembersButton = ({
         membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
         closeDialog();
     }, [membersFieldHelpers, closeDialog]);
-    console.log("in members button", uuidValidate(idField.value), isDialogOpen);
 
     const searchData = useMemo(() => ({
         searchType: "User" as const,

@@ -115,8 +115,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    console.log("valuesssssss", values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)));
-
     const [idField] = useField<string>("id");
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
     const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");

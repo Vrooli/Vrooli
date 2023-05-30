@@ -1,4 +1,4 @@
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
@@ -146,6 +146,9 @@ export const AccountMenu = ({
     }, [handleOpen]);
     const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleOpen(event, LINKS.History);
+    }, [handleOpen]);
+    const handleOpenRuns = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`);
     }, [handleOpen]);
     const handleOpenAwards = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleOpen(event, LINKS.Awards);
@@ -296,6 +299,13 @@ export const AccountMenu = ({
                         <HistoryIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
                     <ListItemText primary={t("History")} />
+                </ListItem>
+                {/* Runs */}
+                <ListItem button onClick={handleOpenRuns}>
+                    <ListItemIcon>
+                        <RoutineActiveIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={t("Run", { count: 2 })} />
                 </ListItem>
                 {/* Awards */}
                 <ListItem button onClick={handleOpenAwards}>

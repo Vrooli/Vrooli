@@ -35,7 +35,6 @@ export function ReminderListItem({
         }
     }, [handleUpdate, reminder]);
     const handleCheck = useCallback(() => {
-        console.log("in handle check");
         if (checkDisabled) return;
         const updatedItems = reminder.reminderItems.length > 0 ?
             { ...(reminder.reminderItems.map(item => ({ ...item, isComplete: !checked }))) } :
@@ -51,7 +50,6 @@ export function ReminderListItem({
     }, [reminder]);
 
     const handleDeleteClick = useCallback(() => {
-        console.log("in handle delete click");
         handleDelete(reminder);
     }, [handleDelete, reminder]);
 

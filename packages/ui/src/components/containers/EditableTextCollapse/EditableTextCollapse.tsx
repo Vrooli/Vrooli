@@ -27,7 +27,6 @@ export function EditableTextCollapse<T extends EditTextComponent>({
 }: EditableTextCollapseProps<T>) {
     const { palette } = useTheme();
     const [field] = useField(name);
-    console.log("editabletextcollapse field", field, name, component);
 
     if (!isEditing && (!field.value || field.value.trim().length === 0) && !showOnNoText) return null; //TODO won't work with translations
     return (

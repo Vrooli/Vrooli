@@ -9,7 +9,6 @@ import { ResourceForm, resourceInitialValues, transformResourceValues, validateR
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { shapeResource } from "utils/shape/models/resource";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ResourceDialogProps } from "../types";
@@ -68,7 +67,6 @@ export const ResourceDialog = ({
                                 helpers.resetForm();
                                 onClose();
                             };
-                            console.log("yeeeet", index, values, shapeResource.create(values));
                             // If index is negative, create
                             const isCreating = index < 0;
                             if (!isCreating && (!partialData || !partialData.id)) {

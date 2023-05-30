@@ -325,7 +325,22 @@ export async function init(prisma: PrismaType) {
         where: {
             id: adminId,
         },
-        update: {},
+        update: {
+            premium: {
+                upsert: {
+                    create: {
+                        enabledAt: new Date(),
+                        expiresAt: new Date("2069-04-20"),
+                        isActive: true,
+                    },
+                    update: {
+                        enabledAt: new Date(),
+                        expiresAt: new Date("2069-04-20"),
+                        isActive: true,
+                    },
+                },
+            },
+        },
         create: {
             id: adminId,
             name: "Matt Halloran",

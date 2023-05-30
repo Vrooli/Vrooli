@@ -83,7 +83,6 @@ export const BuildView = ({
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("undoing");
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -95,7 +94,6 @@ export const BuildView = ({
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("redoing");
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -110,7 +108,6 @@ export const BuildView = ({
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("adding to change stack", changedRoutine);
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 

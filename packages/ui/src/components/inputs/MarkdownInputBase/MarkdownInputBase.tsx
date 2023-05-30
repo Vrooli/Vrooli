@@ -471,7 +471,7 @@ export const MarkdownInputBase = ({
                         sx={{ marginRight: "auto" }}
                     >
                         {/* AI assistant */}
-                        {!hasPremium && !disableAssistant && <Tooltip title="AI assistant" placement="top">
+                        {hasPremium && !disableAssistant && <Tooltip title="AI assistant" placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-assistant-popover-${name}`}
                                 disabled={disabled}

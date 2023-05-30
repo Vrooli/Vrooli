@@ -111,7 +111,6 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
             returnObject.id = base36ToUuid(lastPart, false);
         }
     }
-    console.log("parseSingleItemUrl RESULT", returnObject);
     // Return the object
     return returnObject;
 };

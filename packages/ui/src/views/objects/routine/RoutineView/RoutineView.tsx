@@ -180,8 +180,6 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    console.log("formik values", formik.values);
-
     const comments = useMemo(() => (
         <Box sx={containerProps(palette)}>
             <CommentContainer

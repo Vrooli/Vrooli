@@ -310,7 +310,6 @@ export function App() {
             },
         });
     }, [validateSession]);
-    console.log("CURRENT SESSION", session);
 
     useEffect(() => {
         checkSession();
