@@ -2,12 +2,12 @@ import { NodeLink, OpenInNewIcon } from "@local/shared";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { BaseStep } from "types";
+import { EndStep, RoutineStep } from "types";
 import { RoutineStepType } from "utils/consts";
 import { DecisionViewProps } from "../types";
 
 type Decision = {
-    step: BaseStep;
+    step: RoutineStep | EndStep;
     link: NodeLink;
     color: string;
 };

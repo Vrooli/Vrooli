@@ -1,11 +1,11 @@
 import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
-import { BaseStep, DecisionStep, RoutineListStep } from "types";
+import { DecisionStep, EndStep, RoutineListStep, RoutineStep } from "types";
 import { ViewProps } from "views/objects/types";
 import { BaseViewProps } from "views/types";
 
 export interface DecisionViewProps extends BaseViewProps {
     data: DecisionStep;
-    handleDecisionSelect: (node: BaseStep) => void;
+    handleDecisionSelect: (step: RoutineStep | EndStep) => void;
     routineList: RoutineListStep;
     zIndex: number;
 }

@@ -113,6 +113,7 @@ export interface DecisionStep extends BaseStep {
 }
 // Not a real step, but need this info in certain places
 export interface EndStep extends BaseStep {
+    type: "End",
     /**
      * The ID of this node
      */

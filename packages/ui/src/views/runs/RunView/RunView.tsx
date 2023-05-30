@@ -9,9 +9,9 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { routineVersion } from "tools/api/partial/routineVersion";
 import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
+import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { base36ToUuid } from "utils/navigation/urlTools";
@@ -184,7 +184,7 @@ const stepNeedsQuerying = (step: ProjectStep | null | undefined): boolean => {
  * @param step The step to calculate the complexity of
  * @returns The complexity of the step
  */
-const getStepComplexity = (step: RoutineStep): number => {
+const getStepComplexity = (step: ProjectStep): number => {
     switch (step.type) {
         // One decision, so one complexity
         case RoutineStepType.Decision:
@@ -194,6 +194,7 @@ const getStepComplexity = (step: RoutineStep): number => {
             return (step as SubroutineStep).routineVersion.complexity;
         // Complexity of a list is the sum of its children's complexities
         case RoutineStepType.RoutineList:
+        case ProjectStepType.Directory:
             return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
     }
 };
@@ -280,6 +281,7 @@ const convertRoutineVersionToStep = (
     for (const node of endNodes) {
         // Add end step
         endSteps.push({
+            type: "End",
             name: getTranslation(node, languages, true).name ?? "Untitled",
             description: getTranslation(node, languages, true).description ?? "Description not found matching selected language",
             wasSuccessful: node.end?.wasSuccessful ?? false,
@@ -813,7 +815,7 @@ export const RunView = ({
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     stepsCreate,
                     stepsUpdate,
-                    ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
+                    ...runInputsUpdate((run as any)?.inputs as RunRoutineInput[], currUserInputs.current), //TODO
                 },
                 onSuccess: (data) => {
                     setRun(data);
@@ -821,11 +823,13 @@ export const RunView = ({
             });
         }
         // Otherwise, mark as complete
+        // TODO if running a project, the overall run may not be complete - just one routine in the project
         else {
             // Find node data
             const currNodeId = currStepRunData?.node?.id;
-            const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
-            const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
+            // const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
+            // const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
+            const wasSuccessful = true; //TODO
             mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
                 mutation: logRunComplete,
                 input: {
@@ -834,9 +838,9 @@ export const RunView = ({
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
-                    name: getTranslation(routineVersion, getUserLanguages(session), true).name ?? "Unnamed Routine",
+                    name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
                     wasSuccessful,
-                    ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
+                    ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
                 },
                 successMessage: () => ({ messageKey: "RoutineCompleted" }),
                 onSuccess: () => {
@@ -846,22 +850,15 @@ export const RunView = ({
                 },
             });
         }
-    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, session, setLocation, steps, testMode]);
+    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, session, setLocation, steps, testMode]);
 
     /**
-     * End routine after reaching end node using a decision step. 
-     * Routine marked as complete if end node indicates success.
-     * Also navigates out of run dialog.
+     * End run after reaching an EndStep
+     * TODO if run is a project, this is not the end. Just the end of a routine in the project
      */
-    const reachedEndNode = useCallback((endNode: Node) => {
-        // Make sure correct nodeType was passed
-        if (endNode.nodeType !== NodeType.End) {
-            console.error("Passed incorrect nodeType to reachedEndNode");
-            return;
-        }
+    const reachedEndStep = useCallback((step: EndStep) => {
         // Check if end was successfully reached
-        const data = endNode.end!;
-        const success = data?.wasSuccessful ?? true;
+        const success = step.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
@@ -876,9 +873,9 @@ export const RunView = ({
             input: {
                 id: run.id,
                 exists: true,
-                name: getTranslation(routineVersion, getUserLanguages(session), true).name ?? "Unnamed Routine",
+                name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
                 wasSuccessful: success,
-                ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
+                ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
             },
             successMessage: () => ({ messageKey: "RoutineCompleted" }),
             onSuccess: () => {
@@ -887,7 +884,7 @@ export const RunView = ({
                 onClose();
             },
         });
-    }, [testMode, run, logRunComplete, session, setLocation, onClose]);
+    }, [testMode, run, runnableObject, logRunComplete, setLocation, onClose]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -902,12 +899,13 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
         } : undefined;
         // Send data to server
+        //TODO support run projects
         mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
             mutation: logRunUpdate,
             input: {
                 id: run.id,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
+                ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
             },
             onSuccess: (data) => {
                 setRun(data);
@@ -927,19 +925,20 @@ export const RunView = ({
     /**
      * Navigate to selected decision
      */
-    const toDecision = useCallback((selectedNode: Node) => {
+    const toDecision = useCallback((step: RoutineStep | EndStep) => {
         // If end node, finish
-        if (selectedNode.nodeType === NodeType.End) {
-            reachedEndNode(selectedNode);
+        if (step.type === "End") {
+            reachedEndStep(step);
             return;
         }
         // Find step number of node
-        const locationArray = locationFromNodeId(selectedNode.id, steps);
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const locationArray = locationFromNodeId((step as unknown as SubroutineStep | RoutineListStep).nodeId!, steps);
         if (!locationArray) return;
         // Navigate to current step
         console.log("todecision", locationArray);
         setCurrStepLocation(locationArray);
-    }, [reachedEndNode, setCurrStepLocation, steps]);
+    }, [reachedEndStep, setCurrStepLocation, steps]);
 
     /**
      * Displays either a subroutine view or decision view
@@ -954,15 +953,16 @@ export const RunView = ({
                     handleSaveProgress={saveProgress}
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     onClose={() => { }}
-                    owner={routineVersion?.root?.owner}
+                    owner={run?.organization ?? run?.user} //TODO not right, but also unused right now
                     routineVersion={(currentStep as SubroutineStep).routineVersion}
-                    run={run}
+                    run={run as RunRoutine}
                     loading={subroutinesLoading}
                     zIndex={zIndex}
                 />;
             case ProjectStepType.Directory:
-                return <DirectoryView
-                />;
+                return null; //TODO
+            // return <DirectoryView
+            // />;
             default:
                 return <DecisionView
                     data={currentStep as DecisionStep}
@@ -973,7 +973,7 @@ export const RunView = ({
                     zIndex={zIndex}
                 />;
         }
-    }, [currentStep, handleUserInputsUpdate, run, saveProgress, subroutinesLoading, toDecision, zIndex]);
+    }, [currentStep, handleUserInputsUpdate, run, saveProgress, steps, subroutinesLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: "100vh" }}>
@@ -1021,7 +1021,7 @@ export const RunView = ({
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}
-                            stepList={steps}
+                            rootStep={steps}
                             zIndex={zIndex + 3}
                         />
                     </Box>
