@@ -1,6 +1,7 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, FindVersionInput, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, removeSearchParams, RoutineVersion, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { projectVersionDirectoryFindMany } from "api/generated/endpoints/projectVersionDirectory_findMany";
 import { routineVersionFindMany } from "api/generated/endpoints/routineVersion_findMany";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
 import { runRoutineUpdate } from "api/generated/endpoints/runRoutine_update";
@@ -27,31 +28,37 @@ import { RunViewProps } from "../types";
 const MAX_NESTING = 20;
 
 /**
- * Inserts step data into a given RoutineStep, at a given location
- * @param stepData Data to insert into the steps object
- * @param steps RoutineListStep to check in
- * @returns RoutineStep for the updated step, or the original step if the step was not found
+ * Inserts step data into a given ProjectStep, where id matches
+ * If the provided steps object is of type DirectoryStep, this function
+ * will recursively traverse the nested steps and replace the matching
+ * step with the provided stepData. If the steps object is of type
+ * RoutineListStep, the existing logic of insertStep is used.
+ * 
+ * @param {RoutineListStep | DirectoryStep} stepData - Data to insert into the steps object.
+ * @param {RoutineListStep | DirectoryStep} steps - ProjectStep to check in.
+ * @returns {RoutineListStep | DirectoryStep} - Updated step. Returns the original step if the step was not found.
  */
-const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
-    // Initialize step to be returned
-    const step: RoutineListStep = steps;
-    // Loop through steps
-    for (let i = 0; i < step.steps.length; i++) {
-        const currentStep = step.steps[i];
-        // If step is a subroutine step, check if it matches the stepData
-        if (currentStep.type === RoutineStepType.Subroutine) {
-            // If it matches, replace with stepData
-            if ((currentStep as SubroutineStep).routineVersion.id === stepData.routineVersionId) {
-                step.steps[i] = stepData;
+const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineListStep | DirectoryStep): RoutineListStep | DirectoryStep => {
+    const recursiveInsert = (stepData: RoutineListStep | DirectoryStep, steps: ProjectStep): ProjectStep => {
+        if (steps.type === RoutineStepType.Subroutine && "routineVersionId" in stepData && stepData.routineVersionId) {
+            if ((steps as SubroutineStep).routineVersion.id === stepData.routineVersionId) {
+                return stepData;
+            }
+        } else if (steps.type === RoutineStepType.RoutineList || steps.type === ProjectStepType.Directory) {
+            for (let i = 0; i < steps.steps.length; i++) {
+                steps.steps[i] = recursiveInsert(stepData, steps.steps[i]);
             }
         }
-        // If step is a routine list step, recursively check if it matches the stepData
-        else if (currentStep.type === RoutineStepType.RoutineList) {
-            step.steps[i] = insertStep(stepData, currentStep as RoutineListStep);
-        }
+        return steps;
+    };
+
+    if (steps.type === RoutineStepType.RoutineList || steps.type === ProjectStepType.Directory) {
+        return recursiveInsert(stepData, steps) as RoutineListStep | DirectoryStep;
+    } else {
+        return steps; // if steps is neither a RoutineListStep nor a DirectoryStep, return it as is.
     }
-    return step;
 };
+
 
 /**
  * Find the step array of a given nodeId
@@ -281,7 +288,7 @@ const parseChildOrder = (childOrder: string): string[] => {
  * @returns ProjectStep for the given project, or null if invalid
  */
 const convertProjectVersionToStep = (
-    projectVersion: ProjectVersion | null | undefined,
+    projectVersion: Pick<ProjectVersion, "directories" | "translations"> | null | undefined,
     languages: string[],
 ): DirectoryStep | null => {
     // Check if the projectVersion object and its directories array are not null or undefined
@@ -517,82 +524,115 @@ export const RunView = ({
      */
     const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, (run as RunProject)?.projectVersion?.complexity ?? (run as RunRoutine)?.routineVersion?.complexity), [completedComplexity, run]);
 
-    // Query current subroutine, if needed. Main routine may have the data
-    const [getSubroutine, { data: subroutine, loading: subroutineLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindMany, { errorPolicy: "all" });
-    const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
+    const navigateToNextStepInParent = useCallback(() => {
+        // make sure there are steps in the current location
+        if (currStepLocation.length > 0) {
+            const newCurrStepLocation = [...currStepLocation];
+            newCurrStepLocation[newCurrStepLocation.length - 1] += 1; // increment the last index
+            setCurrStepLocation(newCurrStepLocation);
+        }
+    }, [currStepLocation]);
+
+    const navigateBackToParentStep = useCallback(() => {
+        // make sure there are steps in the current location
+        if (currStepLocation.length > 0) {
+            const newCurrStepLocation = currStepLocation.slice(0, currStepLocation.length - 1); // remove the last index
+            setCurrStepLocation(newCurrStepLocation);
+        }
+    }, [currStepLocation]);
+
+    // Query current subroutine or directory, if needed. Main routine may have the data
+    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useCustomLazyQuery<RoutineVersionSearchResult, RoutineVersionSearchInput>(routineVersionFindMany, { errorPolicy: "all" });
+    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useCustomLazyQuery<ProjectVersionDirectorySearchResult, ProjectVersionDirectorySearchInput>(projectVersionDirectoryFindMany, { errorPolicy: "all" });
+    const [currentStep, setCurrentStep] = useState<ProjectStep | null>(null);
     useEffect(() => {
-        console.log("find step 1", currStepLocation);
         // If no steps, redirect to first step
         if (currStepLocation.length === 0) {
-            console.log("find step 2");
             setCurrStepLocation([1]);
             return;
         }
         // Current step is the last step in steps list
         const currStep = stepFromLocation(currStepLocation, steps);
-        console.log("find step 3", currStep);
         // If current step was not found
         if (!currStep) {
-            console.log("find step 4");
-            // Check if this is because the routine list has no steps (i.e. it is empty)
-            //TODO
-            // Check if this is because the subroutine data hasn't been fetched yet
-            //TODO
-            // Otherwise, this is an error
-            // PubSub.get().publishSnack({ messageKey: 'StepNotFound', severity: 'Error' });
-            return;
-        }
-        // If current step is a list, then redirect to first step in list
-        if (currStep.type === RoutineStepType.RoutineList) {
-            console.log("find step 5");
-            // But first, make sure the list is not empty
-            // If it is, skip to the next step
-            if ((currStep as RoutineListStep).steps.length === 0) {
-                console.log("find step 6");
-                //TODO
-                // asdfasfd
+            // Check if this is because the top level step list is empty
+            if (currStepLocation.length === 1 && steps?.steps.length === 0) {
+                // Navigate to the next step in the parent list or directory
+                navigateToNextStepInParent();
+            } else if (currStepLocation.length > 1) {
+                // Navigate back to the parent step
+                navigateBackToParentStep();
             }
-            const newStepList = [...currStepLocation, 1];
-            console.log("find step 7", newStepList);
-            setCurrStepLocation(newStepList);
             return;
         }
-        // If current step is a subroutine, then query if not all data is available
-        if (stepNeedsQuerying(currStep)) {
-            console.log("find step 8", currStep);
-            getSubroutine({ variables: { id: (currStep as SubroutineStep).routineVersion.id } });
-        } else {
-            console.log("find step 9");
-            setCurrentStep(currStep);
+        // If current step is a list or directory, then redirect to first step in list or directory
+        if (currStep.type === RoutineStepType.RoutineList || currStep.type === ProjectStepType.Directory) {
+            // But first, make sure the list or directory is not empty
+            // If it is, skip to the next step
+            if (currStep.steps.length === 0) {
+                // Navigate to the next step in the parent list or directory
+                navigateToNextStepInParent();
+                return;
+            } else {
+                const newStepList = [...currStepLocation, 1];
+                setCurrStepLocation(newStepList);
+            }
         }
-    }, [currStepLocation, getSubroutine, params, setCurrStepLocation, steps]);
+        // If current step is a Directory and needs querying, then query the data
+        if (currStep.type === ProjectStepType.Directory && stepNeedsQuerying(currStep)) {
+            getDirectories({ variables: { parentDirectoryId: currStep.directoryId } });
+            return;
+        }
+        // If current step is a Subroutine and needs querying, then query the data
+        if (currStep.type === RoutineStepType.Subroutine && stepNeedsQuerying(currStep)) {
+            getSubroutines({ variables: { ids: [currStep.routineVersion.id] } });
+            return;
+        }
+        // Finally, if we don't need to query, we set the current step.
+        setCurrentStep(currStep);
+    }, [currStepLocation, getSubroutines, getDirectories, params, setCurrStepLocation, steps, navigateToNextStepInParent, navigateBackToParentStep]);
+
 
     /**
      * When new subroutine data is fetched, inject it into steps. 
-     * This requires finding the subroutine step that matches the ID of the 
-     * queried subroutine, then converting this into a RoutineList step with its own 
-     * subroutines
-     * TODO not tested and likely doesn't work
      */
     useEffect(() => {
-        if (!subroutine) return;
+        if (!queriedSubroutines) return;
         // Convert to RoutineStep
-        const subroutineStep = convertRoutineVersionToStep(subroutine, languages);
-        if (!subroutineStep) return;
+        const queriedData = queriedSubroutines.edges.map(e => e.node);
+        let updatedSteps = steps;
+        for (const queriedRoutine of queriedData) {
+            const subroutineStep = convertRoutineVersionToStep(queriedRoutine, languages);
+            if (!subroutineStep) continue;
+            // Inject into steps
+            updatedSteps = updatedSteps ? insertStep(subroutineStep, updatedSteps) : subroutineStep;
+        }
+        setSteps(updatedSteps);
+    }, [languages, queriedSubroutines, steps]);
+
+    /**
+     * When new subproject is fetched, inject it into steps.
+     */
+    useEffect(() => {
+        if (!queriedSubdirectories) return;
+        // Convert to ProjectStep
+        const queriedData = queriedSubdirectories.edges.map(e => e.node);
+        const subdirectoryStep = convertProjectVersionToStep({ directories: queriedData, translations: [] }, languages);
+        if (!subdirectoryStep) return;
         // Inject into steps
-        setSteps(s => s ? insertStep(subroutineStep, s) : subroutineStep);
-    }, [languages, subroutine]);
+        setSteps(s => s ? insertStep(subdirectoryStep, s) : subdirectoryStep);
+    }, [languages, queriedSubdirectories]);
 
     const { instructions, name } = useMemo(() => {
         const languages = getUserLanguages(session);
         // Find step above current step
         const currStepParent = stepFromLocation(currStepLocation.slice(0, -1), steps);
         return {
-            instructions: getTranslation(routineVersion, languages, true).instructions,
+            instructions: (run && run?.__typename === "RunRoutine" && run.routineVersion) ? getTranslation(run.routineVersion, languages, true).instructions : "",
             // Ignore name if it's for the main routine (i.e. step is still loading, probably)
             name: (currStepParent?.name && currStepLocation.length > 1) ? currStepParent.name : "",
         };
-    }, [currStepLocation, session, steps]);
+    }, [currStepLocation, run, session, steps]);
 
     /**
      * Calculates previous step location array, or null
@@ -617,19 +657,19 @@ export const RunView = ({
     const nextStep = useMemo<number[] | null>(() => {
         // If current step is a decision, return null. 
         // This is because the next step is determined by the decision, not automatically
-        if (currentStep?.type === RoutineStepType.Decision) return null;
+        if (currentStep?.type === RoutineStepType.Decision || currentStep?.type === ProjectStepType.Directory) return null;
         // If no current step, default to [1]
         let result = currStepLocation.length === 0 ? [1] : [...currStepLocation];
         let listStepFound = false;
-        // Loop backwards until a RoutineList node in stepParams can be incremented. Remove elements after that
+        // Loop backwards until a RoutineList node or Directory node in stepParams can be incremented. Remove elements after that
         for (let i = result.length - 1; i >= 0; i--) {
             // Update current step
-            const currStep: RoutineStep | null = stepFromLocation(result.slice(0, i), steps);
+            const currStep: ProjectStep | null = stepFromLocation(result.slice(0, i), steps);
             // If step not found, we cannot continue
             if (!currStep) return null;
-            // If current step is a RoutineList, check if there is another step in the list
-            if (currStep.type === RoutineStepType.RoutineList) {
-                if ((currStep as RoutineListStep).steps.length > result[i]) {
+            // If current step is a RoutineList or Directory, check if there is another step in the list
+            if (currStep.type === RoutineStepType.RoutineList || currStep.type === ProjectStepType.Directory) {
+                if (currStep.steps.length > result[i]) {
                     listStepFound = true;
                     result[i]++;
                     result = result.slice(0, i + 1);
@@ -637,13 +677,10 @@ export const RunView = ({
                 }
             }
         }
-        // If a RoutineList to increment was not found, return null
+        // If a RoutineList or Directory to increment was not found, return null
         if (!listStepFound) return null;
-        // Remember, a RoutineList is not the actual step being run. We need to find the first 
-        // subroutine within the RoutineList that doesn't have its own subroutines. This may require 
-        // additional queries to the server. At least doing it here forces the queries to occur 
-        // one step before they are needed, which helps with performance.
-        let currNextStep: RoutineStep | null = stepFromLocation(result, steps);
+        // Continue finding the next step which is not a list or directory.
+        let currNextStep: ProjectStep | null = stepFromLocation(result, steps);
         let endFound = !currNextStep;
         while (!endFound) {
             switch (currNextStep?.type) {
@@ -651,14 +688,17 @@ export const RunView = ({
                 case RoutineStepType.Decision:
                     endFound = true;
                     break;
-                // If current step is a RoutineList, check if there is another step in the list
+
+                // If current step is a RoutineList or Directory, check if there is another step in the list
                 case RoutineStepType.RoutineList:
-                    if ((currNextStep as RoutineListStep).steps.length > 0) {
+                case ProjectStepType.Directory:
+                    if (currNextStep.steps.length > 0) {
                         result.push(1);
                         currNextStep = stepFromLocation(result, steps);
                     }
                     else endFound = true;
                     break;
+
                 // If current step is a subroutine, this is either the end or more data needs to be fetched
                 case RoutineStepType.Subroutine:
                     if (!routineVersionHasSubroutines((currNextStep as SubroutineStep).routineVersion)) {
@@ -666,9 +706,6 @@ export const RunView = ({
                     } else {
                         endFound = true;
                         //TODO - fetch subroutine data
-                        // result.push(1);
-                        // currNextStep = findStep(result, steps);
-                        // console.log('NEXT STEP', currNextStep)
                     }
                     break;
             }
@@ -676,6 +713,7 @@ export const RunView = ({
         // Return result
         return result;
     }, [currStepLocation, currentStep?.type, steps]);
+
 
     //TODO
     const unsavedChanges = false;
@@ -884,7 +922,7 @@ export const RunView = ({
                     owner={routineVersion?.root?.owner}
                     routineVersion={(currentStep as SubroutineStep).routineVersion}
                     run={run}
-                    loading={subroutineLoading}
+                    loading={subroutinesLoading}
                     zIndex={zIndex}
                 />;
             default:
@@ -895,7 +933,7 @@ export const RunView = ({
                     zIndex={zIndex}
                 />;
         }
-    }, [currentStep, handleUserInputsUpdate, routineVersion?.nodes, routineVersion?.root?.owner, run, saveProgress, session, subroutineLoading, toDecision, zIndex]);
+    }, [currentStep, handleUserInputsUpdate, routineVersion?.nodes, routineVersion?.root?.owner, run, saveProgress, session, subroutinesLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: "100vh" }}>
@@ -939,7 +977,7 @@ export const RunView = ({
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
                             currStep={currStepLocation}
-                            handleLoadSubroutine={(id: string) => { getSubroutine({ variables: { id } }); }}
+                            handleLoadSubroutine={(id: string) => { getSubroutines({ variables: { ids: [id] } }); }}
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}

@@ -1,4 +1,4 @@
-import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput, projectVersionDirectoryValidation } from "@local/shared";
+import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, projectVersionDirectoryValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
@@ -16,8 +16,8 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     GqlUpdate: ProjectVersionDirectoryUpdateInput,
     GqlModel: ProjectVersionDirectory,
     GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlSearch: ProjectVersionDirectorySearchInput,
+    GqlSort: ProjectVersionDirectorySortBy,
     PrismaCreate: Prisma.project_version_directoryUpsertArgs["create"],
     PrismaUpdate: Prisma.project_version_directoryUpsertArgs["update"],
     PrismaModel: Prisma.project_version_directoryGetPayload<SelectWrap<Prisma.project_version_directorySelect>>,
@@ -98,6 +98,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         },
         yup: projectVersionDirectoryValidation,
     },
+    search: {} as any,
     validate: {
         isDeleted: () => false,
         isPublic: (data, languages) => ProjectVersionModel.validate!.isPublic(data.projectVersion as any, languages),

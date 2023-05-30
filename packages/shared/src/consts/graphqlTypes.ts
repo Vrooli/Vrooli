@@ -4456,6 +4456,36 @@ export type ProjectVersionDirectoryCreateInput = {
   translationsCreate?: InputMaybe<Array<ProjectVersionDirectoryTranslationCreateInput>>;
 };
 
+export type ProjectVersionDirectoryEdge = {
+  __typename: 'ProjectVersionDirectoryEdge';
+  cursor: Scalars['String'];
+  node: ProjectVersionDirectory;
+};
+
+export type ProjectVersionDirectorySearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  isRoot?: InputMaybe<Scalars['Boolean']>;
+  parentDirectoryId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectVersionDirectorySortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ProjectVersionDirectorySearchResult = {
+  __typename: 'ProjectVersionDirectorySearchResult';
+  edges: Array<ProjectVersionDirectoryEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ProjectVersionDirectorySortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
 export type ProjectVersionDirectoryTranslation = {
   __typename: 'ProjectVersionDirectoryTranslation';
   description?: Maybe<Scalars['String']>;
@@ -4847,6 +4877,7 @@ export type Query = {
   projectOrRoutines: ProjectOrRoutineSearchResult;
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionContents: ProjectVersionContentsSearchResult;
+  projectVersionDirectories: ProjectVersionDirectorySearchResult;
   projectVersions: ProjectVersionSearchResult;
   projects: ProjectSearchResult;
   pullRequest?: Maybe<PullRequest>;
@@ -5196,6 +5227,11 @@ export type QueryProjectVersionArgs = {
 
 export type QueryProjectVersionContentsArgs = {
   input: ProjectVersionContentsSearchInput;
+};
+
+
+export type QueryProjectVersionDirectoriesArgs = {
+  input: ProjectVersionDirectorySearchInput;
 };
 
 
@@ -10006,6 +10042,10 @@ export type ResolversTypes = {
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ResolverTypeWrapper<ProjectVersionDirectory>;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
+  ProjectVersionDirectoryEdge: ResolverTypeWrapper<ProjectVersionDirectoryEdge>;
+  ProjectVersionDirectorySearchInput: ProjectVersionDirectorySearchInput;
+  ProjectVersionDirectorySearchResult: ResolverTypeWrapper<ProjectVersionDirectorySearchResult>;
+  ProjectVersionDirectorySortBy: ProjectVersionDirectorySortBy;
   ProjectVersionDirectoryTranslation: ResolverTypeWrapper<ProjectVersionDirectoryTranslation>;
   ProjectVersionDirectoryTranslationCreateInput: ProjectVersionDirectoryTranslationCreateInput;
   ProjectVersionDirectoryTranslationUpdateInput: ProjectVersionDirectoryTranslationUpdateInput;
@@ -10714,6 +10754,9 @@ export type ResolversParentTypes = {
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ProjectVersionDirectory;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
+  ProjectVersionDirectoryEdge: ProjectVersionDirectoryEdge;
+  ProjectVersionDirectorySearchInput: ProjectVersionDirectorySearchInput;
+  ProjectVersionDirectorySearchResult: ProjectVersionDirectorySearchResult;
   ProjectVersionDirectoryTranslation: ProjectVersionDirectoryTranslation;
   ProjectVersionDirectoryTranslationCreateInput: ProjectVersionDirectoryTranslationCreateInput;
   ProjectVersionDirectoryTranslationUpdateInput: ProjectVersionDirectoryTranslationUpdateInput;
@@ -12593,6 +12636,18 @@ export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType exten
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ProjectVersionDirectoryEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectoryEdge'] = ResolversParentTypes['ProjectVersionDirectoryEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectVersionDirectorySearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectorySearchResult'] = ResolversParentTypes['ProjectVersionDirectorySearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ProjectVersionDirectoryEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ProjectVersionDirectoryTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectoryTranslation'] = ResolversParentTypes['ProjectVersionDirectoryTranslation']> = {
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -12764,6 +12819,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   projectOrRoutines?: Resolver<ResolversTypes['ProjectOrRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrRoutinesArgs, 'input'>>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType, RequireFields<QueryProjectVersionArgs, 'input'>>;
   projectVersionContents?: Resolver<ResolversTypes['ProjectVersionContentsSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionContentsArgs, 'input'>>;
+  projectVersionDirectories?: Resolver<ResolversTypes['ProjectVersionDirectorySearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionDirectoriesArgs, 'input'>>;
   projectVersions?: Resolver<ResolversTypes['ProjectVersionSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionsArgs, 'input'>>;
   projects?: Resolver<ResolversTypes['ProjectSearchResult'], ParentType, ContextType, RequireFields<QueryProjectsArgs, 'input'>>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType, RequireFields<QueryPullRequestArgs, 'input'>>;
@@ -14728,6 +14784,8 @@ export type Resolvers<ContextType = any> = {
   ProjectVersion?: ProjectVersionResolvers<ContextType>;
   ProjectVersionContentsSearchResult?: ProjectVersionContentsSearchResultResolvers<ContextType>;
   ProjectVersionDirectory?: ProjectVersionDirectoryResolvers<ContextType>;
+  ProjectVersionDirectoryEdge?: ProjectVersionDirectoryEdgeResolvers<ContextType>;
+  ProjectVersionDirectorySearchResult?: ProjectVersionDirectorySearchResultResolvers<ContextType>;
   ProjectVersionDirectoryTranslation?: ProjectVersionDirectoryTranslationResolvers<ContextType>;
   ProjectVersionEdge?: ProjectVersionEdgeResolvers<ContextType>;
   ProjectVersionSearchResult?: ProjectVersionSearchResultResolvers<ContextType>;
