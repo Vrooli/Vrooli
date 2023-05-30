@@ -17,6 +17,8 @@ import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: SettingsProfileViewProps) => {
     const session = useContext(SessionContext);
 
@@ -27,7 +29,7 @@ export const SettingsProfileView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Profile",
                 }}
@@ -67,6 +69,7 @@ export const SettingsProfileView = ({
                         isLoading={isProfileLoading || isUpdating}
                         numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
                         onCancel={formik.resetForm}
+                        zIndex={zIndex}
                         {...formik}
                     />}
                 </Formik>

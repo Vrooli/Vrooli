@@ -24,7 +24,7 @@ export const StandardInput = ({
 
     // Toggle preview/edit mode
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
-    const onPreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => { setIsPreviewOn(event.target.checked) }, []);
+    const onPreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => { setIsPreviewOn(event.target.checked); }, []);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -33,7 +33,7 @@ export const StandardInput = ({
     }, []);
 
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
-    console.log('standardinput field value', fieldName, field.value)
+    console.log("standardinput field value", fieldName, field.value);
 
     return (
         <Box sx={{
@@ -46,8 +46,8 @@ export const StandardInput = ({
                 onChange={onPreviewChange}
                 OffIcon={BuildIcon}
                 OnIcon={VisibleIcon}
-                label={isPreviewOn ? 'Preview' : 'Edit'}
-                tooltip={isPreviewOn ? 'Switch to edit' : 'Switch to preview'}
+                label={isPreviewOn ? "Preview" : "Edit"}
+                tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
                 sx={{ marginBottom: 2 }}
             />}
             {
@@ -55,6 +55,7 @@ export const StandardInput = ({
                     (field.value && <GeneratedInputComponent
                         disabled={true} // Always disabled, since this is a preview
                         fieldData={field.value}
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
                         zIndex={zIndex}
                     />) :
@@ -75,9 +76,10 @@ export const StandardInput = ({
                             inputType={inputType.value}
                             isEditing={true}
                             storageKey={schemaKey}
+                            zIndex={zIndex}
                         />
                     </Box>
             }
         </Box>
-    )
-}
+    );
+};

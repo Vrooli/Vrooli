@@ -3,7 +3,7 @@ import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
-import { NavigableObject, RoutineStep } from "types";
+import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObjectType } from "utils/display/listTools";
@@ -16,6 +16,15 @@ import { NodeLinkShape } from "utils/shape/models/nodeLink";
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (event: React.MouseEvent<HTMLElement>) => void;
+}
+
+export interface AssistantDialogProps {
+    context?: string;
+    task?: AssistantTask;
+    handleClose: () => void;
+    handleComplete: (data: any) => void;
+    isOpen: boolean;
+    zIndex: number;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -287,7 +296,7 @@ export interface RunStepsDialogProps {
      * Out of 100
      */
     percentComplete: number;
-    stepList: RoutineStep | null;
+    rootStep: RoutineListStep | DirectoryStep | null;
     zIndex: number;
 }
 

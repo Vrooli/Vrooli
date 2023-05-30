@@ -19,12 +19,16 @@ function deepEqual(a: any, b: any): boolean {
     return true;
 }
 
+type NonFunction<T> = T extends (...args: any[]) => any ? never : T;
+
 /**
  * Only triggers a re-render if the object has actually changed. 
  * A changed ref but equal object will not trigger a re-render.
+ * 
+ * NOTE: Does not work for functions. Use useStableCallback for that.
  */
-export const useStableObject = <T extends object | null | undefined>(obj: T): T => {
-    const prevObjRef = useRef<T>(obj);
+export const useStableObject = <T extends object | null | undefined>(obj: NonFunction<T>): NonFunction<T> => {
+    const prevObjRef = useRef<NonFunction<T>>(obj as NonFunction<T>);
     const [, forceUpdate] = useState({});
 
     useEffect(() => {

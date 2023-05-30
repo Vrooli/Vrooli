@@ -4,6 +4,9 @@
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
+# Connection timeout in seconds
+CONN_TIMEOUT=10
+
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
     source "${HERE}/../.env"
@@ -42,12 +45,19 @@ fi
 
 # Test the SSH connection by running a command on the remote host
 info "Testing SSH connection..."
-ssh -i ~/.ssh/${key_name} -o "BatchMode=yes" ${remote_server} "echo 2>&1" >/dev/null
+ssh -i ~/.ssh/${key_name} -o "BatchMode=yes" -o "ConnectTimeout=${CONN_TIMEOUT}" ${remote_server} "echo 2>&1" >/dev/null
 RET=$?
 if [ ${RET} -ne 0 ]; then
-    error "SSH connection failed: ${RET}. Exiting..."
-    rm ~/.ssh/${key_name}*
-    exit 1
-else
-    success "SSH connection successful."
+    error "SSH connection failed: ${RET}. Retrying after removing old host key..."
+    # Remove the known hosts entry for the remote server
+    ssh-keygen -R ${SITE_IP}
+    # Retry the SSH connection
+    ssh -i ~/.ssh/${key_name} -o "BatchMode=yes" -o "ConnectTimeout=${CONN_TIMEOUT}" ${remote_server} "echo 2>&1" >/dev/null
+    RET=$?
+    if [ ${RET} -ne 0 ]; then
+        error "SSH connection still failed: ${RET}. Exiting..."
+        rm ~/.ssh/${key_name}*
+        exit 1
+    fi
 fi
+success "SSH connection successful."

@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
+import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
@@ -30,8 +31,25 @@ export const ProjectVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+            }),
+            get: ({ root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    name: trans.name,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                    description: trans.description,
+                }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -110,7 +128,8 @@ export const ProjectVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async (params) => {
+                const { createList, updateList, deleteList, prisma, userData } = params;
                 await versionsCheck({
                     createList,
                     deleteList,
@@ -121,6 +140,8 @@ export const ProjectVersionModel: ModelLogic<{
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
                 combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -131,7 +152,7 @@ export const ProjectVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
                 // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
@@ -140,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
                 // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });

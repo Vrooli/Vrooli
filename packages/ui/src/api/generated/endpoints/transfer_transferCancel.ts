@@ -1,6 +1,5 @@
 import gql from "graphql-tag";
 import { Api_list } from "../fragments/Api_list";
-import { Label_full } from "../fragments/Label_full";
 import { Label_list } from "../fragments/Label_list";
 import { Note_list } from "../fragments/Note_list";
 import { Organization_nav } from "../fragments/Organization_nav";
@@ -12,7 +11,6 @@ import { Tag_list } from "../fragments/Tag_list";
 import { User_nav } from "../fragments/User_nav";
 
 export const transferTransferCancel = gql`${Api_list}
-${Label_full}
 ${Label_list}
 ${Note_list}
 ${Organization_nav}
@@ -32,11 +30,13 @@ mutation transferCancel($input: FindByIdInput!) {
     status
     fromOwner {
         id
+        isBot
         name
         handle
     }
     toOwner {
         id
+        isBot
         name
         handle
     }

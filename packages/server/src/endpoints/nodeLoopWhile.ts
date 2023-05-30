@@ -28,7 +28,7 @@ export const typeDef = gql`
     }
     input NodeLoopWhileTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

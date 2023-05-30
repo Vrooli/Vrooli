@@ -51,7 +51,7 @@ fi
 EMAILS_SENT=0
 # Set timestamp for last time EMAILS_SENT was reset
 LAST_RESET=$(date +%s)
-# Store the latest timestamp found in errors sent to email. 
+# Store the latest timestamp found in errors sent to email.
 # This is used to prevent duplicate emails
 LATEST_TIMESTAMP=0 #TODO
 
@@ -130,7 +130,7 @@ if [ -z "$WILL_LOOP" ]; then
     WILL_LOOP=true
 fi
 
-# Get the last line checked for each log file. This is stored in a file called `listen-sh-status.txt` in the 
+# Get the last line checked for each log file. This is stored in a file called `listen-sh-status.txt` in the
 # same directory that the logs are saved to. We store this in a file so that the script can be stopped and
 # restarted without losing the last line checked for each log file.
 last_lines_checked_file="${local_dir}/listen-sh-status.txt"
@@ -141,14 +141,14 @@ if [ -f "$last_lines_checked_file" ]; then
         log_file=$(echo $line | awk -F'=' '{print $1}')
         last_line_checked=$(echo $line | awk -F'=' '{print $2}')
         last_lines_checked[$log_file]=$last_line_checked
-    done < $last_lines_checked_file
+    done <$last_lines_checked_file
 fi
 info "Last lines checked: ${last_lines_checked[@]}"
 
 while true; do
     # Fetch all log files from the remote directory that have been modified since the last fetch
     info "Fetching logs from remote server at ${remote_log_dir}..."
-    rsync -avz --update --exclude ".*" $remote_server:$remote_log_dir $local_dir
+    rsync -avz -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" --update --exclude ".*" $remote_server:$remote_log_dir $local_dir
 
     # Loop through all updated log files in the local directory
     for log_file in $(find $local_dir -type f -newermt "$(date +%Y-%m-%d -d 'yesterday')"); do
@@ -187,9 +187,9 @@ while true; do
 
     # Save the last lines checked to the status file
     info "Saving last lines checked to file: ${last_lines_checked_file}"
-    echo "" > $last_lines_checked_file
+    echo "" >$last_lines_checked_file
     for log_file in "${!last_lines_checked[@]}"; do
-        echo "$log_file=${last_lines_checked[$log_file]}" >> $last_lines_checked_file
+        echo "$log_file=${last_lines_checked[$log_file]}" >>$last_lines_checked_file
     done
     info "Finished saving last lines checked to file."
 

@@ -19,6 +19,7 @@ services:
       VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VITE_STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
       VITE_GOOGLE_ADSENSE_PUBLISHER_ID: "${GOOGLE_ADSENSE_PUBLISHER_ID}"
+      VITE_GOOGLE_TRACKING_ID: "${GOOGLE_TRACKING_ID}"
       PROJECT_DIR: "${PROJECT_DIR}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PATH: "/"
@@ -49,6 +50,7 @@ services:
     environment:
       NODE_ENV: "development"
       PROJECT_DIR: "${PROJECT_DIR}"
+      VALYXA_API_KEY: "${VALYXA_API_KEY}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: "${PORT_SERVER}"
       REDIS_CONN: "redis:${PORT_REDIS}"
@@ -60,7 +62,9 @@ services:
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
       ADMIN_WALLET: "${ADMIN_WALLET}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
       BLOCKFROST_API_KEY: "${BLOCKFROST_API_KEY}"
+      HUGGINGFACE_API_KEY: "${HUGGINGFACE_API_KEY}"
       VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
@@ -84,7 +88,7 @@ services:
       # - ./node_modules:${PROJECT_DIR}/node_modules
       - ./packages/server:${PROJECT_DIR}/packages/server:z
       - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-      - ./packages/ui/public:${PROJECT_DIR}/packages/ui/public:z
+      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
       - ./data/logs:${PROJECT_DIR}/data/logs:z
       - ./data/uploads:${PROJECT_DIR}/data/uploads:z
       - ./data/stats:${PROJECT_DIR}/data/stats:z
@@ -94,7 +98,7 @@ services:
       - db
     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
   db:
-    image: postgres:13-alpine
+    image: ankane/pgvector:v0.4.1
     restart: always
     container_name: db
     environment:
@@ -138,6 +142,9 @@ services:
       - ./packages/docs:/docs
     ports:
       - "${PORT_DOCS}:${PORT_DOCS}"
+    networks:
+      - proxy
+      - app
     command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
     environment:
       VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"

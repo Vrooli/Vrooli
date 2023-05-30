@@ -12,7 +12,7 @@ export const RunProjectStepModel: ModelLogic<{
     GqlCreate: RunProjectStepCreateInput,
     GqlUpdate: RunProjectStepUpdateInput,
     GqlModel: RunProjectStep,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.run_project_stepUpsertArgs["create"],
@@ -24,8 +24,10 @@ export const RunProjectStepModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project_step,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
     },
     format: {
         gqlRelMap: {

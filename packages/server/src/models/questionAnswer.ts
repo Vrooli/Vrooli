@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = "QuestionAnswer" as const;
@@ -16,7 +16,7 @@ export const QuestionAnswerModel: ModelLogic<{
     GqlModel: QuestionAnswer,
     GqlSearch: QuestionAnswerSearchInput,
     GqlSort: QuestionAnswerSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.question_answerUpsertArgs["create"],
     PrismaUpdate: Prisma.question_answerUpsertArgs["update"],
     PrismaModel: Prisma.question_answerGetPayload<SelectWrap<Prisma.question_answerSelect>>,
@@ -26,8 +26,10 @@ export const QuestionAnswerModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.question_answer,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations as any, "name", languages),
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
+        },
     },
     format: {
         gqlRelMap: {

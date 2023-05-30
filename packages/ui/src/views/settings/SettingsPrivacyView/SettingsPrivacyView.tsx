@@ -13,6 +13,8 @@ import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: SettingsPrivacyViewProps) => {
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
@@ -22,7 +24,7 @@ export const SettingsPrivacyView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Authentication",
                 }}
@@ -59,6 +61,7 @@ export const SettingsPrivacyView = ({
                         display={display}
                         isLoading={isProfileLoading || isUpdating}
                         onCancel={formik.resetForm}
+                        zIndex={zIndex}
                         {...formik}
                     />}
                 </Formik>

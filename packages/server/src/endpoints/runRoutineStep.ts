@@ -26,6 +26,7 @@ export const typeDef = gql`
         contextSwitches: Int
         name: String!
         order: Int!
+        status: RunRoutineStepStatus
         step: [Int!]!
         timeElapsed: Int
         nodeConnect: ID

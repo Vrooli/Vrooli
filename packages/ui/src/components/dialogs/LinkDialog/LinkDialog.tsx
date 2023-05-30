@@ -2,7 +2,7 @@
  * Used to create/update a link between two routine nodes
  */
 import { NodeType, uuid } from "@local/shared";
-import { Autocomplete, Box, DialogContent, Grid, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Autocomplete, Box, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -195,21 +195,20 @@ export const LinkDialog = ({
                 helpText={helpText}
                 onClose={handleCancel}
             />
-            <DialogContent>
+            <DialogContent sx={{
+                marginBottom: "64px",
+            }}>
                 {nodeSelections}
                 {conditions}
                 {deleteOption}
-                {/* Action buttons */}
-                <Grid container spacing={2} mt={2} mb={8}>
-                    <GridSubmitButtons
-                        display="dialog"
-                        errors={errors}
-                        isCreate={isAdd}
-                        onCancel={handleCancel}
-                        onSubmit={addLink}
-                    />
-                </Grid>
             </DialogContent>
+            <GridSubmitButtons
+                display="dialog"
+                errors={errors}
+                isCreate={isAdd}
+                onCancel={handleCancel}
+                onSubmit={addLink}
+            />
         </LargeDialog>
     );
 };

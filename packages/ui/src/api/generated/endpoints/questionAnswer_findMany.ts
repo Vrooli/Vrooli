@@ -16,6 +16,7 @@ query questionAnswers($input: QuestionAnswerSearchInput!) {
             updated_at
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

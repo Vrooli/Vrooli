@@ -82,7 +82,7 @@ export const typeDef = gql`
     }
     input CommentTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         text: String
     }
     type CommentTranslation {

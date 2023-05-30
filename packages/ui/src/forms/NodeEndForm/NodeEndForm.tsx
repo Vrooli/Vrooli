@@ -116,6 +116,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                         name="description"
                         props={{
                             language,
+                            zIndex,
                         }}
                         title={t("Description")}
                     />

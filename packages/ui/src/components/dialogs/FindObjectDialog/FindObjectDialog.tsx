@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation, UserIcon, VisibleIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, UserIcon, VisibleIcon } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -39,7 +39,7 @@ type CreateViewTypes = Exclude<RemoveVersion<SelectOrCreateObjectType>, "User">;
 
 type AllTabOptions = "All" | SearchPageTabOption | CalendarPageTabOption;
 type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: "All" | SearchType;
     tabType: AllTabOptions;
     where: { [x: string]: any };
@@ -220,7 +220,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
-        console.log("onCloseeeeee", item);
         // Clear search params
         removeSearchParams(setLocation, [
             ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
@@ -265,12 +264,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // On tab change, update search params
     const { searchType, where } = useMemo<Pick<BaseParams, "searchType" | "where">>(() => {
-        console.log("yeet calculating search type", searchData, currTab, tabs);
         if (searchData) return searchData as any;
         if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
         return { searchType: "All", where: {} };
     }, [currTab, searchData, tabs]);
-    console.log("yotes search type", searchType, searchData, currTab, tabs);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
@@ -350,22 +347,19 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         // If value is not an object, return;
-        if (!newValue || newValue.__typename === "Shortcut" || newValue.__typename === "Action") return false;
+        if (!newValue || newValue.__typename === "Shortcut" || newValue.__typename === "Action") return;
         // If object has versions
         if ((newValue as any).versions && (newValue as any).versions.length > 0) {
             // If there is only one version, select it
             if ((newValue as any).versions.length === 1) {
                 // Select and close dialog
                 onClose(newValue as any, (newValue as any).versions[0].id);
-                return false;
             }
             // Otherwise, set selected object so we can choose which version to link to
             setSelectedObject(newValue as any);
-            return false;
         }
         // Select and close dialog
         onClose(newValue as any);
-        return false;
     }, [onClose]);
 
     const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
@@ -374,7 +368,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    console.log("yeeeet searchType", searchType);
     return (
         <>
             {/* Invite user dialog (when you select 'User' as create type) */}
@@ -458,7 +451,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
-                        beforeNavigation={onInputSelect}
+                        canNavigate={() => false}
+                        dummyLength={3}
+                        onItemClick={onInputSelect}
                         take={20}
                         // Combine results for each object type
                         resolve={(data: { [x: string]: any }) => {

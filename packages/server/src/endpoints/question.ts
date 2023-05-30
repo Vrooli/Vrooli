@@ -96,7 +96,7 @@ export const typeDef = gql`
     }
     input QuestionTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

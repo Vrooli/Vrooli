@@ -62,6 +62,7 @@ const slideContentIds = [slide1Id, slide2Id, slide3Id, slide4Id, slide5Id, slide
  */
 export const LandingView = ({
     display = "page",
+    onClose,
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -145,7 +146,7 @@ export const LandingView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
             />
             <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 3 }}>

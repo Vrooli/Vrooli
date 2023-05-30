@@ -45,6 +45,7 @@ query smartContract($input: FindByIdInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

@@ -2,33 +2,21 @@ import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdate
 import { FormikProps } from "formik";
 import { ViewDisplayType } from "views/types";
 
-export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput> {
+interface SettingsFormBaseProps {
     display: ViewDisplayType;
     isLoading: boolean;
     onCancel: () => void;
+    zIndex: number;
 }
 
-export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput> {
-    display: ViewDisplayType;
-    isLoading: boolean;
-    onCancel: () => void;
-}
+export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput>, SettingsFormBaseProps { }
 
-export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput> {
-    display: ViewDisplayType;
-    isLoading: boolean;
-    onCancel: () => void;
-}
+export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 
-export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput> {
-    display: ViewDisplayType;
-    isLoading: boolean;
-    onCancel: () => void;
-}
+export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }
 
-export interface SettingsProfileFormProps extends FormikProps<any> {
-    display: ViewDisplayType;
-    isLoading: boolean;
+export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
+
+export interface SettingsProfileFormProps extends FormikProps<any>, SettingsFormBaseProps {
     numVerifiedWallets: number;
-    onCancel: () => void;
 }

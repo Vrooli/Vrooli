@@ -2,7 +2,8 @@ import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, Issue
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
+import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
@@ -39,8 +40,20 @@ export const IssueModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.issue,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
+        embed: {
+            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            get: ({ translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    description: trans.description,
+                    name: trans.name,
+                }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -100,16 +113,20 @@ export const IssueModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList }) => {
+                const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
+                return { ...maps };
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
                 [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 ...(await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
         },
         yup: issueValidation,

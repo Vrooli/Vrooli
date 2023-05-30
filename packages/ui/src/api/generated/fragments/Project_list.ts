@@ -17,15 +17,6 @@ versions {
     simplicity
     versionIndex
     versionLabel
-    you {
-        canComment
-        canCopy
-        canDelete
-        canReport
-        canUpdate
-        canUse
-        canRead
-    }
 }
 id
 created_at

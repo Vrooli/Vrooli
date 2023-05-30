@@ -35,6 +35,8 @@ const zIndex = 200;
  */
 export const DashboardView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -158,7 +160,7 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const beforeNavigation = useCallback(() => {
+    const onClick = useCallback(() => {
         if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
     }, [searchString, setLocation]);
 
@@ -188,13 +190,13 @@ export const DashboardView = ({
     }, [data]);
 
     const noteItems = useMemo(() => listToListItems({
-        beforeNavigation,
         dummyItems: new Array(5).fill("Note"),
         items: notes,
         keyPrefix: "note-list-item",
         loading,
+        onClick,
         zIndex,
-    }), [beforeNavigation, notes, loading]);
+    }), [onClick, notes, loading]);
 
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
@@ -234,14 +236,14 @@ export const DashboardView = ({
         const first10 = result.slice(0, 10);
         // Convert to list items
         return listToListItems({
-            beforeNavigation,
             dummyItems: new Array(5).fill("Event"),
             items: first10,
             keyPrefix: "event-list-item",
             loading,
+            onClick,
             zIndex,
         });
-    }, [beforeNavigation, data?.home?.schedules, loading, session]);
+    }, [onClick, data?.home?.schedules, loading, session]);
 
     return (
         <PageContainer>
@@ -250,19 +252,19 @@ export const DashboardView = ({
                 id="add-note-dialog"
                 onClose={closeCreateNote}
                 isOpen={isCreateNoteOpen}
-                zIndex={201}
+                zIndex={zIndex + 1}
             >
                 <NoteUpsert
                     display="dialog"
                     isCreate={true}
                     onCancel={closeCreateNote}
                     onCompleted={onNoteCreated}
-                    zIndex={201}
+                    zIndex={zIndex + 1}
                 />
             </LargeDialog>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 // Navigate between for you and history pages
                 below={showTabs && (
                     <PageTabs

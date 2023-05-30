@@ -1,5 +1,5 @@
 import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
-import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
+import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
 import { useCustomMutation } from "api/hooks";
@@ -7,7 +7,7 @@ import { mutationWrapper } from "api/utils";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
+import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
@@ -19,6 +19,7 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -44,18 +45,9 @@ import { RoutineViewProps } from "../types";
 const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
-const containerProps = (palette: Palette) => ({
-    boxShadow: 1,
-    background: palette.background.paper,
-    borderRadius: 1,
-    overflow: "overlay",
-    marginTop: 4,
-    marginBottom: 4,
-    padding: 2,
-});
-
 export const RoutineView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: RoutineViewProps) => {
@@ -65,7 +57,7 @@ export const RoutineView = ({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { id, isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
         query: routineVersionFindOne,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
@@ -188,13 +180,24 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    console.log("formik values", formik.values);
+    const comments = useMemo(() => (
+        <Box sx={containerProps(palette)}>
+            <CommentContainer
+                forceAddCommentOpen={isAddCommentOpen}
+                language={language}
+                objectId={existing?.id ?? ""}
+                objectType={CommentFor.RoutineVersion}
+                onAddCommentClose={closeAddCommentDialog}
+                zIndex={zIndex}
+            />
+        </Box>
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette, zIndex]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Routine",
                 }}
@@ -223,8 +226,10 @@ export const RoutineView = ({
                     >
                         <BuildView
                             handleCancel={stopBuild}
-                            handleClose={stopBuild}
-                            handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
+                            onClose={stopBuild}
+                            // Intentionally blank, since this is a read-only view
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
+                            handleSubmit={() => { }}
                             isEditing={false}
                             loading={isLoading}
                             routineVersion={existing}
@@ -232,7 +237,9 @@ export const RoutineView = ({
                                 language,
                                 languages: availableLanguages,
                                 setLanguage,
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleAddLanguage: () => { },
+                                // eslint-disable-next-line @typescript-eslint/no-empty-function
                                 handleDeleteLanguage: () => { },
                             }}
                             zIndex={zIndex + 1}
@@ -255,10 +262,10 @@ export const RoutineView = ({
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        title={"Resources"}
                         list={resourceList as ResourceList}
                         canUpdate={false}
-                        handleUpdate={() => { }} // Intentionally blank
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleUpdate={() => { }}
                         loading={isLoading}
                         zIndex={zIndex}
                     />}
@@ -270,9 +277,9 @@ export const RoutineView = ({
                         <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
-                    {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
+                    {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
-                            isOpen={false}
+                            isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
@@ -296,7 +303,15 @@ export const RoutineView = ({
                         </ContentCollapse>
                     </Box>}
                     {/* "View Graph" button if this is a multi-step routine */}
-                    {existing?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+                    {
+                        existing?.nodes?.length ? <Box>
+                            <Subheader
+                                title={"This is a multi-step routine."}
+                                help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                            />
+                            <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                        </Box> : null
+                    }
                     {/* Tags */}
                     {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}
@@ -327,21 +342,12 @@ export const RoutineView = ({
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
-                        exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                        exclude={[ObjectAction.Edit]} // Handled elsewhere
                         object={existing}
                         zIndex={zIndex}
                     />
                     {/* Comments */}
-                    <Box sx={containerProps(palette)}>
-                        <CommentContainer
-                            forceAddCommentOpen={isAddCommentOpen}
-                            language={language}
-                            objectId={existing?.id ?? ""}
-                            objectType={CommentFor.RoutineVersion}
-                            onAddCommentClose={closeAddCommentDialog}
-                            zIndex={zIndex}
-                        />
-                    </Box>
+                    {comments}
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}

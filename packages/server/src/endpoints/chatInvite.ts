@@ -1,4 +1,4 @@
-import { FindByIdInput } from "@local/shared";
+import { ChatInviteSortBy, ChatInviteStatus, FindByIdInput } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
 import { CustomError } from "../events";
@@ -89,8 +89,8 @@ export const typeDef = gql`
 
 const objectType = "ChatInvite";
 export const resolvers: {
-    // ChatInviteSortBy: typeof ChatInviteSortBy;
-    // ChatInviteStatus: typeof ChatInviteStatus;
+    ChatInviteSortBy: typeof ChatInviteSortBy;
+    ChatInviteStatus: typeof ChatInviteStatus;
     Query: {
         chatInvite: GQLEndpoint<FindByIdInput, FindOneResult<any>>;
         chatInvites: GQLEndpoint<any, FindManyResult<any>>;
@@ -102,8 +102,8 @@ export const resolvers: {
         chatInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<any>>;
     }
 } = {
-    // ChatInviteSortBy: ChatInviteSortBy,
-    // ChatInviteStatus: ChatInviteStatus,
+    ChatInviteSortBy,
+    ChatInviteStatus,
     Query: {
         chatInvite: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

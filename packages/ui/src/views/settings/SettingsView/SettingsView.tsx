@@ -52,6 +52,7 @@ export const displaySettingsData: SettingsData[] = [
 
 export const SettingsView = ({
     display = "page",
+    onClose,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -65,7 +66,7 @@ export const SettingsView = ({
         <>
             <SettingsTopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Settings",
                 }}
@@ -84,7 +85,7 @@ export const SettingsView = ({
                 ))}
             </CardGrid>
             <Header title={t("Display")} sxs={{ text: { paddingTop: 2 } }} />
-            <CardGrid minWidth={300}>
+            <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                 {displaySettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard
                         buttonText={t("Open")}

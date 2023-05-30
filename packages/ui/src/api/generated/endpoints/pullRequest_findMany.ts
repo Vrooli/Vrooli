@@ -19,6 +19,7 @@ query pullRequests($input: PullRequestSearchInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

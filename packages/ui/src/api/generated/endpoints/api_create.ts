@@ -44,6 +44,7 @@ mutation apiCreate($input: ApiCreateInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

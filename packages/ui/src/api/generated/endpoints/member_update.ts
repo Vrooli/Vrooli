@@ -98,6 +98,7 @@ mutation memberUpdate($input: MemberUpdateInput!) {
         }
     }
     user {
+        botSettings
         translations {
             id
             language
@@ -106,6 +107,7 @@ mutation memberUpdate($input: MemberUpdateInput!) {
         id
         created_at
         handle
+        isBot
         name
         bookmarks
         reportsReceivedCount

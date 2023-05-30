@@ -61,10 +61,15 @@ export const SortMap = {
     MeetingEndDesc: { meeting: { eventEnd: Order.Desc } },
     MembersAsc: { members: { _count: Order.Asc } },
     MembersDesc: { members: { _count: Order.Desc } },
+    MessagesAsc: { messages: { _count: Order.Asc } },
+    MessagesDesc: { messages: { _count: Order.Desc } },
     NameAsc: { name: Order.Asc },
     NameDesc: { name: Order.Desc },
+    New: {}, // Reserved for embeddable object search, so not applicable here
     OrderAsc: { order: Order.Asc },
     OrderDesc: { order: Order.Desc },
+    ParticipantsAsc: { participants: { _count: Order.Asc } },
+    ParticipantsDesc: { participants: { _count: Order.Desc } },
     PeriodStartAsc: { periodStart: Order.Asc },
     PeriodStartDesc: { periodStart: Order.Desc },
     PointsEarnedAsc: { pointsEarned: Order.Asc },
@@ -101,6 +106,7 @@ export const SortMap = {
     TimeTakenDesc: { timeTaken: Order.Desc },
     TitleAsc: { title: Order.Asc },
     TitleDesc: { title: Order.Desc },
+    Top: {}, // Reserved for embeddable object search, so not applicable here
     BookmarksAsc: { bookmarkedBy: { _count: Order.Asc } },
     BookmarksDesc: { bookmarkedBy: { _count: Order.Desc } },
     UsedForAsc: { usedFor: Order.Asc },

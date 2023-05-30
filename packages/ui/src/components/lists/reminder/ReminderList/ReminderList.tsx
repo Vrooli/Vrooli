@@ -2,7 +2,7 @@
  * Displays a list of emails for the user to manage
  */
 import { AddIcon, DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
-import { Typography, useTheme } from "@mui/material";
+import { List, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
@@ -119,7 +119,7 @@ export const ReminderList = ({
             },
             errorMessage: () => ({ messageKey: "FailedToDelete" }),
         });
-    }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
+    }, [addMutation, allReminders, closeDialog, deleteMutation, handleCreated, handleUpdate]);
 
     return (
         <>
@@ -159,16 +159,18 @@ export const ReminderList = ({
                         paddingTop: "8px",
                     }}>{t("NoResults", { ns: "error" })}</Typography>}
                     {/* Existing reminders */}
-                    {reminders.map((reminder, index) => (
-                        <ReminderListItem
-                            key={`reminder-${index}`}
-                            handleDelete={() => handleDelete(index)}
-                            handleOpen={() => openUpdateDialog(index)}
-                            handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
-                            reminder={reminder}
-                            zIndex={zIndex}
-                        />
-                    ))}
+                    <List>
+                        {reminders.map((reminder, index) => (
+                            <ReminderListItem
+                                key={`reminder-${index}`}
+                                handleDelete={() => handleDelete(index)}
+                                handleOpen={() => openUpdateDialog(index)}
+                                handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
+                                reminder={reminder}
+                                zIndex={zIndex}
+                            />
+                        ))}
+                    </List>
                 </>
             </TitleContainer>
         </>

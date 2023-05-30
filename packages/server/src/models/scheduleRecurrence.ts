@@ -13,7 +13,7 @@ export const ScheduleRecurrenceModel: ModelLogic<{
     GqlCreate: ScheduleRecurrenceCreateInput,
     GqlUpdate: ScheduleRecurrenceUpdateInput,
     GqlModel: ScheduleRecurrence,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.schedule_recurrenceUpsertArgs["create"],
@@ -25,8 +25,10 @@ export const ScheduleRecurrenceModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule_recurrence,
     display: {
-        select: () => ({ id: true, schedule: { select: ScheduleModel.display.select() } }),
-        label: (select, languages) => ScheduleModel.display.label(select.schedule as any, languages),
+        label: {
+            select: () => ({ id: true, schedule: { select: ScheduleModel.display.label.select() } }),
+            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

@@ -95,7 +95,7 @@ export const typeDef = gql`
     }
     input SmartContractVersionTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
         jsonVariable: String

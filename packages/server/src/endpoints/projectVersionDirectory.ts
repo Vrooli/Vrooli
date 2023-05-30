@@ -1,6 +1,17 @@
+import { ProjectVersionDirectory, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
+import { readManyHelper } from "../actions";
+import { rateLimit } from "../middleware";
+import { FindManyResult, GQLEndpoint } from "../types";
 
 export const typeDef = gql`
+    enum ProjectVersionDirectorySortBy {
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+    }
+
     input ProjectVersionDirectoryCreateInput {
         id: ID!
         childApiVersionsConnect: [ID!]
@@ -69,7 +80,7 @@ export const typeDef = gql`
     }
     input ProjectVersionDirectoryTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }
@@ -79,9 +90,45 @@ export const typeDef = gql`
         description: String
         name: String
     }
+
+    input ProjectVersionDirectorySearchInput {
+        after: String
+        ids: [ID!]
+        isRoot: Boolean
+        parentDirectoryId: ID
+        searchString: String
+        sortBy: ProjectVersionDirectorySortBy
+        take: Int
+        visibility: VisibilityType
+    }
+
+    type ProjectVersionDirectorySearchResult {
+        pageInfo: PageInfo!
+        edges: [ProjectVersionDirectoryEdge!]!
+    }
+
+    type ProjectVersionDirectoryEdge {
+        cursor: String!
+        node: ProjectVersionDirectory!
+    }
+
+    extend type Query {
+        projectVersionDirectories(input: ProjectVersionDirectorySearchInput!): ProjectVersionDirectorySearchResult!
+    }
 `;
 
 const objectType = "ProjectVersionDirectory";
 export const resolvers: {
+    ProjectVersionDirectorySortBy: typeof ProjectVersionDirectorySortBy;
+    Query: {
+        projectVersionDirectories: GQLEndpoint<ProjectVersionDirectorySearchInput, FindManyResult<ProjectVersionDirectory>>;
+    },
 } = {
+    ProjectVersionDirectorySortBy,
+    Query: {
+        projectVersionDirectories: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
+        },
+    },
 };

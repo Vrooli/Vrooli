@@ -40,6 +40,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
         wasSuccessful
         suggestedNextRoutineVersions {
             id
+            complexity
             isAutomatable
             isComplete
             isDeleted
@@ -120,7 +121,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
         created_at
         updated_at
         completedAt
-        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -200,6 +200,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                     step
                     subroutine {
                         id
+                        complexity
                         isAutomatable
                         isComplete
                         isDeleted
@@ -232,7 +233,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 status
                 stepsCount
                 inputsCount
-                wasRunAutomaticaly
+                wasRunAutomatically
                 organization {
                     ...Organization_nav
                 }

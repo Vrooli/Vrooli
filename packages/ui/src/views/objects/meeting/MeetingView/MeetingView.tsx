@@ -11,6 +11,7 @@ import { MeetingViewProps } from "../types";
 
 export const MeetingView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: MeetingViewProps) => {
@@ -40,7 +41,7 @@ export const MeetingView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Meeting",
                     titleVariables: { count: 1 },

@@ -1,5 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, HelpIcon, LINKS, OrganizationIcon, ProjectIcon, ResourceList, SvgProps, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
 import { userProfile } from "api/generated/endpoints/user_profile";
@@ -8,13 +8,13 @@ import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceListVertical } from "components/lists/resource";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
+import Markdown from "markdown-to-jsx";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
@@ -28,13 +28,12 @@ import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
 enum TabOptions {
-    Resource = "Resource",
     Project = "Project",
     Organization = "Organization",
 }
 
 type TabParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: TabOptions;
     where: { [x: string]: any };
@@ -42,11 +41,6 @@ type TabParams = {
 
 // Data for each tab
 const tabParams: TabParams[] = [{
-    Icon: HelpIcon,
-    searchType: SearchType.Resource,
-    tabType: TabOptions.Resource,
-    where: {},
-}, {
     Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: TabOptions.Project,
@@ -60,6 +54,7 @@ const tabParams: TabParams[] = [{
 
 export const UserView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: UserViewProps) => {
@@ -93,14 +88,12 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | undefined = undefined;// TODO user?.resourceList;
+    const { bio, name, handle } = useMemo(() => {
         const { bio } = getTranslation(user ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
-            resourceList,
         };
     }, [language, partialData, user]);
 
@@ -109,38 +102,18 @@ export const UserView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
-        <ResourceListVertical
-            list={resourceList}
-            canUpdate={permissions.canUpdate}
-            handleUpdate={(updatedList) => {
-                if (!user) return;
-                setUser({
-                    ...user,
-                    //resourceList: updatedList TODO
-                });
-            }}
-            loading={isLoading}
-            mutate={true}
-            zIndex={zIndex}
-        />
-    ) : null, [isLoading, permissions.canUpdate, resourceList, setUser, user, zIndex]);
-
-
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs = tabParams;
-        // Remove resources if there are none, and you cannot add them
-        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
+        const tabs = tabParams;
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? "#8e6b00" : palette.secondary.dark, // Custom color for resources
+            color: palette.secondary.dark,
             index: i,
             Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [permissions.canUpdate, resources, t]);
+    }, [palette.secondary.dark, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
@@ -150,7 +123,6 @@ export const UserView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Organization)
             return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user?.id!], visibility: VisibilityType.All });
         return toSearchListData("Project", "SearchProject", { ownedByUserId: user?.id!, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
@@ -183,29 +155,25 @@ export const UserView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                border={`4px solid ${palette.primary.dark}`}
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
+            <Avatar
+                src="/broken-image.jpg" //TODO
                 sx={{
-                    border: "1px solid black",
                     backgroundColor: profileColors[0],
+                    color: profileColors[1],
+                    boxShadow: 2,
                     transform: "translateX(-50%)",
+                    width: "min(100px, 25vw)",
+                    height: "min(100px, 25vw)",
+                    left: "50%",
+                    top: "-55px",
+                    position: "absolute",
+                    fontSize: "min(50px, 10vw)",
                 }}
-            >
-                <UserIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
+            />
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -266,7 +234,7 @@ export const UserView = ({
                     timestamp={user?.created_at}
                     width={"33%"}
                 />
-                {/* Description */}
+                {/* Bio */}
                 {
                     isLoading ? (
                         <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
@@ -274,7 +242,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Typography>
+                        <Markdown variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Markdown>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -297,7 +265,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
+    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
 
     /**
      * Opens add new page
@@ -310,7 +278,7 @@ export const UserView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "User",
                 }}
@@ -337,12 +305,12 @@ export const UserView = ({
                     right: 8,
                     paddingRight: "1em",
                 }}>
-                    <SelectLanguageMenu
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
                         zIndex={zIndex}
-                    />
+                    />}
                 </Box>
                 {overviewComponent}
             </Box>
@@ -355,21 +323,18 @@ export const UserView = ({
                     tabs={tabs}
                 />
                 <Box p={2}>
-                    {
-                        currTab.value === TabOptions.Resource ? resources : (
-                            <SearchList
-                                canSearch={Boolean(user?.id) && uuidValidate(user?.id)}
-                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                                hideUpdateButton={true}
-                                id="user-view-list"
-                                searchType={searchType}
-                                searchPlaceholder={placeholder}
-                                take={20}
-                                where={where}
-                                zIndex={zIndex}
-                            />
-                        )
-                    }
+                    <SearchList
+                        canSearch={() => Boolean(user?.id) && uuidValidate(user?.id)}
+                        dummyLength={display === "page" ? 5 : 3}
+                        handleAdd={permissions.canUpdate ? toAddNew : undefined}
+                        hideUpdateButton={true}
+                        id="user-view-list"
+                        searchType={searchType}
+                        searchPlaceholder={placeholder}
+                        take={20}
+                        where={where}
+                        zIndex={zIndex}
+                    />
                 </Box>
             </Box>
         </>

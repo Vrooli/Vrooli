@@ -1,6 +1,7 @@
 import { Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type CommentTranslationShape = Pick<CommentTranslation, "id" | "language" | "text"> & {
     __typename?: "CommentTranslation";
@@ -15,7 +16,7 @@ export type CommentShape = Pick<Comment, "id"> & {
 
 export const shapeCommentTranslation: ShapeModel<CommentTranslationShape, CommentTranslationCreateInput, CommentTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "text"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "text"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "text"), a),
 };
 
 export const shapeComment: ShapeModel<CommentShape, CommentCreateInput, CommentUpdateInput> = {

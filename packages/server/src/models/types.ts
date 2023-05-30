@@ -35,6 +35,7 @@ export type ModelLogic<
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
+    idField?: keyof Model["GqlModel"];
     format: Formatter<Model, SuppFields>;
     search?: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
@@ -291,12 +292,13 @@ export type Validator<
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
-    permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }: {
+    permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }: {
         data: Model["PrismaModel"],
         isAdmin: boolean,
         isDeleted: boolean,
         isLoggedIn: boolean,
         isPublic: boolean,
+        userId: string | null | undefined,
     }) => { [x in keyof Omit<Model["GqlPermission"], "type">]: () => any } & { [x in Exclude<QueryAction, "Create"> as `can${x}`]: () => boolean | Promise<boolean> };
     /**
      * Partial queries for various visibility checks
@@ -520,13 +522,19 @@ export type Displayer<
     }
 > = {
     /**
-     * Select query for object's label
+     * Display the object for push notifications, etc.
      */
-    select: () => Model["PrismaSelect"],
+    label: {
+        select: () => Model["PrismaSelect"],
+        get: (select: Model["PrismaModel"], languages: string[]) => string,
+    }
     /**
-     * Uses labelSelect to get label for object
+     * Object representation for text embedding, which is used for search
      */
-    label: (select: Model["PrismaModel"], languages: string[]) => string,
+    embed?: {
+        select: () => Model["PrismaSelect"],
+        get: (select: Model["PrismaModel"], languages: string[]) => string,
+    }
 }
 
 /**

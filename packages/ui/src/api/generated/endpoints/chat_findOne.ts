@@ -11,6 +11,7 @@ query chat($input: FindByIdInput!) {
   chat(input: $input) {
     participants {
         id
+        isBot
         name
         handle
     }
@@ -36,6 +37,7 @@ query chat($input: FindByIdInput!) {
         updated_at
         user {
             id
+            isBot
             name
             handle
         }

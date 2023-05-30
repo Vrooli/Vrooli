@@ -35,7 +35,7 @@ export function useCustomLazyQuery<
                 variableDefinitions: [],
                 directives: [],
                 selectionSet: { kind: "SelectionSet", selections: [] },
-            }]
+            }],
         } as DocumentNode),
         {
             ...options,

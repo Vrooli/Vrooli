@@ -47,12 +47,12 @@ export const ObjectTitle = ({
             }}
         >
             {titleComponent}
-            <SelectLanguageMenu
+            {languages.length > 1 && <SelectLanguageMenu
                 currentLanguage={language}
                 handleCurrent={setLanguage}
                 languages={languages}
                 zIndex={zIndex}
-            />
+            />}
         </Stack>
     );
 };

@@ -47,7 +47,10 @@ export const QuestionUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={{
+                    ...initialValues,
+                    forObject: null,
+                } as any}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

@@ -1,8 +1,7 @@
-import { Comment, CommentFor, StandardVersion, SvgComponent, SvgProps, Tag } from "@local/shared";
+import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/shared";
 import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
-import { StringSchema } from "yup";
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
@@ -24,18 +23,6 @@ export interface DropzoneProps {
     onUpload: (files: any[]) => any;
     showThumbs?: boolean;
     uploadText?: string;
-}
-
-export interface EditableLabelProps {
-    canUpdate: boolean;
-    handleUpdate: (newTitle: string) => void;
-    placeholder?: string;
-    onDialogOpen?: (isOpen: boolean) => void;
-    renderLabel: (label: string) => JSX.Element;
-    sxs?: { stack?: { [x: string]: any } };
-    text: string;
-    validationSchema?: StringSchema<string | undefined, any, string | undefined>;
-    zIndex: number;
 }
 
 export interface JsonFormatInputProps {
@@ -193,16 +180,21 @@ export interface LinkInputProps {
 export interface MarkdownInputProps {
     autoFocus?: boolean;
     disabled?: boolean;
+    disableAssistant?: boolean;
+    fullWidth?: boolean;
+    maxRows?: number;
     minRows?: number;
     name: string;
     placeholder?: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
     tabIndex?: number;
+    zIndex: number;
 }
 
 export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     autoFocus?: boolean;
     disabled?: boolean;
+    disableAssistant?: boolean;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     minRows?: number;
@@ -212,7 +204,12 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     placeholder?: string;
     tabIndex?: number;
     value: string;
-    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    sxs?: {
+        bar?: { [x: string]: any };
+        root?: { [x: string]: any };
+        textArea?: { [x: string]: any };
+    };
+    zIndex: number;
 }
 
 export type PasswordTextFieldProps = TextFieldProps & {
@@ -310,8 +307,8 @@ export interface ToggleSwitchProps {
     checked: boolean;
     name?: string;
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    OffIcon?: (props: SvgProps) => JSX.Element;
-    OnIcon?: (props: SvgProps) => JSX.Element;
+    OffIcon?: SvgComponent;
+    OnIcon?: SvgComponent;
     label?: string;
     tooltip?: string;
     disabled?: boolean;
@@ -325,6 +322,7 @@ export interface TranslatedMarkdownInputProps {
     name: string;
     placeholder?: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    zIndex: number;
 }
 
 export interface TranslatedTextFieldProps {

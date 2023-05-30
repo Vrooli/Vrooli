@@ -63,6 +63,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
         updated_at
         createdBy {
             id
+            isBot
             name
             handle
         }
@@ -82,6 +83,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
     updated_at
     createdBy {
         id
+        isBot
         name
         handle
     }

@@ -65,7 +65,11 @@ export const getObjectSlug = (object: {
     // If the object is a run project, use the project version
     if (isOfType(object, "RunProject")) return getObjectSlug((object as RunProject).projectVersion as any);
     // If object has root, use its handle or id
-    if (object.root) return object.root.handle ?? uuidToBase36(object.root.id);
+    if (object.root) {
+        const root = object.root.handle ?? uuidToBase36(object.root.id);
+        const verion = uuidToBase36(object.id);
+        return `${root}/${verion}`;
+    }
     // Otherwise, use object's handle or id
     return object.handle ?? uuidToBase36(object.id);
 };

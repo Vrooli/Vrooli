@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
-import { DeleteIcon } from "@local/shared";
-import { Checkbox, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { CompletionBar } from "components/lists/ObjectListItem/ObjectListItem";
+import { DeleteIcon, ScheduleIcon } from "@local/shared";
+import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { CompletionBar } from "components/CompletionBar/CompletionBar";
+import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
 import { ReminderListItemProps } from "../types";
 
 /**
@@ -34,9 +34,7 @@ export function ReminderListItem({
             return { checked: false, checkDisabled, checkTooltip: checkDisabled ? "Reminder is incmplete" : "Mark as complete" };
         }
     }, [handleUpdate, reminder]);
-    const handleCheck = useCallback((event: any) => {
-        event.stopPropagation();
-        event.preventDefault();
+    const handleCheck = useCallback(() => {
         if (checkDisabled) return;
         const updatedItems = reminder.reminderItems.length > 0 ?
             { ...(reminder.reminderItems.map(item => ({ ...item, isComplete: !checked }))) } :
@@ -51,70 +49,60 @@ export function ReminderListItem({
         return { stepsComplete, stepsTotal, percentComplete };
     }, [reminder]);
 
-    const handleClick = useCallback((event: React.MouseEvent) => {
-        // Don't open if the checkbox was clicked
-        if ((event.target as HTMLElement).id === "reminder-checkbox") {
-            event.stopPropagation();
-            return;
-        }
-        handleOpen();
-    }, [handleOpen]);
-
-    const handleDeleteClick = useCallback((event: React.MouseEvent) => {
-        event.stopPropagation();
+    const handleDeleteClick = useCallback(() => {
         handleDelete(reminder);
     }, [handleDelete, reminder]);
 
+    const dueDateIcon = useMemo(() => {
+        if (!reminder.dueDate) return null;
+        const dueDate = new Date(reminder.dueDate);
+        // Check if due Date is today, in the past, or in the future to determine color
+        const today = new Date();
+        const isToday = dueDate.getDate() === today.getDate() &&
+            dueDate.getMonth() === today.getMonth() &&
+            dueDate.getFullYear() === today.getFullYear();
+        const isPast = dueDate < today;
+        const color = isToday ? palette.warning.main : isPast ? palette.error.main : palette.background.textPrimary;
+        return <ScheduleIcon fill={color} style={{ margin: "auto", pointerEvents: "none" }} />;
+    }, [palette.background.textPrimary, palette.error.main, palette.warning.main, reminder.dueDate]);
+
     return (
-        <ListItem
-            disablePadding
-            onClick={handleClick}
-            sx={{
-                display: "flex",
-                padding: 1,
-                cursor: "pointer",
-            }}
-        >
-            {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
-                {/* Name */}
-                <ListItemText
-                    primary={`${reminder.name} ${stepsTotal > 0 ? `(${stepsComplete}/${stepsTotal})` : ""}`}
-                    sx={{ ...multiLineEllipsis(1) }}
-                />
-                {/* Description */}
-                <ListItemText
-                    primary={reminder.description}
-                    sx={{ ...multiLineEllipsis(1), color: palette.background.textSecondary }}
-                />
-                {/* Progress bar */}
-                {stepsTotal > 0 && <CompletionBar
+        <ObjectListItemBase
+            belowSubtitle={
+                stepsTotal > 0 ? <CompletionBar
                     color="secondary"
-                    variant={"determinate"}
                     value={percentComplete}
                     sx={{ height: "15px" }}
-                />}
-            </Stack>
-            {/* Right-aligned checkbox and delete icon */}
-            <Stack direction="row" spacing={1}>
-                <Tooltip placement={"top"} title={checkTooltip}>
-                    <Checkbox
-                        id='reminder-checkbox'
-                        size="small"
-                        name='isComplete'
-                        color='secondary'
-                        checked={checked}
-                        onChange={handleCheck}
-                    />
-                </Tooltip>
-                {checked && (
-                    <Tooltip title="Delete">
-                        <IconButton edge="end" size="small" onClick={handleDeleteClick}>
-                            <DeleteIcon fill={palette.error.main} />
-                        </IconButton>
+                /> : null
+            }
+            canNavigate={() => false}
+            data={reminder}
+            loading={false}
+            objectType="Reminder"
+            onClick={() => { handleOpen(); }}
+            toTheRight={
+                <Stack id="list-item-right-stack" direction="row" spacing={1}>
+                    {dueDateIcon}
+                    <Tooltip placement={"top"} title={checkTooltip}>
+                        <Checkbox
+                            id='reminder-checkbox'
+                            size="small"
+                            name='isComplete'
+                            color='secondary'
+                            checked={checked}
+                            onChange={handleCheck}
+                        />
                     </Tooltip>
-                )}
-            </Stack>
-        </ListItem>
+                    {checked && (
+                        <Tooltip title="Delete">
+                            <IconButton edge="end" size="small" onClick={handleDeleteClick}>
+                                <DeleteIcon fill={palette.error.main} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Stack>
+            }
+            zIndex={201}
+        />
     );
 }

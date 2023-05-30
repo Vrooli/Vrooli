@@ -16,7 +16,7 @@ ${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 60 -- echo 'Redis is up'
 
 # Install prisma dependency
 # TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.12.0
+yarn global add prisma@4.14.0
 yarn global bin
 
 cd ${PROJECT_DIR}/packages/server
@@ -34,8 +34,8 @@ else
     info 'Running migrations...'
     /usr/local/bin/prisma migrate deploy
     if [ $? -ne 0 ]; then
-        error "Failed to run migrations"
-        exit 1
+        error "Migration or Server start failed, keeping container running for debug..."
+        tail -f /dev/null
     fi
     success 'Migrations completed'
 fi

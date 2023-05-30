@@ -1,11 +1,10 @@
 import { GqlModelType, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
-import pkg, { ReportStatus } from "@prisma/client";
+import pkg, { Prisma, ReportStatus } from "@prisma/client";
 import { findFirstRel } from "../../builders";
 import { logger, Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
 
 // Constants for calculating when a moderation action for a report should be accepted
 // Minimum reputation sum of users who have suggested a specific moderation action
@@ -329,58 +328,42 @@ const nonVersionedObjectQuery3 = {
  *   the report is automatically accepted and the object is moderated accordingly.
  * 4. Notifications are sent to the relevant users when a decision is made, and reputation scores are updated.
  */
-export const checkReportResponses = async () => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    // We may be dealing with a lot of data, so we need to do this in batches
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all open reports
-        const batch = await prisma.report.findMany({
-            where: {
-                status: ReportStatus.Open,
-            },
+export const checkReportResponses = async () => await batch<Prisma.reportFindManyArgs>({
+    objectType: "Report",
+    processBatch: async (batch, prisma) => {
+        Promise.all(batch.map(async (report) => {
+            await moderateReport(report, prisma);
+        }));
+    },
+    select: {
+        id: true,
+        created_at: true,
+        apiVersion: { select: versionedObjectQuery },
+        comment: { select: nonVersionedObjectQuery },
+        issue: { select: nonVersionedObjectQuery3 },
+        noteVersion: { select: versionedObjectQuery },
+        organization: { select: { id: true } },
+        post: { select: nonVersionedObjectQuery2 },
+        projectVersion: { select: versionedObjectQuery },
+        question: { select: nonVersionedObjectQuery3 },
+        routineVersion: { select: versionedObjectQuery },
+        smartContractVersion: { select: versionedObjectQuery },
+        standardVersion: { select: versionedObjectQuery },
+        tag: { select: nonVersionedObjectQuery3 },
+        user: { select: { id: true } },
+        createdBy: { select: { id: true } },
+        responses: {
             select: {
                 id: true,
-                created_at: true,
-                apiVersion: { select: versionedObjectQuery },
-                comment: { select: nonVersionedObjectQuery },
-                issue: { select: nonVersionedObjectQuery3 },
-                noteVersion: { select: versionedObjectQuery },
-                organization: { select: { id: true } },
-                post: { select: nonVersionedObjectQuery2 },
-                projectVersion: { select: versionedObjectQuery },
-                question: { select: nonVersionedObjectQuery3 },
-                routineVersion: { select: versionedObjectQuery },
-                smartContractVersion: { select: versionedObjectQuery },
-                standardVersion: { select: versionedObjectQuery },
-                tag: { select: nonVersionedObjectQuery3 },
-                user: { select: { id: true } },
-                createdBy: { select: { id: true } },
-                responses: {
-                    select: {
-                        id: true,
-                        actionSuggested: true,
-                        createdBy: {
-                            select: { reputation: true },
-                        },
-                    },
+                actionSuggested: true,
+                createdBy: {
+                    select: { reputation: true },
                 },
             },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
-        // For each report, call moderateReport
-        for (const report of batch) {
-            await moderateReport(report as any, prisma);
-        }
-    } while (currentBatchSize === batchSize);
-    // Close the Prisma client
-    await prisma.$disconnect();
-};
+        },
+    },
+    trace: "0464",
+    where: {
+        status: ReportStatus.Open,
+    },
+});

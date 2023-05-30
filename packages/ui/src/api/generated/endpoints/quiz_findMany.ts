@@ -17,6 +17,7 @@ query quizzes($input: QuizSearchInput!) {
             updated_at
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

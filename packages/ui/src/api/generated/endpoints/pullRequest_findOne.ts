@@ -16,6 +16,7 @@ query pullRequest($input: FindByIdInput!) {
     status
     createdBy {
         id
+        isBot
         name
         handle
     }

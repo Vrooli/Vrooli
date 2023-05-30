@@ -33,6 +33,7 @@ export const typeDef = gql`
         resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [ApiVersionTranslationCreateInput!]
         userConnect: ID
     }
     input PostUpdateInput {
@@ -43,6 +44,9 @@ export const typeDef = gql`
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         tagsDisconnect: [String!]
+        translationsCreate: [ApiVersionTranslationCreateInput!]
+        translationsUpdate: [ApiVersionTranslationUpdateInput!]
+        translationsDelete: [ID!]
     }
     type Post {
         id: ID!
@@ -72,7 +76,7 @@ export const typeDef = gql`
     }
     input PostTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
     }

@@ -1,19 +1,7 @@
 export const RunProject_list = `fragment RunProject_list on RunProject {
-id
-isPrivate
-completedComplexity
-contextSwitches
-startedAt
-timeElapsed
-completedAt
-name
-status
-stepsCount
-organization {
-    ...Organization_nav
-}
 projectVersion {
     id
+    complexity
     isLatest
     isPrivate
     versionIndex
@@ -28,6 +16,19 @@ projectVersion {
         description
         name
     }
+}
+id
+isPrivate
+completedComplexity
+contextSwitches
+startedAt
+timeElapsed
+completedAt
+name
+status
+stepsCount
+organization {
+    ...Organization_nav
 }
 schedule {
     labels {

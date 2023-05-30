@@ -60,7 +60,7 @@ export const SubroutineInfoDialog = ({
                 validate={async (values) => await validateSubroutineValues(values, subroutine)}
             >
                 {(formik) => <SubroutineForm
-                    canUpdate={canUpdate}
+                    canUpdateRoutineVersion={canUpdate}
                     handleViewFull={handleViewFull}
                     isCreate={true}
                     isEditing={isEditing}

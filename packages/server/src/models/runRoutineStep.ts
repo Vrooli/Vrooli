@@ -22,7 +22,7 @@ export const RunRoutineStepModel: ModelLogic<{
     GqlCreate: RunRoutineStepCreateInput,
     GqlUpdate: RunRoutineStepUpdateInput,
     GqlModel: RunRoutineStep,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.run_routine_stepUpsertArgs["create"],
@@ -34,8 +34,10 @@ export const RunRoutineStepModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_step,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
     },
     format: {
         gqlRelMap: {

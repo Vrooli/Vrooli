@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
+import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ApiModel } from "./api";
 import { ModelLogic } from "./types";
@@ -29,13 +30,32 @@ export const ApiVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_version,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => {
-            // Return name if exists, or callLink host
-            const name = bestLabel(select.translations, "name", languages);
-            if (name.length > 0) return name;
-            const url = new URL(select.callLink);
-            return url.host;
+        label: {
+            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            get: ({ callLink, translations }, languages) => {
+                // Return name if exists, or callLink host
+                const name = bestTranslation(translations, languages).name ?? "";
+                if (name.length > 0) return name;
+                const url = new URL(callLink);
+                return url.host;
+            },
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                callLink: true,
+                root: { select: { tags: { select: { tag: true } } } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
+            }),
+            get: ({ callLink, root, translations }, languages) => {
+                const trans = bestTranslation(translations, languages);
+                return getEmbeddableString({
+                    callLink,
+                    name: trans.name,
+                    summary: trans.summary,
+                    tags: (root as any).tags.map(({ tag }) => tag),
+                }, languages[0]);
+            },
         },
     },
     format: {
@@ -79,7 +99,8 @@ export const ApiVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+            pre: async (params) => {
+                const { createList, updateList, deleteList, prisma, userData } = params;
                 await versionsCheck({
                     createList,
                     deleteList,
@@ -90,6 +111,8 @@ export const ApiVersionModel: ModelLogic<{
                 });
                 const combined = [...createList, ...updateList.map(({ data }) => data)];
                 combined.forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                const maps = preShapeVersion({ createList, updateList, objectType: __typename });
+                return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -102,7 +125,7 @@ export const ApiVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 callLink: noNull(data.callLink),
@@ -114,7 +137,7 @@ export const ApiVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "apiVersion", data, ...rest })),
                 ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, isRequired: false, objectType: "Api", parentRelationshipName: "versions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             post: async (params) => {
                 await postShapeVersion({ ...params, objectType: __typename });

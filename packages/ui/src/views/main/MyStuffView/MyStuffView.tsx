@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, useLocation } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -19,7 +19,7 @@ import { MyStuffViewProps } from "../types";
 
 // Tab data type
 type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     searchType: SearchType;
     tabType: SearchPageTabOption;
     where: (userId: string) => { [x: string]: any };
@@ -30,22 +30,22 @@ const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
     searchType: SearchType.Routine,
     tabType: SearchPageTabOption.Routines,
-    where: (userId) => ({ isInternal: false, ownedByUserId: userId }),
+    where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
     Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: SearchPageTabOption.Projects,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: HelpIcon,
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
-    where: (userId) => ({ createdById: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: NoteIcon,
     searchType: SearchType.Note,
     tabType: SearchPageTabOption.Notes,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: OrganizationIcon,
     searchType: SearchType.Organization,
@@ -55,21 +55,23 @@ const tabParams: BaseParams[] = [{
     Icon: StandardIcon,
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standards,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: ApiIcon,
     searchType: SearchType.Api,
     tabType: SearchPageTabOption.Apis,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: SmartContractIcon,
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
-    where: (userId) => ({ ownedByUserId: userId }),
+    where: () => ({ visibility: VisibilityType.Own }),
 }];
 
 export const MyStuffView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: MyStuffViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -135,14 +137,12 @@ export const MyStuffView = ({
 
     // On tab change, update BaseParams, document title, where, and URL
     const { searchType, where } = useMemo<Omit<BaseParams, "where"> & { where: { [x: string]: any } }>(() => {
-        // Update tab title
-        document.title = `${t("Search")} | ${currTab.label}`;
         const params = tabs[currTab.index];
         return {
             ...params,
             where: params.where(userId!),
         } as any;
-    }, [currTab.index, currTab.label, t, tabs, userId]);
+    }, [currTab.index, tabs, userId]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
@@ -194,7 +194,7 @@ export const MyStuffView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: "MyStuff",
@@ -222,10 +222,11 @@ export const MyStuffView = ({
             </Stack>
             {searchType && <SearchList
                 id="main-search-page-list"
+                dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                zIndex={200}
+                zIndex={zIndex}
                 where={where}
             />}
             {popupButtonContainer}

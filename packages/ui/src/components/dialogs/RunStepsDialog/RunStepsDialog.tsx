@@ -5,8 +5,8 @@ import { addSearchParams, ListNumberIcon, OpenInNewIcon, StepListClose, StepList
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import React, { useCallback, useMemo, useState } from "react";
-import { RoutineStep } from "types";
-import { RoutineStepType } from "utils/consts";
+import { ProjectStep } from "types";
+import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStepsDialogProps } from "../types";
@@ -20,7 +20,7 @@ interface StyledTreeItemProps {
     onLoad?: (ev: React.MouseEvent) => void;
     onToStep?: (ev: React.MouseEvent) => void;
     palette: Palette;
-    type: RoutineStepType | "placeholder";
+    type: RoutineStepType | ProjectStepType | "placeholder";
 }
 
 const StyledTreeItem = styled((props: StyledTreeItemProps) => {
@@ -114,7 +114,7 @@ export const RunStepsDialog = ({
     handleCurrStepLocationUpdate,
     history,
     percentComplete,
-    stepList,
+    rootStep,
     zIndex,
 }: RunStepsDialogProps) => {
     const { palette } = useTheme();
@@ -126,13 +126,14 @@ export const RunStepsDialog = ({
     /**
      * Checks if a routine is complete. If it is a subroutine,
      * recursively checks all subroutine steps.
-     * @param step RoutineStep
+     * @param step current step
      * @param location Array indicating step location
      */
-    const isComplete = useCallback((step: RoutineStep, location: number[]) => {
+    const isComplete = useCallback((step: ProjectStep, location: number[]) => {
         switch (step.type) {
             // If RoutineList, check all child steps
             case RoutineStepType.RoutineList:
+            case ProjectStepType.Directory:
                 return step.steps.every((childStep, index) => isComplete(childStep, [...location, index + 1]));
             // If Subroutine, check if subroutine is loaded
             case RoutineStepType.Subroutine:
@@ -163,7 +164,7 @@ export const RunStepsDialog = ({
     /**
      * Generate a tree of the subroutine's steps
      */
-    const getTreeItem = useCallback((step: RoutineStep, location: number[] = [1]) => {
+    const getTreeItem = useCallback((step: ProjectStep, location: number[] = [1]) => {
         // Ignore first number in location array, as it only exists to group the tree items
         const realLocation = location.slice(1);
         // Determine if step is completed/selected
@@ -231,6 +232,7 @@ export const RunStepsDialog = ({
 
             // A routine list always has children
             case RoutineStepType.RoutineList:
+            case ProjectStepType.Directory: {
                 const stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]));
@@ -246,6 +248,7 @@ export const RunStepsDialog = ({
                         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
                 );
+            }
         }
     }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, palette, handleLoadSubroutine]);
 
@@ -259,6 +262,7 @@ export const RunStepsDialog = ({
             <SwipeableDrawer
                 anchor="right"
                 open={isOpen}
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 onOpen={() => { }}
                 onClose={closeDialog}
                 sx={{
@@ -291,7 +295,7 @@ export const RunStepsDialog = ({
                         paddingBottom: "80px",
                     }}
                 >
-                    {stepList && getTreeItem(stepList)}
+                    {rootStep && getTreeItem(rootStep)}
                 </TreeView>
             </SwipeableDrawer>
         </>

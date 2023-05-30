@@ -36,6 +36,7 @@ enum TabOptions {
 
 export const PrivacyPolicyView = ({
     display = "page",
+    onClose,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -60,7 +61,7 @@ export const PrivacyPolicyView = ({
     return <>
         <TopBar
             display={display}
-            onClose={() => { }}
+            onClose={onClose}
             titleData={{
                 titleKey: "Privacy",
             }}

@@ -1,9 +1,9 @@
-import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput, projectVersionDirectoryValidation } from "@local/shared";
+import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, projectVersionDirectoryValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { ModelLogic } from "./types";
 
@@ -15,9 +15,9 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     GqlCreate: ProjectVersionDirectoryCreateInput,
     GqlUpdate: ProjectVersionDirectoryUpdateInput,
     GqlModel: ProjectVersionDirectory,
-    GqlPermission: {},
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlPermission: object,
+    GqlSearch: ProjectVersionDirectorySearchInput,
+    GqlSort: ProjectVersionDirectorySortBy,
     PrismaCreate: Prisma.project_version_directoryUpsertArgs["create"],
     PrismaUpdate: Prisma.project_version_directoryUpsertArgs["update"],
     PrismaModel: Prisma.project_version_directoryGetPayload<SelectWrap<Prisma.project_version_directorySelect>>,
@@ -27,8 +27,10 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version_directory,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {
@@ -96,6 +98,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         },
         yup: projectVersionDirectoryValidation,
     },
+    search: {} as any,
     validate: {
         isDeleted: () => false,
         isPublic: (data, languages) => ProjectVersionModel.validate!.isPublic(data.projectVersion as any, languages),

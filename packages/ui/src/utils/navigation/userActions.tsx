@@ -8,7 +8,7 @@ export enum ACTION_TAGS {
     Home = "Home",
     Search = "Search",
     Create = "Create",
-    Notifications = "Notifications",
+    Inbox = "Inbox",
     About = "About",
     Pricing = "Pricing",
     LogIn = "LogIn",
@@ -46,7 +46,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     if (isLoggedIn) {
         actions.push(
             ["Create", ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ["Inbox", ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
+            ["Inbox", ACTION_TAGS.Inbox, LINKS.Inbox, NotificationsAllIcon, 0],
             ["MyStuff", ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         );
     }
@@ -62,7 +62,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
 // Factory for creating action objects
 const createAction = (action: ActionArray): Action => {
     const keys = ["label", "value", "link", "Icon", "numNotifications"];
-    return action.reduce((obj: {}, val: any, i: number) => { obj[keys[i]] = val; return obj; }, {}) as Action;
+    return action.reduce((obj: object, val: any, i: number) => { obj[keys[i]] = val; return obj; }, {}) as Action;
 };
 
 // Factory for creating a list of action objects

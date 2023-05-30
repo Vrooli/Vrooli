@@ -1,5 +1,5 @@
 import { OpenThreadIcon, OrganizationIcon, UserIcon } from "@local/shared";
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { CommentConnectorProps } from "../types";
@@ -29,21 +29,22 @@ export const CommentConnector = ({
 
     // Profile image
     const profileImage = useMemo(() => (
-        <Box
-            width="48px"
-            minWidth="48px"
-            height="48px"
-            minHeight="48px"
-            borderRadius='100%'
-            bgcolor={profileColors[0]}
-            justifyContent='center'
-            alignItems='center'
+        <Avatar
+            src="/broken-image.jpg" //TODO
             sx={{
-                display: "flex",
+                backgroundColor: profileColors[0],
+                width: "48px",
+                height: "48px",
+                minWidth: "48px",
+                minHeight: "48px",
             }}
         >
-            <ProfileIcon fill={profileColors[1]} width='80%' height='80%' />
-        </Box>
+            <ProfileIcon
+                fill={profileColors[1]}
+                width="75%"
+                height="75%"
+            />
+        </Avatar>
     ), [ProfileIcon, profileColors]);
 
     // If open, profile image on top of collapsible line

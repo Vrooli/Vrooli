@@ -71,6 +71,7 @@ export const RunPickerMenu = ({
             });
         }
         else {
+            console.log("creating run routine");
             mutationWrapper<RunRoutine, RunRoutineCreateInput>({
                 mutation: createRunRoutine,
                 input: {

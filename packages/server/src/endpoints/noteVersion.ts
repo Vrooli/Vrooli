@@ -74,7 +74,7 @@ export const typeDef = gql`
     }
     input NoteVersionTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
         name: String
         text: String

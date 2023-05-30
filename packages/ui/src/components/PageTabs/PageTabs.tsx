@@ -34,9 +34,9 @@ export const PageTabs = <T extends any>({
                 aria-label={ariaLabel}
                 sx={{
                     marginBottom: 1,
-                    paddingLeft: '1em',
-                    paddingRight: '1em',
-                    width: (fullWidth && isMobile) ? '100%' : undefined,
+                    paddingLeft: "1em",
+                    paddingRight: "1em",
+                    width: (fullWidth && isMobile) ? "100%" : undefined,
                 }}
             >
                 {tabs.map(({ color, href, Icon, label }, index) => {
@@ -45,25 +45,25 @@ export const PageTabs = <T extends any>({
                     if (Icon) {
                         contents.icon = <Icon fill={color ?? (isMobile ?
                             palette.primary.contrastText :
-                            palette.mode === 'dark' ?
+                            palette.mode === "dark" ?
                                 palette.primary.contrastText :
                                 palette.primary.main)
                         } />;
                     } else {
-                        contents.label = <span style={{ color: color ?? 'default' }}>{label}</span>;
+                        contents.label = <span style={{ color: color ?? "default" }}>{label}</span>;
                     }
-                    return (<Tooltip title={Boolean(Icon) ? label : ''}>
+                    return (<Tooltip title={Icon ? label : ""}>
                         <Tab
                             key={index}
                             id={`${ariaLabel}-${index}`}
-                            {...{ 'aria-controls': `${ariaLabel}-tabpanel-${index}` }}
+                            {...{ "aria-controls": `${ariaLabel}-tabpanel-${index}` }}
                             {...contents}
-                            component={href ? 'a' : 'div'}
+                            component={href ? "a" : "div"}
                             href={href ?? undefined}
                         />
-                    </Tooltip>)
+                    </Tooltip>);
                 })}
             </Tabs>
         </Box>
-    )
-}
+    );
+};

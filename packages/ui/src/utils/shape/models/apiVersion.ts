@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { ApiShape, shapeApi } from "./api";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "language" | "details" | "name" | "summary"> & {
     __typename?: "ApiVersionTranslation";
@@ -18,7 +19,7 @@ export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentatio
 
 export const shapeApiVersionTranslation: ShapeModel<ApiVersionTranslationShape, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "details", "name", "summary"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "details", "summary"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "details", "summary"), a),
 };
 
 export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput, ApiVersionUpdateInput> = {
@@ -26,7 +27,7 @@ export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput,
         ...createPrims(d, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...createRel(d, "directoryListings", ["Connect"], "many"),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeApi),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeApi, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "translations", ["Create"], "many", shapeApiVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {

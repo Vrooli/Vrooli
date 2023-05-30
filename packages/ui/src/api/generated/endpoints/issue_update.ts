@@ -23,11 +23,13 @@ mutation issueUpdate($input: IssueUpdateInput!) {
   issueUpdate(input: $input) {
     closedBy {
         id
+        isBot
         name
         handle
     }
     createdBy {
         id
+        isBot
         name
         handle
     }

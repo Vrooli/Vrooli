@@ -25,6 +25,7 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

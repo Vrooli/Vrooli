@@ -14,6 +14,7 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
     meeting {
         attendees {
             id
+            isBot
             name
             handle
         }

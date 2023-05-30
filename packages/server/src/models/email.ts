@@ -14,7 +14,7 @@ export const EmailModel: ModelLogic<{
     GqlCreate: EmailCreateInput,
     GqlUpdate: undefined,
     GqlModel: Email,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.emailUpsertArgs["create"],
@@ -26,8 +26,10 @@ export const EmailModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.email,
     display: {
-        select: () => ({ id: true, emailAddress: true }),
-        label: (select) => select.emailAddress,
+        label: {
+            select: () => ({ id: true, emailAddress: true }),
+            get: (select) => select.emailAddress,
+        },
     },
     format: {
         gqlRelMap: {

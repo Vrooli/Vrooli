@@ -158,7 +158,7 @@ export const ViewModel: ModelLogic<{
     GqlModel: View,
     GqlSearch: ViewSearchInput,
     GqlSort: ViewSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.viewUpsertArgs["create"],
     PrismaUpdate: Prisma.viewUpsertArgs["update"],
     PrismaModel: Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>,
@@ -168,31 +168,33 @@ export const ViewModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.view,
     display: {
-        select: () => ({
-            id: true,
-            api: selPad(ApiModel.display.select),
-            organization: selPad(OrganizationModel.display.select),
-            question: selPad(QuestionModel.display.select),
-            note: selPad(NoteModel.display.select),
-            post: selPad(PostModel.display.select),
-            project: selPad(ProjectModel.display.select),
-            routine: selPad(RoutineModel.display.select),
-            smartContract: selPad(SmartContractModel.display.select),
-            standard: selPad(StandardModel.display.select),
-            user: selPad(UserModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.api) return ApiModel.display.label(select.api as any, languages);
-            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-            if (select.question) return QuestionModel.display.label(select.question as any, languages);
-            if (select.note) return NoteModel.display.label(select.note as any, languages);
-            if (select.post) return PostModel.display.label(select.post as any, languages);
-            if (select.project) return ProjectModel.display.label(select.project as any, languages);
-            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
-            if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-            if (select.user) return UserModel.display.label(select.user as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                api: selPad(ApiModel.display.label.select),
+                organization: selPad(OrganizationModel.display.label.select),
+                question: selPad(QuestionModel.display.label.select),
+                note: selPad(NoteModel.display.label.select),
+                post: selPad(PostModel.display.label.select),
+                project: selPad(ProjectModel.display.label.select),
+                routine: selPad(RoutineModel.display.label.select),
+                smartContract: selPad(SmartContractModel.display.label.select),
+                standard: selPad(StandardModel.display.label.select),
+                user: selPad(UserModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
+                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
+                if (select.post) return PostModel.display.label.get(select.post as any, languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
+                if (select.user) return UserModel.display.label.get(select.user as any, languages);
+                return "";
+            },
         },
     },
     format: {
@@ -345,11 +347,12 @@ export const ViewModel: ModelLogic<{
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {
-            case ViewFor.Organization:
+            case ViewFor.Organization: {
                 // Check if user is an admin or owner of the organization
                 const roles = await OrganizationModel.query.hasRole(prisma, userData.id, [input.forId]);
                 isOwn = Boolean(roles[0]);
                 break;
+            }
             case ViewFor.Api:
             case ViewFor.ApiVersion:
             case ViewFor.Note:
@@ -361,7 +364,7 @@ export const ViewModel: ModelLogic<{
             case ViewFor.SmartContract:
             case ViewFor.SmartContractVersion:
             case ViewFor.Standard:
-            case ViewFor.StandardVersion:
+            case ViewFor.StandardVersion: {
                 // Check if ROOT object is owned by this user or by an organization they are a member of
                 const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view2");
                 const rootObject = await rootObjectDelegate(prisma).findFirst({
@@ -379,11 +382,13 @@ export const ViewModel: ModelLogic<{
                 });
                 if (rootObject) isOwn = true;
                 break;
-            case ViewFor.Question:
+            }
+            case ViewFor.Question: {
                 // Check if question was created by this user
                 const question = await prisma.question.findFirst({ where: { id: input.forId, createdBy: { id: userData.id } } });
                 if (question) isOwn = true;
                 break;
+            }
             case ViewFor.User:
                 isOwn = userData.id === input.forId;
                 break;

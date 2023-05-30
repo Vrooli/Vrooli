@@ -16,7 +16,7 @@ export const StatsSiteModel: ModelLogic<{
     GqlModel: StatsSite,
     GqlSearch: StatsSiteSearchInput,
     GqlSort: StatsSiteSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_siteUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_siteUpsertArgs["update"],
     PrismaModel: Prisma.stats_siteGetPayload<SelectWrap<Prisma.stats_siteSelect>>,
@@ -26,10 +26,12 @@ export const StatsSiteModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_site,
     display: {
-        select: () => ({ id: true }),
-        label: (_, languages) => i18next.t("common:SiteStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-        }),
+        label: {
+            select: () => ({ id: true }),
+            get: (_, languages) => i18next.t("common:SiteStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+            }),
+        },
     },
     format: {
         gqlRelMap: {

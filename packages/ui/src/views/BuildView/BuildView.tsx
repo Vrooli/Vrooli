@@ -8,12 +8,13 @@ import { FindSubroutineDialog } from "components/dialogs/FindSubroutineDialog/Fi
 import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
-import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildAction, Status } from "utils/consts";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useStableObject } from "utils/hooks/useStableObject";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
@@ -46,10 +47,10 @@ type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 export const BuildView = ({
     display = "dialog",
     handleCancel,
-    handleClose,
     handleSubmit,
     isEditing,
     loading,
+    onClose,
     routineVersion,
     translationData,
     zIndex = 200,
@@ -58,6 +59,7 @@ export const BuildView = ({
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
+    const stableRoutineVersion = useStableObject(routineVersion);
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
     // The routineVersion's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
@@ -66,12 +68,14 @@ export const BuildView = ({
     const [changeStack, setChangeStack] = useState<BuildRoutineVersion[]>([]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
     const clearChangeStack = useCallback(() => {
-        setChangeStack(routineVersion ? [routineVersion] : []);
-        setChangeStackIndex(routineVersion ? 0 : -1);
+        setChangeStack(stableRoutineVersion ? [stableRoutineVersion] : []);
+        setChangeStackIndex(stableRoutineVersion ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("clearing change stack");
-        setChangedRoutineVersion(routineVersion);
-    }, [routineVersion]);
+        setChangedRoutineVersion(stableRoutineVersion);
+    }, [stableRoutineVersion]);
+    useEffect(() => {
+        clearChangeStack();
+    }, [clearChangeStack]);
     /**
      * Moves back one in the change stack
      */
@@ -79,7 +83,6 @@ export const BuildView = ({
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("undoing");
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -91,7 +94,6 @@ export const BuildView = ({
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("redoing");
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -106,7 +108,6 @@ export const BuildView = ({
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("adding to change stack", changedRoutine);
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -124,11 +125,19 @@ export const BuildView = ({
         return () => { document.removeEventListener("keydown", handleKeyDown); };
     }, [redo, undo]);
 
-    useEffect(() => {
-        clearChangeStack();
-    }, [clearChangeStack, routineVersion]);
-
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
+
+    /**
+     * Updates a node's data
+     */
+    const handleNodeUpdate = useCallback((node: Node) => {
+        const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
+        if (nodeIndex === -1) return;
+        addToChangeStack({
+            ...changedRoutineVersion,
+            nodes: updateArray(changedRoutineVersion.nodes, nodeIndex, node),
+        });
+    }, [addToChangeStack, changedRoutineVersion]);
 
     /**
      * Calculates:
@@ -203,15 +212,26 @@ export const BuildView = ({
     const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
-    // Subroutine info drawer
+    // Subroutine info dialog
     const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
         if (node && node.routineList) setOpenedSubroutine({ node: node as Node & { routineList: NodeRoutineList }, routineItemId: subroutineId });
     }, [nodesById]);
-    const closeRoutineInfo = useCallback(() => {
+    const closeSubroutineDialog = useCallback(() => {
         setOpenedSubroutine(null);
     }, []);
+
+    // Routine list info dialog
+    const [openedRoutineList, setOpenedRoutineList] = useState<{ node: Node & { routineList: NodeRoutineList } } | null>(null);
+    const handleRoutineListOpen = useCallback((nodeId: string) => {
+        const node = nodesById[nodeId];
+        if (node && node.routineList) setOpenedRoutineList({ node: node as Node & { routineList: NodeRoutineList } });
+    }, [nodesById]);
+    const closeRoutineListDialog = useCallback((updatedNode?: Node & { routineList: NodeRoutineList }) => {
+        if (updatedNode) handleNodeUpdate(updatedNode);
+        setOpenedRoutineList(null);
+    }, [handleNodeUpdate]);
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [linkDialogFrom, setLinkDialogFrom] = useState<Node | null>(null);
@@ -275,15 +295,15 @@ export const BuildView = ({
     /**
      * If closing with unsaved changes, prompt user to save
      */
-    const onClose = useCallback(() => {
+    const handleClose = useCallback(() => {
         if (isEditing) {
             revertChanges();
         } else {
             keepSearchParams(setLocation, []);
             if (!uuidValidate(id)) window.history.back();
-            else handleClose();
+            else onClose();
         }
-    }, [handleClose, id, isEditing, setLocation, revertChanges]);
+    }, [onClose, id, isEditing, setLocation, revertChanges]);
 
     /**
      * Calculates the new set of links for an routineVersion when a node is 
@@ -574,18 +594,6 @@ export const BuildView = ({
     }, [handleNodeDrop, moveNode]);
 
     /**
-     * Updates a node's data
-     */
-    const handleNodeUpdate = useCallback((node: Node) => {
-        const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
-        if (nodeIndex === -1) return;
-        addToChangeStack({
-            ...changedRoutineVersion,
-            nodes: updateArray(changedRoutineVersion.nodes, nodeIndex, node),
-        });
-    }, [addToChangeStack, changedRoutineVersion]);
-
-    /**
      * Inserts a new routine list node along an edge
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
@@ -681,6 +689,8 @@ export const BuildView = ({
                 },
             }),
         });
+        // Close dialog
+        closeAddSubroutineDialog();
     }, [addToChangeStack, changedRoutineVersion]);
 
     /**
@@ -839,8 +849,8 @@ export const BuildView = ({
             }),
         } as any);
         // Close dialog
-        closeRoutineInfo();
-    }, [addToChangeStack, changedRoutineVersion, closeRoutineInfo]);
+        closeSubroutineDialog();
+    }, [addToChangeStack, changedRoutineVersion, closeSubroutineDialog]);
 
     /**
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
@@ -874,6 +884,9 @@ export const BuildView = ({
                 break;
             case BuildAction.DeleteSubroutine:
                 handleSubroutineDelete(nodeId, subroutineId ?? "");
+                break;
+            case BuildAction.OpenRoutine:
+                handleRoutineListOpen(nodeId);
                 break;
             case BuildAction.EditSubroutine:
                 handleSubroutineOpen(nodeId, subroutineId ?? "");
@@ -1063,7 +1076,16 @@ export const BuildView = ({
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}
-                onClose={closeRoutineInfo}
+                onClose={closeSubroutineDialog}
+                zIndex={zIndex + 3}
+            />
+            {/* Displays routine information when you click on a routine list*/}
+            <NodeRoutineListDialog
+                handleClose={closeRoutineListDialog}
+                isEditing={isEditing}
+                isOpen={Boolean(openedRoutineList)}
+                language={translationData.language}
+                node={openedRoutineList as any}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}
@@ -1093,7 +1115,7 @@ export const BuildView = ({
                 <IconButton
                     edge="start"
                     aria-label="close"
-                    onClick={onClose}
+                    onClick={handleClose}
                     color="inherit"
                     sx={{
                         position: "absolute",

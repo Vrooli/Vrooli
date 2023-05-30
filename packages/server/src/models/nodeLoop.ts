@@ -15,7 +15,7 @@ export const NodeLoopModel: ModelLogic<{
     GqlCreate: NodeLoopCreateInput,
     GqlUpdate: NodeLoopUpdateInput,
     GqlModel: NodeLoop,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_loopUpsertArgs["create"],
@@ -28,8 +28,10 @@ export const NodeLoopModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.node_loop,
     // Doesn't make sense to have a displayer for this model
     display: {
-        select: () => ({ id: true }),
-        label: () => "",
+        label: {
+            select: () => ({ id: true }),
+            get: () => "",
+        },
     },
     format: {
         gqlRelMap: {

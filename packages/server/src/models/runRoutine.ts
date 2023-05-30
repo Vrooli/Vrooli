@@ -1,12 +1,13 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, runRoutineValidation, RunRoutineYou } from "@local/shared";
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
-import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
+import { RoutineVersionModel } from "./routineVersion";
 import { ModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
@@ -59,8 +60,16 @@ export const RunRoutineModel: ModelLogic<{
     },
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: {
-        select: () => ({ id: true, name: true }),
-        label: (select) => select.name,
+        label: {
+            select: () => ({ id: true, name: true }),
+            get: (select) => select.name,
+        },
+        embed: {
+            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            get: ({ name }, languages) => {
+                return getEmbeddableString({ name }, languages[0]);
+            },
+        },
     },
     format: {
         gqlRelMap: {
@@ -77,7 +86,7 @@ export const RunRoutineModel: ModelLogic<{
             __typename,
             inputs: "RunRoutineInput",
             organization: "Organization",
-            routineVersion: "Routine",
+            routineVersion: "RoutineVersion",
             runProject: "RunProject",
             schedule: "Schedule",
             steps: "RunRoutineStep",
@@ -102,32 +111,39 @@ export const RunRoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ updateList }) => {
-                if (updateList.length) {
-                    // TODO if status passed in for update, make sure it's not the same 
-                    // as the current status, or an invalid transition (e.g. failed -> in progress)
-                }
-            },
-            create: async ({ data, prisma, userData }) => {
-                // TODO - when scheduling added, don't assume that it is being started right away
+            create: async ({ data, ...rest }) => {
                 return {
-                    // id: data.id,
-                    // startedAt: new Date(),
-                    // routineVersionId: data.routineVersionId,
-                    // status: RunStatus.InProgress,
-                    // steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
-                    // name: data.name,
-                    // userId: userData.id,
-                } as any;
+                    id: data.id,
+                    completedComplexity: noNull(data.completedComplexity),
+                    contextSwitches: noNull(data.contextSwitches),
+                    embeddingNeedsUpdate: true,
+                    isPrivate: noNull(data.isPrivate),
+                    name: data.name,
+                    status: noNull(data.status),
+                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
+                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
+                    ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
+                    ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                };
             },
-            update: async ({ data, prisma, userData }) => {
+            update: async ({ data, ...rest }) => {
                 return {
-                    // timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
-                    // completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
-                    // contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
-                    // steps: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
-                    // inputs: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'inputs', objectType: 'RunRoutineInput', prisma, userData }),
-                } as any;
+                    completedComplexity: noNull(data.completedComplexity),
+                    contextSwitches: noNull(data.contextSwitches),
+                    isPrivate: noNull(data.isPrivate),
+                    status: noNull(data.status),
+                    timeElapsed: noNull(data.timeElapsed),
+                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
+                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
+                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, isRequired: false, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
+                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                };
             },
         },
         trigger: {
@@ -302,12 +318,13 @@ export const RunRoutineModel: ModelLogic<{
             scheduleStartTimeFrame: true,
             startedTimeFrame: true,
             status: true,
+            statuses: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: RunRoutineModel.search!.searchStringQuery() },
+                { routineVersion: RoutineVersionModel.search!.searchStringQuery() },
             ],
         }),
     },
@@ -318,7 +335,7 @@ export const RunRoutineModel: ModelLogic<{
             id: true,
             isPrivate: true,
             organization: "Organization",
-            routineVersion: "Routine",
+            routineVersion: "RoutineVersion",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,

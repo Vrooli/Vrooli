@@ -10,4 +10,4 @@ export const tagSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const tagSearchParams = () => toParams(tagSearchSchema(), tagFindMany, TagSortBy, TagSortBy.BookmarksDesc);
+export const tagSearchParams = () => toParams(tagSearchSchema(), tagFindMany, TagSortBy, TagSortBy.Top);

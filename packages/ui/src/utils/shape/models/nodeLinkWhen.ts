@@ -1,6 +1,7 @@
 import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenTranslation, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput, NodeLinkWhenUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, "id" | "language" | "description" | "name"> & {
     __typename?: "NodeLinkWhenTranslation";
@@ -14,7 +15,7 @@ export type NodeLinkWhenShape = Pick<NodeLinkWhen, "id" | "condition"> & {
 
 export const shapeNodeLinkWhenTranslation: ShapeModel<NodeLinkWhenTranslationShape, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name"), a),
 };
 
 export const shapeNodeLinkWhen: ShapeModel<NodeLinkWhenShape, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput> = {

@@ -64,7 +64,7 @@ export const validateSubroutineValues = async (values: NodeRoutineListItemShape,
 };
 
 export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
-    canUpdate,
+    canUpdateRoutineVersion,
     dirty,
     handleViewFull,
     isCreate,
@@ -130,30 +130,33 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     props={{ language }}
                     variant="h5"
                 />
-                <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(listField.value?.items?.length ?? 1)})`}</Typography>
+                {!isEditing && <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(listField.value?.items?.length ?? 1)})`}</Typography>}
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
                 />
-                {/* Button to open in full page */}
-                {!isInternalField.value && (
-                    <Tooltip title="Open in full page">
-                        <IconButton onClick={toGraph}>
-                            <OpenInNewIcon fill={palette.primary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                )}
-                {/* Close button */}
-                <IconButton onClick={onCancel} sx={{
-                    color: palette.primary.contrastText,
-                    borderBottom: `1px solid ${palette.primary.dark}`,
+                <Box sx={{
                     justifyContent: "end",
                     marginLeft: "auto",
                 }}>
-                    <CloseIcon />
-                </IconButton>
+                    {/* Button to open in full page */}
+                    {!isInternalField.value && (
+                        <Tooltip title="Open in full page">
+                            <IconButton onClick={toGraph}>
+                                <OpenInNewIcon fill={palette.primary.contrastText} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {/* Close button */}
+                    <IconButton onClick={onCancel} sx={{
+                        color: palette.primary.contrastText,
+                        borderBottom: `1px solid ${palette.primary.dark}`,
+                    }}>
+                        <CloseIcon />
+                    </IconButton>
+                </Box>
             </Box>
             <BaseForm
                 dirty={dirty}
@@ -179,7 +182,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        {canUpdate ? <LanguageInput
+                        {canUpdateRoutineVersion ? <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
@@ -196,12 +199,11 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     {/* Position */}
                     <Grid item xs={12}>
                         {
-                            canUpdate && <Box sx={{
+                            isEditing && <Box sx={{
                                 marginBottom: 2,
                             }}>
                                 <Typography variant="h6">{t("Order")}</Typography>
                                 <IntegerInput
-                                    disabled={!canUpdate}
                                     label={t("Order")}
                                     min={1}
                                     max={listField.value?.items?.length ?? 1}
@@ -213,7 +215,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     </Grid>
                     {/* Name */}
                     {
-                        canUpdate && <Grid item xs={12}>
+                        isEditing && <Grid item xs={12}>
                             <TranslatedTextField
                                 fullWidth
                                 label={t("Name")}
@@ -226,7 +228,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     <Grid item xs={12} sm={6}>
                         <EditableTextCollapse
                             component='TranslatedTextField'
-                            isEditing={canUpdate}
+                            isEditing={isEditing}
                             name="description"
                             props={{
                                 fullWidth: true,
@@ -241,18 +243,19 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     <Grid item xs={12} sm={6}>
                         <EditableTextCollapse
                             component='TranslatedMarkdown'
-                            isEditing={isEditing}
+                            isEditing={canUpdateRoutineVersion}
                             name="instructions"
                             props={{
                                 language,
                                 placeholder: "Instructions",
                                 minRows: 3,
+                                zIndex,
                             }}
                             title={t("Instructions")}
                         />
                     </Grid>
                     {
-                        canUpdate && <Grid item xs={12}>
+                        canUpdateRoutineVersion && <Grid item xs={12}>
                             <VersionInput
                                 fullWidth
                                 name="routineVersion.versionLabel"
@@ -261,9 +264,9 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         </Grid>
                     }
                     {/* Inputs */}
-                    {(canUpdate || (inputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
-                            isEditing={canUpdate}
+                            isEditing={canUpdateRoutineVersion}
                             handleUpdate={inputsHelpers.setValue as any}
                             isInput={true}
                             language={language}
@@ -272,9 +275,9 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         />
                     </Grid>}
                     {/* Outputs */}
-                    {(canUpdate || (outputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
-                            isEditing={canUpdate}
+                            isEditing={canUpdateRoutineVersion}
                             handleUpdate={outputsHelpers.setValue as any}
                             isInput={false}
                             language={language}
@@ -283,11 +286,11 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         />
                     </Grid>}
                     {
-                        (canUpdate || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
+                        (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
                             <ResourceListHorizontal
                                 title={"Resources"}
                                 list={resourceListField.value}
-                                canUpdate={canUpdate}
+                                canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
                                 zIndex={zIndex}
@@ -296,12 +299,12 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     }
                     <Grid item xs={12} marginBottom={4}>
                         {
-                            canUpdate ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
+                            canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
                                 <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
                         }
                     </Grid>
                 </Grid>
-                {canUpdate && <GridSubmitButtons
+                {canUpdateRoutineVersion && <GridSubmitButtons
                     display="dialog"
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}

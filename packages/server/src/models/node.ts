@@ -4,7 +4,7 @@ import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { RoutineModel } from "./routine";
 import { ModelLogic } from "./types";
 
@@ -17,7 +17,7 @@ export const NodeModel: ModelLogic<{
     GqlCreate: NodeCreateInput,
     GqlUpdate: NodeUpdateInput,
     GqlModel: Node,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.nodeUpsertArgs["create"],
@@ -29,8 +29,10 @@ export const NodeModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "name", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+        },
     },
     format: {
         gqlRelMap: {

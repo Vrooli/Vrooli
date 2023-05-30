@@ -1,5 +1,5 @@
 import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -18,6 +18,7 @@ import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: SmartContractViewProps) => {
@@ -77,28 +78,27 @@ export const SmartContractView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
-            <Box
-                width={"min(100px, 25vw)"}
-                height={"min(100px, 25vw)"}
-                borderRadius='100%'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
+            <Avatar
+                src="/broken-image.jpg" //TODO
                 sx={{
-                    border: "1px solid black",
                     backgroundColor: profileColors[0],
+                    color: profileColors[1],
+                    boxShadow: 2,
                     transform: "translateX(-50%)",
+                    width: "min(100px, 25vw)",
+                    height: "min(100px, 25vw)",
+                    left: "50%",
+                    top: "-55px",
+                    position: "absolute",
+                    fontSize: "min(50px, 10vw)",
                 }}
             >
-                <SmartContractIcon fill={profileColors[1]} width='80%' height='80%' />
-            </Box>
+                <SmartContractIcon fill="white" width='75%' height='75%' />
+            </Avatar>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -177,7 +177,7 @@ export const SmartContractView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "SmartContract",
                 }}
@@ -203,12 +203,12 @@ export const SmartContractView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageMenu
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         languages={availableLanguages}
                         zIndex={zIndex}
-                    />
+                    />}
                 </Box>
                 {overviewComponent}
             </Box>

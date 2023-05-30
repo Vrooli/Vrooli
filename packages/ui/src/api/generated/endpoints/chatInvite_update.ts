@@ -12,6 +12,7 @@ mutation chatInviteUpdate($input: ChatInviteUpdateInput!) {
     chat {
         participants {
             id
+            isBot
             name
             handle
         }
@@ -26,6 +27,7 @@ mutation chatInviteUpdate($input: ChatInviteUpdateInput!) {
             updated_at
             user {
                 id
+                isBot
                 name
                 handle
             }

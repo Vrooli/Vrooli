@@ -55,6 +55,7 @@ query members($input: MemberSearchInput!) {
                 id
                 created_at
                 handle
+                isBot
                 name
                 bookmarks
                 reportsReceivedCount

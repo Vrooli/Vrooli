@@ -1,12 +1,10 @@
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
-import pkg from "@prisma/client";
 import fs from "fs";
 import zlib from "zlib";
 import { logger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { withPrisma } from "../../utils/withPrisma";
 
 const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
 
@@ -26,11 +24,38 @@ const Links: Record<typeof sitemapObjectTypes[number], string> = {
 };
 
 // Where to save the sitemap index and files
-const sitemapIndexDir = "../../packages/ui/public";
+const sitemapIndexDir = "../../packages/ui/dist";
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
 
 // Name of website
 const siteName = "https://vrooli.com";
+
+/**
+ * Converts a string to a BigInt
+ * @param value String to convert
+ * @param radix Radix (base) to use
+ * @returns 
+ */
+function toBigInt(value: string, radix: number) {
+    return [...value.toString()]
+        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
+}
+
+/**
+ * Converts a UUID into a shorter, base 36 string without dashes. 
+ * Useful for displaying UUIDs in a more compact format, such as in a URL.
+ * @param uuid v4 UUID to convert
+ * @returns base 36 string without dashes
+ */
+const uuidToBase36 = (uuid: string): string => {
+    try {
+        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
+        return base36 === "0" ? "" : base36;
+    } catch (error) {
+        return uuid;
+    }
+};
+
 
 /**
  * Generates and saves one or more sitemap files for an object
@@ -98,11 +123,11 @@ const genSitemapForObject = async (
                 // Convert batch to SiteMapEntryContent
                 const entryContent: SitemapEntryContent = {
                     handle: entry.handle,
-                    id: entry.id,
+                    id: uuidToBase36(entry.id),
                     languages: entry.translations.map(translation => translation.language),
                     objectLink: Links[objectType],
                     rootHandle: entry.root?.handle,
-                    rootId: entry.root?.id,
+                    rootId: entry.root?.id ? uuidToBase36(entry.root.id) : undefined,
                 };
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);
@@ -110,6 +135,11 @@ const genSitemapForObject = async (
                 estimatedFileSize += (baseUrlSize + entry.id.length) * entry.translations.length + 100;
             }
         } while (collectedEntries.length < 50000 && estimatedFileSize < 50000000 && currentBatchSize === batchSize);
+        // If no entries were collected, return an empty array. 
+        // This is to prevent an empty sitemap file from being generated, which gives an error in Google Search Console
+        if (collectedEntries.length === 0) {
+            return [];
+        }
         // Convert collected entries to sitemap file
         const sitemap = generateSitemap(siteName, { content: collectedEntries });
         // Zip and save sitemap file
@@ -142,22 +172,24 @@ export const genSitemap = async (): Promise<void> => {
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
         logger.warning("Sitemap file for main routes does not exist");
     }
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    const sitemapFileNames: string[] = [];
-    // Generate sitemap for each object type
-    for (const objectType of sitemapObjectTypes) {
-        const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
-        // Add sitemap file names to array
-        sitemapFileNames.push(...sitemapFileNamesForObject);
-    }
-    // Generate sitemap index file
-    const sitemapIndex = generateSitemapIndex(`${siteName}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
-    // Write sitemap index file
-    fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
-    // Close the Prisma client
-    await prisma.$disconnect();
-    console.info("✅ Sitemap generated successfully");
+    const success = await withPrisma({
+        process: async (prisma) => {
+            const sitemapFileNames: string[] = [];
+            // Generate sitemap for each object type
+            for (const objectType of sitemapObjectTypes) {
+                const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
+                // Add sitemap file names to array
+                sitemapFileNames.push(...sitemapFileNamesForObject);
+            }
+            // Generate sitemap index file
+            const sitemapIndex = generateSitemapIndex(`${siteName}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
+            // Write sitemap index file
+            fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
+        },
+        trace: "0463",
+        traceObject: { routeSitemapFileName, sitemapDir },
+    });
+    if (success) logger.info("✅ Sitemap generated successfully");
 };
 
 /**

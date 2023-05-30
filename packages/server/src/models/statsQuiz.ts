@@ -18,7 +18,7 @@ export const StatsQuizModel: ModelLogic<{
     GqlModel: StatsQuiz,
     GqlSearch: StatsQuizSearchInput,
     GqlSort: StatsQuizSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_quizUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_quizUpsertArgs["update"],
     PrismaModel: Prisma.stats_quizGetPayload<SelectWrap<Prisma.stats_quizSelect>>,
@@ -28,11 +28,13 @@ export const StatsQuizModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_quiz,
     display: {
-        select: () => ({ id: true, quiz: selPad(QuizModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: QuizModel.display.label(select.quiz as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, quiz: selPad(QuizModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: QuizModel.display.label.get(select.quiz as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {

@@ -76,7 +76,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                 ref={ref}
                 style={{
                     display: "block",
-                    width: "min(700px, 100vw - 16px)",
+                    width: "min(700px, 100% - 16px)",
                     margin: "auto",
                     marginBottom: "64px",
                 }}
@@ -90,6 +90,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={3}
+                        zIndex={zIndex}
                     />
                 </Stack>
                 <GridSubmitButtons

@@ -18,7 +18,7 @@ export const StatsSmartContractModel: ModelLogic<{
     GqlModel: StatsSmartContract,
     GqlSearch: StatsSmartContractSearchInput,
     GqlSort: StatsSmartContractSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_smart_contractUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_smart_contractUpsertArgs["update"],
     PrismaModel: Prisma.stats_smart_contractGetPayload<SelectWrap<Prisma.stats_smart_contractSelect>>,
@@ -28,11 +28,13 @@ export const StatsSmartContractModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_smart_contract,
     display: {
-        select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: SmartContractModel.display.label(select.smartContract as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: SmartContractModel.display.label.get(select.smartContract as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {

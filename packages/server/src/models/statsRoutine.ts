@@ -18,7 +18,7 @@ export const StatsRoutineModel: ModelLogic<{
     GqlModel: StatsRoutine,
     GqlSearch: StatsRoutineSearchInput,
     GqlSort: StatsRoutineSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.stats_routineUpsertArgs["create"],
     PrismaUpdate: Prisma.stats_routineUpsertArgs["update"],
     PrismaModel: Prisma.stats_routineGetPayload<SelectWrap<Prisma.stats_routineSelect>>,
@@ -28,11 +28,13 @@ export const StatsRoutineModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_routine,
     display: {
-        select: () => ({ id: true, routine: selPad(RoutineModel.display.select) }),
-        label: (select, languages) => i18next.t("common:ObjectStats", {
-            lng: languages.length > 0 ? languages[0] : "en",
-            objectName: RoutineModel.display.label(select.routine as any, languages),
-        }),
+        label: {
+            select: () => ({ id: true, routine: selPad(RoutineModel.display.label.select) }),
+            get: (select, languages) => i18next.t("common:ObjectStats", {
+                lng: languages.length > 0 ? languages[0] : "en",
+                objectName: RoutineModel.display.label.get(select.routine as any, languages),
+            }),
+        },
     },
     format: {
         gqlRelMap: {

@@ -38,6 +38,7 @@ export enum BuildAction {
     EditSubroutine = "EditSubroutine",
     DeleteSubroutine = "DeleteSubroutine",
     OpenSubroutine = "OpenSubroutine",
+    OpenRoutine = "OpenRoutine",
     DeleteNode = "DeleteNode",
     UnlinkNode = "UnlinkNode",
     AddEndAfterNode = "AddEndAfterNode",
@@ -59,6 +60,10 @@ export enum RoutineStepType {
     RoutineList = "RoutineList",
     Decision = "Decision",
     Subroutine = "Subroutine",
+}
+
+export enum ProjectStepType {
+    Directory = "Directory",
 }
 
 /**

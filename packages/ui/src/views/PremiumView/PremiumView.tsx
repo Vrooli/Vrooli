@@ -41,6 +41,7 @@ const rows = [
 
 export const PremiumView = ({
     display = "page",
+    onClose,
 }: PremiumViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -127,7 +128,7 @@ export const PremiumView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Premium",
                 }}

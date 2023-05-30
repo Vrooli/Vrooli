@@ -1,12 +1,12 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
+import { Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -61,6 +61,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -76,8 +77,6 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
         fields: ["bio", "name"],
         validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({}),
     });
-
-    const [fieldIsOpen] = useField("isOpenToNewMembers");
 
     return (
         <>
@@ -107,7 +106,11 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -122,35 +125,18 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={"Bio"}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={4}
+                            minRows={4}
                             name="bio"
+                            zIndex={zIndex}
+                        />
+                        <br />
+                        <TagSelector
+                            name="tags"
+                            zIndex={zIndex}
                         />
                     </Stack>
-                    <TagSelector
-                        name="tags"
-                        zIndex={zIndex}
-                    />
-                    <Tooltip placement={"top"} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
-                        <FormControlLabel
-                            label='Open to new members?'
-                            control={
-                                <Checkbox
-                                    id='organization-is-open-to-new-members'
-                                    size="medium"
-                                    name='isOpenToNewMembers'
-                                    color='secondary'
-                                    checked={fieldIsOpen.value}
-                                    onChange={fieldIsOpen.onChange}
-                                />
-                            }
-                        />
-                    </Tooltip>
                 </Stack>
                 <GridSubmitButtons
                     display={display}

@@ -7,6 +7,7 @@ translations {
 id
 created_at
 handle
+isBot
 name
 bookmarks
 reportsReceivedCount

@@ -45,6 +45,7 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

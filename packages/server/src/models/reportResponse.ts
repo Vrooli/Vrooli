@@ -21,7 +21,7 @@ export const ReportResponseModel: ModelLogic<{
     GqlModel: ReportResponse,
     GqlSearch: ReportResponseSearchInput,
     GqlSort: ReportResponseSortBy,
-    GqlPermission: {},
+    GqlPermission: object,
     PrismaCreate: Prisma.report_responseUpsertArgs["create"],
     PrismaUpdate: Prisma.report_responseUpsertArgs["update"],
     PrismaModel: Prisma.report_responseGetPayload<SelectWrap<Prisma.report_responseSelect>>,
@@ -31,11 +31,13 @@ export const ReportResponseModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.report_response,
     display: {
-        select: () => ({
-            id: true,
-            report: selPad(ReportModel.display.select),
-        }),
-        label: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label(select.report as any, languages) }),
+        label: {
+            select: () => ({
+                id: true,
+                report: selPad(ReportModel.display.label.select),
+            }),
+            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label.get(select.report as any, languages) }),
+        },
     },
     format: {
         gqlRelMap: {

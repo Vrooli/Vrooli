@@ -1,48 +1,35 @@
-import { addSearchParams, BookmarkFilledIcon, CommonKey, parseSearchParams, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, useLocation, VisibleIcon } from "@local/shared";
+import { BookmarkFilledIcon, CommonKey, RoutineActiveIcon, RoutineCompleteIcon, RunStatus, VisibleIcon } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
-import { useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTabs } from "utils/hooks/useTabs";
 import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
-
-// Tab data type
-type BaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
-    titleKey: CommonKey;
-    searchType: SearchType;
-    tabType: HistoryPageTabOption;
-    where: { [x: string]: any };
-}
-
-// Data for each tab
-const tabParams: BaseParams[] = [{
+const tabParams = [{
     Icon: VisibleIcon,
-    titleKey: "View",
+    titleKey: "View" as CommonKey,
     searchType: SearchType.View,
     tabType: HistoryPageTabOption.Viewed,
     where: {},
 }, {
     Icon: BookmarkFilledIcon,
-    titleKey: "Bookmark",
+    titleKey: "Bookmark" as CommonKey,
     searchType: SearchType.BookmarkList,
     tabType: HistoryPageTabOption.Bookmarked,
     where: {},
 }, {
     Icon: RoutineActiveIcon,
-    titleKey: "Active",
+    titleKey: "Active" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
-    where: {},
+    where: { statuses: [RunStatus.InProgress, RunStatus.Scheduled] },
 }, {
     Icon: RoutineCompleteIcon,
-    titleKey: "Complete",
+    titleKey: "Complete" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
-    where: {},
+    where: { statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] },
 }];
 
 /**
@@ -50,50 +37,16 @@ const tabParams: BaseParams[] = [{
  */
 export const HistoryView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: HistoryViewProps) => {
-    const [, setLocation] = useLocation();
-    const { t } = useTranslation();
-
-    // Handle tabs
-    const tabs = useMemo<PageTab<HistoryPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
-            index: i,
-            Icon: tab.Icon,
-            label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            value: tab.tabType,
-        }));
-    }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<HistoryPageTabOption>>(() => {
-        const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
-        // Default to bookmarked tab
-        if (index === -1) return tabs[0];
-        // Return tab
-        return tabs[index];
-    });
-    const handleTabChange = useCallback((e: any, tab: PageTab<HistoryPageTabOption>) => {
-        e.preventDefault();
-        // Update search params
-        addSearchParams(setLocation, { type: tab.value });
-        // Update curr tab
-        setCurrTab(tab);
-    }, [setLocation]);
-
-    // On tab change, update BaseParams, document title, where, and URL
-    const { searchType, title, where } = useMemo(() => {
-        // Update tab title
-        document.title = `${t("Search")} | ${currTab.label}`;
-        return {
-            ...tabParams[currTab.index],
-            title: currTab.label,
-        };
-    }, [currTab.index, currTab.label, t]);
+    const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     hideOnDesktop: true,
                     title,
@@ -108,9 +61,10 @@ export const HistoryView = ({
             />
             {searchType && <SearchList
                 id="history-page-list"
+                dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                zIndex={200}
+                zIndex={zIndex}
                 sxs={{
                     search: {
                         marginTop: 2,

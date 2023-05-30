@@ -13,7 +13,7 @@ export const ScheduleExceptionModel: ModelLogic<{
     GqlCreate: ScheduleExceptionCreateInput,
     GqlUpdate: ScheduleExceptionUpdateInput,
     GqlModel: ScheduleException,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.schedule_exceptionUpsertArgs["create"],
@@ -25,8 +25,10 @@ export const ScheduleExceptionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule_exception,
     display: {
-        select: () => ({ id: true, schedule: { select: ScheduleModel.display.select() } }),
-        label: (select, languages) => ScheduleModel.display.label(select.schedule as any, languages),
+        label: {
+            select: () => ({ id: true, schedule: { select: ScheduleModel.display.label.select() } }),
+            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as any, languages),
+        },
     },
     format: {
         gqlRelMap: {

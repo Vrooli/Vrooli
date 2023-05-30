@@ -36,34 +36,44 @@ export const generateSitemap = (siteName: string, entries: {
     content?: SitemapEntryContent[];
 }): string => {
     // Create xml tag with encoding and version
-    let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
-    // Open urlset tag
-    xml = xml.ele("urlset", { xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" });
+    let xml = builder.create({ encoding: "UTF-8", version: "1.0" });
+    // Open urlset tag with xmlns:xhtml attribute
+    xml = xml.ele("urlset", {
+        xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "xmlns:xhtml": "http://www.w3.org/1999/xhtml",
+    });
     // If main entries exist, add them
     if (entries.main) {
         // Loop through entries
         entries.main.forEach(function (entry: SitemapEntryMain) {
-            // For each entry, create a url element with loc, priority, and changefreq
-            xml.ele('url', {
-                loc: siteName + entry.path,
-                priority: (entry.priority || 0) + '',
-                changefreq: entry.changeFreq || "never"
-            }).up();
+            // For each entry, create a url element
+            const urlElement = xml.ele("url");
+            // Create loc element
+            urlElement.ele("loc").txt(siteName + entry.path).up();
+            // Create priority element
+            urlElement.ele("priority").txt((entry.priority || 0) + "").up();
+            // Create changefreq element
+            urlElement.ele("changefreq").txt(entry.changeFreq || "never").up();
+            urlElement.up();
         });
     }
     // If content entries exist, add them
     if (entries.content) {
         // Loop through entries
         entries.content.forEach(function (entry: SitemapEntryContent) {
-            const link = `${siteName}${entry.objectLink}/${entry.rootHandle ?? entry.rootId ?? ''}${entry.handle ?? entry.id}`;
-            xml.ele('url')
-                // Create loc link with x-default hreflang
-                .ele("loc", { hreflang: "x-default", href: link }).up()
-            // Create alternate links for each language
+            const rootPart = entry.rootHandle ?? entry.rootId ?? "";
+            const versionPart = entry.handle ?? entry.id ?? "";
+            const separator = rootPart ? "/" : "";
+            const link = `${siteName}${entry.objectLink}/${rootPart}${separator}${versionPart}`;
+            const urlElement = xml.ele("url");
+            // Create loc element
+            urlElement.ele("loc").txt(link).up();
+            // Create alternate links for x-default and each language
+            urlElement.ele("xhtml:link", { rel: "alternate", hreflang: "x-default", href: link }).up();
             entry.languages.forEach(function (language) {
-                xml.ele("link", { rel: "alternate", hreflang: language, href: `${link}?lang=${language}` }).up();
-            })
-            xml.up();
+                urlElement.ele("xhtml:link", { rel: "alternate", hreflang: language, href: `${link}?lang=${language}` }).up();
+            });
+            urlElement.up();
         });
     }
     // Close urlset tag
@@ -71,6 +81,7 @@ export const generateSitemap = (siteName: string, entries: {
     // Return xml string
     return xml.end({ prettyPrint: true });
 };
+
 
 /**
  * Generates a sitemap index file from a list of sitemap file names
@@ -80,18 +91,18 @@ export const generateSitemap = (siteName: string, entries: {
  */
 export const generateSitemapIndex = (sitemapDir: string, fileNames: string[]): string => {
     // Create xml tag with encoding and version
-    let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
+    let xml = builder.create({ encoding: "UTF-8", version: "1.0" });
     // Open sitemapindex tag
     xml = xml.ele("sitemapindex", { xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" });
     // Loop through file names
     fileNames.forEach(function (fileName) {
         // For each file name, create a sitemap element with loc
-        xml.ele('sitemap')
-            .ele('loc').txt(`${sitemapDir}/${fileName}`).up()
+        xml.ele("sitemap")
+            .ele("loc").txt(`${sitemapDir}/${fileName}`).up()
             .up();
     });
     // Close sitemapindex tag
     xml = xml.up();
     // Return xml string
     return xml.end({ prettyPrint: true });
-}
+};

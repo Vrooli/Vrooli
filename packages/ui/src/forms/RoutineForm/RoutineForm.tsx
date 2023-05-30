@@ -1,5 +1,5 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -98,6 +98,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -113,8 +114,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         fields: ["description", "instructions", "name"],
         validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
-
-    console.log("valuesssssss", values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)));
 
     const [idField] = useField<string>("id");
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
@@ -204,7 +203,11 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -232,16 +235,18 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             language={language}
                             name="instructions"
                             minRows={4}
+                            zIndex={zIndex}
+                        />
+                        <br />
+                        <TagSelector
+                            name="root.tags"
+                            zIndex={zIndex}
+                        />
+                        <VersionInput
+                            fullWidth
+                            versions={versions}
                         />
                     </Stack>
-                    <TagSelector
-                        name="root.tags"
-                        zIndex={zIndex}
-                    />
-                    <VersionInput
-                        fullWidth
-                        versions={versions}
-                    />
                     {/* Is internal checkbox */}
                     {isSubroutine && (
                         <Grid item xs={12}>
@@ -260,89 +265,96 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             </Tooltip>
                         </Grid>
                     )}
-                    {/* Selector for single-step or multi-step routine */}
-                    <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
-                        {/* Title with help text */}
-                        <Subheader
-                            title="Use subroutines?"
-                            help={helpTextSubroutines}
-                        />
-                        {/* Yes/No buttons */}
-                        <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>Yes</Button>
-                            <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>No</Button>
-                        </Stack >
-                    </Grid >
-                    {/* Data displayed only by multi-step routines */}
-                    {
-                        isMultiStep === true && (
-                            <>
-                                {/* Dialog for building routine graph */}
-                                <LargeDialog
-                                    id="build-routine-graph-dialog"
-                                    onClose={handleGraphClose}
-                                    isOpen={isGraphOpen}
-                                    titleId=""
-                                    zIndex={zIndex + 1300}
-                                    sxs={{ paper: { display: "contents" } }}
-                                >
-                                    <BuildView
-                                        handleCancel={handleGraphClose}
-                                        handleClose={handleGraphClose}
-                                        handleSubmit={handleGraphSubmit}
-                                        isEditing={true}
-                                        loading={false}
-                                        routineVersion={{
-                                            id: idField.value,
-                                            nodeLinks: nodeLinksField.value as NodeLink[],
-                                            nodes: nodesField.value as Node[],
-                                        }}
-                                        translationData={{
-                                            language,
-                                            setLanguage,
-                                            handleAddLanguage,
-                                            handleDeleteLanguage,
-                                            languages,
-                                        }}
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                        paddingTop: 0,
+                    }}>
+                        {/* Selector for single-step or multi-step routine */}
+                        <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
+                            {/* Title with help text */}
+                            <Subheader
+                                title="Use subroutines?"
+                                help={helpTextSubroutines}
+                            />
+                            {/* Yes/No buttons */}
+                            <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
+                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>Yes</Button>
+                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>No</Button>
+                            </Stack >
+                        </Grid >
+                        {/* Data displayed only by multi-step routines */}
+                        {
+                            isMultiStep === true && (
+                                <>
+                                    {/* Dialog for building routine graph */}
+                                    <LargeDialog
+                                        id="build-routine-graph-dialog"
+                                        onClose={handleGraphClose}
+                                        isOpen={isGraphOpen}
+                                        titleId=""
                                         zIndex={zIndex + 1300}
-                                    />
-                                </LargeDialog>
-                                {/* Button to display graph */}
-                                <Grid item xs={12} mb={4}>
-                                    <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
-                                </Grid>
-                                {/* # nodes, # links, Simplicity, complexity & other graph stats */}
-                                {/* TODO */}
-                            </>
-                        )
-                    }
-                    {/* Data displayed only by single-step routines */}
-                    {
-                        isMultiStep === false && (
-                            <>
-                                <Grid item xs={12}>
-                                    <InputOutputContainer
-                                        isEditing={true}
-                                        handleUpdate={inputsHelpers.setValue as any}
-                                        isInput={true}
-                                        language={language}
-                                        list={inputsField.value}
-                                        zIndex={zIndex}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} mb={4}>
-                                    <InputOutputContainer
-                                        isEditing={true}
-                                        handleUpdate={outputsHelpers.setValue as any}
-                                        isInput={false}
-                                        language={language}
-                                        list={outputsField.value}
-                                        zIndex={zIndex}
-                                    />
-                                </Grid>
-                            </>
-                        )
-                    }
+                                        sxs={{ paper: { display: "contents" } }}
+                                    >
+                                        <BuildView
+                                            handleCancel={handleGraphClose}
+                                            onClose={handleGraphClose}
+                                            handleSubmit={handleGraphSubmit}
+                                            isEditing={true}
+                                            loading={false}
+                                            routineVersion={{
+                                                id: idField.value,
+                                                nodeLinks: nodeLinksField.value as NodeLink[],
+                                                nodes: nodesField.value as Node[],
+                                            }}
+                                            translationData={{
+                                                language,
+                                                setLanguage,
+                                                handleAddLanguage,
+                                                handleDeleteLanguage,
+                                                languages,
+                                            }}
+                                            zIndex={zIndex + 1300}
+                                        />
+                                    </LargeDialog>
+                                    {/* Button to display graph */}
+                                    <Grid item xs={12} mb={4}>
+                                        <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
+                                    </Grid>
+                                    {/* # nodes, # links, Simplicity, complexity & other graph stats */}
+                                    {/* TODO */}
+                                </>
+                            )
+                        }
+                        {/* Data displayed only by single-step routines */}
+                        {
+                            isMultiStep === false && (
+                                <>
+                                    <Grid item xs={12}>
+                                        <InputOutputContainer
+                                            isEditing={true}
+                                            handleUpdate={inputsHelpers.setValue as any}
+                                            isInput={true}
+                                            language={language}
+                                            list={inputsField.value}
+                                            zIndex={zIndex}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} mb={4}>
+                                        <InputOutputContainer
+                                            isEditing={true}
+                                            handleUpdate={outputsHelpers.setValue as any}
+                                            isInput={false}
+                                            language={language}
+                                            list={outputsField.value}
+                                            zIndex={zIndex}
+                                        />
+                                    </Grid>
+                                </>
+                            )
+                        }
+                    </Stack>
                 </Stack>
             </BaseForm>
             <GridSubmitButtons

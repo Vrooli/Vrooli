@@ -10,10 +10,10 @@ import { exists } from "@local/shared";
  */
 export const fragmentsNeeded = (
     fragments: [string, string][],
-    partialTag: string
+    partialTag: string,
 ) => {
     const temp1 = fragments.map(([fragmentName]) => fragmentName);
-    console.log('fragments needed start', temp1, temp1.length);
+    console.log("fragments needed start", temp1, temp1.length);
 
     const getDependentFragments = (fragmentName: string, fragments: [string, string][]) => {
         const fragmentTag = fragments.find(([name]) => name === fragmentName)?.[1];
@@ -24,7 +24,7 @@ export const fragmentsNeeded = (
 
         let dependentFragments: string[] = [];
         nestedFragments.forEach(fragment => {
-            const name = fragment.replace('...', '');
+            const name = fragment.replace("...", "");
             dependentFragments.push(name);
             dependentFragments = [...dependentFragments, ...getDependentFragments(name, fragments)];
         });
@@ -34,8 +34,8 @@ export const fragmentsNeeded = (
 
     const inPartial = fragments.filter(([fragmentName]) => partialTag.includes(fragmentName));
 
-    let allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
-    console.log('fragments needed inPartial', Array.from(allFragmentsUsed), allFragmentsUsed.size);
+    const allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
+    console.log("fragments needed inPartial", Array.from(allFragmentsUsed), allFragmentsUsed.size);
 
     inPartial.forEach(([fragmentName]) => {
         const dependentFragments = getDependentFragments(fragmentName, fragments);
@@ -44,7 +44,7 @@ export const fragmentsNeeded = (
         });
     });
 
-    const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName)
-    console.log('fragments needed result', temp2, temp2.length);
+    const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName);
+    console.log("fragments needed result", temp2, temp2.length);
     return fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName));
 };

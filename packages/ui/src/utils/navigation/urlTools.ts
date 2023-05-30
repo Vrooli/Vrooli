@@ -72,16 +72,7 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart();
     const secondLastPart = getLastUrlPart(1);
-    // First check the second last part. If it matches the handle or ID regex, then 
-    // we know this is a versioned item
-    if (adaHandleRegex.test(secondLastPart)) {
-        returnObject.handleRoot = secondLastPart;
-    } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
-        returnObject.idRoot = base36ToUuid(secondLastPart);
-    }
-    // Otherwise, this still might be a versioned item. Just with only the 
-    // root ID or handle defined. To check, we must see if any part of the url 
-    // contains the name of a versioned object
+    // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,
         LINKS.Note,
@@ -90,17 +81,36 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
         LINKS.SmartContract,
         LINKS.Standard,
     ].map(link => link.split("/").pop());
+    // Check if any part of the URL contains the name of a versioned object
     const allUrlParts = window.location.pathname.split("/");
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
-    // Now check the last part
-    if (adaHandleRegex.test(lastPart)) {
-        if (isVersioned) returnObject.handleRoot = lastPart;
-        else returnObject.handle = lastPart;
-    } else if (uuidValidate(base36ToUuid(lastPart, false))) {
-        if (isVersioned) returnObject.idRoot = base36ToUuid(lastPart, false);
-        else returnObject.id = base36ToUuid(lastPart, false);
+    // If the URL is for a versioned object
+    if (isVersioned) {
+        let hasRoot = false;
+        // Check if the second last part is a root handle or root ID
+        if (adaHandleRegex.test(secondLastPart)) {
+            returnObject.handleRoot = secondLastPart;
+            hasRoot = true;
+        } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
+            returnObject.idRoot = base36ToUuid(secondLastPart);
+            hasRoot = true;
+        }
+        // Check if the last part is a version handle or version ID
+        if (adaHandleRegex.test(lastPart)) {
+            if (hasRoot) returnObject.handle = lastPart;
+            else returnObject.handleRoot = lastPart;
+        } else if (uuidValidate(base36ToUuid(lastPart, false))) {
+            if (hasRoot) returnObject.id = base36ToUuid(lastPart, false);
+            else returnObject.idRoot = base36ToUuid(lastPart, false);
+        }
+    } else {
+        // If the URL is for a non-versioned object, check if the last part is a handle or ID
+        if (adaHandleRegex.test(lastPart)) {
+            returnObject.handle = lastPart;
+        } else if (uuidValidate(base36ToUuid(lastPart, false))) {
+            returnObject.id = base36ToUuid(lastPart, false);
+        }
     }
-    console.log("parseSingleItemUrl RESULT", returnObject);
     // Return the object
     return returnObject;
 };

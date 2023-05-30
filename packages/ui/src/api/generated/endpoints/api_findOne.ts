@@ -44,6 +44,7 @@ query api($input: FindByIdInput!) {
             status
             createdBy {
                 id
+                isBot
                 name
                 handle
             }

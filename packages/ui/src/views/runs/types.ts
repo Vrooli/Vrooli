@@ -1,17 +1,17 @@
-import { Node, ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
-import { DecisionStep } from "types";
+import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
+import { DecisionStep, EndStep, RoutineListStep, RoutineStep } from "types";
 import { ViewProps } from "views/objects/types";
 import { BaseViewProps } from "views/types";
 
 export interface DecisionViewProps extends BaseViewProps {
     data: DecisionStep;
-    handleDecisionSelect: (node: Node) => void;
-    nodes: Node[];
+    handleDecisionSelect: (step: RoutineStep | EndStep) => void;
+    routineList: RoutineListStep;
     zIndex: number;
 }
 
 export interface RunViewProps extends ViewProps<RoutineVersion> {
-    handleClose: () => void;
+    onClose: () => void;
     runnableObject: ProjectVersion | RoutineVersion;
 }
 
@@ -22,7 +22,7 @@ export interface SubroutineViewProps extends BaseViewProps {
     /**
      * Owner of overall routine, not subroutine
      */
-    owner: RoutineVersion['root']['owner'] | null | undefined;
+    owner: RoutineVersion["root"]["owner"] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
     zIndex: number;

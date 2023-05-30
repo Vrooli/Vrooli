@@ -36,6 +36,7 @@ query memberInvites($input: MemberInviteSearchInput!) {
             }
             user {
                 id
+                isBot
                 name
                 handle
             }

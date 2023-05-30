@@ -44,6 +44,7 @@ export const SubroutineView = ({
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
+    onClose,
     owner,
     routineVersion,
     run,
@@ -202,7 +203,7 @@ export const SubroutineView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
             />
             <Box sx={{
                 marginLeft: "auto",

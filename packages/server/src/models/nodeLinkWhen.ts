@@ -14,7 +14,7 @@ export const NodeLinkWhenModel: ModelLogic<{
     GqlCreate: NodeLinkWhenCreateInput,
     GqlUpdate: NodeLinkWhenUpdateInput,
     GqlModel: NodeLinkWhen,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_link_whenUpsertArgs["create"],
@@ -27,8 +27,10 @@ export const NodeLinkWhenModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.node_link,
     // Doesn't make sense to have a displayer for this model
     display: {
-        select: () => ({ id: true }),
-        label: () => "",
+        label: {
+            select: () => ({ id: true }),
+            get: () => "",
+        },
     },
     format: {
         gqlRelMap: {

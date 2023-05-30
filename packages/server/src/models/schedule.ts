@@ -1,6 +1,6 @@
-import { MaxObjects, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from "@local/shared";
+import { MaxObjects, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, scheduleValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, selPad } from "../builders";
+import { findFirstRel, noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
@@ -19,7 +19,7 @@ export const ScheduleModel: ModelLogic<{
     GqlCreate: ScheduleCreateInput,
     GqlUpdate: ScheduleUpdateInput,
     GqlModel: Schedule,
-    GqlPermission: {},
+    GqlPermission: object,
     GqlSearch: ScheduleSearchInput,
     GqlSort: ScheduleSortBy,
     PrismaCreate: Prisma.scheduleUpsertArgs["create"],
@@ -31,19 +31,21 @@ export const ScheduleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule,
     display: {
-        select: () => ({
-            id: true,
-            focusModes: selPad(FocusModeModel.display.select),
-            meetings: selPad(MeetingModel.display.select),
-            runProjects: selPad(RunProjectModel.display.select),
-            runRoutines: selPad(RunRoutineModel.display.select),
-        }),
-        label: (select, languages) => {
-            if (select.focusModes) return FocusModeModel.display.label(select.focusModes as any, languages);
-            if (select.meetings) return MeetingModel.display.label(select.meetings as any, languages);
-            if (select.runProjects) return RunProjectModel.display.label(select.runProjects as any, languages);
-            if (select.runRoutines) return RunRoutineModel.display.label(select.runRoutines as any, languages);
-            return "";
+        label: {
+            select: () => ({
+                id: true,
+                focusModes: selPad(FocusModeModel.display.label.select),
+                meetings: selPad(MeetingModel.display.label.select),
+                runProjects: selPad(RunProjectModel.display.label.select),
+                runRoutines: selPad(RunRoutineModel.display.label.select),
+            }),
+            get: (select, languages) => {
+                if (select.focusModes) return FocusModeModel.display.label.get(select.focusModes as any, languages);
+                if (select.meetings) return MeetingModel.display.label.get(select.meetings as any, languages);
+                if (select.runProjects) return RunProjectModel.display.label.get(select.runProjects as any, languages);
+                if (select.runRoutines) return RunRoutineModel.display.label.get(select.runRoutines as any, languages);
+                return "";
+            },
         },
     },
     format: {
@@ -70,7 +72,44 @@ export const ScheduleModel: ModelLogic<{
         joinMap: { labels: "label" },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => {
+                return {
+                    id: data.id,
+                    startTime: noNull(data.startTime),
+                    endTime: noNull(data.endTime),
+                    timezone: data.timezone,
+                    ...(await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest })),
+                    // ...(await labelsShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], isOneToOne: false, isRequired: false, parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest })),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                return {
+                    startTime: noNull(data.startTime),
+                    endTime: noNull(data.endTime),
+                    timezone: noNull(data.timezone),
+                    ...(await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest })),
+                    // ...(await labelsShapeHelper({ relation: "labels", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: false, isRequired: false, parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, isRequired: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest })),
+                };
+            },
+        },
+        trigger: {
+            onCreated: ({ created, prisma, userData }) => {
+                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
+            },
+            onUpdated: ({ prisma, updated, updateInput, userData }) => {
+                // TODO should check if schedule is starting soon (i.e. before cron job runs), and handle accordingly
+            },
+        },
+        yup: scheduleValidation,
+    },
     search: {
         defaultSort: ScheduleSortBy.StartTimeAsc,
         sortBy: ScheduleSortBy,

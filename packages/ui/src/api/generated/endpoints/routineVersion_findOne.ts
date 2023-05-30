@@ -75,7 +75,6 @@ query routineVersion($input: FindVersionInput!) {
     created_at
     updated_at
     completedAt
-    complexity
     isAutomatable
     isComplete
     isDeleted
@@ -155,6 +154,7 @@ query routineVersion($input: FindVersionInput!) {
                 step
                 subroutine {
                     id
+                    complexity
                     isAutomatable
                     isComplete
                     isDeleted
@@ -187,7 +187,7 @@ query routineVersion($input: FindVersionInput!) {
             status
             stepsCount
             inputsCount
-            wasRunAutomaticaly
+            wasRunAutomatically
             organization {
                 ...Organization_nav
             }

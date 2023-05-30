@@ -25,50 +25,49 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlMode
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
         }
     }
+    // Helper function to handle translations
+    const handleTranslationsArray = (translationsArray: any[], result: { [x: string]: string[] }) => {
+        for (const translation of translationsArray) {
+            for (const field in translation) {
+                if (field !== "id" && !field.endsWith("Id")) {
+                    result[field] = result[field] ? [...result[field], translation[field]] : [translation[field]];
+                }
+            }
+        }
+    };
     // Add translationsCreate and translationsUpdate to the result
     if (isRelationshipArray(input.translationsCreate) && input.translationsCreate.length > 0) {
-        // Only add non-ID fields
-        for (const field of Object.keys(input.translationsCreate[0])) {
-            if (field !== "id" && !field.endsWith("Id")) {
-                const values = input.translationsCreate.map((x: any) => x[field]);
-                result[field] = result[field] ? [...result[field], ...values] : values;
-            }
-        }
+        handleTranslationsArray(input.translationsCreate, result);
     }
-    if (input.translationsUpdate) {
-        // Only add non-ID fields
-        for (const field of Object.keys(input.translationsUpdate)) {
-            if (field !== "id" && !field.endsWith("Id")) {
-                const values = input.translationsUpdate.map((x: any) => x[field]);
-                result[field] = result[field] ? [...result[field], ...values] : values;
-            }
-        }
+    if (isRelationshipArray(input.translationsUpdate) && input.translationsUpdate.length > 0) {
+        handleTranslationsArray(input.translationsUpdate, result);
+    }
+    // Check for tags, which always appear as a list of strings being connected
+    if (Array.isArray(input.tagsConnect) && input.tagsConnect.length > 0) {
+        result.tagsConnect = input.tagsConnect as string[];
     }
     // Handle recursive case
+    const processNestedFields = (nestedInput: any, nestedObjectType?: `${GqlModelType}`) => {
+        const newFields = collectProfanities(nestedInput, nestedObjectType);
+        for (const field in newFields) {
+            result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];
+        }
+    };
     for (const key in input) {
         // Find next objectType, if any
         let nextObjectType: `${GqlModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
         // Check if stripped key is in validator's validateMap
-        if (typeof format?.gqlRelMap?.[strippedKey] === "string")
+        if (typeof format?.gqlRelMap?.[strippedKey] === "string") {
             nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;
-        // Now we can validate translations objects
-        // Check for array
+        }
         if (isRelationshipArray(input[key])) {
             for (const item of input[key]) {
-                const newFields = collectProfanities(item, nextObjectType);
-                for (const field in newFields) {
-                    result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];
-                }
+                processNestedFields(item, nextObjectType);
             }
-        }
-        // Check for object
-        else if (isRelationshipObject(input[key])) {
-            const newFields = collectProfanities(input[key], nextObjectType);
-            for (const field in newFields) {
-                result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];
-            }
+        } else if (isRelationshipObject(input[key])) {
+            processNestedFields(input[key], nextObjectType);
         }
     }
     return result;

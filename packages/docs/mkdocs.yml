@@ -18,7 +18,14 @@ nav:
       - Getting Access: api_reference/getting_access.md
       - Authorization: api_reference/authorization.md
   - Setup:
-      - Getting Started: setup/getting_started.md
+      - Overview: setup/overview.md
+      - Getting Started:
+          - Overview: setup/getting_started/overview.md
+          - Prerequisites: setup/getting_started/prerequisites.md
+          - Remote Server Setup: setup/getting_started/remote_setup.md
+          - Repository Setup: setup/getting_started/repo_setup.md
+          - Working With Docker: setup/getting_started/working_with_docker.md
+      - Messenger Setup: setup/messenger_setup.md
       - Understanding the Design:
           - Directory Structure: setup/understanding_the_design/directory_structure.md
           - Database Design: setup/understanding_the_design/database_design.md
@@ -61,6 +68,7 @@ theme:
     - navigation.expand
     - navigation.path
     - navigation.top
+    - navigation.footer
 plugins:
   - search
   - social

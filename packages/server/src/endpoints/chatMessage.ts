@@ -60,7 +60,7 @@ export const typeDef = gql`
     }
     input ChatMessageTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         text: String
     }
     type ChatMessageTranslation {

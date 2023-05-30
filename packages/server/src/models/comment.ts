@@ -6,7 +6,7 @@ import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPart
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -34,8 +34,10 @@ export const CommentModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.comment,
     display: {
-        select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-        label: (select, languages) => bestLabel(select.translations, "text", languages),
+        label: {
+            select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
+            get: (select, languages) => bestTranslation(select.translations, languages).text ?? "",
+        },
     },
     format: {
         gqlRelMap: {
@@ -215,7 +217,7 @@ export const CommentModel: ModelLogic<{
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+                    customQueries.push(SearchMap[field as string](input[field as string], getUser(req), __typename));
                 }
             }
             // Create query for visibility
@@ -329,18 +331,18 @@ export const CommentModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            apiVersion: "Api",
+            apiVersion: "ApiVersion",
             issue: "Issue",
             ownedByOrganization: "Organization",
             ownedByUser: "User",
             post: "Post",
-            projectVersion: "Project",
+            projectVersion: "ProjectVersion",
             pullRequest: "PullRequest",
             question: "Question",
             questionAnswer: "QuestionAnswer",
-            routineVersion: "Routine",
-            smartContractVersion: "SmartContract",
-            standardVersion: "Standard",
+            routineVersion: "RoutineVersion",
+            smartContractVersion: "SmartContractVersion",
+            standardVersion: "StandardVersion",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),

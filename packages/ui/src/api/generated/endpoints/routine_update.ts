@@ -33,6 +33,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
   routineUpdate(input: $input) {
     parent {
         id
+        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -93,7 +94,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
         created_at
         updated_at
         completedAt
-        complexity
         isAutomatable
         isComplete
         isDeleted
@@ -173,6 +173,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     step
                     subroutine {
                         id
+                        complexity
                         isAutomatable
                         isComplete
                         isDeleted
@@ -205,7 +206,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 status
                 stepsCount
                 inputsCount
-                wasRunAutomaticaly
+                wasRunAutomatically
                 organization {
                     ...Organization_nav
                 }

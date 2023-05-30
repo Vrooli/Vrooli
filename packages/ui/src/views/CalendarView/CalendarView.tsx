@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgProps, TodayIcon, useLocation, WeekIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleSearchResult, SvgComponent, TodayIcon, useLocation, WeekIcon } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -26,7 +26,7 @@ import { CalendarViewProps } from "views/types";
 
 // Tab data type
 type CalendarBaseParams = {
-    Icon: (props: SvgProps) => JSX.Element,
+    Icon: SvgComponent;
     titleKey: CommonKey;
     tabType: CalendarPageTabOption;
 }
@@ -278,6 +278,8 @@ const DayColumnHeader = ({ label }) => {
 
 export const CalendarView = ({
     display = "page",
+    onClose,
+    zIndex,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -363,7 +365,7 @@ export const CalendarView = ({
         loading,
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
-        canSearch: true,
+        canSearch: () => true,
         searchType: "Schedule",
         where: {
             // Only find schedules that hav not ended, 
@@ -443,7 +445,7 @@ export const CalendarView = ({
                 onClose={handleCloseScheduleDialog}
                 isOpen={isScheduleDialogOpen}
                 titleId={""}
-                zIndex={202}
+                zIndex={zIndex + 2}
             >
                 <ScheduleUpsert
                     defaultTab={currTab.value}
@@ -454,14 +456,14 @@ export const CalendarView = ({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={202}
+                    zIndex={zIndex + 2}
                 />
             </LargeDialog>
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
                 display={display}
-                zIndex={201}
+                zIndex={zIndex + 1}
             >
                 <ColorIconButton
                     aria-label="create event"
@@ -479,7 +481,7 @@ export const CalendarView = ({
             <TopBar
                 ref={ref}
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{ title: currTab.label }}
                 below={<PageTabs
                     ariaLabel="calendar-tabs"

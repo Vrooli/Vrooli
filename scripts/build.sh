@@ -67,6 +67,7 @@ check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP
 check_var VAPID_PUBLIC_KEY
+check_var GOOGLE_TRACKING_ID
 
 # Extract the current version number from the package.json file
 CURRENT_VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
@@ -129,13 +130,15 @@ echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
 echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
 echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>.env
+echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
 # Set trap to remove .env file on exit
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
 # Generate query/mutation selectors
 if [ -z "$GRAPHQL_GENERATE" ]; then
     prompt "Do you want to generate GraphQL query/mutation selectors? (y/N)"
-    read -r GRAPHQL_GENERATE
+    read -n1 -r GRAPHQL_GENERATE
+    echo
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
@@ -198,9 +201,17 @@ else
     cd ../..
 fi
 
+# Remove sitemap data for user-generated content,
+# since this is generated dynamically by the production server.
+info "Removing sitemap information from dist folder..."
+cd ${HERE}/../packages/ui/dist
+rm -f sitemap.xml sitemaps/*.xml.gz
+rmdir sitemaps
+cd ../..
+
 # Compress build
 info "Compressing build..."
-tar -czf ${HERE}/../build.tar.gz dist
+tar -czf ${HERE}/../build.tar.gz -C ${HERE}/../packages/ui/dist .
 trap "rm build.tar.gz" EXIT
 if [ $? -ne 0 ]; then
     error "Failed to compress build"
@@ -232,15 +243,16 @@ fi
 # Copy build to VPS
 if [ -z "$DEPLOY" ]; then
     prompt "Build successful! Would you like to send the build to the production server? (y/N)"
-    read -r DEPLOY
+    read -n1 -r DEPLOY
+    echo
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
     source "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
-    read -r
-    rsync -ri build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
+    read -n1 -r -s
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1

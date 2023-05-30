@@ -48,7 +48,7 @@ export const typeDef = gql`
         openToAnyoneWithInvite: Boolean!
         organization: Organization
         restrictedToRoles: [Role!]!
-        participants: [User!]!
+        participants: [ChatParticipant!]!
         participantsCount: Int!
         invites: [ChatInvite!]!
         invitesCount: Int!
@@ -63,6 +63,7 @@ export const typeDef = gql`
     type ChatYou {
         canDelete: Boolean!
         canInvite: Boolean!
+        canRead: Boolean!
         canUpdate: Boolean!
     }
 
@@ -74,7 +75,7 @@ export const typeDef = gql`
     }
     input ChatTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         name: String
         description: String
     }

@@ -6,7 +6,9 @@ type TranslationShapeHelperProps<
     Input extends ShapeHelperInput<false, IsRequired, Types[number], "translations">,
     IsRequired extends boolean,
     Types extends readonly RelationshipType[],
-> = Omit<ShapeHelperProps<Input, false, IsRequired, Types, "translations", "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+> = Omit<ShapeHelperProps<Input, false, IsRequired, Types, "translations", "id", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete"> & {
+    embeddingNeedsUpdate?: Record<string, { [language in string]: boolean }>,
+}
 
 /**
 * Add, update, or remove translation data for an object.
@@ -17,6 +19,7 @@ export const translationShapeHelper = async <
     Types extends readonly RelationshipType[],
 >({
     data,
+    embeddingNeedsUpdate = {}, // Only used for embeddable translations 
     isRequired,
     preMap,
     prisma,
@@ -25,7 +28,18 @@ export const translationShapeHelper = async <
 }: TranslationShapeHelperProps<Input, IsRequired, Types>):
     Promise<ShapeHelperOutput<false, IsRequired, Types[number], "translations", "id">> => {
     return shapeHelper({
-        data,
+        data: {
+            translationsCreate: (data as any).translationsCreate?.map(({ language, ...rest }) => ({
+                ...rest,
+                language,
+                embeddingNeedsUpdate: embeddingNeedsUpdate[language]?.[(data as any).id] ?? undefined,
+            })),
+            translationsUpdate: (data as any).translationsUpdate?.map(({ language, ...rest }) => ({
+                ...rest,
+                language,
+                embeddingNeedsUpdate: embeddingNeedsUpdate[language]?.[(data as any).id] ?? undefined,
+            })),
+        },
         isOneToOne: false,
         isRequired,
         objectType: "Translation" as GqlModelType,

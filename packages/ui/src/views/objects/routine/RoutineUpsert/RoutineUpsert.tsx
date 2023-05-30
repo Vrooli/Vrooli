@@ -27,6 +27,7 @@ export const RoutineUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
+    console.log("routine upsertt id", id);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 

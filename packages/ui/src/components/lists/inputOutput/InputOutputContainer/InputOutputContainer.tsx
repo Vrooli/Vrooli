@@ -1,10 +1,12 @@
-import { AddIcon, uuid } from "@local/shared";
+import { AddIcon } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { routineVersionIOInitialValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
+import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -51,10 +53,12 @@ export const InputOutputContainer = ({
     list,
     zIndex,
 }: InputOutputContainerProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const sortedList = useMemo(() => {
+        console.log("in sorted listtt", list);
         return list;
         // TODO when index added in schema.prisma, sort by index
         //return list.sort((a, b) => a. - b.index);
@@ -88,17 +92,10 @@ export const InputOutputContainer = ({
         newIsOpenArray[Math.min(index + 1, sortedList.length)] = true;
         setIsOpenArray(newIsOpenArray);
         const newList = [...sortedList];
-        const newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
+        const newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = routineVersionIOInitialValues(session, isInput, {
             ...newItem,
-            id: uuid(),
             name: newItem.name || t(`${isInput ? "Input" : "Output"}NameDefault`, { number: sortedList.length + 1 }),
-            standardVersion: newItem.standardVersion || null,
-            translations: newItem.translations ? newItem.translations : [{
-                id: uuid(),
-                language,
-                description: "",
-            }] as any,
-        };
+        } as any);
         if (isInput && (newItem as RoutineVersionInputShape).isRequired !== true && (newItem as RoutineVersionInputShape).isRequired !== false) (newItemFormatted as RoutineVersionInputShape).isRequired = true;
         // Add new item to sortedList at index (splice does not work)
         const listStart = newList.slice(0, index);
@@ -106,7 +103,7 @@ export const InputOutputContainer = ({
         const combined = [...listStart, newItemFormatted, ...listEnd];
         // newList.splice(index + 1, 0, newItemFormatted);
         handleUpdate(combined as any);
-    }, [sortedList, t, isInput, language, handleUpdate]);
+    }, [sortedList, session, isInput, t, handleUpdate]);
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;

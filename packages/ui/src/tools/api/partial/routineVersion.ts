@@ -40,7 +40,6 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         created_at: true,
         updated_at: true,
         completedAt: true,
-        complexity: true,
         isAutomatable: true,
         isComplete: true,
         isDeleted: true,
@@ -94,6 +93,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
     },
     nav: {
         id: true,
+        complexity: true, // Used by RunRoutine
         isAutomatable: true,
         isComplete: true,
         isDeleted: true,

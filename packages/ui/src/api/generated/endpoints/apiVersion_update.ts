@@ -25,6 +25,7 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         status
         createdBy {
             id
+            isBot
             name
             handle
         }

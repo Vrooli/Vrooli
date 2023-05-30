@@ -1,4 +1,4 @@
-import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "@local/shared";
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon, LinkIcon } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useCallback, useMemo } from "react";
@@ -64,6 +64,18 @@ export const NodeEdge = ({
                         <AddIcon id="insert-node-on-edge-button-icon" fill={"white"} />
                     </ColorIconButton>
                 </Tooltip>
+                {/* Connect unlinked node TODO */}
+                <Tooltip title='Connect unlinked node'>
+                    <ColorIconButton
+                        id="connect-node-on-edge-button"
+                        background='#d27787'
+                        size="small"
+                        onClick={() => { }}
+                        aria-label='Connect unlinked node'
+                    >
+                        <LinkIcon id="connect-node-on-edge-button-icon" fill={"white"} />
+                    </ColorIconButton>
+                </Tooltip>
                 {/* Insert Branch */}
                 <Tooltip title='Insert branch'>
                     <ColorIconButton
@@ -76,7 +88,7 @@ export const NodeEdge = ({
                         <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
                     </ColorIconButton>
                 </Tooltip>
-                {/* Edit Link */}
+                {/* Edit Link TODO */}
                 <Tooltip title='Edit link'>
                     <ColorIconButton
                         id="edit-edge-button"

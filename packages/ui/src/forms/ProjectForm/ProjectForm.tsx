@@ -132,7 +132,11 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}

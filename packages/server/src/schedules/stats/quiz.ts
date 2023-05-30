@@ -1,9 +1,8 @@
 import { QuizAttemptStatus } from "@local/shared";
-import pkg, { PeriodType } from "@prisma/client";
-import { logger } from "../../events";
+import { PeriodType, Prisma } from "@prisma/client";
 import { PrismaType } from "../../types";
-
-const { PrismaClient } = pkg;
+import { batch } from "../../utils/batch";
+import { batchGroup } from "../../utils/batchGroup";
 
 type BatchDirectoryAttemptCountsResult = Record<string, {
     timesStarted: number;
@@ -26,46 +25,15 @@ const batchAttemptCounts = async (
     quizIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchDirectoryAttemptCountsResult> => {
-    // Initialize return value
-    const result: BatchDirectoryAttemptCountsResult = Object.fromEntries(quizIds.map(id => [id, {
+): Promise<BatchDirectoryAttemptCountsResult> => batchGroup<Prisma.quiz_attemptFindManyArgs, BatchDirectoryAttemptCountsResult>({
+    initialResult: Object.fromEntries(quizIds.map(id => [id, {
         timesStarted: 0,
         timesPassed: 0,
         timesFailed: 0,
         scoreAverage: 0,
         completionTimeAverage: 0,
-    }]));
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all attempts associated with the quizzes
-        const batch = await prisma.quiz_attempt.findMany({
-            where: {
-                quiz: { id: { in: quizIds } },
-                OR: [
-                    { created_at: { gte: periodStart, lte: periodEnd } },
-                    { updated_at: { gte: periodStart, lte: periodEnd } },
-                ],
-            },
-            select: {
-                id: true,
-                created_at: true,
-                updated_at: true,
-                pointsEarned: true,
-                quiz: {
-                    select: { id: true },
-                },
-                status: true,
-                timeTaken: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
+    }])),
+    processBatch: async (batch, result) => {
         // For each attempt, increment the counts for the quiz
         batch.forEach(run => {
             const quizId = run.quiz?.id;
@@ -83,16 +51,38 @@ const batchAttemptCounts = async (
                 if (run.timeTaken !== null) result[quizId].completionTimeAverage += run.timeTaken;
             }
         });
-    } while (currentBatchSize === batchSize);
-    // For the averages, divide by the number of attempts completed
-    Object.keys(result).forEach(quizId => {
-        if (result[quizId].timesFailed > 0 || result[quizId].timesPassed > 0) {
-            result[quizId].scoreAverage /= (result[quizId].timesFailed + result[quizId].timesPassed);
-            result[quizId].completionTimeAverage /= (result[quizId].timesFailed + result[quizId].timesPassed);
-        }
-    });
-    return result;
-};
+    },
+    finalizeResult: (result) => {
+        // For the averages, divide by the number of attempts completed
+        Object.keys(result).forEach(quizId => {
+            if (result[quizId].timesFailed > 0 || result[quizId].timesPassed > 0) {
+                result[quizId].scoreAverage /= (result[quizId].timesFailed + result[quizId].timesPassed);
+                result[quizId].completionTimeAverage /= (result[quizId].timesFailed + result[quizId].timesPassed);
+            }
+        });
+        return result;
+    },
+    objectType: "QuizAttempt",
+    prisma,
+    select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        pointsEarned: true,
+        quiz: {
+            select: { id: true },
+        },
+        status: true,
+        timeTaken: true,
+    },
+    where: {
+        quiz: { id: { in: quizIds } },
+        OR: [
+            { created_at: { gte: periodStart, lte: periodEnd } },
+            { updated_at: { gte: periodStart, lte: periodEnd } },
+        ],
+    },
+});
 
 /**
  * Creates periodic stats for all routines
@@ -104,54 +94,35 @@ export const logQuizStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
-    // Initialize the Prisma client
-    const prisma = new PrismaClient();
-    try {
-        // We may be dealing with a lot of data, so we need to do this in batches
-        const batchSize = 100;
-        let skip = 0;
-        let currentBatchSize = 0;
-        do {
-            // Find all quizzes with at least one attempt
-            const batch = await prisma.quiz.findMany({
-                where: {
-                    attempts: {
-                        some: {}, // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
-                    },
-                },
-                select: {
-                    id: true,
-                },
-                skip,
-                take: batchSize,
-            });
-            // Increment skip
-            skip += batchSize;
-            // Update current batch size
-            currentBatchSize = batch.length;
-            // Find and count all attempts associated with the quizzes, which 
-            // have been started or completed within the period
-            const attemptCountsByQuiz = await batchAttemptCounts(prisma, batch.map(quiz => quiz.id), periodStart, periodEnd);
-            // Create stats for each routine
-            await prisma.stats_quiz.createMany({
-                data: batch.map(quiz => ({
-                    quizId: quiz.id,
-                    periodStart,
-                    periodEnd,
-                    periodType,
-                    timesStarted: attemptCountsByQuiz[quiz.id].timesStarted,
-                    timesPassed: attemptCountsByQuiz[quiz.id].timesPassed,
-                    timesFailed: attemptCountsByQuiz[quiz.id].timesFailed,
-                    scoreAverage: attemptCountsByQuiz[quiz.id].scoreAverage,
-                    completionTimeAverage: attemptCountsByQuiz[quiz.id].completionTimeAverage,
-                })),
-            });
-        } while (currentBatchSize === batchSize);
-    } catch (error) {
-        logger.error("Caught error logging quiz statistics", { trace: "0421", periodType, periodStart, periodEnd });
-    } finally {
-        // Close the Prisma client
-        await prisma.$disconnect();
-    }
-};
+) => await batch<Prisma.quizFindManyArgs>({
+    objectType: "Quiz",
+    processBatch: async (batch, prisma) => {
+        // Find and count all attempts associated with the quizzes, which 
+        // have been started or completed within the period
+        const attemptCountsByQuiz = await batchAttemptCounts(prisma, batch.map(quiz => quiz.id), periodStart, periodEnd);
+        // Create stats for each routine
+        await prisma.stats_quiz.createMany({
+            data: batch.map(quiz => ({
+                quizId: quiz.id,
+                periodStart,
+                periodEnd,
+                periodType,
+                timesStarted: attemptCountsByQuiz[quiz.id].timesStarted,
+                timesPassed: attemptCountsByQuiz[quiz.id].timesPassed,
+                timesFailed: attemptCountsByQuiz[quiz.id].timesFailed,
+                scoreAverage: attemptCountsByQuiz[quiz.id].scoreAverage,
+                completionTimeAverage: attemptCountsByQuiz[quiz.id].completionTimeAverage,
+            })),
+        });
+    },
+    select: {
+        id: true,
+    },
+    trace: "0421",
+    traceObject: { periodType, periodStart, periodEnd },
+    where: {
+        attempts: {
+            some: {}, // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
+        },
+    },
+});

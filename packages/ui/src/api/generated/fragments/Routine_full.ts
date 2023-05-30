@@ -1,6 +1,7 @@
 export const Routine_full = `fragment Routine_full on Routine {
 parent {
     id
+    complexity
     isAutomatable
     isComplete
     isDeleted

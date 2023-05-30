@@ -1,17 +1,14 @@
 import { FindByIdInput, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../actions";
+import { createHelper, readOneHelper, updateHelper } from "../actions";
+import { readManyWithEmbeddingsHelper } from "../actions/readManyWithEmbeddingsHelper";
 import { rateLimit } from "../middleware";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../types";
 
 export const typeDef = gql`
     enum TagSortBy {
-        DateCreatedAsc
-        DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
-        BookmarksAsc
-        BookmarksDesc
+        New
+        Top
     }
 
     input TagCreateInput {
@@ -59,7 +56,7 @@ export const typeDef = gql`
     }
     input TagTranslationUpdateInput {
         id: ID!
-        language: String
+        language: String!
         description: String
     }
     type TagTranslation {
@@ -124,7 +121,7 @@ export const resolvers: {
         },
         tags: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyWithEmbeddingsHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {

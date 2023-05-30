@@ -11,6 +11,7 @@ import { RunProjectViewProps } from "../types";
 
 export const RunProjectView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: RunProjectViewProps) => {
@@ -40,7 +41,7 @@ export const RunProjectView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Run",
                     titleVariables: { count: 1 },

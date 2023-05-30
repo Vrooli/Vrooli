@@ -7,6 +7,7 @@ import { RoutineShape, shapeRoutine } from "./routine";
 import { RoutineVersionInputShape, shapeRoutineVersionInput } from "./routineVersionInput";
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "./routineVersionOutput";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { updateTranslationPrims } from "./tools/updateTranslationPrims";
 
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id" | "language" | "description" | "instructions" | "name"> & {
     __typename?: "RoutineVersionTranslation";
@@ -29,7 +30,7 @@ export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | 
 
 export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslationShape, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "instructions", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "instructions", "name"), a),
+    update: (o, u, a) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "instructions", "name"), a),
 };
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
@@ -42,7 +43,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: d.id } })),
         ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: d.id } })),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
-        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine),
+        ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "smartContractVersion", ["Connect"], "one"),
         ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
         ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),

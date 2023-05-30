@@ -3,6 +3,7 @@ import gql from "graphql-tag";
 export const userFindOne = gql`
 query user($input: FindByIdOrHandleInput!) {
   user(input: $input) {
+    botSettings
     translations {
         id
         language
@@ -11,6 +12,7 @@ query user($input: FindByIdOrHandleInput!) {
     id
     created_at
     handle
+    isBot
     name
     bookmarks
     reportsReceivedCount

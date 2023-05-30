@@ -1,12 +1,12 @@
 generator client {
-    provider = "prisma-client-js"
-    // previewFeatures = ["postgresqlExtensions"]
+    provider        = "prisma-client-js"
+    previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DB_URL")
-    // extensions = [citext]
+    provider   = "postgresql"
+    url        = env("DB_URL")
+    extensions = [pgvector(map: "vector"), citext(map: "citext")]
 }
 
 model award {
@@ -108,13 +108,16 @@ model api_version {
 }
 
 model api_version_translation {
-    id           String      @id @default(uuid()) @db.Uuid
-    name         String      @db.VarChar(128)
-    summary      String?     @db.VarChar(1024)
-    details      String?     @db.VarChar(8192)
-    language     String      @db.VarChar(3)
-    apiVersionId String      @db.Uuid
-    apiVersion   api_version @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    name                 String                      @db.VarChar(128)
+    summary              String?                     @db.VarChar(1024)
+    details              String?                     @db.VarChar(8192)
+    language             String                      @db.VarChar(3)
+    apiVersionId         String                      @db.Uuid
+    apiVersion           api_version                 @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
 }
 
 model api_key {
@@ -202,12 +205,15 @@ model chat {
 }
 
 model chat_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    chatId      String  @db.Uuid
-    chat        chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    language    String  @db.VarChar(3)
-    name        String? @db.VarChar(128)
-    description String? @db.VarChar(2048)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    chatId               String                      @db.Uuid
+    chat                 chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    language             String                      @db.VarChar(3)
+    name                 String?                     @db.VarChar(128)
+    description          String?                     @db.VarChar(2048)
 
     @@unique([chatId, language], name: "chat_translation_chatid_language_unique")
 }
@@ -245,6 +251,7 @@ model chat_participants {
     id         String   @id @default(uuid()) @db.Uuid
     created_at DateTime @default(now()) @db.Timestamptz(6)
     updated_at DateTime @default(now()) @db.Timestamptz(6)
+    hasUnread  Boolean  @default(true)
     chatId     String   @db.Uuid
     chat       chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
     userId     String   @db.Uuid
@@ -452,12 +459,15 @@ model issue_labels {
 }
 
 model issue_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    name        String? @db.VarChar(128)
-    issueId     String  @db.Uuid
-    language    String  @db.VarChar(3)
-    issue       issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    name                 String?                     @db.VarChar(128)
+    issueId              String                      @db.Uuid
+    language             String                      @db.VarChar(3)
+    issue                issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
     @@unique([issueId, language])
 }
@@ -720,13 +730,16 @@ model note_version {
 }
 
 model note_version_translation {
-    id            String       @id @default(uuid()) @db.Uuid
-    name          String       @db.VarChar(128)
-    text          String       @db.VarChar(65536)
-    description   String?      @db.VarChar(2048)
-    language      String       @db.VarChar(3)
-    noteVersionId String       @db.Uuid
-    noteVersion   note_version @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    name                 String                      @db.VarChar(128)
+    text                 String                      @db.VarChar(65536)
+    description          String?                     @db.VarChar(2048)
+    language             String                      @db.VarChar(3)
+    noteVersionId        String                      @db.Uuid
+    noteVersion          note_version                @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
 }
 
 model notification {
@@ -924,24 +937,30 @@ model meeting_roles {
 }
 
 model meeting_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    meetingId   String  @db.Uuid
-    meeting     meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    language    String  @db.VarChar(3)
-    name        String? @db.VarChar(128)
-    description String? @db.VarChar(2048)
-    link        String? @db.VarChar(2048)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    meetingId            String                      @db.Uuid
+    meeting              meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    language             String                      @db.VarChar(3)
+    name                 String?                     @db.VarChar(128)
+    description          String?                     @db.VarChar(2048)
+    link                 String?                     @db.VarChar(2048)
 
     @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
 }
 
 model organization_translation {
-    id             String       @id @default(uuid()) @db.Uuid
-    bio            String?      @db.VarChar(2048)
-    name           String       @db.VarChar(128)
-    language       String       @db.VarChar(3)
-    organizationId String       @db.Uuid
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    bio                  String?                     @db.VarChar(2048)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    organizationId       String                      @db.Uuid
+    organization         organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
     @@unique([organizationId, language])
 }
@@ -1027,12 +1046,15 @@ model post_tags {
 }
 
 model post_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    name        String  @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    postId      String  @db.Uuid
-    post        post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    postId               String                      @db.Uuid
+    post                 post                        @relation(fields: [postId], references: [id], onDelete: Cascade)
 
     @@unique([postId, language])
 }
@@ -1188,12 +1210,15 @@ model project_version_directory_translation {
 }
 
 model project_version_translation {
-    id               String          @id @default(uuid()) @db.Uuid
-    description      String?         @db.VarChar(2048)
-    name             String          @db.VarChar(128)
-    language         String          @db.VarChar(3)
-    projectVersionId String          @db.Uuid
-    projectVersion   project_version @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    projectVersionId     String                      @db.Uuid
+    projectVersion       project_version             @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
 
     @@unique([projectVersionId, language])
 }
@@ -1309,12 +1334,15 @@ model question {
 }
 
 model question_translation {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
-    name        String   @db.VarChar(128)
-    language    String   @db.VarChar(3)
-    questionId  String   @db.Uuid
-    question    question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(16384)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    questionId           String                      @db.Uuid
+    question             question                    @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
     @@unique([questionId, language])
 }
@@ -1387,12 +1415,15 @@ model quiz {
 }
 
 model quiz_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    name        String  @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    quizId      String  @db.Uuid
-    quiz        quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    quizId               String                      @db.Uuid
+    quiz                 quiz                        @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
     @@unique([quizId, language])
 }
@@ -1529,17 +1560,19 @@ model reminder_list {
 }
 
 model reminder {
-    id             String          @id @default(uuid()) @db.Uuid
-    created_at     DateTime        @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime        @default(now()) @db.Timestamptz(6)
-    name           String          @db.VarChar(128)
-    description    String?         @db.VarChar(2048)
-    dueDate        DateTime?       @db.Timestamptz(6)
-    index          Int
-    isComplete     Boolean         @default(false)
-    reminderListId String          @db.Uuid
-    reminderItems  reminder_item[]
-    reminderList   reminder_list   @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    name                 String                      @db.VarChar(128)
+    description          String?                     @db.VarChar(2048)
+    dueDate              DateTime?                   @db.Timestamptz(6)
+    index                Int
+    isComplete           Boolean                     @default(false)
+    reminderListId       String                      @db.Uuid
+    reminderItems        reminder_item[]
+    reminderList         reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
 }
 
 model reminder_item {
@@ -1786,13 +1819,16 @@ model routine_version {
 }
 
 model routine_version_translation {
-    id               String          @id @default(uuid()) @db.Uuid
-    description      String?         @db.VarChar(2048)
-    instructions     String          @db.VarChar(8192)
-    name             String          @db.VarChar(128)
-    language         String          @db.VarChar(3)
-    routineVersionId String          @db.Uuid
-    routineVersion   routine_version @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    instructions         String                      @db.VarChar(8192)
+    name                 String                      @db.VarChar(128)
+    language             String                      @db.VarChar(3)
+    routineVersionId     String                      @db.Uuid
+    routineVersion       routine_version             @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
 
     @@unique([routineVersionId, language])
 }
@@ -1874,27 +1910,29 @@ model routine_labels {
 }
 
 model run_project {
-    id                  String             @id @default(uuid()) @db.Uuid
-    created_at          DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime           @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                @default(0)
-    contextSwitches     Int                @default(0)
-    isPrivate           Boolean            @default(false)
-    scheduleId          String?            @db.Uuid
-    startedAt           DateTime?          @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?          @db.Timestamptz(6)
-    name                String             @db.VarChar(128)
-    status              RunStatus          @default(Scheduled)
-    projectVersionId    String?            @db.Uuid
-    userId              String?            @db.Uuid
-    organizationId      String?            @db.Uuid
-    projectVersion      project_version?   @relation("run_project_version", fields: [projectVersionId], references: [id])
-    schedule            schedule?          @relation("run_project_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    user                user?              @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization        organization?      @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    steps               run_project_step[] @relation("run_project_step_run")
-    runRoutines         run_routine[]      @relation("run_routine_run_project")
+    id                   String                      @id @default(uuid()) @db.Uuid
+    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    completedComplexity  Int                         @default(0)
+    contextSwitches      Int                         @default(0)
+    isPrivate            Boolean                     @default(false)
+    scheduleId           String?                     @db.Uuid
+    startedAt            DateTime?                   @db.Timestamptz(6)
+    timeElapsed          Int?
+    completedAt          DateTime?                   @db.Timestamptz(6)
+    name                 String                      @db.VarChar(128)
+    status               RunStatus                   @default(Scheduled)
+    projectVersionId     String?                     @db.Uuid
+    userId               String?                     @db.Uuid
+    organizationId       String?                     @db.Uuid
+    projectVersion       project_version?            @relation("run_project_version", fields: [projectVersionId], references: [id])
+    schedule             schedule?                   @relation("run_project_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    user                 user?                       @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization         organization?               @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    steps                run_project_step[]          @relation("run_project_step_run")
+    runRoutines          run_routine[]               @relation("run_routine_run_project")
 }
 
 model run_project_step {
@@ -1914,30 +1952,32 @@ model run_project_step {
 }
 
 model run_routine {
-    id                  String              @id @default(uuid()) @db.Uuid
-    created_at          DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime            @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                 @default(0)
-    contextSwitches     Int                 @default(0)
-    isPrivate           Boolean             @default(false)
-    scheduleId          String?             @db.Uuid
-    wasRunAutomatically Boolean             @default(false)
-    startedAt           DateTime?           @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?           @db.Timestamptz(6)
-    name                String              @db.VarChar(128)
-    status              RunStatus           @default(Scheduled)
-    routineVersionId    String?             @db.Uuid
-    userId              String?             @db.Uuid
-    organizationId      String?             @db.Uuid
-    runProjectId        String?             @db.Uuid
-    routineVersion      routine_version?    @relation("run_routine_version", fields: [routineVersionId], references: [id])
-    schedule            schedule?           @relation("run_routine_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    runProject          run_project?        @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
-    user                user?               @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization        organization?       @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
-    steps               run_routine_step[]  @relation("run_routine_step_run")
-    inputs              run_routine_input[] @relation("run_routine_input_run")
+    id                   String                      @id @default(uuid()) @db.Uuid
+    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    completedComplexity  Int                         @default(0)
+    contextSwitches      Int                         @default(0)
+    isPrivate            Boolean                     @default(false)
+    scheduleId           String?                     @db.Uuid
+    wasRunAutomatically  Boolean                     @default(false)
+    startedAt            DateTime?                   @db.Timestamptz(6)
+    timeElapsed          Int?
+    completedAt          DateTime?                   @db.Timestamptz(6)
+    name                 String                      @db.VarChar(128)
+    status               RunStatus                   @default(Scheduled)
+    routineVersionId     String?                     @db.Uuid
+    userId               String?                     @db.Uuid
+    organizationId       String?                     @db.Uuid
+    runProjectId         String?                     @db.Uuid
+    routineVersion       routine_version?            @relation("run_routine_version", fields: [routineVersionId], references: [id])
+    schedule             schedule?                   @relation("run_routine_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    runProject           run_project?                @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
+    user                 user?                       @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization         organization?               @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
+    steps                run_routine_step[]          @relation("run_routine_step_run")
+    inputs               run_routine_input[]         @relation("run_routine_input_run")
 }
 
 model run_routine_input {
@@ -2086,13 +2126,16 @@ model smart_contract_version {
 }
 
 model smart_contract_version_translation {
-    id                     String                 @id @default(uuid()) @db.Uuid
-    name                   String                 @db.VarChar(128)
-    description            String?                @db.VarChar(2048)
-    jsonVariable           String?                @db.VarChar(8192)
-    smartContractVersionId String                 @db.Uuid
-    language               String                 @db.VarChar(3)
-    smartContractVersion   smart_contract_version @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    id                     String                      @id @default(uuid()) @db.Uuid
+    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding              Unsupported("vector(768)")?
+    embeddingNeedsUpdate   Boolean                     @default(true)
+    name                   String                      @db.VarChar(128)
+    description            String?                     @db.VarChar(2048)
+    jsonVariable           String?                     @db.VarChar(8192)
+    smartContractVersionId String                      @db.Uuid
+    language               String                      @db.VarChar(3)
+    smartContractVersion   smart_contract_version      @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
 
     @@unique([smartContractVersionId, language])
 }
@@ -2191,13 +2234,16 @@ model standard_version {
 }
 
 model standard_version_translation {
-    id                String           @id @default(uuid()) @db.Uuid
-    name              String           @db.VarChar(128)
-    description       String?          @db.VarChar(2048)
-    jsonVariable      String?          @db.VarChar(8192)
-    standardVersionId String           @db.Uuid
-    language          String           @db.VarChar(3)
-    standardVersion   standard_version @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    name                 String                      @db.VarChar(128)
+    description          String?                     @db.VarChar(2048)
+    jsonVariable         String?                     @db.VarChar(8192)
+    standardVersionId    String                      @db.Uuid
+    language             String                      @db.VarChar(3)
+    standardVersion      standard_version            @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
 
     @@unique([standardVersionId, language])
 }
@@ -2418,11 +2464,14 @@ model tag {
 }
 
 model tag_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    tagId       String  @db.Uuid
-    language    String  @db.VarChar(3)
-    tag         tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    description          String?                     @db.VarChar(2048)
+    tagId                String                      @db.Uuid
+    language             String                      @db.VarChar(3)
+    tag                  tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([tagId, language])
 }
@@ -2571,11 +2620,14 @@ model user {
 }
 
 model user_translation {
-    id       String  @id @default(uuid()) @db.Uuid
-    bio      String? @db.VarChar(2048)
-    userId   String  @db.Uuid
-    language String  @db.VarChar(3)
-    user     user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    bio                  String?                     @db.VarChar(2048)
+    userId               String                      @db.Uuid
+    language             String                      @db.VarChar(3)
+    user                 user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language])
 }

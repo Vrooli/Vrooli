@@ -12,4 +12,4 @@ export type LandingViewProps = BaseViewProps
 
 export type MyStuffViewProps = BaseViewProps
 
-export type NotificationsViewProps = BaseViewProps
+export type InboxViewProps = BaseViewProps

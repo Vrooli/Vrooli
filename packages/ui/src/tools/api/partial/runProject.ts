@@ -31,13 +31,15 @@ export const runProject: GqlPartial<RunProject> = {
         status: true,
         stepsCount: true,
         organization: { __use: 0 },
-        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
         schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runProject" }),
         user: { __use: 1 },
         you: () => rel(runProjectYou, "full"),
     },
     full: {
+        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "list", { omit: "you" }),
         steps: async () => rel((await import("./runProjectStep")).runProjectStep, "full", { omit: "run" }),
     },
-    list: {},
+    list: {
+        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
+    },
 };

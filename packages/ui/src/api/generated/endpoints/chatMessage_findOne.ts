@@ -12,6 +12,7 @@ query chatMessage($input: FindByIdInput!) {
     chat {
         participants {
             id
+            isBot
             name
             handle
         }
@@ -151,6 +152,7 @@ query chatMessage($input: FindByIdInput!) {
     updated_at
     user {
         id
+        isBot
         name
         handle
     }

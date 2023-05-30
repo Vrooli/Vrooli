@@ -2,13 +2,16 @@ import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ProjectVersion, 
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -17,6 +20,7 @@ import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display = "page",
+    onClose,
     partialData,
     zIndex = 200,
 }: ProjectViewProps) => {
@@ -25,12 +29,12 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const { id, isLoading, object: projectVersion, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion, FindVersionInput>({
+    const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion, FindVersionInput>({
         query: projectVersionFindOne,
         partialData,
     });
 
-    const availableLanguages = useMemo<string[]>(() => (projectVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [projectVersion?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
@@ -38,13 +42,13 @@ export const ProjectView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { name, description, handle } = useMemo(() => {
-        const { description, name } = getTranslation(projectVersion ?? partialData, [language]);
+        const { description, name } = getTranslation(existing ?? partialData, [language]);
         return {
             name,
             description,
-            handle: projectVersion?.root?.handle ?? partialData?.root?.handle,
+            handle: existing?.root?.handle ?? partialData?.root?.handle,
         };
-    }, [language, projectVersion, partialData]);
+    }, [language, existing, partialData]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -73,7 +77,7 @@ export const ProjectView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     const actionData = useObjectActions({
-        object: projectVersion,
+        object: existing,
         objectType: "ProjectVersion",
         setLocation,
         setObject: setProjectVersion,
@@ -87,11 +91,10 @@ export const ProjectView = ({
             position="relative"
             ml='auto'
             mr='auto'
-            mt={3}
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 12 },
+                boxShadow: { xs: "none", sm: 2 },
                 width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
@@ -112,28 +115,15 @@ export const ProjectView = ({
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit project">
-                                <IconButton
-                                    aria-label="Edit project"
-                                    size="small"
-                                    onClick={() => actionData.onActionStart("Edit")}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
-                }
+                <ObjectTitle
+                    language={language}
+                    languages={availableLanguages}
+                    loading={isLoading}
+                    title={name}
+                    setLanguage={setLanguage}
+                    translations={existing?.translations ?? []}
+                    zIndex={zIndex}
+                />
                 {/* Handle */}
                 {
                     handle && <Link href={`https://handle.me/${handle}`} underline="hover">
@@ -152,7 +142,7 @@ export const ProjectView = ({
                     loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Created"
-                    timestamp={projectVersion?.created_at}
+                    timestamp={existing?.created_at}
                     width={"33%"}
                 />
                 {/* Description */}
@@ -173,33 +163,26 @@ export const ProjectView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip> */}
-                    <ShareButton object={projectVersion} zIndex={zIndex} />
+                    <ShareButton object={existing} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        objectId={projectVersion?.id ?? ""}
+                        objectId={existing?.id ?? ""}
                         bookmarkFor={BookmarkFor.Project}
-                        isBookmarked={projectVersion?.root?.you?.isBookmarked ?? false}
-                        bookmarks={projectVersion?.root?.bookmarks ?? 0}
+                        isBookmarked={existing?.root?.you?.isBookmarked ?? false}
+                        bookmarks={existing?.root?.bookmarks ?? 0}
                         onChange={(isBookmarked: boolean) => { }}
                         zIndex={zIndex}
                     />
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, projectVersion, description, zIndex, actionData]);
-
-    // /**
-    // * Opens add new page
-    // */
-    // const toAddNew = useCallback((event: any) => {
-    //     setLocation(`${LINKS[currTab.value]}/add`);
-    // }, [currTab.value, setLocation]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, language, availableLanguages, isLoading, name, existing, zIndex, handle, description, permissions.canBookmark]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
+                onClose={onClose}
                 titleData={{
                     titleKey: "Project",
                 }}
@@ -208,40 +191,19 @@ export const ProjectView = ({
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={moreMenuAnchor}
-                object={projectVersion as any}
+                object={existing as any}
                 onClose={closeMoreMenu}
                 zIndex={zIndex + 1}
             />
-            <Box sx={{
-                display: "flex",
-                paddingTop: 5,
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
-                position: "relative",
-            }}>
-                {/* Language display/select */}
-                <Box sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    paddingRight: "1em",
-                }}>
-                    <SelectLanguageMenu
-                        currentLanguage={language}
-                        handleCurrent={setLanguage}
-                        languages={availableLanguages}
-                        zIndex={zIndex}
-                    />
-                </Box>
-                {overviewComponent}
-            </Box>
+            {overviewComponent}
             {/* View routines and standards associated with this project */}
             <Box>
                 {/* Breadcrumbs to show directory hierarchy */}
                 {/* TODO */}
                 {/* List of items in current directory */}
                 {/* <SearchList
-                    canSearch={Boolean(projectVersion?.id)}
+                    canSearch={() => Boolean(projectVersion?.id)}
+                    dummyLength={display === "page" ? 5 : 3}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
                     hideUpdateButton={true}
                     id="directory-view-list"
@@ -252,6 +214,19 @@ export const ProjectView = ({
                     zIndex={zIndex}
                 /> */}
             </Box>
+            {/* Edit button (if canUpdate) */}
+            <SideActionButtons
+                // Treat as a dialog when build view is open
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

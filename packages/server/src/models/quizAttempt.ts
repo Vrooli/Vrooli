@@ -28,16 +28,18 @@ export const QuizAttemptModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_attempt,
     display: {
-        select: () => ({
-            id: true,
-            created_at: true,
-            quiz: { select: QuizModel.display.select() },
-        }),
-        // Label is quiz name + created_at date
-        label: (select, languages) => {
-            const quizName = QuizModel.display.label(select.quiz as any, languages);
-            const date = new Date(select.created_at).toLocaleDateString();
-            return `${quizName} - ${date}`;
+        label: {
+            select: () => ({
+                id: true,
+                created_at: true,
+                quiz: { select: QuizModel.display.label.select() },
+            }),
+            // Label is quiz name + created_at date
+            get: (select, languages) => {
+                const quizName = QuizModel.display.label.get(select.quiz as any, languages);
+                const date = new Date(select.created_at).toLocaleDateString();
+                return `${quizName} - ${date}`;
+            },
         },
     },
     format: {
