@@ -106,24 +106,51 @@ export interface BaseStep {
 export interface DecisionStep extends BaseStep {
     links: NodeLink[]
     type: RoutineStepType.Decision,
+    /**
+     * The ID of the routine containing this step
+     */
+    parentRoutineVersionId: string,
+}
+// Not a real step, but need this info in certain places
+export interface EndStep extends BaseStep {
+    /**
+     * The ID of this node
+     */
+    nodeId: string,
+    wasSuccessful: boolean,
 }
 export interface SubroutineStep extends BaseStep {
     index: number,
     routineVersion: RoutineVersion
     type: RoutineStepType.Subroutine,
+    /**
+     * The ID of this node
+     */
+    nodeId: string,
+    /**
+     * The ID of the routine containing this step
+     */
+    parentRoutineVersionId: string,
 }
 export interface RoutineListStep extends BaseStep {
     /**
-     * Node's ID if object was created from a node
+     * Node's ID if object was created from a node (and does not 
+     * represent a full routine)
      */
     nodeId?: string | null,
     /**
-     * Subroutine's ID if object was created from a subroutine
+     * If this object represents a routine (and not a routine list node), 
+     * this is the routine's ID.
      */
     routineVersionId?: string | null,
+    /**
+     * The ID of the routine containing this node
+     */
+    parentRoutineVersionId: string,
     isOrdered: boolean,
     type: RoutineStepType.RoutineList,
     steps: RoutineStep[],
+    endSteps: EndStep[],
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 

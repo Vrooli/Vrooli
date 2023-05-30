@@ -10,7 +10,7 @@ import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { routineVersion } from "tools/api/partial/routineVersion";
-import { DecisionStep, DirectoryStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
+import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useReactSearch } from "utils/hooks/useReactSearch";
@@ -59,7 +59,6 @@ const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineLis
     }
 };
 
-
 /**
  * Find the step array of a given nodeId
  * @param nodeId The nodeId to search for
@@ -67,15 +66,24 @@ const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineLis
  * @param location The current location array, since this is recursive
  * @return The step array of the given step
  */
-const locationFromNodeId = (nodeId: string, step: RoutineStep | null, location: number[] = []): number[] | null => {
+const locationFromNodeId = (nodeId: string, step: ProjectStep | null, location: number[] = []): number[] | null => {
     if (!step) return null;
-    if (step.type === RoutineStepType.RoutineList) {
-        if ((step as RoutineListStep)?.nodeId === nodeId) return location;
-        const stepList = step as RoutineListStep;
-        for (let i = 1; i <= stepList.steps.length; i++) {
-            const currStep = stepList.steps[i - 1];
-            if (currStep.type === RoutineStepType.RoutineList) {
-                const currLocation = locationFromNodeId(nodeId, currStep, [...location, i]);
+    // Only routine lists and subroutines can be linked to a node
+    if ((step.type === RoutineStepType.RoutineList || step.type === RoutineStepType.Subroutine) && step.nodeId === nodeId) {
+        return location;
+    }
+    // If step is a routine list or a directory, it might contain a match.
+    if ((step.type === RoutineStepType.RoutineList) || (step.type === ProjectStepType.Directory)) {
+        for (let i = 0; i < step.steps.length; i++) {
+            const currStep = step.steps[i];
+            let currLocation: number[] | null = null;
+            // Check if a subroutine is a match
+            if (currStep.type === RoutineStepType.Subroutine && currStep.nodeId === nodeId) {
+                return [...location, i + 1];
+            }
+            // Recurse on every nested routine list or directory
+            if ((currStep.type === RoutineStepType.RoutineList) || (currStep.type === ProjectStepType.Directory)) {
+                currLocation = locationFromNodeId(nodeId, currStep, [...location, i + 1]);
                 if (currLocation) return currLocation;
             }
         }
@@ -84,25 +92,33 @@ const locationFromNodeId = (nodeId: string, step: RoutineStep | null, location: 
 };
 
 /**
- * Find the step array of a given routineId
- * @param routineId The routineId to search for
- * @param step The current step object, since this is recursive
- * @param location The current location array, since this is recursive
+ * Find the step array of a given routineVersionId
+ * @param routineVersionId The routineVersionId to search for
+ * @param step The overall step object (or when recursed, the current step object)
+ * @param location The current location array. Only used when recursed.
  * @return The step array of the given step
  */
-const locationFromRoutineId = (routineId: string, step: RoutineStep | null, location: number[] = []): number[] | null => {
+const locationFromRoutineVersionId = (routineVersionId: string, step: ProjectStep | null, location: number[] = []): number[] | null => {
     if (!step) return null;
-    // If step is a subroutine, check if it matches the routineId
-    if (step.type === RoutineStepType.Subroutine) {
-        if ((step as SubroutineStep)?.routineVersion?.id === routineId) return [...location, 1];
+    // If step is a subroutine, it's either a single-step routine, or it is not fully-loaded. 
+    // Either way, we check its routineVersion.id for a match.
+    // If step is a routine list, it might be a match or it might contain a match.
+    if ((step.type === RoutineStepType.Subroutine && step.routineVersion.id === routineVersionId)
+        || (step.type === RoutineStepType.RoutineList && step.routineVersionId === routineVersionId)) {
+        return location;
     }
-    // If step is a routine list, recurse over every subroutine
-    else if (step.type === RoutineStepType.RoutineList) {
-        const stepList = step as RoutineListStep;
-        for (let i = 1; i <= stepList.steps.length; i++) {
-            const currStep = stepList.steps[i - 1];
-            if (currStep.type === RoutineStepType.RoutineList) {
-                const currLocation = locationFromRoutineId(routineId, currStep, [...location, i]);
+    // If step is a routine list or a directory, it might contain a match.
+    if ((step.type === RoutineStepType.RoutineList) || (step.type === ProjectStepType.Directory)) {
+        for (let i = 0; i < step.steps.length; i++) {
+            const currStep = step.steps[i];
+            let currLocation: number[] | null = null;
+            // Check if a subroutine is a match
+            if (currStep.type === RoutineStepType.Subroutine && currStep.routineVersion.id === routineVersionId) {
+                return [...location, i + 1];
+            }
+            // Recurse on every nested routine list or directory
+            if ((currStep.type === RoutineStepType.RoutineList) || (currStep.type === ProjectStepType.Directory)) {
+                currLocation = locationFromRoutineVersionId(routineVersionId, currStep, [...location, i + 1]);
                 if (currLocation) return currLocation;
             }
         }
@@ -210,25 +226,31 @@ const convertRoutineVersionToStep = (
         const bRow = b.rowIndex ?? 0;
         return aRow - bRow;
     });
-    // Create result steps array
-    const resultSteps: RoutineStep[] = [];
+    // Find all nodes that are end nodes
+    const endNodes = routineVersion.nodes.filter(({ nodeType }) => nodeType === NodeType.End);
+    // Create result steps arrays
+    const steps: RoutineStep[] = [];
+    const endSteps: EndStep[] = [];
     // If multiple links from start node, create decision step
     const startLinks = routineVersion.nodeLinks.filter((link: NodeLink) => link.from.id === startNode?.id);
     if (startLinks.length > 1) {
-        resultSteps.push({
+        steps.push({
             type: RoutineStepType.Decision,
+            parentRoutineVersionId: routineVersion.id,
             links: startLinks,
             name: "Decision",
             description: "Select a subroutine to run next",
         });
     }
-    // Loop through all nodes
+    // Loop through all routine list nodes
     for (const node of routineListNodes) {
         // Find all subroutine steps, and sort by index
         const subroutineSteps: SubroutineStep[] = [...node.routineList!.items]
             .sort((r1, r2) => r1.index - r2.index)
             .map((item: NodeRoutineListItem) => ({
                 type: RoutineStepType.Subroutine,
+                nodeId: node.id,
+                parentRoutineVersionId: routineVersion.id,
                 index: item.index,
                 routineVersion: item.routineVersion,
                 name: getTranslation(item.routineVersion, languages, true).name ?? "Untitled",
@@ -238,27 +260,42 @@ const convertRoutineVersionToStep = (
         const links = routineVersion.nodeLinks.filter((link: NodeLink) => link.from.id === node.id);
         const decisionSteps: DecisionStep[] = links.length > 1 ? [{
             type: RoutineStepType.Decision,
+            parentRoutineVersionId: routineVersion.id,
             links,
             name: "Decision",
             description: "Select a subroutine to run next",
         }] : [];
-        resultSteps.push({
+        steps.push({
             type: RoutineStepType.RoutineList,
             nodeId: node.id,
+            parentRoutineVersionId: routineVersion.id,
             isOrdered: node.routineList?.isOrdered ?? false,
             name: getTranslation(node, languages, true).name ?? "Untitled",
             description: getTranslation(node, languages, true).description ?? "Description not found matching selected language",
             steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>,
+            endSteps: [], // N/A here
+        });
+    }
+    // Loop through all end nodes
+    for (const node of endNodes) {
+        // Add end step
+        endSteps.push({
+            name: getTranslation(node, languages, true).name ?? "Untitled",
+            description: getTranslation(node, languages, true).description ?? "Description not found matching selected language",
+            wasSuccessful: node.end?.wasSuccessful ?? false,
+            nodeId: node.id,
         });
     }
     // Return result steps
     return {
         type: RoutineStepType.RoutineList,
+        parentRoutineVersionId: routineVersion.id,
         routineVersionId: routineVersion.id,
         isOrdered: true,
         name: getTranslation(routineVersion, languages, true).name ?? "Untitled",
         description: getTranslation(routineVersion, languages, true).description ?? "Description not found matching selected language",
-        steps: resultSteps,
+        steps,
+        endSteps,
     };
 };
 
@@ -699,14 +736,10 @@ export const RunView = ({
                     else endFound = true;
                     break;
 
-                // If current step is a subroutine, this is either the end or more data needs to be fetched
+                // If current step is a subroutine, mark as found. Subroutine data (if any) fetching 
+                // should be handled elsewhere.
                 case RoutineStepType.Subroutine:
-                    if (!routineVersionHasSubroutines((currNextStep as SubroutineStep).routineVersion)) {
-                        endFound = true;
-                    } else {
-                        endFound = true;
-                        //TODO - fetch subroutine data
-                    }
+                    endFound = true;
                     break;
             }
         }
@@ -919,21 +952,28 @@ export const RunView = ({
                 return <SubroutineView
                     handleUserInputsUpdate={handleUserInputsUpdate}
                     handleSaveProgress={saveProgress}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
+                    onClose={() => { }}
                     owner={routineVersion?.root?.owner}
                     routineVersion={(currentStep as SubroutineStep).routineVersion}
                     run={run}
                     loading={subroutinesLoading}
                     zIndex={zIndex}
                 />;
+            case ProjectStepType.Directory:
+                return <DirectoryView
+                />;
             default:
                 return <DecisionView
                     data={currentStep as DecisionStep}
                     handleDecisionSelect={toDecision}
-                    nodes={routineVersion?.nodes ?? []}
+                    routineList={stepFromLocation(locationFromRoutineVersionId(currentStep.parentRoutineVersionId, steps) ?? [], steps) as unknown as RoutineListStep}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
+                    onClose={() => { }}
                     zIndex={zIndex}
                 />;
         }
-    }, [currentStep, handleUserInputsUpdate, routineVersion?.nodes, routineVersion?.root?.owner, run, saveProgress, session, subroutinesLoading, toDecision, zIndex]);
+    }, [currentStep, handleUserInputsUpdate, run, saveProgress, subroutinesLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: "100vh" }}>
@@ -986,7 +1026,7 @@ export const RunView = ({
                         />
                     </Box>
                     {/* Progress bar */}
-                    <LinearProgress color="secondary" variant="determinate" value={completedComplexity / (routineVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
+                    <LinearProgress color="secondary" variant="determinate" value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
                 <Box sx={{
