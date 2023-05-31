@@ -1,8 +1,6 @@
-import { FindByIdInput, Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "@local/shared";
+import { MemberSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsMember, MemberEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum MemberSortBy {
@@ -63,32 +61,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Member";
 export const resolvers: {
     MemberSortBy: typeof MemberSortBy;
-    Query: {
-        member: GQLEndpoint<FindByIdInput, FindOneResult<Member>>;
-        members: GQLEndpoint<MemberSearchInput, FindManyResult<Member>>;
-    },
-    Mutation: {
-        memberUpdate: GQLEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
-    }
+    Query: EndpointsMember["Query"];
+    Mutation: EndpointsMember["Mutation"];
 } = {
     MemberSortBy,
-    Query: {
-        member: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        members: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        memberUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...MemberEndpoints,
 };

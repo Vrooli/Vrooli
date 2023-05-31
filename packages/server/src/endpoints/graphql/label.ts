@@ -1,8 +1,6 @@
-import { FindByIdInput, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput } from "@local/shared";
+import { LabelSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsLabel, LabelEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum LabelSortBy {
@@ -135,37 +133,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Label";
 export const resolvers: {
     LabelSortBy: typeof LabelSortBy;
-    Query: {
-        label: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        labels: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
-    },
-    Mutation: {
-        labelCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        labelUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
-    }
+    Query: EndpointsLabel["Query"];
+    Mutation: EndpointsLabel["Mutation"];
 } = {
     LabelSortBy,
-    Query: {
-        label: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        labels: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        labelCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        labelUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...LabelEndpoints,
 };

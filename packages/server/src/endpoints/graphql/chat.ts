@@ -1,8 +1,6 @@
-import { FindByIdInput } from "@local/shared";
+import { ChatSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ChatEndpoints, EndpointsChat } from "../logic";
 
 export const typeDef = gql`
     enum ChatSortBy {
@@ -122,37 +120,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Chat";
 export const resolvers: {
-    // ChatSortBy: typeof MeetingSortBy;
-    Query: {
-        chat: GQLEndpoint<FindByIdInput, FindOneResult<any>>;
-        chats: GQLEndpoint<any, FindManyResult<any>>;
-    },
-    Mutation: {
-        chatCreate: GQLEndpoint<any, CreateOneResult<any>>;
-        chatUpdate: GQLEndpoint<any, UpdateOneResult<any>>;
-    }
+    ChatSortBy: typeof ChatSortBy;
+    Query: EndpointsChat["Query"];
+    Mutation: EndpointsChat["Mutation"];
 } = {
-    // MeetingSortBy,
-    Query: {
-        chat: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        chats: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        chatCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        chatUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ChatSortBy,
+    ...ChatEndpoints,
 };

@@ -1,8 +1,6 @@
-import { FindByIdInput } from "@local/shared";
+import { ChatParticipantSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ChatParticipantEndpoints, EndpointsChatParticipant } from "../logic";
 
 export const typeDef = gql`
     enum ChatParticipantSortBy {
@@ -60,32 +58,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "ChatParticipant";
 export const resolvers: {
-    // ChatParticipantSortBy: typeof ChatParticipantSortBy;
-    Query: {
-        chatParticipant: GQLEndpoint<FindByIdInput, FindOneResult<any>>;
-        chatParticipants: GQLEndpoint<any, FindManyResult<any>>;
-    },
-    Mutation: {
-        chatParticipantUpdate: GQLEndpoint<any, UpdateOneResult<any>>;
-    }
+    ChatParticipantSortBy: typeof ChatParticipantSortBy;
+    Query: EndpointsChatParticipant["Query"];
+    Mutation: EndpointsChatParticipant["Mutation"];
 } = {
-    // ChatParticipantSortBy,
-    Query: {
-        chatParticipant: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        chatParticipants: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        chatParticipantUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ChatParticipantSortBy,
+    ...ChatParticipantEndpoints,
 };

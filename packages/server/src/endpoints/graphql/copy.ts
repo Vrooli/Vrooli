@@ -1,8 +1,6 @@
-import { CopyInput, CopyResult, CopyType, lowercaseFirstLetter } from "@local/shared";
+import { CopyType } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { copyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { GQLEndpoint } from "../../types";
+import { CopyEndpoints, EndpointsCopy } from "../logic";
 
 export const typeDef = gql`
     enum CopyType {
@@ -38,16 +36,8 @@ export const typeDef = gql`
 
 export const resolvers: {
     CopyType: typeof CopyType;
-    Mutation: {
-        copy: GQLEndpoint<CopyInput, CopyResult>;
-    }
+    Mutation: EndpointsCopy["Mutation"];
 } = {
     CopyType,
-    Mutation: {
-        copy: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            const result = await copyHelper({ info, input, objectType: input.objectType, prisma, req });
-            return { __typename: "CopyResult" as const, [lowercaseFirstLetter(input.objectType)]: result };
-        },
-    },
+    ...CopyEndpoints,
 };

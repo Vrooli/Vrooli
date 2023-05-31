@@ -1,8 +1,6 @@
-import { BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, FindByIdInput, VisibilityType } from "@local/shared";
+import { BookmarkListSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { BookmarkListEndpoints, EndpointsBookmarkList } from "../logic";
 
 export const typeDef = gql`
     enum BookmarkListSortBy {
@@ -66,37 +64,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "BookmarkList";
 export const resolvers: {
     BookmarkListSortBy: typeof BookmarkListSortBy;
-    Query: {
-        bookmarkList: GQLEndpoint<FindByIdInput, FindOneResult<BookmarkList>>;
-        bookmarkLists: GQLEndpoint<BookmarkListSearchInput, FindManyResult<BookmarkList>>;
-    },
-    Mutation: {
-        bookmarkListCreate: GQLEndpoint<BookmarkListCreateInput, CreateOneResult<BookmarkList>>;
-        bookmarkListUpdate: GQLEndpoint<BookmarkListUpdateInput, UpdateOneResult<BookmarkList>>;
-    }
+    Query: EndpointsBookmarkList["Query"];
+    Mutation: EndpointsBookmarkList["Mutation"];
 } = {
     BookmarkListSortBy,
-    Query: {
-        bookmarkList: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        bookmarkLists: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
-        },
-    },
-    Mutation: {
-        bookmarkListCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        bookmarkListUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...BookmarkListEndpoints,
 };

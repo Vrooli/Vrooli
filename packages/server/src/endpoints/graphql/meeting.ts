@@ -1,8 +1,6 @@
-import { FindByIdInput, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from "@local/shared";
+import { MeetingSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsMeeting, MeetingEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum MeetingSortBy {
@@ -127,37 +125,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Meeting";
 export const resolvers: {
     MeetingSortBy: typeof MeetingSortBy;
-    Query: {
-        meeting: GQLEndpoint<FindByIdInput, FindOneResult<Meeting>>;
-        meetings: GQLEndpoint<MeetingSearchInput, FindManyResult<Meeting>>;
-    },
-    Mutation: {
-        meetingCreate: GQLEndpoint<MeetingCreateInput, CreateOneResult<Meeting>>;
-        meetingUpdate: GQLEndpoint<MeetingUpdateInput, UpdateOneResult<Meeting>>;
-    }
+    Query: EndpointsMeeting["Query"];
+    Mutation: EndpointsMeeting["Mutation"];
 } = {
     MeetingSortBy,
-    Query: {
-        meeting: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        meetings: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        meetingCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        meetingUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...MeetingEndpoints,
 };

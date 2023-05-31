@@ -1,9 +1,6 @@
-import { Node, NodeCreateInput, NodeUpdateInput } from "@local/shared";
 import pkg from "@prisma/client";
 import { gql } from "apollo-server-express";
-import { createHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsNode, NodeEndpoints } from "../logic";
 
 const { NodeType } = pkg;
 
@@ -79,23 +76,11 @@ export const typeDef = gql`
         nodeUpdate(input: NodeUpdateInput!): Node!
     }
 `;
-const objectType = "Node";
+
 export const resolvers: {
     NodeType: typeof NodeType;
-    Mutation: {
-        nodeCreate: GQLEndpoint<NodeCreateInput, CreateOneResult<Node>>;
-        nodeUpdate: GQLEndpoint<NodeUpdateInput, UpdateOneResult<Node>>;
-    }
+    Mutation: EndpointsNode["Mutation"];
 } = {
     NodeType,
-    Mutation: {
-        nodeCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        nodeUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...NodeEndpoints,
 };

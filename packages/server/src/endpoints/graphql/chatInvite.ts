@@ -1,9 +1,6 @@
-import { ChatInviteSortBy, ChatInviteStatus, FindByIdInput } from "@local/shared";
+import { ChatInviteSortBy, ChatInviteStatus } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ChatInviteEndpoints, EndpointsChatInvite } from "../logic";
 
 export const typeDef = gql`
     enum ChatInviteSortBy {
@@ -87,49 +84,13 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "ChatInvite";
 export const resolvers: {
     ChatInviteSortBy: typeof ChatInviteSortBy;
     ChatInviteStatus: typeof ChatInviteStatus;
-    Query: {
-        chatInvite: GQLEndpoint<FindByIdInput, FindOneResult<any>>;
-        chatInvites: GQLEndpoint<any, FindManyResult<any>>;
-    },
-    Mutation: {
-        chatInviteCreate: GQLEndpoint<any, CreateOneResult<any>>;
-        chatInviteUpdate: GQLEndpoint<any, UpdateOneResult<any>>;
-        chatInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<any>>;
-        chatInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<any>>;
-    }
+    Query: EndpointsChatInvite["Query"];
+    Mutation: EndpointsChatInvite["Mutation"];
 } = {
     ChatInviteSortBy,
     ChatInviteStatus,
-    Query: {
-        chatInvite: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        chatInvites: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        chatInviteCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        chatInviteUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-        chatInviteAccept: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            throw new CustomError("0000", "NotImplemented", ["en"]);
-        },
-        chatInviteDecline: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            throw new CustomError("0000", "NotImplemented", ["en"]);
-        },
-    },
+    ...ChatInviteEndpoints,
 };

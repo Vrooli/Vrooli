@@ -1,8 +1,6 @@
-import { FindByIdInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput } from "@local/shared";
+import { NoteSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsNote, NoteEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum NoteSortBy {
@@ -138,37 +136,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Note";
 export const resolvers: {
     NoteSortBy: typeof NoteSortBy;
-    Query: {
-        note: GQLEndpoint<FindByIdInput, FindOneResult<Note>>;
-        notes: GQLEndpoint<NoteSearchInput, FindManyResult<Note>>;
-    },
-    Mutation: {
-        noteCreate: GQLEndpoint<NoteCreateInput, CreateOneResult<Note>>;
-        noteUpdate: GQLEndpoint<NoteUpdateInput, UpdateOneResult<Note>>;
-    }
+    Query: EndpointsNote["Query"];
+    Mutation: EndpointsNote["Mutation"];
 } = {
     NoteSortBy,
-    Query: {
-        note: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        notes: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        noteCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        noteUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...NoteEndpoints,
 };

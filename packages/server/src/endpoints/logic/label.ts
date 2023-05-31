@@ -1,8 +1,39 @@
-export type EndpointsLabel = {
+import { FindByIdInput, Label, LabelCreateInput, LabelSearchInput, LabelUpdateInput } from "@local/shared";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
+import { rateLimit } from "../../middleware";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
+export type EndpointsLabel = {
+    Query: {
+        label: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
+        labels: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+    },
+    Mutation: {
+        labelCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
+        labelUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+    }
 }
 
 const objectType = "Label";
 export const LabelEndpoints: EndpointsLabel = {
-
+    Query: {
+        label: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, objectType, prisma, req });
+        },
+        labels: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
+        },
+    },
+    Mutation: {
+        labelCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 100, req });
+            return createHelper({ info, input, objectType, prisma, req });
+        },
+        labelUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 250, req });
+            return updateHelper({ info, input, objectType, prisma, req });
+        },
+    },
 };
