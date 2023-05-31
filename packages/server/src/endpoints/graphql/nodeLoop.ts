@@ -27,6 +27,5 @@ export const typeDef = gql`
         whiles: [NodeLoopWhile!]!
     }
 `;
-export const resolvers: {
-} = {
-};
+
+export const resolvers = {};

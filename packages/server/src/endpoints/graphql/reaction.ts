@@ -1,10 +1,7 @@
-import { ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, Success } from "@local/shared";
+import { ReactionFor, ReactionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { rateLimit } from "../../middleware";
-import { ReactionModel } from "../../models";
-import { FindManyResult, GQLEndpoint, UnionResolver } from "../../types";
+import { UnionResolver } from "../../types";
+import { EndpointsReaction, ReactionEndpoints } from "../logic";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
@@ -71,38 +68,15 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Reaction";
 export const resolvers: {
     ReactionSortBy: typeof ReactionSortBy,
     ReactionFor: typeof ReactionFor,
     ReactionTo: UnionResolver,
-    Query: {
-        reactions: GQLEndpoint<ReactionSearchInput, FindManyResult<Reaction>>;
-    },
-    Mutation: {
-        react: GQLEndpoint<ReactInput, Success>;
-    }
+    Query: EndpointsReaction["Query"],
+    Mutation: EndpointsReaction["Mutation"],
 } = {
     ReactionSortBy,
     ReactionFor,
     ReactionTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
-    Query: {
-        reactions: async (_, { input }, { prisma, req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
-        },
-    },
-    Mutation: {
-        /**
-         * Adds or removes a reaction on an object. A user can only have one reaction per object, meaning 
-         * the previous reaction is overruled
-         */
-        react: async (_, { input }, { prisma, req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 1000, req });
-            const success = await ReactionModel.react(prisma, userData, input);
-            return { __typename: "Success", success };
-        },
-    },
+    ...ReactionEndpoints,
 };

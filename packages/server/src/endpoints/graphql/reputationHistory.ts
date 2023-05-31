@@ -1,8 +1,6 @@
-import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput, ReputationHistorySortBy } from "@local/shared";
+import { ReputationHistorySortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper, readOneHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { EndpointsReputationHistory, ReputationHistoryEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum ReputationHistorySortBy {
@@ -50,23 +48,10 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "ReputationHistory";
 export const resolvers: {
     ReputationHistorySortBy: typeof ReputationHistorySortBy;
-    Query: {
-        reputationHistory: GQLEndpoint<FindByIdInput, FindOneResult<ReputationHistory>>;
-        reputationHistories: GQLEndpoint<ReputationHistorySearchInput, FindManyResult<ReputationHistory>>;
-    },
+    Query: EndpointsReputationHistory["Query"];
 } = {
     ReputationHistorySortBy,
-    Query: {
-        reputationHistory: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        reputationHistories: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ReputationHistoryEndpoints,
 };

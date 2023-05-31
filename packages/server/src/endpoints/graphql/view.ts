@@ -1,10 +1,7 @@
-import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from "@local/shared";
+import { ViewSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { GraphQLResolveInfo } from "graphql";
-import { readManyHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
-import { Context, rateLimit } from "../../middleware";
-import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from "../../types";
+import { UnionResolver } from "../../types";
+import { EndpointsView, ViewEndpoints } from "../logic";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
@@ -47,21 +44,12 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "View";
 export const resolvers: {
     ViewSortBy: typeof ViewSortBy;
     ViewTo: UnionResolver;
-    Query: {
-        views: GQLEndpoint<ViewSearchInput, FindManyResult<View>>;
-    },
+    Query: EndpointsView["Query"];
 } = {
     ViewSortBy,
     ViewTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
-    Query: {
-        views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { byId: userData.id } });
-        },
-    },
+    ...ViewEndpoints,
 };

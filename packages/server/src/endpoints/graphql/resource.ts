@@ -1,8 +1,6 @@
-import { FindByIdInput, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, ResourceUsedFor } from "@local/shared";
+import { ResourceSortBy, ResourceUsedFor } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsResource, ResourceEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum ResourceSortBy {
@@ -116,39 +114,13 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Resource";
 export const resolvers: {
     ResourceSortBy: typeof ResourceSortBy;
     ResourceUsedFor: typeof ResourceUsedFor;
-    Query: {
-        resource: GQLEndpoint<FindByIdInput, FindOneResult<Resource>>;
-        resources: GQLEndpoint<ResourceSearchInput, FindManyResult<Resource>>;
-    },
-    Mutation: {
-        resourceCreate: GQLEndpoint<ResourceCreateInput, CreateOneResult<Resource>>;
-        resourceUpdate: GQLEndpoint<ResourceUpdateInput, UpdateOneResult<Resource>>;
-    }
+    Query: EndpointsResource["Query"];
+    Mutation: EndpointsResource["Mutation"];
 } = {
     ResourceSortBy,
     ResourceUsedFor,
-    Query: {
-        resource: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        resources: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        resourceCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        resourceUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ResourceEndpoints,
 };

@@ -1,8 +1,6 @@
-import { FindByIdInput, QuizQuestion, QuizQuestionSearchInput, QuizSortBy } from "@local/shared";
+import { QuizQuestionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper, readOneHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { EndpointsQuizQuestion, QuizQuestionEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum QuizQuestionSortBy {
@@ -102,23 +100,10 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "QuizQuestion";
 export const resolvers: {
-    QuizSortBy: typeof QuizSortBy;
-    Query: {
-        quizQuestion: GQLEndpoint<FindByIdInput, FindOneResult<QuizQuestion>>;
-        quizQuestions: GQLEndpoint<QuizQuestionSearchInput, FindManyResult<QuizQuestion>>;
-    },
+    QuizQuestionSortBy: typeof QuizQuestionSortBy;
+    Query: EndpointsQuizQuestion["Query"];
 } = {
-    QuizSortBy,
-    Query: {
-        quizQuestion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        quizQuestions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    QuizQuestionSortBy,
+    ...QuizQuestionEndpoints,
 };

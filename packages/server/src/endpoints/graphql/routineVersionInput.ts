@@ -53,7 +53,4 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "RoutineVersionInput";
-export const resolvers: {
-} = {
-};
+export const resolvers = {};

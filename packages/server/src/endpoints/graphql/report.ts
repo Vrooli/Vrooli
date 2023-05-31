@@ -1,8 +1,6 @@
-import { FindByIdInput, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "@local/shared";
+import { ReportFor, ReportSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsReport, ReportEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum ReportFor {
@@ -104,39 +102,13 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Report";
 export const resolvers: {
     ReportFor: typeof ReportFor;
     ReportSortBy: typeof ReportSortBy;
-    Query: {
-        report: GQLEndpoint<FindByIdInput, FindOneResult<Report>>;
-        reports: GQLEndpoint<ReportSearchInput, FindManyResult<Report>>;
-    },
-    Mutation: {
-        reportCreate: GQLEndpoint<ReportCreateInput, CreateOneResult<Report>>;
-        reportUpdate: GQLEndpoint<ReportUpdateInput, UpdateOneResult<Report>>;
-    }
+    Query: EndpointsReport["Query"];
+    Mutation: EndpointsReport["Mutation"];
 } = {
     ReportFor,
     ReportSortBy,
-    Query: {
-        report: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        reports: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        reportCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        reportUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ReportEndpoints,
 };

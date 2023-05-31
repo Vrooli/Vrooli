@@ -1,8 +1,6 @@
-import { FindByIdInput, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput } from "@local/shared";
+import { ReminderSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsReminder, ReminderEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum ReminderSortBy {
@@ -82,37 +80,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Reminder";
 export const resolvers: {
     ReminderSortBy: typeof ReminderSortBy;
-    Query: {
-        reminder: GQLEndpoint<FindByIdInput, FindOneResult<Reminder>>;
-        reminders: GQLEndpoint<ReminderSearchInput, FindManyResult<Reminder>>;
-    },
-    Mutation: {
-        reminderCreate: GQLEndpoint<ReminderCreateInput, CreateOneResult<Reminder>>;
-        reminderUpdate: GQLEndpoint<ReminderUpdateInput, UpdateOneResult<Reminder>>;
-    }
+    Query: EndpointsReminder["Query"];
+    Mutation: EndpointsReminder["Mutation"];
 } = {
     ReminderSortBy,
-    Query: {
-        reminder: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        reminders: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        reminderCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        reminderUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ReminderEndpoints,
 };

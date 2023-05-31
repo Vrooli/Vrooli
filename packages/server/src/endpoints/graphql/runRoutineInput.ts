@@ -1,8 +1,6 @@
-import { RunRoutineInput, RunRoutineInputSearchInput, RunRoutineInputSortBy } from "@local/shared";
+import { RunRoutineInputSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { EndpointsRunRoutineInput, RunRoutineInputEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum RunRoutineInputSortBy {
@@ -53,18 +51,10 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "RunRoutineInput";
 export const resolvers: {
     RunRoutineInputSortBy: typeof RunRoutineInputSortBy;
-    Query: {
-        runRoutineInputs: GQLEndpoint<RunRoutineInputSearchInput, FindManyResult<RunRoutineInput>>;
-    },
+    Query: EndpointsRunRoutineInput["Query"];
 } = {
     RunRoutineInputSortBy,
-    Query: {
-        runRoutineInputs: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...RunRoutineInputEndpoints,
 };

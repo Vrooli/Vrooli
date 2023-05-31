@@ -1,8 +1,6 @@
-import { FindByIdInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from "@local/shared";
+import { PostSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsPost, PostEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum PostSortBy {
@@ -129,37 +127,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Post";
 export const resolvers: {
     PostSortBy: typeof PostSortBy;
-    Query: {
-        post: GQLEndpoint<FindByIdInput, FindOneResult<Post>>;
-        posts: GQLEndpoint<PostSearchInput, FindManyResult<Post>>;
-    },
-    Mutation: {
-        postCreate: GQLEndpoint<PostCreateInput, CreateOneResult<Post>>;
-        postUpdate: GQLEndpoint<PostUpdateInput, UpdateOneResult<Post>>;
-    }
+    Query: EndpointsPost["Query"];
+    Mutation: EndpointsPost["Mutation"];
 } = {
     PostSortBy,
-    Query: {
-        post: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        posts: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        postCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        postUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...PostEndpoints,
 };

@@ -1,8 +1,5 @@
-import { StatsProjectSearchInput, StatsProjectSearchResult } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { readManyHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { GQLEndpoint } from "../../types";
+import { EndpointsStatsProject, StatsProjectEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum StatsProjectSortBy {
@@ -52,16 +49,8 @@ export const typeDef = gql`
     }
  `;
 
-const objectType = "StatsProject";
 export const resolvers: {
-    Query: {
-        statsProject: GQLEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;
-    },
+    Query: EndpointsStatsProject["Query"];
 } = {
-    Query: {
-        statsProject: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...StatsProjectEndpoints,
 };

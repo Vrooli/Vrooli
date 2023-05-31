@@ -42,7 +42,6 @@ export const typeDef = gql`
 
 `;
 
-const objectType = "RunProjectStep";
 export const resolvers: {
     RunProjectStepStatus: typeof RunProjectStepStatus;
 } = {

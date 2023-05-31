@@ -31,6 +31,4 @@ export const typeDef = gql`
 
 `;
 
-export const resolvers: {
-} = {
-};
+export const resolvers = {};

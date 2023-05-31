@@ -1,8 +1,7 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from "@local/shared";
+import { QuestionForType, QuestionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from "../../types";
+import { UnionResolver } from "../../types";
+import { EndpointsQuestion, QuestionEndpoints } from "../logic";
 import { resolveUnion } from "./resolvers";
 
 export const typeDef = gql`
@@ -153,41 +152,15 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Question";
 export const resolvers: {
     QuestionSortBy: typeof QuestionSortBy;
     QuestionForType: typeof QuestionForType;
     QuestionFor: UnionResolver;
-    Query: {
-        question: GQLEndpoint<FindByIdInput, FindOneResult<Question>>;
-        questions: GQLEndpoint<QuestionSearchInput, FindManyResult<Question>>;
-    },
-    Mutation: {
-        questionCreate: GQLEndpoint<QuestionCreateInput, CreateOneResult<Question>>;
-        questionUpdate: GQLEndpoint<QuestionUpdateInput, UpdateOneResult<Question>>;
-    }
+    Query: EndpointsQuestion["Query"];
+    Mutation: EndpointsQuestion["Mutation"];
 } = {
     QuestionSortBy,
     QuestionForType,
     QuestionFor: { __resolveType(obj: any) { return resolveUnion(obj); } },
-    Query: {
-        question: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        questions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        questionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        questionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...QuestionEndpoints,
 };

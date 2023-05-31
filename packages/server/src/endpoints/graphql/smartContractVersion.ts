@@ -1,8 +1,6 @@
-import { FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput } from "@local/shared";
+import { SmartContractVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsSmartContractVersion, SmartContractVersionEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum SmartContractVersionSortBy {
@@ -158,37 +156,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "SmartContractVersion";
 export const resolvers: {
     SmartContractVersionSortBy: typeof SmartContractVersionSortBy;
-    Query: {
-        smartContractVersion: GQLEndpoint<FindVersionInput, FindOneResult<SmartContractVersion>>;
-        smartContractVersions: GQLEndpoint<SmartContractVersionSearchInput, FindManyResult<SmartContractVersion>>;
-    },
-    Mutation: {
-        smartContractVersionCreate: GQLEndpoint<SmartContractVersionCreateInput, CreateOneResult<SmartContractVersion>>;
-        smartContractVersionUpdate: GQLEndpoint<SmartContractVersionUpdateInput, UpdateOneResult<SmartContractVersion>>;
-    }
+    Query: EndpointsSmartContractVersion["Query"];
+    Mutation: EndpointsSmartContractVersion["Mutation"];
 } = {
     SmartContractVersionSortBy,
-    Query: {
-        smartContractVersion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        smartContractVersions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        smartContractVersionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        smartContractVersionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...SmartContractVersionEndpoints,
 };

@@ -29,6 +29,5 @@ export const typeDef = gql`
         routineVersion: RoutineVersion!
     }
 `;
-export const resolvers: {
-} = {
-};
+
+export const resolvers = {};

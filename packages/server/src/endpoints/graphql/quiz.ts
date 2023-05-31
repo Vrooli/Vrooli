@@ -1,8 +1,6 @@
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput } from "@local/shared";
+import { QuizSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsQuiz, QuizEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum QuizSortBy {
@@ -144,37 +142,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Quiz";
 export const resolvers: {
     QuizSortBy: typeof QuizSortBy;
-    Query: {
-        quiz: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
-        quizzes: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
-    },
-    Mutation: {
-        quizCreate: GQLEndpoint<QuizCreateInput, CreateOneResult<Quiz>>;
-        quizUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
-    }
+    Query: EndpointsQuiz["Query"];
+    Mutation: EndpointsQuiz["Mutation"];
 } = {
     QuizSortBy,
-    Query: {
-        quiz: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        quizzes: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        quizCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        quizUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...QuizEndpoints,
 };

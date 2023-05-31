@@ -24,6 +24,5 @@ export const typeDef = gql`
         node: Node!
     }
 `;
-export const resolvers: {
-} = {
-};
+
+export const resolvers = {};

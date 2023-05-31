@@ -1,8 +1,6 @@
-import { FindVersionInput, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from "@local/shared";
+import { ScheduleSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsSchedule, ScheduleEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum ScheduleSortBy {
@@ -96,37 +94,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Schedule";
 export const resolvers: {
     ScheduleSortBy: typeof ScheduleSortBy;
-    Query: {
-        schedule: GQLEndpoint<FindVersionInput, FindOneResult<Schedule>>;
-        schedules: GQLEndpoint<ScheduleSearchInput, FindManyResult<Schedule>>;
-    },
-    Mutation: {
-        scheduleCreate: GQLEndpoint<ScheduleCreateInput, CreateOneResult<Schedule>>;
-        scheduleUpdate: GQLEndpoint<ScheduleUpdateInput, UpdateOneResult<Schedule>>;
-    }
+    Query: EndpointsSchedule["Query"];
+    Mutation: EndpointsSchedule["Mutation"];
 } = {
     ScheduleSortBy,
-    Query: {
-        schedule: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        schedules: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        scheduleCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        scheduleUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ScheduleEndpoints,
 };

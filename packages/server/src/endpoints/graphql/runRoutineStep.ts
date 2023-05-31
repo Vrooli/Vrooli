@@ -55,7 +55,6 @@ export const typeDef = gql`
 
 `;
 
-const objectType = "RunRoutineStep";
 export const resolvers: {
     RunRoutineStepSortBy: typeof RunRoutineStepSortBy;
     RunRoutineStepStatus: typeof RunRoutineStepStatus;

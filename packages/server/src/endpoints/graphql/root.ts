@@ -1,12 +1,9 @@
+import { RunStatus, StatPeriodType, VisibilityType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from "graphql-upload";
-import { readFiles, saveFiles } from "../../utils";
-// import ogs from "open-graph-scraper";
-import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from "@local/shared";
-import { CustomError } from "../../events";
-import { rateLimit } from "../../middleware";
-import { GQLEndpoint, UnionResolver } from "../../types";
+import { UnionResolver } from "../../types";
+import { EndpointsRoot, RootEndpoints } from "../logic";
 import { resolveUnion } from "./resolvers";
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -238,12 +235,8 @@ export const resolvers: {
     Upload: typeof GraphQLUpload;
     Date: GraphQLScalarType;
     Owner: UnionResolver;
-    Query: {
-        readAssets: GQLEndpoint<ReadAssetsInput, (string | null)[]>;
-    },
-    Mutation: {
-        writeAssets: GQLEndpoint<WriteAssetsInput, boolean>;
-    }
+    Query: EndpointsRoot["Query"];
+    Mutation: EndpointsRoot["Mutation"];
 } = {
     RunStatus,
     StatPeriodType,
@@ -264,19 +257,5 @@ export const resolvers: {
         },
     }),
     Owner: { __resolveType(obj) { return resolveUnion(obj); } },
-    Query: {
-        readAssets: async (_parent, { input }, { req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return await readFiles(input.files);
-        },
-    },
-    Mutation: {
-        writeAssets: async (_parent, { input }, { req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            throw new CustomError("0327", "NotImplemented", req.languages); // TODO add safety checks before allowing uploads
-            const data = await saveFiles(input.files);
-            // Any failed writes will return null
-            return !data.some(d => d === null);
-        },
-    },
+    ...RootEndpoints,
 };

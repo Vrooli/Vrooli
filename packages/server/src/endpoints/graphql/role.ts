@@ -1,8 +1,6 @@
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput, RoleSortBy } from "@local/shared";
+import { RoleSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsRole, RoleEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum RoleSortBy {
@@ -113,37 +111,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Role";
 export const resolvers: {
     RoleSortBy: typeof RoleSortBy;
-    Query: {
-        role: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
-        roles: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
-    },
-    Mutation: {
-        roleCreate: GQLEndpoint<QuizCreateInput, CreateOneResult<Quiz>>;
-        roleUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
-    }
+    Query: EndpointsRole["Query"];
+    Mutation: EndpointsRole["Mutation"];
 } = {
     RoleSortBy,
-    Query: {
-        role: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        roles: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        roleCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        roleUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...RoleEndpoints,
 };

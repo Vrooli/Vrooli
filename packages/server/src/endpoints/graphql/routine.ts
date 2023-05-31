@@ -1,8 +1,6 @@
-import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput } from "@local/shared";
+import { RoutineSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsRoutine, RoutineEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -162,37 +160,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Routine";
 export const resolvers: {
     RoutineSortBy: typeof RoutineSortBy;
-    Query: {
-        routine: GQLEndpoint<FindByIdInput, FindOneResult<Routine>>;
-        routines: GQLEndpoint<RoutineSearchInput, FindManyResult<Routine>>;
-    },
-    Mutation: {
-        routineCreate: GQLEndpoint<RoutineCreateInput, CreateOneResult<Routine>>;
-        routineUpdate: GQLEndpoint<RoutineUpdateInput, UpdateOneResult<Routine>>;
-    }
+    Query: EndpointsRoutine["Query"];
+    Mutation: EndpointsRoutine["Mutation"];
 } = {
     RoutineSortBy,
-    Query: {
-        routine: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        routines: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        routineCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        routineUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...RoutineEndpoints,
 };

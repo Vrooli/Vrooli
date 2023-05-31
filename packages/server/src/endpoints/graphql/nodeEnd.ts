@@ -20,6 +20,5 @@ export const typeDef = gql`
         suggestedNextRoutineVersions: [RoutineVersion!]
     }
 `;
-export const resolvers: {
-} = {
-};
+
+export const resolvers = {};

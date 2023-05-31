@@ -1,8 +1,6 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from "@local/shared";
+import { RoutineVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum RoutineVersionSortBy {
@@ -228,37 +226,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "RoutineVersion";
 export const resolvers: {
     RoutineVersionSortBy: typeof RoutineVersionSortBy;
-    Query: {
-        routineVersion: GQLEndpoint<FindVersionInput, FindOneResult<RoutineVersion>>;
-        routineVersions: GQLEndpoint<RoutineVersionSearchInput, FindManyResult<RoutineVersion>>;
-    },
-    Mutation: {
-        routineVersionCreate: GQLEndpoint<RoutineVersionCreateInput, CreateOneResult<RoutineVersion>>;
-        routineVersionUpdate: GQLEndpoint<RoutineVersionUpdateInput, UpdateOneResult<RoutineVersion>>;
-    }
+    Query: EndpointsRoutineVersion["Query"];
+    Mutation: EndpointsRoutineVersion["Mutation"];
 } = {
     RoutineVersionSortBy,
-    Query: {
-        routineVersion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        routineVersions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        routineVersionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        routineVersionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...RoutineVersionEndpoints,
 };

@@ -1,8 +1,6 @@
-import { FindByIdInput, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptStatus, QuizAttemptUpdateInput, QuizSortBy } from "@local/shared";
+import { QuizAttemptStatus, QuizSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { EndpointsQuizAttempt, QuizAttemptEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum QuizAttemptSortBy {
@@ -98,39 +96,13 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "QuizAttempt";
 export const resolvers: {
     QuizSortBy: typeof QuizSortBy;
     QuizAttemptStatus: typeof QuizAttemptStatus;
-    Query: {
-        quizAttempt: GQLEndpoint<FindByIdInput, FindOneResult<QuizAttempt>>;
-        quizAttempts: GQLEndpoint<QuizAttemptSearchInput, FindManyResult<QuizAttempt>>;
-    },
-    Mutation: {
-        quizAttemptCreate: GQLEndpoint<QuizAttemptCreateInput, CreateOneResult<QuizAttempt>>;
-        quizAttemptUpdate: GQLEndpoint<QuizAttemptUpdateInput, UpdateOneResult<QuizAttempt>>;
-    }
+    Query: EndpointsQuizAttempt["Query"];
+    Mutation: EndpointsQuizAttempt["Mutation"];
 } = {
     QuizSortBy,
     QuizAttemptStatus,
-    Query: {
-        quizAttempt: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        quizAttempts: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        quizAttemptCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        quizAttemptUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...QuizAttemptEndpoints,
 };
