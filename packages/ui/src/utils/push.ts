@@ -1,5 +1,4 @@
-import { PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { pushDeviceCreate } from "api/generated/endpoints/pushDevice_create";
+import { PushDevice, pushDeviceCreate, PushDeviceCreateInput } from "@local/shared";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";

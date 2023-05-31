@@ -1,5 +1,4 @@
-import { LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
+import { LINKS, ProfileUpdateInput, Session, User, userProfileUpdate } from "@local/shared";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication/session";

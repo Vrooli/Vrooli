@@ -1,5 +1,4 @@
-import { ChatMessageSortBy } from "@local/shared";
-import { chatMessageFindMany } from "api/generated/endpoints/chatMessage_findMany";
+import { chatMessageFindMany, ChatMessageSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

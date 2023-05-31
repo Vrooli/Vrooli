@@ -1,9 +1,6 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
+import { AddIcon, Chat, CommentIcon, CommonKey, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, FindByIdInput, Notification, notificationMarkAllAsRead, notificationMarkAsRead, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
 import { Button, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { notificationMarkAllAsRead } from "api/generated/endpoints/notification_markAllAsRead";
-import { notificationMarkAsRead } from "api/generated/endpoints/notification_markAsRead";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";

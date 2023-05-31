@@ -1,5 +1,4 @@
-import { RoutineVersionSortBy } from "@local/shared";
-import { routineVersionFindMany } from "api/generated/endpoints/routineVersion_findMany";
+import { routineVersionFindMany, RoutineVersionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";

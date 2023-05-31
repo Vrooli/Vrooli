@@ -1,9 +1,8 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, LinkIcon } from "@local/shared";
+import { Count, DeleteManyInput, deleteOneOrManyDeleteMany, LinkIcon } from "@local/shared";
 import { Box, CircularProgress, Tooltip, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteMany } from "api/generated/endpoints/deleteOneOrMany_deleteMany";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";

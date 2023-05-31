@@ -1,9 +1,7 @@
-import { ActiveFocusMode, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, authValidateSession, focusModeSetActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
-import { authValidateSession } from "api/generated/endpoints/auth_validateSession";
-import { focusModeSetActive } from "api/generated/endpoints/focusMode_setActive";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { hasErrorCode, mutationWrapper } from "api/utils";
 import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";

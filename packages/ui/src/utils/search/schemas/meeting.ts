@@ -1,5 +1,4 @@
-import { MeetingSortBy } from "@local/shared";
-import { meetingFindMany } from "api/generated/endpoints/meeting_findMany";
+import { meetingFindMany, MeetingSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

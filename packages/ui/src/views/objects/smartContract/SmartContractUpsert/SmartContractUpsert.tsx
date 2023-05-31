@@ -1,9 +1,5 @@
-import { FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
-import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
-import { smartContractCreate } from "api/generated/endpoints/smartContract_create";
-import { smartContractUpdate } from "api/generated/endpoints/smartContract_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindVersionInput, smartContractCreate, smartContractUpdate, SmartContractVersion, SmartContractVersionCreateInput, smartContractVersionFindOne, SmartContractVersionUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

@@ -1,8 +1,5 @@
-import { FindByIdInput, Meeting, MeetingCreateInput, MeetingUpdateInput } from "@local/shared";
-import { meetingCreate } from "api/generated/endpoints/meeting_create";
-import { meetingFindOne } from "api/generated/endpoints/meeting_findOne";
-import { meetingUpdate } from "api/generated/endpoints/meeting_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, Meeting, meetingCreate, MeetingCreateInput, meetingFindOne, meetingUpdate, MeetingUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

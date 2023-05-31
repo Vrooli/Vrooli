@@ -1,8 +1,5 @@
-import { FindByIdInput, RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
-import { runProjectCreate } from "api/generated/endpoints/runProject_create";
-import { runProjectFindOne } from "api/generated/endpoints/runProject_findOne";
-import { runProjectUpdate } from "api/generated/endpoints/runProject_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, RunProject, runProjectCreate, RunProjectCreateInput, runProjectFindOne, runProjectUpdate, RunProjectUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

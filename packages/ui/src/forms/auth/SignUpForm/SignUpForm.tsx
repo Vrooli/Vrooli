@@ -1,8 +1,7 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, LINKS, Session, useLocation } from "@local/shared";
+import { authEmailSignUp, BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, LINKS, Session, useLocation } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Link, TextField, Typography, useTheme } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { authEmailSignUp } from "api/generated/endpoints/auth_emailSignUp";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { hasErrorCode, mutationWrapper } from "api/utils";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";

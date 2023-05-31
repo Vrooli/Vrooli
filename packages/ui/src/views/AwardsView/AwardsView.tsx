@@ -1,7 +1,6 @@
 import { useQuery } from "@apollo/client";
-import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult } from "@local/shared";
+import { Award, AwardCategory, awardFindMany, AwardKey, AwardSearchInput, AwardSearchResult } from "@local/shared";
 import { Stack } from "@mui/material";
-import { awardFindMany } from "api/generated/endpoints/award_findMany";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { AwardCard } from "components/lists/AwardCard/AwardCard";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";

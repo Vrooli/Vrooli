@@ -1,6 +1,5 @@
-import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList, useLocation } from "@local/shared";
+import { ApiIcon, ApiVersion, apiVersionFindOne, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -27,6 +26,12 @@ export const ApiView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
+
+    const temp = fetch("/apis")
+        .then(response => response.json())
+        .then(data => console.log(data))
+        .catch(error => console.error("Error:", error));
+    console.log("rest api test: ", temp);
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
         query: apiVersionFindOne,

@@ -1,8 +1,5 @@
-import { FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
-import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
-import { runRoutineFindOne } from "api/generated/endpoints/runRoutine_findOne";
-import { runRoutineUpdate } from "api/generated/endpoints/runRoutine_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, RunRoutine, runRoutineCreate, RunRoutineCreateInput, runRoutineFindOne, runRoutineUpdate, RunRoutineUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

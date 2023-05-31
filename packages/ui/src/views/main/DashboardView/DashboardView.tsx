@@ -1,7 +1,6 @@
 import { useQuery } from "@apollo/client";
-import { AddIcon, calculateOccurrences, DUMMY_ID, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { AddIcon, calculateOccurrences, DUMMY_ID, feedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
-import { feedHome } from "api/generated/endpoints/feed_home";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";

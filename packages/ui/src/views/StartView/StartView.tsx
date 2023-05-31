@@ -4,9 +4,8 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { EmailLogInInput, LINKS, Session, useLocation } from "@local/shared";
+import { authEmailLogIn, EmailLogInInput, LINKS, Session, useLocation } from "@local/shared";
 import { Box, SxProps, useTheme } from "@mui/material";
-import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
 import { useCustomMutation } from "api/hooks";
 import { hasErrorCode, mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";

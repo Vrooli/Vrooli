@@ -1,5 +1,4 @@
-import { ProjectSortBy } from "@local/shared";
-import { projectFindMany } from "api/generated/endpoints/project_findMany";
+import { projectFindMany, ProjectSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";

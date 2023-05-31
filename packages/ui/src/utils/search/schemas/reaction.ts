@@ -1,5 +1,4 @@
-import { ReactionSortBy } from "@local/shared";
-import { reactionFindMany } from "api/generated/endpoints/reaction_findMany";
+import { reactionFindMany, ReactionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

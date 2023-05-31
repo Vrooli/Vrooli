@@ -1,6 +1,5 @@
-import { exists, getReactionScore, ReactInput, ReactionFor, Success } from "@local/shared";
+import { exists, getReactionScore, ReactInput, ReactionFor, reactionReact, Success } from "@local/shared";
 import { mutationWrapper, useCustomMutation } from "api";
-import { reactionReact } from "api/generated/endpoints/reaction_react";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
@@ -17,7 +16,7 @@ type UseVoterProps = {
 export const useVoter = ({
     objectId,
     objectType,
-    onActionComplete
+    onActionComplete,
 }: UseVoterProps) => {
     const [mutation] = useCustomMutation<Success, ReactInput>(reactionReact);
 
@@ -26,11 +25,11 @@ export const useVoter = ({
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasVotingSupport) {
-            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
         mutationWrapper<Success, ReactInput>({
@@ -38,11 +37,11 @@ export const useVoter = ({
             input: {
                 emoji,
                 forConnect: objectId,
-                reactionFor: ReactionFor[objectType]
+                reactionFor: ReactionFor[objectType],
             },
-            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
-        })
+            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data); },
+        });
     }, [hasVotingSupport, mutation, objectId, objectType, onActionComplete]);
 
     return { handleVote, hasVotingSupport };
-}
+};

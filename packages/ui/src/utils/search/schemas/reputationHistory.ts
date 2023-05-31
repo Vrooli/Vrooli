@@ -1,5 +1,4 @@
-import { ReputationHistorySortBy } from "@local/shared";
-import { reputationHistoryFindMany } from "api/generated/endpoints/reputationHistory_findMany";
+import { reputationHistoryFindMany, ReputationHistorySortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

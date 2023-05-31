@@ -1,12 +1,9 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, SendVerificationEmailInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, Email, emailCreate, EmailCreateInput, emailValidation, emailVerify, SendVerificationEmailInput, Success } from "@local/shared";
 import { Stack, TextField, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { emailCreate } from "api/generated/endpoints/email_create";
-import { emailVerify } from "api/generated/endpoints/email_verify";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";

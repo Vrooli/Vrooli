@@ -1,9 +1,5 @@
-import { FindByIdInput, parseSearchParams, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
-import { scheduleCreate } from "api/generated/endpoints/schedule_create";
-import { scheduleFindOne } from "api/generated/endpoints/schedule_findOne";
-import { scheduleUpdate } from "api/generated/endpoints/schedule_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, parseSearchParams, Schedule, scheduleCreate, ScheduleCreateInput, scheduleFindOne, scheduleUpdate, ScheduleUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";

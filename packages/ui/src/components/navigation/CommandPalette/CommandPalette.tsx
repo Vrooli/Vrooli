@@ -1,7 +1,6 @@
-import { LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
+import { feedPopular, LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
-import { feedPopular } from "api/generated/endpoints/feed_popular";
-import { useCustomLazyQuery } from "api/hooks";
+import { useCustomLazyQuery } from "api";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";

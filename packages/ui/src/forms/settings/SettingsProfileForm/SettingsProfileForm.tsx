@@ -1,7 +1,6 @@
-import { FindHandlesInput, userTranslationValidation } from "@local/shared";
+import { FindHandlesInput, userTranslationValidation, walletFindHandles } from "@local/shared";
 import { Grid, TextField, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
-import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";

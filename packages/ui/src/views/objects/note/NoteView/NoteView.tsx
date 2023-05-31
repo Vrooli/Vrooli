@@ -1,6 +1,5 @@
-import { FindVersionInput, NoteVersion, useLocation } from "@local/shared";
+import { FindVersionInput, NoteVersion, noteVersionFindOne, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";

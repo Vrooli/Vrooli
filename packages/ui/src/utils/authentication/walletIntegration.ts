@@ -3,9 +3,7 @@
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
 import { ApolloError } from "@apollo/client";
-import { WalletComplete } from "@local/shared";
-import { authWalletComplete } from "api/generated/endpoints/auth_walletComplete";
-import { authWalletInit } from "api/generated/endpoints/auth_walletInit";
+import { authWalletComplete, authWalletInit, WalletComplete } from "@local/shared";
 import { errorToCode, initializeApollo } from "api/utils";
 import { PubSub } from "utils/pubsub";
 

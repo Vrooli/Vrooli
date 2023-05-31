@@ -1,8 +1,5 @@
-import { BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, FindByIdInput } from "@local/shared";
-import { bookmarkListCreate } from "api/generated/endpoints/bookmarkList_create";
-import { bookmarkListFindOne } from "api/generated/endpoints/bookmarkList_findOne";
-import { bookmarkListUpdate } from "api/generated/endpoints/bookmarkList_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { BookmarkList, bookmarkListCreate, BookmarkListCreateInput, bookmarkListFindOne, bookmarkListUpdate, BookmarkListUpdateInput, FindByIdInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

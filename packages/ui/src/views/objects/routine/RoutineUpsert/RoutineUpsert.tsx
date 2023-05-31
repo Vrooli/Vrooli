@@ -1,9 +1,5 @@
-import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { routineVersionCreate } from "api/generated/endpoints/routineVersion_create";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
-import { routineVersionUpdate } from "api/generated/endpoints/routineVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { FindVersionInput, RoutineVersion, routineVersionCreate, RoutineVersionCreateInput, routineVersionFindOne, routineVersionUpdate, RoutineVersionUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

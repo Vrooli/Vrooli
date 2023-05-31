@@ -1,6 +1,5 @@
-import { FindByIdInput, RunRoutine, useLocation } from "@local/shared";
+import { FindByIdInput, RunRoutine, runRoutineFindOne, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { runRoutineFindOne } from "api/generated/endpoints/runRoutine_findOne";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

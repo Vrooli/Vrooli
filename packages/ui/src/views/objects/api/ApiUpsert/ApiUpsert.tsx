@@ -1,9 +1,5 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
-import { mutationWrapper } from "api";
-import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
-import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
-import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { ApiVersion, apiVersionCreate, ApiVersionCreateInput, apiVersionFindOne, apiVersionUpdate, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";

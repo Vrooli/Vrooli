@@ -1,8 +1,7 @@
-import { Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
+import { Report, reportCreate, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
 import { DialogContent, Link, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { reportCreate } from "api/generated/endpoints/report_create";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

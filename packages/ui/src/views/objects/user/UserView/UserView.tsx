@@ -1,8 +1,6 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, userFindOne, userProfile, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
-import { userFindOne } from "api/generated/endpoints/user_findOne";
-import { userProfile } from "api/generated/endpoints/user_profile";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";

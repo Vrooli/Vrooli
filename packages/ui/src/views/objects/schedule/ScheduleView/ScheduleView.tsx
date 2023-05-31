@@ -1,6 +1,5 @@
-import { EllipsisIcon, FindByIdInput, Schedule, useLocation } from "@local/shared";
+import { EllipsisIcon, FindByIdInput, Schedule, scheduleFindOne, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { scheduleFindOne } from "api/generated/endpoints/schedule_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";

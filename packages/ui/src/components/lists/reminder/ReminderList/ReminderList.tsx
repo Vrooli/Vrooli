@@ -1,12 +1,9 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, Reminder, reminderCreate, ReminderCreateInput, ReminderIcon, reminderUpdate, ReminderUpdateInput, Success } from "@local/shared";
 import { List, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { reminderCreate } from "api/generated/endpoints/reminder_create";
-import { reminderUpdate } from "api/generated/endpoints/reminder_update";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";

@@ -1,10 +1,10 @@
+import { apiCreate, apiFindMany, apiFindOne, apiUpdate } from "@local/shared";
 import { Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap } from "../../types";
 import { ApiEndpoints } from "../logic";
-import { selection } from "./some_path"; // The result selection to import
 
 export type EndpointFunction<TInput, TResult> = (
     parent: undefined,
@@ -13,7 +13,9 @@ export type EndpointFunction<TInput, TResult> = (
     info: GraphQLResolveInfo | PartialGraphQLInfo,
 ) => Promise<TResult>;
 
-const convertQueryToResolveInfo = (query) => {
+export type EndpointTuple = readonly [GQLEndpoint<any, any>, PartialGraphQLInfo];
+
+const gqlToGraphQLResolveInfo = (query) => {
     const operation = query.definitions
         .find(({ kind }) => kind === "OperationDefinition");
     const fragments = query.definitions
@@ -31,6 +33,7 @@ const convertQueryToResolveInfo = (query) => {
 
 export const handleEndpoint = async <TInput, TResult>(
     endpoint: EndpointFunction<TInput, TResult>,
+    selection: PartialGraphQLInfo,
     input: TInput,
     req: Request,
     res: Response,
@@ -41,21 +44,21 @@ export const handleEndpoint = async <TInput, TResult>(
     } catch (error: any) {
         res.status(500).json({ error: error.toString() });
     }
-}; // TODO for morning: Move generated gql tags to shared location. Then test convertQueryToResolveInfo and if it works, generate types in script so we don't have to compute them at runtime
+};
 
 // Here's the function that sets up the routes:
 function setupRoutes(router: Router, restEndpoints: Record<string, {
-    get?: GQLEndpoint<any, any>;
-    post?: GQLEndpoint<any, any>;
-    put?: GQLEndpoint<any, any>;
-    delete?: GQLEndpoint<any, any>;
+    get?: EndpointTuple;
+    post?: EndpointTuple;
+    put?: EndpointTuple;
+    delete?: EndpointTuple;
 }>) {
     Object.entries(restEndpoints).forEach(([route, methods]) => {
         const routerChain = router.route(route);
-        Object.entries(methods).forEach(([method, endpoint]) => {
+        Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
             routerChain[method]((req: Request, res: Response) => {
-                const input = method === "get" ? { ...req.params, ...req.query } : req.body;
-                handleEndpoint(endpoint, input, req, res);
+                const input: PartialGraphQLInfo = method === "get" ? { ...req.params, ...req.query } : req.body;
+                handleEndpoint(endpoint as any, selection, input, req, res);
             });
         });
     });
@@ -64,16 +67,16 @@ function setupRoutes(router: Router, restEndpoints: Record<string, {
 
 export const ApiRest = {
     "/api/:id": {
-        get: ApiEndpoints.Query.api,
-        put: ApiEndpoints.Mutation.apiUpdate,
+        get: [ApiEndpoints.Query.api, gqlToGraphQLResolveInfo(apiFindOne)],
+        put: [ApiEndpoints.Mutation.apiUpdate, gqlToGraphQLResolveInfo(apiUpdate)],
     },
     "/apis": {
-        get: ApiEndpoints.Query.apis,
+        get: [ApiEndpoints.Query.apis, gqlToGraphQLResolveInfo(apiFindMany)],
     },
     "/api": {
-        post: ApiEndpoints.Mutation.apiCreate,
+        post: [ApiEndpoints.Mutation.apiCreate, gqlToGraphQLResolveInfo(apiCreate)],
     },
-};
+} as const;
 
 const router = Router();
 setupRoutes(router, ApiRest);

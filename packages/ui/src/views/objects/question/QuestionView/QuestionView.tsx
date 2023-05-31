@@ -1,6 +1,5 @@
-import { CommentFor, EditIcon, exists, FindByIdInput, Question, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, exists, FindByIdInput, Question, questionFindOne, Tag, useLocation } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
-import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";

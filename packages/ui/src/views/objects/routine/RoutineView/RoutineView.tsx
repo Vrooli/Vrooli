@@ -1,8 +1,6 @@
-import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, routineVersionFindOne, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";

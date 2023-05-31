@@ -1,5 +1,4 @@
-import { StatsSiteSortBy } from "@local/shared";
-import { statsSiteFindMany } from "api/generated/endpoints/statsSite_findMany";
+import { statsSiteFindMany, StatsSiteSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

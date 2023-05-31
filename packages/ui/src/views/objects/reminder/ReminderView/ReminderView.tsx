@@ -1,6 +1,5 @@
-import { EllipsisIcon, FindByIdInput, Reminder, useLocation } from "@local/shared";
+import { EllipsisIcon, FindByIdInput, Reminder, reminderFindOne, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";

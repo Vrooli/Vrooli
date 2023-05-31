@@ -1,7 +1,5 @@
-import { Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared";
-import { resourceCreate } from "api/generated/endpoints/resource_create";
-import { resourceUpdate } from "api/generated/endpoints/resource_update";
-import { useCustomMutation } from "api/hooks";
+import { Resource, resourceCreate, ResourceCreateInput, resourceUpdate, ResourceUpdateInput } from "@local/shared";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

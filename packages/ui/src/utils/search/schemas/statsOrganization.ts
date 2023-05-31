@@ -1,5 +1,4 @@
-import { StatsOrganizationSortBy } from "@local/shared";
-import { statsOrganizationFindMany } from "api/generated/endpoints/statsOrganization_findMany";
+import { statsOrganizationFindMany, StatsOrganizationSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

@@ -1,6 +1,5 @@
-import { AddIcon, BookmarkList, EditIcon, FindByIdInput, useLocation } from "@local/shared";
+import { AddIcon, BookmarkList, bookmarkListFindOne, EditIcon, FindByIdInput, useLocation } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { bookmarkListFindOne } from "api/generated/endpoints/bookmarkList_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { SiteSearchBar } from "components/inputs/search";

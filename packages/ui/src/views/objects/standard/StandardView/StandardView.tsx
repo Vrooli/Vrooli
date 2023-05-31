@@ -1,6 +1,5 @@
-import { CommentFor, EditIcon, FindVersionInput, StandardVersion, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, FindVersionInput, StandardVersion, standardVersionFindOne, useLocation } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";

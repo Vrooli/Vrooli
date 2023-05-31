@@ -5,7 +5,7 @@
         "server/src/auth/message_signing/",
         "vite.config.ts",
         "graphqlTypes.ts",
-        "ui/src/api/generated/"
+        "generated/"
     ],
     "extends": [
         "eslint:recommended",

@@ -1,11 +1,9 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { AddIcon, DeleteOneInput, Success, Wallet, WalletUpdateInput } from "@local/shared";
+import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, Success, Wallet, walletUpdate, WalletUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { walletUpdate } from "api/generated/endpoints/wallet_update";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";

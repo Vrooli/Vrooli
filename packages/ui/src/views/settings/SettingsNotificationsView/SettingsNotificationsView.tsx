@@ -1,10 +1,7 @@
 import { useQuery } from "@apollo/client";
-import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
+import { NotificationSettings, notificationSettings, NotificationSettingsCategory, notificationSettingsUpdate, NotificationSettingsUpdateInput } from "@local/shared";
 import { Stack } from "@mui/material";
-import { mutationWrapper } from "api";
-import { notificationSettings } from "api/generated/endpoints/notification_settings";
-import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
-import { useCustomMutation } from "api/hooks";
+import { mutationWrapper, useCustomMutation } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";

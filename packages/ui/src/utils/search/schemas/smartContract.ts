@@ -1,5 +1,4 @@
-import { SmartContractSortBy } from "@local/shared";
-import { smartContractFindMany } from "api/generated/endpoints/smartContract_findMany";
+import { smartContractFindMany, SmartContractSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";

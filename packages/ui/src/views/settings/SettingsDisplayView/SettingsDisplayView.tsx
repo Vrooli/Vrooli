@@ -1,7 +1,6 @@
-import { ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
+import { ProfileUpdateInput, SearchIcon, User, userProfileUpdate, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";

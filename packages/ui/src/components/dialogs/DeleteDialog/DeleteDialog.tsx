@@ -1,7 +1,6 @@
-import { DeleteIcon, DeleteOneInput, LINKS, Success, useLocation } from "@local/shared";
+import { DeleteIcon, DeleteOneInput, deleteOneOrManyDeleteOne, LINKS, Success, useLocation } from "@local/shared";
 import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useState } from "react";

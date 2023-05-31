@@ -1,8 +1,7 @@
-import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, LINKS, Success, useLocation } from "@local/shared";
+import { authEmailRequestPasswordChange, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, LINKS, Success, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { authEmailRequestPasswordChange } from "api/generated/endpoints/auth_emailRequestPasswordChange";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";

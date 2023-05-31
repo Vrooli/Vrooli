@@ -156,9 +156,9 @@ type GroupRoutineVersionDataResult = {
  */
 const groupRoutineVersionData = async (ids: { id: string, parentId: string | null }[], prisma: PrismaType): Promise<GroupRoutineVersionDataResult> => {
     // Initialize data
-    const linkData: Pick<GroupRoutineVersionDataResult, 'linkData'>['linkData'] = {};
-    const nodeData: Pick<GroupRoutineVersionDataResult, 'nodeData'>['nodeData'] = {};
-    const subroutineItemData: Pick<GroupRoutineVersionDataResult, 'subroutineItemData'>['subroutineItemData'] = {};
+    const linkData: Pick<GroupRoutineVersionDataResult, "linkData">["linkData"] = {};
+    const nodeData: Pick<GroupRoutineVersionDataResult, "nodeData">["nodeData"] = {};
+    const subroutineItemData: Pick<GroupRoutineVersionDataResult, "subroutineItemData">["subroutineItemData"] = {};
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
@@ -302,7 +302,7 @@ export const calculateWeightData = async (
                         complexity: 0,
                         optionalInputs: 0,
                         allInputs: 0,
-                    }))
+                    })),
                 }; // Subroutine weight data added later
             } else {
                 nodeData[node.id] = { routineVersionId: rVerCreateOrUpdate.id, subroutines: [] };

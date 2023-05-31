@@ -9,7 +9,7 @@ console.info("Generating graphql-tag strings for endpoints...");
 
 // Step 1: Create output folders
 // Create the output folders if they doesn't exist
-const outputFolder = "./src/api/generated";
+const outputFolder = "../shared/src/api/generated";
 const fragmentsFolder = `${outputFolder}/fragments`;
 const endpointsFolder = `${outputFolder}/endpoints`;
 for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
@@ -22,6 +22,7 @@ for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
 // Step 2: Find data and write endpoints to files
 // Initialize fragments list to store all fragment definitions
 const allFragments: { [name: string]: string } = {};
+const endpointFiles: string[] = [];
 // Unlazy each endpoint property and write it to a separate file
 for (const objectType of Object.keys(endpoints)) {
     const endpointGroup = await (endpoints as any)[objectType]();
@@ -43,6 +44,7 @@ for (const objectType of Object.keys(endpoints)) {
         const endpointString = `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
         const outputPath = `${outputFolder}/endpoints/${objectType}_${endpointName}.ts`;
         fs.writeFileSync(outputPath, `${importsString}\n\n${endpointString}`);
+        endpointFiles.push(`${objectType}_${endpointName}`);
     }
 }
 
@@ -56,5 +58,23 @@ for (const [name, fragment] of Object.entries(allFragments)) {
     // Write to file
     fs.writeFileSync(outputPath, `export const ${name} = \`${fragment}\`;\n`);
 }
+
+// Step 4: Write index.ts files
+console.info("Generating index.ts files...");
+// Create index.ts for endpoints
+let indexContent = endpointFiles.map(file => `export * from "./${file}";`).join("\n");
+fs.writeFileSync(`${endpointsFolder}/index.ts`, indexContent);
+
+// Create index.ts for fragments
+indexContent = Object.keys(allFragments).map(name => `export * from "./${name}";`).join("\n");
+fs.writeFileSync(`${fragmentsFolder}/index.ts`, indexContent);
+
+// Create index.ts for generated folder
+indexContent = [
+    "export * from \"./endpoints\";",
+    "export * from \"./fragments\";",
+    "export * from \"./graphqlTypes\";",
+].join("\n");
+fs.writeFileSync(`${outputFolder}/index.ts`, indexContent);
 
 console.info("Finished generating graphql-tag strings for endpoints🚀");

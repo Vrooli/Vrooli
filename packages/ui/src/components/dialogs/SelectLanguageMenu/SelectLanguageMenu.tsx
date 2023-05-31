@@ -1,7 +1,6 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput, translateTranslate } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { translateTranslate } from "api/generated/endpoints/translate_translate";
-import { useCustomLazyQuery } from "api/hooks";
+import { useCustomLazyQuery } from "api";
 import { queryWrapper } from "api/utils";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";

@@ -1,12 +1,9 @@
 /**
  * Displays all search options for an organization
  */
-import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, lowercaseFirstLetter, uuid } from "@local/shared";
+import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, bookmarkFindMany, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
 import { useCustomLazyQuery, useCustomMutation } from "api";
-import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
-import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
-import { deleteOneOrManyDeleteMany } from "api/generated/endpoints/deleteOneOrMany_deleteMany";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,9 +1,5 @@
-import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
-import { questionCreate } from "api/generated/endpoints/question_create";
-import { questionFindOne } from "api/generated/endpoints/question_findOne";
-import { questionUpdate } from "api/generated/endpoints/question_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, Question, questionCreate, QuestionCreateInput, questionFindOne, questionUpdate, QuestionUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

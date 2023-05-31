@@ -1,8 +1,5 @@
-import { FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from "@local/shared";
-import { focusModeCreate } from "api/generated/endpoints/focusMode_create";
-import { focusModeFindOne } from "api/generated/endpoints/focusMode_findOne";
-import { focusModeUpdate } from "api/generated/endpoints/focusMode_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, FocusMode, focusModeCreate, FocusModeCreateInput, focusModeFindOne, focusModeUpdate, FocusModeUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

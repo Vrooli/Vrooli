@@ -1,8 +1,5 @@
-import { FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
-import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
-import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
-import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindVersionInput, ProjectVersion, projectVersionCreate, ProjectVersionCreateInput, projectVersionFindOne, projectVersionUpdate, ProjectVersionUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

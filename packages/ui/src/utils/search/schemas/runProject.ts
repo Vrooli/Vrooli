@@ -1,5 +1,4 @@
-import { InputType, RunProjectSortBy, RunStatus } from "@local/shared";
-import { runProjectFindMany } from "api/generated/endpoints/runProject_findMany";
+import { InputType, runProjectFindMany, RunProjectSortBy, RunStatus } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

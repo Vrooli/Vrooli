@@ -1,8 +1,6 @@
-import { Comment, CommentCreateInput, CommentUpdateInput, exists } from "@local/shared";
+import { Comment, commentCreate, CommentCreateInput, commentUpdate, CommentUpdateInput, exists } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { commentCreate } from "api/generated/endpoints/comment_create";
-import { commentUpdate } from "api/generated/endpoints/comment_update";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { Formik } from "formik";

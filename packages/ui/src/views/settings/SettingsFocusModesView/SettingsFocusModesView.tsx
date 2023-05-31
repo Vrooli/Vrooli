@@ -1,8 +1,6 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, EditIcon, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { mutationWrapper } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
+import { mutationWrapper, useCustomMutation } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";

@@ -1,10 +1,6 @@
-import { DeleteIcon, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
+import { DeleteIcon, FindByIdInput, Reminder, reminderCreate, ReminderCreateInput, reminderFindOne, reminderUpdate, ReminderUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { mutationWrapper } from "api";
-import { reminderCreate } from "api/generated/endpoints/reminder_create";
-import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
-import { reminderUpdate } from "api/generated/endpoints/reminder_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

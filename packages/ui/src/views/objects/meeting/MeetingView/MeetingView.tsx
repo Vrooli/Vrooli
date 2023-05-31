@@ -1,6 +1,5 @@
-import { FindByIdInput, Meeting, useLocation } from "@local/shared";
+import { FindByIdInput, Meeting, meetingFindOne, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { meetingFindOne } from "api/generated/endpoints/meeting_findOne";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

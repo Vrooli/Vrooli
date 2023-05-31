@@ -1,7 +1,6 @@
 import { useQuery } from "@apollo/client";
-import { getLastUrlPart, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
+import { getLastUrlPart, Report, reportFindMany, ReportSearchInput, ReportSearchResult } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

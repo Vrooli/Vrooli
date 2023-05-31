@@ -1,6 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ProjectVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ProjectVersion, projectVersionFindOne, useLocation } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";

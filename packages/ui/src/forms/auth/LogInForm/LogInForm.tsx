@@ -1,7 +1,6 @@
-import { emailLogInFormValidation, EmailLogInInput, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
+import { authEmailLogIn, emailLogInFormValidation, EmailLogInInput, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
-import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { errorToCode, hasErrorCode, mutationWrapper } from "api/utils";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";

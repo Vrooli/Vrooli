@@ -1,7 +1,6 @@
-import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { StatPeriodType, StatsSite, statsSiteFindMany, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
 import { useCustomLazyQuery } from "api";
-import { statsSiteFindMany } from "api/generated/endpoints/statsSite_findMany";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";

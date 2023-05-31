@@ -1,8 +1,5 @@
-import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
-import { organizationCreate } from "api/generated/endpoints/organization_create";
-import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
-import { organizationUpdate } from "api/generated/endpoints/organization_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindByIdInput, Organization, organizationCreate, OrganizationCreateInput, organizationFindOne, organizationUpdate, OrganizationUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

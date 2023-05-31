@@ -1,10 +1,7 @@
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
+import { authLogOut, authSwitchCurrentAccount, AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userProfileUpdate, userValidation } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { authLogOut } from "api/generated/endpoints/auth_logOut";
-import { authSwitchCurrentAccount } from "api/generated/endpoints/auth_switchCurrentAccount";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
@@ -187,6 +184,7 @@ export const AccountMenu = ({
         <SwipeableDrawer
             anchor={(isMobile && isLeftHanded) ? "left" : "right"}
             open={open}
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
             onClose={handleClose}
             sx={{

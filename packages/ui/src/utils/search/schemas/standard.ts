@@ -1,5 +1,4 @@
-import { StandardSortBy } from "@local/shared";
-import { standardFindMany } from "api/generated/endpoints/standard_findMany";
+import { standardFindMany, StandardSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";

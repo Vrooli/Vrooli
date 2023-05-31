@@ -1,6 +1,5 @@
-import { FindByIdInput, RunProject, useLocation } from "@local/shared";
+import { FindByIdInput, RunProject, runProjectFindOne, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { runProjectFindOne } from "api/generated/endpoints/runProject_findOne";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,8 +1,5 @@
-import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
-import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
-import { standardVersionUpdate } from "api/generated/endpoints/standardVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindVersionInput, StandardVersion, standardVersionCreate, StandardVersionCreateInput, standardVersionFindOne, standardVersionUpdate, StandardVersionUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

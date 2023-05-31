@@ -1,12 +1,9 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, PushDevice, pushDeviceCreate, PushDeviceCreateInput, pushDeviceUpdate, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { pushDeviceCreate } from "api/generated/endpoints/pushDevice_create";
-import { pushDeviceUpdate } from "api/generated/endpoints/pushDevice_update";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";

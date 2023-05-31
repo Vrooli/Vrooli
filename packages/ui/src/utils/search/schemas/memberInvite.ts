@@ -1,5 +1,4 @@
-import { MemberInviteSortBy } from "@local/shared";
-import { memberInviteFindMany } from "api/generated/endpoints/memberInvite_findMany";
+import { memberInviteFindMany, MemberInviteSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

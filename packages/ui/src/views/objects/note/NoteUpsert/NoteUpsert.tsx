@@ -1,8 +1,5 @@
-import { FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
-import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
-import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
-import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { FindVersionInput, NoteVersion, noteVersionCreate, NoteVersionCreateInput, noteVersionFindOne, noteVersionUpdate, NoteVersionUpdateInput } from "@local/shared";
+import { useCustomLazyQuery, useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

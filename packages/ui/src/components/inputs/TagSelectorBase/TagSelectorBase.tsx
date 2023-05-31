@@ -1,7 +1,6 @@
 import { useQuery } from "@apollo/client";
-import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { BookmarkFor, Tag, tagFindMany, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
-import { tagFindMany } from "api/generated/endpoints/tag_findMany";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,8 +1,5 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, exists, Success, uuid } from "@local/shared";
+import { Bookmark, bookmarkCreate, BookmarkCreateInput, bookmarkFindMany, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, exists, Success, uuid } from "@local/shared";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
-import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
-import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";

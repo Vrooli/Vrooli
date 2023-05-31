@@ -1,8 +1,6 @@
-import { DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
+import { authLogOut, DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, userProfileEmailUpdate, Wallet, WalletIcon } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { authLogOut } from "api/generated/endpoints/auth_logOut";
-import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
-import { useCustomMutation } from "api/hooks";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { EmailList, WalletList } from "components/lists/devices";
