@@ -1,8 +1,6 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
+import { ApiVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiVersionEndpoints, EndpointsApiVersion } from "../logic";
 
 export const typeDef = gql`
     enum ApiVersionSortBy {
@@ -147,37 +145,11 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "ApiVersion";
 export const resolvers: {
     ApiVersionSortBy: typeof ApiVersionSortBy;
-    Query: {
-        apiVersion: GQLEndpoint<FindVersionInput, FindOneResult<ApiVersion>>;
-        apiVersions: GQLEndpoint<ApiVersionSearchInput, FindManyResult<ApiVersion>>;
-    },
-    Mutation: {
-        apiVersionCreate: GQLEndpoint<ApiVersionCreateInput, CreateOneResult<ApiVersion>>;
-        apiVersionUpdate: GQLEndpoint<ApiVersionUpdateInput, UpdateOneResult<ApiVersion>>;
-    }
+    Query: EndpointsApiVersion["Query"];
+    Mutation: EndpointsApiVersion["Mutation"];
 } = {
     ApiVersionSortBy,
-    Query: {
-        apiVersion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        apiVersions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        apiVersionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        apiVersionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ApiVersionEndpoints,
 };

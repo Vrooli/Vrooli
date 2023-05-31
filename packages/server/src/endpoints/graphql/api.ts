@@ -1,8 +1,6 @@
-import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, FindByIdInput } from "@local/shared";
+import { ApiSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { rateLimit } from "../../middleware";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoints, EndpointsApi } from "../logic";
 
 export const typeDef = gql`
     enum ApiSortBy {
@@ -148,37 +146,12 @@ export const typeDef = gql`
     }
 `;
 
-const objectType = "Api";
+
 export const resolvers: {
     ApiSortBy: typeof ApiSortBy;
-    Query: {
-        api: GQLEndpoint<FindByIdInput, FindOneResult<Api>>;
-        apis: GQLEndpoint<ApiSearchInput, FindManyResult<Api>>;
-    },
-    Mutation: {
-        apiCreate: GQLEndpoint<ApiCreateInput, CreateOneResult<Api>>;
-        apiUpdate: GQLEndpoint<ApiUpdateInput, UpdateOneResult<Api>>;
-    }
+    Query: EndpointsApi["Query"];
+    Mutation: EndpointsApi["Mutation"];
 } = {
     ApiSortBy,
-    Query: {
-        api: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
-        },
-        apis: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
-        },
-    },
-    Mutation: {
-        apiCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType, prisma, req });
-        },
-        apiUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req });
-        },
-    },
+    ...ApiEndpoints,
 };
