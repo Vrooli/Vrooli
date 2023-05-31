@@ -139,7 +139,7 @@ export const RunPickerMenu = ({
                 messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
                     { labelKey: "Yes", onClick: () => { deleteRun(run); } },
-                    { labelKey: "Cancel", onClick: () => { } },
+                    { labelKey: "Cancel" },
                 ],
             });
         } else {

@@ -76,7 +76,7 @@ export const EmailList = ({
                         });
                     },
                 },
-                { labelKey: "Cancel", onClick: () => { } },
+                { labelKey: "Cancel" },
             ],
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);

@@ -66,7 +66,7 @@ export const WalletList = ({
                         });
                     },
                 },
-                { labelKey: "Cancel", onClick: () => { } },
+                { labelKey: "Cancel" },
             ],
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
