@@ -1,6 +1,6 @@
 import { apiCreate, apiFindMany, apiFindOne, apiUpdate } from "@local/shared";
 import { Request, Response, Router } from "express";
-import { GraphQLResolveInfo } from "graphql";
+import { DocumentNode, FieldNode, FragmentDefinitionNode, GraphQLResolveInfo, OperationDefinitionNode } from "graphql";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap } from "../../types";
@@ -13,27 +13,44 @@ export type EndpointFunction<TInput, TResult> = (
     info: GraphQLResolveInfo | PartialGraphQLInfo,
 ) => Promise<TResult>;
 
-export type EndpointTuple = readonly [GQLEndpoint<any, any>, PartialGraphQLInfo];
+export type EndpointTuple = readonly [GQLEndpoint<any, any>, GraphQLResolveInfo | PartialGraphQLInfo];
 
-const gqlToGraphQLResolveInfo = (query) => {
-    const operation = query.definitions
-        .find(({ kind }) => kind === "OperationDefinition");
-    const fragments = query.definitions
-        .filter(({ kind }) => kind === "FragmentDefinition")
-        .reduce((result, current) => ({
+const gqlToGraphQLResolveInfo = (query: DocumentNode, path: string): GraphQLResolveInfo => {
+    const operation: OperationDefinitionNode | undefined = query.definitions
+        .find(({ kind }) => kind === "OperationDefinition") as OperationDefinitionNode;
+
+    const fragmentDefinitions = query.definitions
+        .filter(({ kind }) => kind === "FragmentDefinition") as FragmentDefinitionNode[];
+
+    const fragments: { [key: string]: FragmentDefinitionNode } = fragmentDefinitions
+        .reduce((result, current: FragmentDefinitionNode) => ({
             ...result,
             [current.name.value]: current,
         }), {});
 
-    return {
-        fieldNodes: operation.selectionSet.selections,
+    const fieldNodes: FieldNode[] = operation?.selectionSet.selections as FieldNode[];
+
+    const resolveInfo: GraphQLResolveInfo = {
+        fieldName: fieldNodes[0]?.name.value || "",
+        fieldNodes,
+        returnType: null,
+        parentType: null,
+        schema: null,
         fragments,
-    };
+        rootValue: {},
+        operation,
+        variableValues: {},
+        path: {
+            prev: undefined,
+            key: path,
+        },
+    } as any;
+    return resolveInfo;
 };
 
 export const handleEndpoint = async <TInput, TResult>(
     endpoint: EndpointFunction<TInput, TResult>,
-    selection: PartialGraphQLInfo,
+    selection: GraphQLResolveInfo | PartialGraphQLInfo,
     input: TInput,
     req: Request,
     res: Response,
@@ -67,16 +84,17 @@ function setupRoutes(router: Router, restEndpoints: Record<string, {
 
 export const ApiRest = {
     "/api/:id": {
-        get: [ApiEndpoints.Query.api, gqlToGraphQLResolveInfo(apiFindOne)],
-        put: [ApiEndpoints.Mutation.apiUpdate, gqlToGraphQLResolveInfo(apiUpdate)],
+        get: [ApiEndpoints.Query.api, gqlToGraphQLResolveInfo(apiFindOne, "apiFindOne")],
+        put: [ApiEndpoints.Mutation.apiUpdate, gqlToGraphQLResolveInfo(apiUpdate, "apiUpdate")],
     },
     "/apis": {
-        get: [ApiEndpoints.Query.apis, gqlToGraphQLResolveInfo(apiFindMany)],
+        get: [ApiEndpoints.Query.apis, gqlToGraphQLResolveInfo(apiFindMany, "apiFindMany")],
     },
     "/api": {
-        post: [ApiEndpoints.Mutation.apiCreate, gqlToGraphQLResolveInfo(apiCreate)],
+        post: [ApiEndpoints.Mutation.apiCreate, gqlToGraphQLResolveInfo(apiCreate, "apiCreate")],
     },
 } as const;
 
 const router = Router();
 setupRoutes(router, ApiRest);
+export default router;

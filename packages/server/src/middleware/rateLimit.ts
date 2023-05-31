@@ -1,5 +1,4 @@
 import { Request } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import { getUser } from "../auth";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -28,7 +27,7 @@ export async function checkRateLimit(client: any, key: string, max: number, wind
 }
 
 export interface RateLimitProps {
-    info: GraphQLResolveInfo;
+    info: { path: { key: string | number; } };
     /**
      * Maximum number of requests allowed per window, tied to API key (if not made from a safe origin)
      */

@@ -74,7 +74,7 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
     const result = parsed;
     // Determine which helper function to use
     switch (node.kind) {
-        case "Field":
+        case "Field": {
             // If selections are all InlineFragments (except for __typename), then the field is a union type
             const inlineFragments: InlineFragmentNode[] | undefined = node.selectionSet?.selections.filter((selection: SelectionNode) => selection.kind === "InlineFragment") as InlineFragmentNode[] | undefined;
             const isUnion = inlineFragments?.length !== undefined ? inlineFragments.length === node.selectionSet!.selections.length - 1 : false;
@@ -89,12 +89,14 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
                 result[node.name.value] = parseFieldNode(node, fragments);
             }
             break;
-        case "FragmentSpread":
+        }
+        case "FragmentSpread": {
             const spread = parseFragmentSpreadNode(node, fragments);
             for (const key in spread) {
                 result[key] = spread[key];
             }
             break;
+        }
         case "InlineFragment":
             result[`${node.typeCondition?.name.value}`] = parseInlineFragmentNode(node, fragments);
             break;

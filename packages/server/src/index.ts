@@ -9,6 +9,7 @@ import i18next from "i18next";
 import Stripe from "stripe";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
+import apiRest from "./endpoints/rest/api";
 import { logger } from "./events/logger";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
@@ -423,6 +424,13 @@ const main = async () => {
     // Set up image uploading
     app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
+    // Set up REST API
+    app.use("/api/v2", apiRest);
+    // app.use("/api/v2/apis", (req, res) => {
+    //     console.log("Test endpoint hit");
+    //     res.status(200).send("Test endpoint");
+    // });
+
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({
         cache: "bounded" as any,
@@ -436,7 +444,7 @@ const main = async () => {
     // Configure server with ExpressJS settings and path
     apollo_options_latest.applyMiddleware({
         app,
-        path: "/api/v2",
+        path: "/api/v2/graphql",
         cors: false,
     });
     // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
@@ -456,6 +464,7 @@ const main = async () => {
     //     path: `/api/v2`,
     //     cors: false
     // });
+
     // Start Express server
     app.listen(5329);
 

@@ -27,13 +27,13 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     let uri: string;
     // If running locally
     if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-        uri = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+        uri = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/graphql`;
     }
     // If running on server
     else {
         uri = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
             `${import.meta.env.VITE_SERVER_URL}/v2` :
-            `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+            `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/graphql`;
     }
     // Define link for handling file uploads
     const uploadLink = createUploadLink({
