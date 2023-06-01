@@ -1,6 +1,6 @@
 import { CustomError } from "../events";
 import { GqlRelMap } from "../models/types";
-import { resolveGraphQLInfo } from "../utils";
+import { resolveGQLInfo } from "@local/shared";
 import { injectTypenames } from "./injectTypenames";
 import { GraphQLInfo, PartialGraphQLInfo } from "./types";
 
@@ -32,7 +32,7 @@ export const toPartialGqlInfo = <
     let select;
     const isGraphQLResolveInfo = Object.prototype.hasOwnProperty.call(info, "fieldNodes") && Object.prototype.hasOwnProperty.call(info, "returnType");
     if (isGraphQLResolveInfo) {
-        select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
+        select = resolveGQLInfo(JSON.parse(JSON.stringify(info)));
     } else {
         select = info;
     }

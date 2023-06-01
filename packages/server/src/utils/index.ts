@@ -21,7 +21,6 @@ export * from "./origin";
 export * from "./ownerShapeHelper";
 export * from "./postShapeVersion";
 export * from "./preShapeRoot";
-export * from "./resolveGraphQLInfo";
 export * from "./routineComplexity";
 export * from "./searchMap";
 export * from "./searchStringMap";

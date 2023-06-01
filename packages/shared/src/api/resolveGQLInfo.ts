@@ -111,7 +111,7 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
  * - Has "true" for every key's value, except for the type key
  * @param info - GraphQL resolve info object
  */
-export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {
+export const resolveGQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {
     // Get selected nodes
     const selectionNodes = info.fieldNodes[0].selectionSet?.selections;
     if (!selectionNodes) return {};
