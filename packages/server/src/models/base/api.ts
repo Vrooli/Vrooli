@@ -15,7 +15,6 @@ import { ViewModel } from "./view";
 const __typename = "Api" as const;
 type Permissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-
 export const ApiModel: ModelLogic<ModelApiLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api,

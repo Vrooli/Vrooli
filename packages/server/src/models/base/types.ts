@@ -18,4 +18,3 @@ export type ModelApiLogic = {
     PrismaSelect: Prisma.apiSelect,
     PrismaWhere: Prisma.apiWhereInput,
 }
-

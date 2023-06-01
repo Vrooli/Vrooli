@@ -8,6 +8,7 @@ import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
 import { BookmarkModel } from "./bookmark";
+import { ApiFormat } from "./format/api";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
@@ -35,6 +36,7 @@ export const ApiModel: ModelLogic<ModelApiLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api,
     display: rootObjectDisplay(ApiVersionModel),
+    format: ApiFormat,
     mutate: {
         shape: {
             pre: async (params) => {
