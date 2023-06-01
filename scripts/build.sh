@@ -142,7 +142,7 @@ if [ -z "$GRAPHQL_GENERATE" ]; then
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
-    ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
+    NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
         error "Failed to generate query/mutation selectors"
         echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
