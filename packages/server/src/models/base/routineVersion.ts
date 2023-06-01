@@ -1,14 +1,13 @@
-import { MaxObjects, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation, RoutineVersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation, RoutineVersionYou } from "@local/shared";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { PartialGraphQLInfo } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic } from "./types";
+import { ModelLogic, RoutineVersionModelLogic } from "./types";
 
 /**
  * Validates node positions
@@ -33,21 +32,7 @@ const validateNodePositions = async (
 const __typename = "RoutineVersion" as const;
 type Permissions = Pick<RoutineVersionYou, "canComment" | "canCopy" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRun" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-export const RoutineVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoutineVersionCreateInput,
-    GqlUpdate: RoutineVersionUpdateInput,
-    GqlModel: RoutineVersion,
-    GqlSearch: RoutineVersionSearchInput,
-    GqlSort: RoutineVersionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.routine_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.routine_versionUpsertArgs["update"],
-    PrismaModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
-    PrismaSelect: Prisma.routine_versionSelect,
-    PrismaWhere: Prisma.routine_versionWhereInput,
-}, typeof suppFields> = ({
+export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: {

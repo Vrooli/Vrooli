@@ -1,33 +1,17 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
-import { ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, reportResponseValidation, ReportResponseYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { reportResponseValidation, ReportResponseYou } from "@local/shared";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { ReportModel } from "./report";
-import { ModelLogic } from "./types";
+import { ModelLogic, ReportResponseModelLogic } from "./types";
 
 const __typename = "ReportResponse" as const;
 type Permissions = Pick<ReportResponseYou, "canDelete" | "canUpdate">;
 const suppFields = [] as const;
-export const ReportResponseModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ReportResponseCreateInput,
-    GqlUpdate: ReportResponseUpdateInput,
-    GqlModel: ReportResponse,
-    GqlSearch: ReportResponseSearchInput,
-    GqlSort: ReportResponseSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.report_responseUpsertArgs["create"],
-    PrismaUpdate: Prisma.report_responseUpsertArgs["update"],
-    PrismaModel: Prisma.report_responseGetPayload<SelectWrap<Prisma.report_responseSelect>>,
-    PrismaSelect: Prisma.report_responseSelect,
-    PrismaWhere: Prisma.report_responseWhereInput,
-}, typeof suppFields> = ({
+export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.report_response,
     display: {

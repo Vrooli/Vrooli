@@ -1,29 +1,13 @@
-import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, routineVersionInputValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { routineVersionInputValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { translationShapeHelper } from "../utils";
 import { RoutineModel } from "./routine";
-import { ModelLogic } from "./types";
+import { ModelLogic, RoutineVersionInputModelLogic } from "./types";
 
 const __typename = "RoutineVersionInput" as const;
 const suppFields = [] as const;
-export const RoutineVersionInputModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoutineVersionInputCreateInput,
-    GqlUpdate: RoutineVersionInputUpdateInput,
-    GqlModel: RoutineVersionInput,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.routine_version_inputUpsertArgs["create"],
-    PrismaUpdate: Prisma.routine_version_inputUpsertArgs["update"],
-    PrismaModel: Prisma.routine_version_inputGetPayload<SelectWrap<Prisma.routine_version_inputSelect>>,
-    PrismaSelect: Prisma.routine_version_inputSelect,
-    PrismaWhere: Prisma.routine_version_inputWhereInput,
-}, typeof suppFields> = ({
+export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_input,
     display: {

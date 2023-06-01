@@ -1,32 +1,16 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, apiVersionValidation, MaxObjects, VersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { ApiVersionSortBy, apiVersionValidation, MaxObjects, VersionYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ApiModel } from "./api";
-import { ModelLogic } from "./types";
+import { ApiVersionModelLogic, ModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
 type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
-export const ApiVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ApiVersionCreateInput,
-    GqlUpdate: ApiVersionUpdateInput,
-    GqlPermission: Permissions,
-    GqlModel: ApiVersion,
-    GqlSearch: ApiVersionSearchInput,
-    GqlSort: ApiVersionSortBy,
-    PrismaCreate: Prisma.api_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.api_versionUpsertArgs["update"],
-    PrismaModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
-    PrismaSelect: Prisma.api_versionSelect,
-    PrismaWhere: Prisma.api_versionWhereInput,
-}, typeof suppFields> = ({
+export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_version,
     display: {

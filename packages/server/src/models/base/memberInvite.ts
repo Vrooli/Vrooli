@@ -1,32 +1,17 @@
-import { MaxObjects, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, memberInviteValidation, MemberInviteYou } from "@local/shared";
+import { MaxObjects, MemberInviteSortBy, memberInviteValidation, MemberInviteYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { MemberInviteModelLogic, ModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "MemberInvite" as const;
 type Permissions = Pick<MemberInviteYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const MemberInviteModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: MemberInviteCreateInput,
-    GqlUpdate: MemberInviteUpdateInput,
-    GqlModel: MemberInvite,
-    GqlSearch: MemberInviteSearchInput,
-    GqlSort: MemberInviteSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.member_inviteUpsertArgs["create"],
-    PrismaUpdate: Prisma.member_inviteUpsertArgs["update"],
-    PrismaModel: Prisma.member_inviteGetPayload<SelectWrap<Prisma.member_inviteSelect>>,
-    PrismaSelect: Prisma.member_inviteSelect,
-    PrismaWhere: Prisma.member_inviteWhereInput,
-}, typeof suppFields> = ({
+export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.member_invite,
     display: {

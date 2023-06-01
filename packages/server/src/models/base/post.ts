@@ -1,30 +1,14 @@
-import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, postValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ModelLogic, PostModelLogic } from "./types";
 
 const __typename = "Post" as const;
 const suppFields = [] as const;
-export const PostModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: PostCreateInput,
-    GqlUpdate: PostUpdateInput,
-    GqlModel: Post,
-    GqlSearch: PostSearchInput,
-    GqlSort: PostSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.postUpsertArgs["create"],
-    PrismaUpdate: Prisma.postUpsertArgs["update"],
-    PrismaModel: Prisma.postGetPayload<SelectWrap<Prisma.postSelect>>,
-    PrismaSelect: Prisma.postSelect,
-    PrismaWhere: Prisma.postWhereInput,
-}, typeof suppFields> = ({
+export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.post,
     display: {

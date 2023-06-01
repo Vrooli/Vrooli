@@ -1,33 +1,19 @@
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, runRoutineValidation, RunRoutineYou } from "@local/shared";
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation, RunRoutineYou } from "@local/shared";
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { GraphQLInfo, SelectWrap } from "../builders/types";
+import { GraphQLInfo } from "../builders/types";
 import { CustomError, Trigger } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { RoutineVersionModel } from "./routineVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
 type Permissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
 const suppFields = ["you"] as const;
-export const RunRoutineModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RunRoutineCreateInput,
-    GqlUpdate: RunRoutineUpdateInput,
-    GqlModel: RunRoutine,
-    GqlSearch: RunRoutineSearchInput,
-    GqlSort: RunRoutineSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.run_routineUpsertArgs["create"],
-    PrismaUpdate: Prisma.run_routineUpsertArgs["update"],
-    PrismaModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
-    PrismaSelect: Prisma.run_routineSelect,
-    PrismaWhere: Prisma.run_routineWhereInput,
-}, typeof suppFields> = ({
+export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields> = ({
     __typename,
     danger: {
         /**

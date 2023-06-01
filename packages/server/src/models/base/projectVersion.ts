@@ -1,33 +1,18 @@
-import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, projectVersionValidation, VersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, ProjectVersionSortBy, projectVersionValidation, VersionYou } from "@local/shared";
 import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { PartialGraphQLInfo } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
-import { ModelLogic } from "./types";
+import { ModelLogic, ProjectVersionModelLogic } from "./types";
 
 const __typename = "ProjectVersion" as const;
 type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
-export const ProjectVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ProjectVersionCreateInput,
-    GqlUpdate: ProjectVersionUpdateInput,
-    GqlModel: ProjectVersion,
-    GqlSearch: ProjectVersionSearchInput,
-    GqlSort: ProjectVersionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.project_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.project_versionUpsertArgs["update"],
-    PrismaModel: Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>,
-    PrismaSelect: Prisma.project_versionSelect,
-    PrismaWhere: Prisma.project_versionWhereInput,
-}, typeof suppFields> = ({
+export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version,
     display: {

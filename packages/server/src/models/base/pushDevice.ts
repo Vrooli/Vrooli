@@ -1,28 +1,12 @@
-import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, pushDeviceValidation } from "@local/shared";
 import { noNull } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, PushDeviceModelLogic } from "./types";
 
 const __typename = "PushDevice" as const;
 const suppFields = [] as const;
-export const PushDeviceModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: PushDeviceCreateInput,
-    GqlUpdate: PushDeviceUpdateInput,
-    GqlModel: PushDevice,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.push_deviceUpsertArgs["create"],
-    PrismaUpdate: Prisma.push_deviceUpsertArgs["update"],
-    PrismaModel: Prisma.push_deviceGetPayload<SelectWrap<Prisma.push_deviceSelect>>,
-    PrismaSelect: Prisma.push_deviceSelect,
-    PrismaWhere: Prisma.push_deviceWhereInput,
-}, typeof suppFields> = ({
+export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.push_device,
     display: {

@@ -1,30 +1,15 @@
-import { StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy } from "@local/shared";
+import { StatsRoutineSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineModel } from "./routine";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsRoutineModelLogic } from "./types";
 
 const __typename = "StatsRoutine" as const;
 const suppFields = [] as const;
-export const StatsRoutineModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsRoutine,
-    GqlSearch: StatsRoutineSearchInput,
-    GqlSort: StatsRoutineSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_routineUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_routineUpsertArgs["update"],
-    PrismaModel: Prisma.stats_routineGetPayload<SelectWrap<Prisma.stats_routineSelect>>,
-    PrismaSelect: Prisma.stats_routineSelect,
-    PrismaWhere: Prisma.stats_routineWhereInput,
-}, typeof suppFields> = ({
+export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_routine,
     display: {

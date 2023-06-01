@@ -1,33 +1,17 @@
-import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, quizQuestionResponseValidation, QuizQuestionResponseYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation, QuizQuestionResponseYou } from "@local/shared";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { QuizAttemptModel } from "./quizAttempt";
 import { QuizQuestionModel } from "./quizQuestion";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuizQuestionResponseModelLogic } from "./types";
 
 const __typename = "QuizQuestionResponse" as const;
 type Permissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const QuizQuestionResponseModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuizQuestionResponseCreateInput,
-    GqlUpdate: QuizQuestionResponseUpdateInput,
-    GqlModel: QuizQuestionResponse,
-    GqlSearch: QuizQuestionResponseSearchInput,
-    GqlSort: QuizQuestionResponseSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.quiz_question_responseUpsertArgs["create"],
-    PrismaUpdate: Prisma.quiz_question_responseUpsertArgs["update"],
-    PrismaModel: Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>,
-    PrismaSelect: Prisma.quiz_question_responseSelect,
-    PrismaWhere: Prisma.quiz_question_responseWhereInput,
-}, typeof suppFields> = ({
+export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
     display: {

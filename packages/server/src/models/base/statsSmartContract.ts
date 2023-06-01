@@ -1,30 +1,15 @@
-import { StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy } from "@local/shared";
+import { StatsSmartContractSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { SmartContractModel } from "./smartContract";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsSmartContractModelLogic } from "./types";
 
 const __typename = "StatsSmartContract" as const;
 const suppFields = [] as const;
-export const StatsSmartContractModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsSmartContract,
-    GqlSearch: StatsSmartContractSearchInput,
-    GqlSort: StatsSmartContractSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_smart_contractUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_smart_contractUpsertArgs["update"],
-    PrismaModel: Prisma.stats_smart_contractGetPayload<SelectWrap<Prisma.stats_smart_contractSelect>>,
-    PrismaSelect: Prisma.stats_smart_contractSelect,
-    PrismaWhere: Prisma.stats_smart_contractWhereInput,
-}, typeof suppFields> = ({
+export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_smart_contract,
     display: {

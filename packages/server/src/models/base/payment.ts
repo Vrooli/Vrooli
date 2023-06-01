@@ -1,28 +1,12 @@
-import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ModelLogic, PaymentModelLogic } from "./types";
 
 const __typename = "Payment" as const;
 const suppFields = [] as const;
-export const PaymentModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Payment,
-    GqlPermission: object,
-    GqlSearch: PaymentSearchInput,
-    GqlSort: PaymentSortBy,
-    PrismaCreate: Prisma.paymentUpsertArgs["create"],
-    PrismaUpdate: Prisma.paymentUpsertArgs["update"],
-    PrismaModel: Prisma.paymentGetPayload<SelectWrap<Prisma.paymentSelect>>,
-    PrismaSelect: Prisma.paymentSelect,
-    PrismaWhere: Prisma.paymentWhereInput,
-}, typeof suppFields> = ({
+export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {

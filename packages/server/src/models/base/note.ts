@@ -1,7 +1,5 @@
-import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, noteValidation, NoteYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, NoteSortBy, noteValidation, NoteYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
@@ -10,27 +8,13 @@ import { BookmarkModel } from "./bookmark";
 import { NoteVersionModel } from "./noteVersion";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { ModelLogic, NoteModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Note" as const;
 type Permissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-export const NoteModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: NoteCreateInput,
-    GqlUpdate: NoteUpdateInput,
-    GqlModel: Note,
-    GqlSearch: NoteSearchInput,
-    GqlSort: NoteSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.noteUpsertArgs["create"],
-    PrismaUpdate: Prisma.noteUpsertArgs["update"],
-    PrismaModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
-    PrismaSelect: Prisma.noteSelect,
-    PrismaWhere: Prisma.noteWhereInput,
-}, typeof suppFields> = ({
+export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note,
     display: rootObjectDisplay(NoteVersionModel),

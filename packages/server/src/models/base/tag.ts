@@ -1,6 +1,4 @@
-import { MaxObjects, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, tagValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { getEmbeddableString } from "../utils/embeddings/getEmbeddableString";
@@ -10,21 +8,7 @@ import { ModelLogic } from "./types";
 
 const __typename = "Tag" as const;
 const suppFields = ["you"] as const;
-export const TagModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: TagCreateInput,
-    GqlUpdate: TagUpdateInput,
-    GqlModel: Tag,
-    GqlSearch: TagSearchInput,
-    GqlSort: TagSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.tagUpsertArgs["create"],
-    PrismaUpdate: Prisma.tagUpsertArgs["update"],
-    PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
-    PrismaSelect: Prisma.tagSelect,
-    PrismaWhere: Prisma.tagWhereInput,
-}, typeof suppFields> = ({
+export const TagModel: ModelLogic<StatsTagModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.tag,
     display: {

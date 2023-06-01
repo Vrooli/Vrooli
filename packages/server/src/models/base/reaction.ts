@@ -1,11 +1,10 @@
-import { exists, getReactionScore, ReactInput, Reaction, ReactionFor, ReactionSearchInput, ReactionSortBy, removeModifiers } from "@local/shared";
-import { Prisma, reaction_summary } from "@prisma/client";
+import { exists, getReactionScore, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
+import { reaction_summary } from "@prisma/client";
 import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { onlyValidIds, selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
 import { PrismaType, SessionUserToken } from "../types";
-import { ModelLogic } from "./types";
+import { ModelLogic, ReactionModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {
     Api: "api",
@@ -25,21 +24,7 @@ const forMapper: { [key in ReactionFor]: string } = {
 
 const __typename = "Reaction" as const;
 const suppFields = [] as const;
-export const ReactionModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Reaction,
-    GqlSearch: ReactionSearchInput,
-    GqlSort: ReactionSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.reactionUpsertArgs["create"],
-    PrismaUpdate: Prisma.reactionUpsertArgs["update"],
-    PrismaModel: Prisma.reactionGetPayload<SelectWrap<Prisma.reactionSelect>>,
-    PrismaSelect: Prisma.reactionSelect,
-    PrismaWhere: Prisma.reactionWhereInput,
-}, typeof suppFields> = ({
+export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.reaction,
     display: {

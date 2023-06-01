@@ -1,29 +1,14 @@
-import { Chat, ChatCreateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, MaxObjects, uuidValidate } from "@local/shared";
-import { ChatInviteStatus, Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { ChatSortBy, ChatYou, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteStatus } from "@prisma/client";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { ModelLogic } from "./types";
+import { ChatModelLogic, ModelLogic } from "./types";
 
 const __typename = "Chat" as const;
 type Permissions = Pick<ChatYou, "canDelete" | "canInvite" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const ChatModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ChatCreateInput,
-    GqlUpdate: ChatUpdateInput,
-    GqlModel: Chat,
-    GqlSearch: ChatSearchInput,
-    GqlSort: ChatSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.chatUpsertArgs["create"],
-    PrismaUpdate: Prisma.chatUpsertArgs["update"],
-    PrismaModel: Prisma.chatGetPayload<SelectWrap<Prisma.chatSelect>>,
-    PrismaSelect: Prisma.chatSelect,
-    PrismaWhere: Prisma.chatWhereInput,
-}, typeof suppFields> = ({
+export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.chat,
     display: {

@@ -1,26 +1,10 @@
-import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, runProjectStepValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { runProjectStepValidation } from "@local/shared";
 import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
+import { ModelLogic, RunProjectStepModelLogic } from "./types";
 
 const __typename = "RunProjectStep" as const;
 const suppFields = [] as const;
-export const RunProjectStepModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: RunProjectStepCreateInput,
-    GqlUpdate: RunProjectStepUpdateInput,
-    GqlModel: RunProjectStep,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.run_project_stepUpsertArgs["create"],
-    PrismaUpdate: Prisma.run_project_stepUpsertArgs["update"],
-    PrismaModel: Prisma.run_project_stepGetPayload<SelectWrap<Prisma.run_project_stepSelect>>,
-    PrismaSelect: Prisma.run_project_stepSelect,
-    PrismaWhere: Prisma.run_project_stepWhereInput,
-}, typeof suppFields> = ({
+export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project_step,
     display: {

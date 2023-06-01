@@ -1,28 +1,12 @@
-import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, nodeLinkWhenValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { nodeLinkWhenValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeLinkWhenModelLogic } from "./types";
 
 const __typename = "NodeLinkWhen" as const;
 const suppFields = [] as const;
-export const NodeLinkWhenModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeLinkWhenCreateInput,
-    GqlUpdate: NodeLinkWhenUpdateInput,
-    GqlModel: NodeLinkWhen,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.node_link_whenUpsertArgs["create"],
-    PrismaUpdate: Prisma.node_link_whenUpsertArgs["update"],
-    PrismaModel: Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>,
-    PrismaSelect: Prisma.node_link_whenSelect,
-    PrismaWhere: Prisma.node_link_whenWhereInput,
-}, typeof suppFields> = ({
+export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     // Doesn't make sense to have a displayer for this model

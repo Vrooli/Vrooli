@@ -1,29 +1,13 @@
-import { MaxObjects, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, nodeRoutineListValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, nodeRoutineListValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { NodeModel } from "./node";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeRoutineListModelLogic } from "./types";
 
 const __typename = "NodeRoutineList" as const;
 const suppFields = [] as const;
-export const NodeRoutineListModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeRoutineListCreateInput,
-    GqlUpdate: NodeRoutineListUpdateInput,
-    GqlModel: NodeRoutineList,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.node_routine_listUpsertArgs["create"],
-    PrismaUpdate: Prisma.node_routine_listUpsertArgs["update"],
-    PrismaModel: Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>,
-    PrismaSelect: Prisma.node_routine_listSelect,
-    PrismaWhere: Prisma.node_routine_listWhereInput,
-}, typeof suppFields> = ({
+export const NodeRoutineListModel: ModelLogic<NodeRoutineListModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list,
     display: {

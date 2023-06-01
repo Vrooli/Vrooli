@@ -1,29 +1,13 @@
-import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, nodeEndValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { nodeEndValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { nodeEndNextShapeHelper } from "../utils";
 import { NodeModel } from "./node";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeEndModelLogic } from "./types";
 
 const __typename = "NodeEnd" as const;
 const suppFields = [] as const;
-export const NodeEndModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeEndCreateInput,
-    GqlUpdate: NodeEndUpdateInput,
-    GqlModel: NodeEnd,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.node_endUpsertArgs["create"],
-    PrismaUpdate: Prisma.node_endUpsertArgs["update"],
-    PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
-    PrismaSelect: Prisma.node_endSelect,
-    PrismaWhere: Prisma.node_endWhereInput,
-}, typeof suppFields> = ({
+export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {

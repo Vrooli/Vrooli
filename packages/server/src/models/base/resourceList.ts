@@ -1,7 +1,6 @@
-import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { MaxObjects, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
@@ -13,25 +12,11 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { ModelLogic } from "./types";
+import { ModelLogic, ResourceListModelLogic } from "./types";
 
 const __typename = "ResourceList" as const;
 const suppFields = [] as const;
-export const ResourceListModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ResourceListCreateInput,
-    GqlUpdate: ResourceListUpdateInput,
-    GqlModel: ResourceList,
-    GqlSearch: ResourceListSearchInput,
-    GqlSort: ResourceListSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.resource_listUpsertArgs["create"],
-    PrismaUpdate: Prisma.resource_listUpsertArgs["update"],
-    PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
-    PrismaSelect: Prisma.resource_listSelect,
-    PrismaWhere: Prisma.resource_listWhereInput,
-}, typeof suppFields> = ({
+export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: {

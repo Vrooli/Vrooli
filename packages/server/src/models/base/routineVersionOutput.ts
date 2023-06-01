@@ -1,7 +1,5 @@
-import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, routineVersionOutputValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { RoutineVersionOutput, routineVersionOutputValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { translationShapeHelper } from "../utils";
 import { RoutineModel } from "./routine";
@@ -9,21 +7,7 @@ import { ModelLogic } from "./types";
 
 const __typename = "RoutineVersionOutput" as const;
 const suppFields = [] as const;
-export const RoutineVersionOutputModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoutineVersionOutputCreateInput,
-    GqlUpdate: RoutineVersionOutputUpdateInput,
-    GqlModel: RoutineVersionOutput,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.routine_version_outputUpsertArgs["create"],
-    PrismaUpdate: Prisma.routine_version_outputUpsertArgs["update"],
-    PrismaModel: Prisma.routine_version_outputGetPayload<SelectWrap<Prisma.routine_version_outputSelect>>,
-    PrismaSelect: Prisma.routine_version_outputSelect,
-    PrismaWhere: Prisma.routine_version_outputWhereInput,
-}, typeof suppFields> = ({
+export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutput, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_output,
     display: {

@@ -1,32 +1,16 @@
-import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, meetingValidation, MeetingYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, MeetingSortBy, meetingValidation, MeetingYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { MeetingModelLogic, ModelLogic } from "./types";
 
 const __typename = "Meeting" as const;
 type Permissions = Pick<MeetingYou, "canDelete" | "canInvite" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const MeetingModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: MeetingCreateInput,
-    GqlUpdate: MeetingUpdateInput,
-    GqlModel: Meeting,
-    GqlSearch: MeetingSearchInput,
-    GqlSort: MeetingSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.meetingUpsertArgs["create"],
-    PrismaUpdate: Prisma.meetingUpsertArgs["update"],
-    PrismaModel: Prisma.meetingGetPayload<SelectWrap<Prisma.meetingSelect>>,
-    PrismaSelect: Prisma.meetingSelect,
-    PrismaWhere: Prisma.meetingWhereInput,
-}, typeof suppFields> = ({
+export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.meeting,
     display: {

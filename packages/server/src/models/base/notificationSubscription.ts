@@ -1,7 +1,6 @@
-import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, notificationSubscriptionValidation, SubscribableObject } from "@local/shared";
+import { MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation, SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ApiModel } from "./api";
@@ -19,7 +18,7 @@ import { RoutineModel } from "./routine";
 import { ScheduleModel } from "./schedule";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { ModelLogic } from "./types";
+import { ModelLogic, NotificationSubscriptionModelLogic } from "./types";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
     Api: "api",
@@ -41,21 +40,7 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
 
 const __typename = "NotificationSubscription" as const;
 const suppFields = [] as const;
-export const NotificationSubscriptionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NotificationSubscriptionCreateInput,
-    GqlUpdate: NotificationSubscriptionUpdateInput,
-    GqlModel: NotificationSubscription,
-    GqlSearch: NotificationSubscriptionSearchInput,
-    GqlSort: NotificationSubscriptionSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.notification_subscriptionUpsertArgs["create"],
-    PrismaUpdate: Prisma.notification_subscriptionUpsertArgs["update"],
-    PrismaModel: Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>,
-    PrismaSelect: Prisma.notification_subscriptionSelect,
-    PrismaWhere: Prisma.notification_subscriptionWhereInput,
-}, typeof suppFields> = ({
+export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification_subscription,
     display: {

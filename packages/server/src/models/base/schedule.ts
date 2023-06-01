@@ -1,7 +1,6 @@
-import { MaxObjects, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, scheduleValidation } from "@local/shared";
+import { MaxObjects, ScheduleSortBy, scheduleValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
@@ -9,25 +8,11 @@ import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";
 import { RunProjectModel } from "./runProject";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic } from "./types";
+import { ModelLogic, ScheduleModelLogic } from "./types";
 
 const __typename = "Schedule" as const;
 const suppFields = [] as const;
-export const ScheduleModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ScheduleCreateInput,
-    GqlUpdate: ScheduleUpdateInput,
-    GqlModel: Schedule,
-    GqlPermission: object,
-    GqlSearch: ScheduleSearchInput,
-    GqlSort: ScheduleSortBy,
-    PrismaCreate: Prisma.scheduleUpsertArgs["create"],
-    PrismaUpdate: Prisma.scheduleUpsertArgs["update"],
-    PrismaModel: Prisma.scheduleGetPayload<SelectWrap<Prisma.scheduleSelect>>,
-    PrismaSelect: Prisma.scheduleSelect,
-    PrismaWhere: Prisma.scheduleWhereInput,
-}, typeof suppFields> = ({
+export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule,
     display: {

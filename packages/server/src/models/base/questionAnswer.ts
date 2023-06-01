@@ -1,28 +1,12 @@
-import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, questionAnswerValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuestionAnswerModelLogic } from "./types";
 
 const __typename = "QuestionAnswer" as const;
 const suppFields = [] as const;
-export const QuestionAnswerModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuestionAnswerCreateInput,
-    GqlUpdate: QuestionAnswerUpdateInput,
-    GqlModel: QuestionAnswer,
-    GqlSearch: QuestionAnswerSearchInput,
-    GqlSort: QuestionAnswerSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.question_answerUpsertArgs["create"],
-    PrismaUpdate: Prisma.question_answerUpsertArgs["update"],
-    PrismaModel: Prisma.question_answerGetPayload<SelectWrap<Prisma.question_answerSelect>>,
-    PrismaSelect: Prisma.question_answerSelect,
-    PrismaWhere: Prisma.question_answerWhereInput,
-}, typeof suppFields> = ({
+export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.question_answer,
     display: {

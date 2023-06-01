@@ -1,28 +1,12 @@
-import { FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, focusModeValidation, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { FocusModeSortBy, focusModeValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
+import { FocusModeModelLogic, ModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
 const suppFields = [] as const;
-export const FocusModeModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: FocusModeCreateInput,
-    GqlUpdate: FocusModeUpdateInput,
-    GqlModel: FocusMode,
-    GqlSearch: FocusModeSearchInput,
-    GqlSort: FocusModeSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.focus_modeUpsertArgs["create"],
-    PrismaUpdate: Prisma.focus_modeUpsertArgs["update"],
-    PrismaModel: Prisma.focus_modeGetPayload<SelectWrap<Prisma.focus_modeSelect>>,
-    PrismaSelect: Prisma.focus_modeSelect,
-    PrismaWhere: Prisma.focus_modeWhereInput,
-}, typeof suppFields> = ({
+export const FocusModeModel: ModelLogic<FocusModeModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.focus_mode,
     display: {

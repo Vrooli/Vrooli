@@ -1,30 +1,15 @@
-import { StatsProject, StatsProjectSearchInput, StatsProjectSortBy } from "@local/shared";
+import { StatsProjectSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { ProjectModel } from "./project";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsProjectModelLogic } from "./types";
 
 const __typename = "StatsProject" as const;
 const suppFields = [] as const;
-export const StatsProjectModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsProject,
-    GqlSearch: StatsProjectSearchInput,
-    GqlSort: StatsProjectSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_projectUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_projectUpsertArgs["update"],
-    PrismaModel: Prisma.stats_projectGetPayload<SelectWrap<Prisma.stats_projectSelect>>,
-    PrismaSelect: Prisma.stats_projectSelect,
-    PrismaWhere: Prisma.stats_projectWhereInput,
-}, typeof suppFields> = ({
+export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_project,
     display: {

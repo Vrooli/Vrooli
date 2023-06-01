@@ -1,30 +1,15 @@
-import { StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy } from "@local/shared";
+import { StatsQuizSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { QuizModel } from "./quiz";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsQuizModelLogic } from "./types";
 
 const __typename = "StatsQuiz" as const;
 const suppFields = [] as const;
-export const StatsQuizModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsQuiz,
-    GqlSearch: StatsQuizSearchInput,
-    GqlSort: StatsQuizSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_quizUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_quizUpsertArgs["update"],
-    PrismaModel: Prisma.stats_quizGetPayload<SelectWrap<Prisma.stats_quizSelect>>,
-    PrismaSelect: Prisma.stats_quizSelect,
-    PrismaWhere: Prisma.stats_quizWhereInput,
-}, typeof suppFields> = ({
+export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_quiz,
     display: {

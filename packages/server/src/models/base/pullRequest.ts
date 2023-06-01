@@ -1,7 +1,6 @@
-import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput, pullRequestValidation, PullRequestYou } from "@local/shared";
+import { PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation, PullRequestYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, noNull } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { translationShapeHelper } from "../utils";
@@ -18,7 +17,7 @@ import { SmartContractModel } from "./smartContract";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -41,21 +40,7 @@ const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUps
 const __typename = "PullRequest" as const;
 type Permissions = Pick<PullRequestYou, "canComment" | "canDelete" | "canUpdate" | "canReport">;
 const suppFields = ["you"] as const;
-export const PullRequestModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: PullRequestCreateInput,
-    GqlUpdate: PullRequestUpdateInput,
-    GqlModel: PullRequest,
-    GqlSearch: PullRequestSearchInput,
-    GqlSort: PullRequestSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.pull_requestUpsertArgs["create"],
-    PrismaUpdate: Prisma.pull_requestUpsertArgs["update"],
-    PrismaModel: Prisma.pull_requestGetPayload<SelectWrap<Prisma.pull_requestSelect>>,
-    PrismaSelect: Prisma.pull_requestSelect,
-    PrismaWhere: Prisma.pull_requestWhereInput,
-}, typeof suppFields> = ({
+export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.pull_request,
     display: {

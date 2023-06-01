@@ -1,30 +1,15 @@
-import { StatsUser, StatsUserSearchInput, StatsUserSortBy } from "@local/shared";
+import { StatsUserSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsUserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "StatsUser" as const;
 const suppFields = [] as const;
-export const StatsUserModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsUser,
-    GqlSearch: StatsUserSearchInput,
-    GqlSort: StatsUserSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_userUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_userUpsertArgs["update"],
-    PrismaModel: Prisma.stats_userGetPayload<SelectWrap<Prisma.stats_userSelect>>,
-    PrismaSelect: Prisma.stats_userSelect,
-    PrismaWhere: Prisma.stats_userWhereInput,
-}, typeof suppFields> = ({
+export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_user,
     display: {

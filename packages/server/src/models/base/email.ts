@@ -1,28 +1,12 @@
-import { Email, EmailCreateInput, emailValidation, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { emailValidation, MaxObjects } from "@local/shared";
 import { CustomError, Trigger } from "../events";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { EmailModelLogic, ModelLogic } from "./types";
 
 const __typename = "Email" as const;
 const suppFields = [] as const;
-export const EmailModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: EmailCreateInput,
-    GqlUpdate: undefined,
-    GqlModel: Email,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.emailUpsertArgs["create"],
-    PrismaUpdate: Prisma.emailUpsertArgs["update"],
-    PrismaModel: Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
-    PrismaSelect: Prisma.emailSelect,
-    PrismaWhere: Prisma.emailWhereInput,
-}, typeof suppFields> = ({
+export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.email,
     display: {

@@ -1,31 +1,16 @@
-import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, labelValidation, LabelYou, MaxObjects } from "@local/shared";
+import { LabelSortBy, labelValidation, LabelYou, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { LabelModelLogic, ModelLogic } from "./types";
 
 const __typename = "Label" as const;
 type Permissions = Pick<LabelYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const LabelModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: LabelCreateInput,
-    GqlUpdate: LabelUpdateInput,
-    GqlModel: Label,
-    GqlSearch: LabelSearchInput,
-    GqlSort: LabelSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.labelUpsertArgs["create"],
-    PrismaUpdate: Prisma.labelUpsertArgs["update"],
-    PrismaModel: Prisma.labelGetPayload<SelectWrap<Prisma.labelSelect>>,
-    PrismaSelect: Prisma.labelSelect,
-    PrismaWhere: Prisma.labelWhereInput,
-}, typeof suppFields> = ({
+export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.label,
     display: {

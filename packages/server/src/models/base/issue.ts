@@ -1,13 +1,12 @@
-import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, issueValidation, IssueYou, MaxObjects } from "@local/shared";
+import { IssueFor, IssueSortBy, issueValidation, IssueYou, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { IssueModelLogic, ModelLogic } from "./types";
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
     Api: "api",
@@ -22,21 +21,7 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
 const __typename = "Issue" as const;
 type Permissions = Pick<IssueYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-export const IssueModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: IssueCreateInput,
-    GqlUpdate: IssueUpdateInput,
-    GqlModel: Issue,
-    GqlSearch: IssueSearchInput,
-    GqlSort: IssueSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.issueUpsertArgs["create"],
-    PrismaUpdate: Prisma.issueUpsertArgs["update"],
-    PrismaModel: Prisma.issueGetPayload<SelectWrap<Prisma.issueSelect>>,
-    PrismaSelect: Prisma.issueSelect,
-    PrismaWhere: Prisma.issueWhereInput,
-}, typeof suppFields> = ({
+export const IssueModel: ModelLogic<IssueModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.issue,
     display: {

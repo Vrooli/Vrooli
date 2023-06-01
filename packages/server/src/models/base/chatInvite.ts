@@ -1,31 +1,15 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, MaxObjects, uuidValidate } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { ChatInviteSortBy, ChatInviteYou, MaxObjects, uuidValidate } from "@local/shared";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { ChatModel } from "./chat";
-import { ModelLogic } from "./types";
+import { ChatInviteModelLogic, ModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatInvite" as const;
 type Permissions = Pick<ChatInviteYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const ChatInviteModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ChatInviteCreateInput,
-    GqlUpdate: ChatInviteUpdateInput,
-    GqlModel: ChatInvite,
-    GqlSearch: ChatInviteSearchInput,
-    GqlSort: ChatInviteSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.chat_inviteUpsertArgs["create"],
-    PrismaUpdate: Prisma.chat_inviteUpsertArgs["update"],
-    PrismaModel: Prisma.chat_inviteGetPayload<SelectWrap<Prisma.chat_inviteSelect>>,
-    PrismaSelect: Prisma.chat_inviteSelect,
-    PrismaWhere: Prisma.chat_inviteWhereInput,
-}, typeof suppFields> = ({
+export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.chat_invite,
     display: {

@@ -1,28 +1,12 @@
-import { StatsSite, StatsSiteSearchInput, StatsSiteSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsSiteModelLogic } from "./types";
 
 const __typename = "StatsSite" as const;
 const suppFields = [] as const;
-export const StatsSiteModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsSite,
-    GqlSearch: StatsSiteSearchInput,
-    GqlSort: StatsSiteSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_siteUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_siteUpsertArgs["update"],
-    PrismaModel: Prisma.stats_siteGetPayload<SelectWrap<Prisma.stats_siteSelect>>,
-    PrismaSelect: Prisma.stats_siteSelect,
-    PrismaWhere: Prisma.stats_siteWhereInput,
-}, typeof suppFields> = ({
+export const StatsSiteModel: ModelLogic<StatsSiteModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_site,
     display: {

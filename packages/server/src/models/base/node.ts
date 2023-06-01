@@ -1,31 +1,15 @@
-import { MaxObjects, Node, NodeCreateInput, NodeUpdateInput, nodeValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, nodeValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { RoutineModel } from "./routine";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeModelLogic } from "./types";
 
 const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
 const suppFields = [] as const;
-export const NodeModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeCreateInput,
-    GqlUpdate: NodeUpdateInput,
-    GqlModel: Node,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.nodeUpsertArgs["create"],
-    PrismaUpdate: Prisma.nodeUpsertArgs["update"],
-    PrismaModel: Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
-    PrismaSelect: Prisma.nodeSelect,
-    PrismaWhere: Prisma.nodeWhereInput,
-}, typeof suppFields> = ({
+export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node,
     display: {

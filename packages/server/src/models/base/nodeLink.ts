@@ -1,28 +1,12 @@
-import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, nodeLinkValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { nodeLinkValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { NodeModel } from "./node";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeLinkModelLogic } from "./types";
 
 const __typename = "NodeLink" as const;
 const suppFields = [] as const;
-export const NodeLinkModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeLinkCreateInput,
-    GqlUpdate: NodeLinkUpdateInput,
-    GqlModel: NodeLink,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.node_linkUpsertArgs["create"],
-    PrismaUpdate: Prisma.node_linkUpsertArgs["update"],
-    PrismaModel: Prisma.node_linkGetPayload<SelectWrap<Prisma.node_linkSelect>>,
-    PrismaSelect: Prisma.node_linkSelect,
-    PrismaWhere: Prisma.node_linkWhereInput,
-}, typeof suppFields> = ({
+export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: {

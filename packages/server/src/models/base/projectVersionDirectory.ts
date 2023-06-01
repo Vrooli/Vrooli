@@ -1,29 +1,13 @@
-import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, projectVersionDirectoryValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, ProjectVersionDirectoryModelLogic } from "./types";
 
 const __typename = "ProjectVersionDirectory" as const;
 const suppFields = [] as const;
-export const ProjectVersionDirectoryModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ProjectVersionDirectoryCreateInput,
-    GqlUpdate: ProjectVersionDirectoryUpdateInput,
-    GqlModel: ProjectVersionDirectory,
-    GqlPermission: object,
-    GqlSearch: ProjectVersionDirectorySearchInput,
-    GqlSort: ProjectVersionDirectorySortBy,
-    PrismaCreate: Prisma.project_version_directoryUpsertArgs["create"],
-    PrismaUpdate: Prisma.project_version_directoryUpsertArgs["update"],
-    PrismaModel: Prisma.project_version_directoryGetPayload<SelectWrap<Prisma.project_version_directorySelect>>,
-    PrismaSelect: Prisma.project_version_directorySelect,
-    PrismaWhere: Prisma.project_version_directoryWhereInput,
-}, typeof suppFields> = ({
+export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version_directory,
     display: {

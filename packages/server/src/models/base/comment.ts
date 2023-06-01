@@ -1,9 +1,9 @@
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../builders";
-import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
@@ -11,26 +11,12 @@ import { SortMap } from "../utils/sortMap";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { CommentModelLogic, ModelLogic } from "./types";
 
 const __typename = "Comment" as const;
 type Permissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
 const suppFields = ["you"] as const;
-export const CommentModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: CommentCreateInput,
-    GqlUpdate: CommentUpdateInput,
-    GqlModel: Comment,
-    GqlPermission: Permissions,
-    GqlSearch: CommentSearchInput,
-    GqlSort: CommentSortBy,
-    PrismaCreate: Prisma.commentUpsertArgs["create"],
-    PrismaUpdate: Prisma.commentUpsertArgs["update"],
-    PrismaModel: Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>,
-    PrismaSelect: Prisma.commentSelect,
-    PrismaWhere: Prisma.commentWhereInput,
-}, typeof suppFields> = ({
+export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.comment,
     display: {

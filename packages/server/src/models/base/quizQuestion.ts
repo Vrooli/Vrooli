@@ -1,31 +1,15 @@
-import { MaxObjects, QuizQuestion, QuizQuestionCreateInput, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, quizQuestionValidation, QuizQuestionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation, QuizQuestionYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { QuizModel } from "./quiz";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuizQuestionModelLogic } from "./types";
 
 const __typename = "QuizQuestion" as const;
 type Permissions = Pick<QuizQuestionYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const QuizQuestionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuizQuestionCreateInput,
-    GqlUpdate: QuizQuestionUpdateInput,
-    GqlModel: QuizQuestion,
-    GqlSearch: QuizQuestionSearchInput,
-    GqlSort: QuizQuestionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.quiz_questionUpsertArgs["create"],
-    PrismaUpdate: Prisma.quiz_questionUpsertArgs["update"],
-    PrismaModel: Prisma.quiz_questionGetPayload<SelectWrap<Prisma.quiz_questionSelect>>,
-    PrismaSelect: Prisma.quiz_questionSelect,
-    PrismaWhere: Prisma.quiz_questionWhereInput,
-}, typeof suppFields> = ({
+export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question,
     display: {

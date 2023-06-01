@@ -1,29 +1,13 @@
-import { MaxObjects, Premium } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ModelLogic, PremiumModelLogic } from "./types";
 
 const __typename = "Premium" as const;
 const suppFields = [] as const;
-export const PremiumModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Premium,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.premiumUpsertArgs["create"],
-    PrismaUpdate: Prisma.premiumUpsertArgs["update"],
-    PrismaModel: Prisma.premiumGetPayload<SelectWrap<Prisma.premiumSelect>>,
-    PrismaSelect: Prisma.premiumSelect,
-    PrismaWhere: Prisma.premiumWhereInput,
-}, typeof suppFields> = ({
+export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {

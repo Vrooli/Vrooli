@@ -1,7 +1,6 @@
-import { MaxObjects, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, standardValidation, StandardYou } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation, StandardYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
@@ -11,27 +10,13 @@ import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { StandardVersionModel } from "./standardVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, StandardModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Standard" as const;
 type Permissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
-export const StandardModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: StandardCreateInput,
-    GqlUpdate: StandardUpdateInput,
-    GqlModel: Standard,
-    GqlSearch: StandardSearchInput,
-    GqlSort: StandardSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.standardUpsertArgs["create"],
-    PrismaUpdate: Prisma.standardUpsertArgs["update"],
-    PrismaModel: Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
-    PrismaSelect: Prisma.standardSelect,
-    PrismaWhere: Prisma.standardWhereInput,
-}, typeof suppFields> = ({
+export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard,
     display: rootObjectDisplay(StandardVersionModel),

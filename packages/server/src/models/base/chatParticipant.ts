@@ -1,29 +1,13 @@
-import { ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { ChatParticipantSortBy, MaxObjects } from "@local/shared";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ChatModel } from "./chat";
-import { ModelLogic } from "./types";
+import { ChatParticipantModelLogic, ModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatParticipant" as const;
 const suppFields = [] as const;
-export const ChatParticipantModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: ChatParticipantUpdateInput,
-    GqlModel: ChatParticipant,
-    GqlSearch: ChatParticipantSearchInput,
-    GqlSort: ChatParticipantSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.chat_participantsUpsertArgs["create"],
-    PrismaUpdate: Prisma.chat_participantsUpsertArgs["update"],
-    PrismaModel: Prisma.chat_participantsGetPayload<SelectWrap<Prisma.chat_participantsSelect>>,
-    PrismaSelect: Prisma.chat_participantsSelect,
-    PrismaWhere: Prisma.chat_participantsWhereInput,
-}, typeof suppFields> = ({
+export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.chat_participants,
     display: {

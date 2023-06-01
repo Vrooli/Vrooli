@@ -1,31 +1,13 @@
-import { MaxObjects, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, resourceValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, translationShapeHelper } from "../utils";
 import { ResourceListModel } from "./resourceList";
-import { ModelLogic } from "./types";
-
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ResourceCreateInput,
-    GqlUpdate: ResourceUpdateInput,
-    GqlModel: Resource,
-    GqlSearch: ResourceSearchInput,
-    GqlSort: ResourceSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.resourceUpsertArgs["create"],
-    PrismaUpdate: Prisma.resourceUpsertArgs["update"],
-    PrismaModel: Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
-    PrismaSelect: Prisma.resourceSelect,
-    PrismaWhere: Prisma.resourceWhereInput,
-}
+import { ModelLogic, ResourceModelLogic } from "./types";
 
 const __typename = "Resource" as const;
 const suppFields = [] as const;
-export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
+export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: {

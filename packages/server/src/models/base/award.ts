@@ -1,28 +1,12 @@
-import { Award, AwardKey, awardNames, AwardSearchInput, AwardSortBy, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { AwardModelLogic, ModelLogic } from "./types";
 
 const __typename = "Award" as const;
 const suppFields = ["title", "description"] as const;
-export const AwardModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlPermission: object,
-    GqlModel: Award,
-    GqlSearch: AwardSearchInput,
-    GqlSort: AwardSortBy,
-    PrismaCreate: undefined,
-    PrismaUpdate: undefined,
-    PrismaModel: Prisma.awardGetPayload<SelectWrap<Prisma.awardSelect>>,
-    PrismaSelect: Prisma.awardSelect,
-    PrismaWhere: Prisma.awardWhereInput,
-}, typeof suppFields> = ({
+export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.award,
     display: {

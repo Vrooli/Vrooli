@@ -1,30 +1,14 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { randomString } from "../auth";
 import { noNull } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ApiKeyModelLogic, ModelLogic } from "./types";
 
 const __typename = "ApiKey" as const;
 const suppFields = [] as const;
-export const ApiKeyModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ApiKeyCreateInput,
-    GqlUpdate: ApiKeyUpdateInput,
-    GqlPermission: object,
-    GqlModel: ApiKey,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.api_keyUpsertArgs["create"],
-    PrismaUpdate: Prisma.api_keyUpsertArgs["update"],
-    PrismaModel: Prisma.api_keyGetPayload<SelectWrap<Prisma.api_keySelect>>,
-    PrismaSelect: Prisma.api_keySelect,
-    PrismaWhere: Prisma.api_keyWhereInput,
-}, typeof suppFields> = ({
+export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_key,
     display: {

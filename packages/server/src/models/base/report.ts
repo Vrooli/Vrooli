@@ -1,7 +1,6 @@
-import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, reportValidation, ReportYou } from "@local/shared";
+import { MaxObjects, ReportFor, ReportSortBy, reportValidation, ReportYou } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
@@ -16,7 +15,7 @@ import { RoutineVersionModel } from "./routineVersion";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardVersionModel } from "./standardVersion";
 import { TagModel } from "./tag";
-import { ModelLogic } from "./types";
+import { ModelLogic, ReportModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
@@ -36,21 +35,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 const __typename = "Report" as const;
 type Permissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
 const suppFields = ["you"] as const;
-export const ReportModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ReportCreateInput,
-    GqlUpdate: ReportUpdateInput,
-    GqlModel: Report,
-    GqlSearch: ReportSearchInput,
-    GqlSort: ReportSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.reportUpsertArgs["create"],
-    PrismaUpdate: Prisma.reportUpsertArgs["update"],
-    PrismaModel: Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
-    PrismaSelect: Prisma.reportSelect,
-    PrismaWhere: Prisma.reportWhereInput,
-}, typeof suppFields> = ({
+export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.report,
     display: {

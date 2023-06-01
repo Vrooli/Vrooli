@@ -1,28 +1,12 @@
-import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, roleValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { RoleSortBy, roleValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, RoleModelLogic } from "./types";
 
 const __typename = "Role" as const;
 const suppFields = [] as const;
-export const RoleModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoleCreateInput,
-    GqlUpdate: RoleUpdateInput,
-    GqlModel: Role,
-    GqlPermission: object,
-    GqlSearch: RoleSearchInput,
-    GqlSort: RoleSortBy,
-    PrismaCreate: Prisma.roleUpsertArgs["create"],
-    PrismaUpdate: Prisma.roleUpsertArgs["update"],
-    PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
-    PrismaSelect: Prisma.roleSelect,
-    PrismaWhere: Prisma.roleWhereInput,
-}, typeof suppFields> = ({
+export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {

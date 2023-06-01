@@ -1,15 +1,13 @@
-import { MaxObjects, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, standardVersionValidation, VersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, standardVersionValidation, VersionYou } from "@local/shared";
 import { randomString } from "../auth/wallet";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType, SessionUserToken } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { sortify } from "../utils/objectTools";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
-import { ModelLogic } from "./types";
+import { ModelLogic, StandardVersionModelLogic } from "./types";
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -91,21 +89,7 @@ const querier = () => ({
 const __typename = "StandardVersion" as const;
 type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
-export const StandardVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: StandardVersionCreateInput,
-    GqlUpdate: StandardVersionUpdateInput,
-    GqlModel: StandardVersion,
-    GqlSearch: StandardVersionSearchInput,
-    GqlSort: StandardVersionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.standard_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.standard_versionUpsertArgs["update"],
-    PrismaModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
-    PrismaSelect: Prisma.standard_versionSelect,
-    PrismaWhere: Prisma.standard_versionWhereInput,
-}, typeof suppFields> = ({
+export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {

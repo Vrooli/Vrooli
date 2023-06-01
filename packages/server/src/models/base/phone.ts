@@ -1,29 +1,13 @@
-import { MaxObjects, Phone, PhoneCreateInput, phoneValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, phoneValidation } from "@local/shared";
 import { Trigger } from "../events";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ModelLogic, PhoneModelLogic } from "./types";
 
 const __typename = "Phone" as const;
 const suppFields = [] as const;
-export const PhoneModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: PhoneCreateInput,
-    GqlUpdate: undefined,
-    GqlModel: Phone,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.phoneUpsertArgs["create"],
-    PrismaUpdate: Prisma.phoneUpsertArgs["update"],
-    PrismaModel: Prisma.phoneGetPayload<SelectWrap<Prisma.phoneSelect>>,
-    PrismaSelect: Prisma.phoneSelect,
-    PrismaWhere: Prisma.phoneWhereInput,
-}, typeof suppFields> = ({
+export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.phone,
     display: {

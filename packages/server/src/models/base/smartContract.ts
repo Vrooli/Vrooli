@@ -1,7 +1,6 @@
-import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, smartContractValidation, SmartContractYou } from "@local/shared";
+import { MaxObjects, SmartContractSortBy, smartContractValidation, SmartContractYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
@@ -11,27 +10,13 @@ import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { SmartContractVersionModel } from "./smartContractVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, SmartContractModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "SmartContract" as const;
 type Permissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
-export const SmartContractModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: SmartContractCreateInput,
-    GqlUpdate: SmartContractUpdateInput,
-    GqlModel: SmartContract,
-    GqlSearch: SmartContractSearchInput,
-    GqlSort: SmartContractSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.smart_contractUpsertArgs["create"],
-    PrismaUpdate: Prisma.smart_contractUpsertArgs["update"],
-    PrismaModel: Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>,
-    PrismaSelect: Prisma.smart_contractSelect,
-    PrismaWhere: Prisma.smart_contractWhereInput,
-}, typeof suppFields> = ({
+export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract,
     display: rootObjectDisplay(SmartContractVersionModel),

@@ -1,32 +1,16 @@
-import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, noteVersionValidation, VersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, NoteVersionSortBy, noteVersionValidation, VersionYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { NoteModel } from "./note";
-import { ModelLogic } from "./types";
+import { ModelLogic, NoteVersionModelLogic } from "./types";
 
 const __typename = "NoteVersion" as const;
 type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
-export const NoteVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NoteVersionCreateInput,
-    GqlUpdate: NoteVersionUpdateInput,
-    GqlModel: NoteVersion,
-    GqlSearch: NoteVersionSearchInput,
-    GqlSort: NoteVersionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.note_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.note_versionUpsertArgs["update"],
-    PrismaModel: Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>,
-    PrismaSelect: Prisma.note_versionSelect,
-    PrismaWhere: Prisma.note_versionWhereInput,
-}, typeof suppFields> = ({
+export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: {

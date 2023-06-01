@@ -1,7 +1,6 @@
-import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, routineValidation, RoutineYou } from "@local/shared";
+import { MaxObjects, RoutineSortBy, routineValidation, RoutineYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
@@ -11,7 +10,7 @@ import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { RoutineVersionModel } from "./routineVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, RoutineModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
@@ -199,21 +198,7 @@ import { ViewModel } from "./view";
 const __typename = "Routine" as const;
 type Permissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
-export const RoutineModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: RoutineCreateInput,
-    GqlUpdate: RoutineUpdateInput,
-    GqlModel: Routine,
-    GqlSearch: RoutineSearchInput,
-    GqlSort: RoutineSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.routineUpsertArgs["create"],
-    PrismaUpdate: Prisma.routineUpsertArgs["update"],
-    PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
-    PrismaSelect: Prisma.routineSelect,
-    PrismaWhere: Prisma.routineWhereInput,
-}, typeof suppFields> = ({
+export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
     display: rootObjectDisplay(RoutineVersionModel),

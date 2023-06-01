@@ -1,32 +1,17 @@
-import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, runProjectValidation, RunProjectYou, RunStatus } from "@local/shared";
+import { MaxObjects, RunProjectSortBy, runProjectValidation, RunProjectYou, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";
-import { ModelLogic } from "./types";
+import { ModelLogic, RunProjectModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
 type Permissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
 const suppFields = ["you"] as const;
-export const RunProjectModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RunProjectCreateInput,
-    GqlUpdate: RunProjectUpdateInput,
-    GqlModel: RunProject,
-    GqlSearch: RunProjectSearchInput,
-    GqlSort: RunProjectSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.run_projectUpsertArgs["create"],
-    PrismaUpdate: Prisma.run_projectUpsertArgs["update"],
-    PrismaModel: Prisma.run_projectGetPayload<SelectWrap<Prisma.run_projectSelect>>,
-    PrismaSelect: Prisma.run_projectSelect,
-    PrismaWhere: Prisma.run_projectWhereInput,
-}, typeof suppFields> = ({
+export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project,
     display: {

@@ -1,28 +1,12 @@
-import { BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, bookmarkListValidation, MaxObjects } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { BookmarkListModelLogic, ModelLogic } from "./types";
 
 const __typename = "BookmarkList" as const;
 const suppFields = [] as const;
-export const BookmarkListModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: BookmarkListCreateInput,
-    GqlUpdate: BookmarkListUpdateInput,
-    GqlModel: BookmarkList,
-    GqlSearch: BookmarkListSearchInput,
-    GqlSort: BookmarkListSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.bookmark_listUpsertArgs["create"],
-    PrismaUpdate: Prisma.bookmark_listUpsertArgs["update"],
-    PrismaModel: Prisma.bookmark_listGetPayload<SelectWrap<Prisma.bookmark_listSelect>>,
-    PrismaSelect: Prisma.bookmark_listSelect,
-    PrismaWhere: Prisma.bookmark_listWhereInput,
-}, typeof suppFields> = ({
+export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.bookmark_list,
     display: {

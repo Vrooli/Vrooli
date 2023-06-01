@@ -1,30 +1,15 @@
-import { StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy } from "@local/shared";
+import { StatsOrganizationSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { ModelLogic, StatsOrganizationModelLogic } from "./types";
 
 const __typename = "StatsOrganization" as const;
 const suppFields = [] as const;
-export const StatsOrganizationModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: StatsOrganization,
-    GqlSearch: StatsOrganizationSearchInput,
-    GqlSort: StatsOrganizationSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.stats_organizationUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_organizationUpsertArgs["update"],
-    PrismaModel: Prisma.stats_organizationGetPayload<SelectWrap<Prisma.stats_organizationSelect>>,
-    PrismaSelect: Prisma.stats_organizationSelect,
-    PrismaWhere: Prisma.stats_organizationWhereInput,
-}, typeof suppFields> = ({
+export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.stats_organization,
     display: {

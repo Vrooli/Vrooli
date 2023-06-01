@@ -1,29 +1,13 @@
-import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, nodeLoopValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, nodeLoopValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { NodeModel } from "./node";
-import { ModelLogic } from "./types";
+import { ModelLogic, NodeLoopModelLogic } from "./types";
 
 const __typename = "NodeLoop" as const;
 const suppFields = [] as const;
-export const NodeLoopModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: NodeLoopCreateInput,
-    GqlUpdate: NodeLoopUpdateInput,
-    GqlModel: NodeLoop,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.node_loopUpsertArgs["create"],
-    PrismaUpdate: Prisma.node_loopUpsertArgs["update"],
-    PrismaModel: Prisma.node_loopGetPayload<SelectWrap<Prisma.node_loopSelect>>,
-    PrismaSelect: Prisma.node_loopSelect,
-    PrismaWhere: Prisma.node_loopWhereInput,
-}, typeof suppFields> = ({
+export const NodeLoopModel: ModelLogic<NodeLoopModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_loop,
     // Doesn't make sense to have a displayer for this model

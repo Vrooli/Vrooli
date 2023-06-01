@@ -1,27 +1,11 @@
-import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, NotificationSortBy } from "@local/shared";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
-import { ModelLogic } from "./types";
+import { ModelLogic, NotificationModelLogic } from "./types";
 
 const __typename = "Notification" as const;
 const suppFields = [] as const;
-export const NotificationModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Notification,
-    GqlSearch: NotificationSearchInput,
-    GqlSort: NotificationSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.notificationUpsertArgs["create"],
-    PrismaUpdate: Prisma.notificationUpsertArgs["update"],
-    PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,
-    PrismaSelect: Prisma.notificationSelect,
-    PrismaWhere: Prisma.notificationWhereInput,
-}, typeof suppFields> = ({
+export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification,
     display: {

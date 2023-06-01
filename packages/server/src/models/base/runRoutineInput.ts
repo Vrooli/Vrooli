@@ -1,30 +1,14 @@
-import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, runRoutineInputValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
 import { RoutineVersionInputModel } from ".";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic } from "./types";
+import { ModelLogic, RunRoutineInputModelLogic } from "./types";
 
 const __typename = "RunRoutineInput" as const;
 const suppFields = [] as const;
-export const RunRoutineInputModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RunRoutineInputCreateInput,
-    GqlUpdate: RunRoutineInputUpdateInput,
-    GqlModel: RunRoutineInput,
-    GqlSearch: RunRoutineInputSearchInput,
-    GqlSort: RunRoutineInputSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.run_routine_inputUpsertArgs["create"],
-    PrismaUpdate: Prisma.run_routine_inputUpsertArgs["update"],
-    PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
-    PrismaSelect: Prisma.run_routine_inputSelect,
-    PrismaWhere: Prisma.run_routine_inputWhereInput,
-}, typeof suppFields> = ({
+export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
     display: {

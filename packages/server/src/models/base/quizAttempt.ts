@@ -1,30 +1,14 @@
-import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, quizAttemptValidation, QuizAttemptYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { QuizAttemptSortBy, quizAttemptValidation, QuizAttemptYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { QuizModel } from "./quiz";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuizAttemptModelLogic } from "./types";
 
 const __typename = "QuizAttempt" as const;
 type Permissions = Pick<QuizAttemptYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
-export const QuizAttemptModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuizAttemptCreateInput,
-    GqlUpdate: QuizAttemptUpdateInput,
-    GqlModel: QuizAttempt,
-    GqlSearch: QuizAttemptSearchInput,
-    GqlSort: QuizAttemptSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.quiz_attemptUpsertArgs["create"],
-    PrismaUpdate: Prisma.quiz_attemptUpsertArgs["update"],
-    PrismaModel: Prisma.quiz_attemptGetPayload<SelectWrap<Prisma.quiz_attemptSelect>>,
-    PrismaSelect: Prisma.quiz_attemptSelect,
-    PrismaWhere: Prisma.quiz_attemptWhereInput,
-}, typeof suppFields> = ({
+export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_attempt,
     display: {

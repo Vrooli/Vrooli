@@ -1,7 +1,5 @@
-import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, userValidation, UserYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, UserSortBy, userValidation, UserYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
@@ -13,21 +11,7 @@ import { ViewModel } from "./view";
 const __typename = "User" as const;
 type Permissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
 const suppFields = ["you"] as const;
-export const UserModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: ProfileUpdateInput,
-    GqlModel: User,
-    GqlSearch: UserSearchInput,
-    GqlSort: UserSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.userUpsertArgs["create"],
-    PrismaUpdate: Prisma.userUpsertArgs["update"],
-    PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
-    PrismaSelect: Prisma.userSelect,
-    PrismaWhere: Prisma.userWhereInput,
-}, typeof suppFields> = ({
+export const UserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.user,
     display: {

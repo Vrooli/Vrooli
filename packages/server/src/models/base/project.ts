@@ -1,7 +1,6 @@
-import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, projectValidation, ProjectYou } from "@local/shared";
+import { MaxObjects, ProjectSortBy, projectValidation, ProjectYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
@@ -11,27 +10,13 @@ import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { ModelLogic, ProjectModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Project" as const;
 type Permissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
-export const ProjectModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: ProjectCreateInput,
-    GqlUpdate: ProjectUpdateInput,
-    GqlModel: Project,
-    GqlSearch: ProjectSearchInput,
-    GqlSort: ProjectSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.projectUpsertArgs["create"],
-    PrismaUpdate: Prisma.projectUpsertArgs["update"],
-    PrismaModel: Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
-    PrismaSelect: Prisma.projectSelect,
-    PrismaWhere: Prisma.projectWhereInput,
-}, typeof suppFields> = ({
+export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project,
     display: rootObjectDisplay(ProjectVersionModel),

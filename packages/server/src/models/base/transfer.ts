@@ -1,9 +1,8 @@
-import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, transferValidation, TransferYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, transferValidation, TransferYou } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { noNull, permissionsSelectHelper, selPad } from "../builders";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { PartialGraphQLInfo } from "../builders/types";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { Notify } from "../notify";
@@ -259,21 +258,7 @@ export const transfer = (prisma: PrismaType) => ({
     },
 });
 
-export const TransferModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: TransferUpdateInput,
-    GqlModel: Transfer,
-    GqlSearch: TransferSearchInput,
-    GqlSort: TransferSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.transferUpsertArgs["create"],
-    PrismaUpdate: Prisma.transferUpsertArgs["update"],
-    PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
-    PrismaSelect: Prisma.transferSelect,
-    PrismaWhere: Prisma.transferWhereInput,
-}, typeof suppFields> = ({
+export const TransferModel: ModelLogic<StatsTransferModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: {

@@ -1,32 +1,16 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, MaxObjects, uuidValidate } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
+import { ChatMessageSortBy, ChatMessageYou, MaxObjects, uuidValidate } from "@local/shared";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { ChatMessageModelLogic, ModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatMessage" as const;
 type Permissions = Pick<ChatMessageYou, "canDelete" | "canUpdate" | "canReply" | "canReport" | "canReact">;
 const suppFields = ["you"] as const;
-export const ChatMessageModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ChatMessageCreateInput,
-    GqlUpdate: ChatMessageUpdateInput,
-    GqlModel: ChatMessage,
-    GqlSearch: ChatMessageSearchInput,
-    GqlSort: ChatMessageSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.chat_messageUpsertArgs["create"],
-    PrismaUpdate: Prisma.chat_messageUpsertArgs["update"],
-    PrismaModel: Prisma.chat_messageGetPayload<SelectWrap<Prisma.chat_messageSelect>>,
-    PrismaSelect: Prisma.chat_messageSelect,
-    PrismaWhere: Prisma.chat_messageWhereInput,
-}, typeof suppFields> = ({
+export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.chat_message,
     display: {

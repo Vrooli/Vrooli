@@ -1,8 +1,7 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, bookmarkValidation, exists, GqlModelType, MaxObjects, uppercaseFirstLetter } from "@local/shared";
+import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, MaxObjects, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { Trigger } from "../events";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
@@ -14,7 +13,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { ModelLogic } from "./types";
+import { BookmarkModelLogic, ModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -36,21 +35,7 @@ const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create
 
 const __typename = "Bookmark" as const;
 const suppFields = [] as const;
-export const BookmarkModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: BookmarkCreateInput,
-    GqlUpdate: BookmarkUpdateInput,
-    GqlModel: Bookmark,
-    GqlSearch: BookmarkSearchInput,
-    GqlSort: BookmarkSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.bookmarkUpsertArgs["create"],
-    PrismaUpdate: Prisma.bookmarkUpsertArgs["update"],
-    PrismaModel: Prisma.bookmarkGetPayload<SelectWrap<Prisma.bookmarkSelect>>,
-    PrismaSelect: Prisma.bookmarkSelect,
-    PrismaWhere: Prisma.bookmarkWhereInput,
-}, typeof suppFields> = ({
+export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.bookmark,
     display: {

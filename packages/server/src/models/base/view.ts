@@ -1,8 +1,6 @@
-import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { Count, GqlModelType, ViewFor, ViewSortBy } from "@local/shared";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 import { onlyValidIds, selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { getLabels, getLogic } from "../getters";
 import { initializeRedis } from "../redisConn";
@@ -150,21 +148,7 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
 
 const __typename = "View" as const;
 const suppFields = [] as const;
-export const ViewModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: View,
-    GqlSearch: ViewSearchInput,
-    GqlSort: ViewSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.viewUpsertArgs["create"],
-    PrismaUpdate: Prisma.viewUpsertArgs["update"],
-    PrismaModel: Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>,
-    PrismaSelect: Prisma.viewSelect,
-    PrismaWhere: Prisma.viewWhereInput,
-}, typeof suppFields> = ({
+export const ViewModel: ModelLogic<StatsViewModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.view,
     display: {

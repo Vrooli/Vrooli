@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiKeyModel } from "./apiKey";
 import { ApiVersionModel } from "./apiVersion";
@@ -83,7 +84,6 @@ import { StatsStandardModel } from "./statsStandard";
 import { StatsUserModel } from "./statsUser";
 import { TagModel } from "./tag";
 import { TransferModel } from "./transfer";
-import { ModelLogic } from "./types";
 import { UserModel } from "./user";
 import { ViewModel } from "./view";
 import { WalletModel } from "./wallet";

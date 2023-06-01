@@ -1,7 +1,6 @@
-import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, quizValidation, QuizYou } from "@local/shared";
+import { MaxObjects, QuizSortBy, quizValidation, QuizYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
@@ -10,26 +9,12 @@ import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";
 import { ReactionModel } from "./reaction";
 import { RoutineModel } from "./routine";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuizModelLogic } from "./types";
 
 const __typename = "Quiz" as const;
 type Permissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-export const QuizModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuizCreateInput,
-    GqlUpdate: QuizUpdateInput,
-    GqlModel: Quiz,
-    GqlSearch: QuizSearchInput,
-    GqlSort: QuizSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.quizUpsertArgs["create"],
-    PrismaUpdate: Prisma.quizUpsertArgs["update"],
-    PrismaModel: Prisma.quizGetPayload<SelectWrap<Prisma.quizSelect>>,
-    PrismaSelect: Prisma.quizSelect,
-    PrismaWhere: Prisma.quizWhereInput,
-}, typeof suppFields> = ({
+export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz,
     display: {

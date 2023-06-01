@@ -1,34 +1,19 @@
-import { exists, MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, organizationValidation, OrganizationYou, uuid } from "@local/shared";
-import { Prisma, role } from "@prisma/client";
+import { exists, MaxObjects, OrganizationSortBy, organizationValidation, OrganizationYou, uuid } from "@local/shared";
+import { role } from "@prisma/client";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
 import { BookmarkModel } from "./bookmark";
-import { ModelLogic } from "./types";
+import { ModelLogic, OrganizationModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Organization" as const;
 type Permissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
 const suppFields = ["you", "translatedName"] as const;
-export const OrganizationModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: OrganizationCreateInput,
-    GqlUpdate: OrganizationUpdateInput,
-    GqlModel: Organization,
-    GqlSearch: OrganizationSearchInput,
-    GqlSort: OrganizationSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.organizationUpsertArgs["create"],
-    PrismaUpdate: Prisma.organizationUpsertArgs["update"],
-    PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
-    PrismaSelect: Prisma.organizationSelect,
-    PrismaWhere: Prisma.organizationWhereInput,
-}, typeof suppFields> = ({
+export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.organization,
     display: {

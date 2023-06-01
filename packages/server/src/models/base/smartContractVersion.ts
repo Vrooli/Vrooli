@@ -1,32 +1,16 @@
-import { MaxObjects, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, smartContractVersionValidation, VersionYou } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation, VersionYou } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
 import { preShapeVersion } from "../utils/preShapeVersion";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { SmartContractModel } from "./smartContract";
-import { ModelLogic } from "./types";
+import { ModelLogic, SmartContractVersionModelLogic } from "./types";
 
 const __typename = "SmartContractVersion" as const;
 type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
-export const SmartContractVersionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: SmartContractVersionCreateInput,
-    GqlUpdate: SmartContractVersionUpdateInput,
-    GqlModel: SmartContractVersion,
-    GqlSearch: SmartContractVersionSearchInput,
-    GqlSort: SmartContractVersionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.smart_contract_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.smart_contract_versionUpsertArgs["update"],
-    PrismaModel: Prisma.smart_contract_versionGetPayload<SelectWrap<Prisma.smart_contract_versionSelect>>,
-    PrismaSelect: Prisma.smart_contract_versionSelect,
-    PrismaWhere: Prisma.smart_contract_versionWhereInput,
-}, typeof suppFields> = ({
+export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract_version,
     display: {

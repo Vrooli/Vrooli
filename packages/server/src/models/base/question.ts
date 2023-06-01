@@ -1,14 +1,13 @@
-import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, questionValidation, QuestionYou } from "@local/shared";
+import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation, QuestionYou } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { noNull } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
 import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
-import { ModelLogic } from "./types";
+import { ModelLogic, QuestionModelLogic } from "./types";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
@@ -23,21 +22,7 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["cr
 const __typename = "Question" as const;
 type Permissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
-export const QuestionModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: QuestionCreateInput,
-    GqlUpdate: QuestionUpdateInput,
-    GqlModel: Question,
-    GqlSearch: QuestionSearchInput,
-    GqlSort: QuestionSortBy,
-    GqlPermission: Permissions,
-    PrismaCreate: Prisma.questionUpsertArgs["create"],
-    PrismaUpdate: Prisma.questionUpsertArgs["update"],
-    PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,
-    PrismaSelect: Prisma.questionSelect,
-    PrismaWhere: Prisma.questionWhereInput,
-}, typeof suppFields> = ({
+export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.question,
     display: {

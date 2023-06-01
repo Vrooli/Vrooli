@@ -1,6 +1,5 @@
-import { MaxObjects, Wallet, WalletUpdateInput, walletValidation } from "@local/shared";
+import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
@@ -9,21 +8,7 @@ import { ModelLogic } from "./types";
 
 const __typename = "Wallet" as const;
 const suppFields = [] as const;
-export const WalletModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: WalletUpdateInput,
-    GqlModel: Wallet,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.walletUpsertArgs["create"],
-    PrismaUpdate: Prisma.walletUpsertArgs["update"],
-    PrismaModel: Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
-    PrismaSelect: Prisma.walletSelect,
-    PrismaWhere: Prisma.walletWhereInput,
-}, typeof suppFields> = ({
+export const WalletModel: ModelLogic<StatsWalletModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: {

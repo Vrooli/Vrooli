@@ -1,29 +1,13 @@
-import { MaxObjects, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, reminderItemValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, reminderItemValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
 import { ReminderModel } from "./reminder";
-import { ModelLogic } from "./types";
+import { ModelLogic, ReminderItemModelLogic } from "./types";
 
 const __typename = "ReminderItem" as const;
 const suppFields = [] as const;
-export const ReminderItemModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: ReminderItemCreateInput,
-    GqlUpdate: ReminderItemUpdateInput,
-    GqlModel: ReminderItem,
-    GqlPermission: object,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.reminder_itemUpsertArgs["create"],
-    PrismaUpdate: Prisma.reminder_itemUpsertArgs["update"],
-    PrismaModel: Prisma.reminder_itemGetPayload<SelectWrap<Prisma.reminder_itemSelect>>,
-    PrismaSelect: Prisma.reminder_itemSelect,
-    PrismaWhere: Prisma.reminder_itemWhereInput,
-}, typeof suppFields> = ({
+export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.reminder_item,
     display: {

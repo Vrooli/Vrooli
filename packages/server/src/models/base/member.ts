@@ -1,30 +1,14 @@
-import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MemberSortBy } from "@local/shared";
 import { selPad } from "../builders";
-import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";
-import { ModelLogic } from "./types";
+import { MemberModelLogic, ModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "Member" as const;
 const suppFields = [] as const;
-export const MemberModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: MemberUpdateInput,
-    GqlModel: Member,
-    GqlSearch: MemberSearchInput,
-    GqlSort: MemberSortBy,
-    GqlPermission: object,
-    PrismaCreate: Prisma.memberUpsertArgs["create"],
-    PrismaUpdate: Prisma.memberUpsertArgs["update"],
-    PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,
-    PrismaSelect: Prisma.memberSelect,
-    PrismaWhere: Prisma.memberWhereInput,
-}, typeof suppFields> = ({
+export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.member,
     display: {
