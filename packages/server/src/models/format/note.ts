@@ -1,47 +1,42 @@
-import { ModelApiLogic } from "../base";
 import { Formatter } from "../types";
 
-const __typename = "Api" as const;
-export const ApiFormat: Formatter<ModelApiLogic> = {
+const __typename = "Note" as const;
+export const NoteFormat: Formatter<ModelNoteLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",
+        issues: "Issue",
+        labels: "Label",
         owner: {
             ownedByUser: "User",
             ownedByOrganization: "Organization",
         },
-        parent: "Api",
-        tags: "Tag",
-        versions: "ApiVersion",
-        labels: "Label",
-        issues: "Issue",
+        parent: "Note",
         pullRequests: "PullRequest",
         questions: "Question",
         bookmarkedBy: "User",
-        stats: "StatsApi",
+        tags: "Tag",
         transfers: "Transfer",
+        versions: "NoteVersion",
     },
     prismaRelMap: {
         __typename,
+        parent: "NoteVersion",
         createdBy: "User",
         ownedByUser: "User",
         ownedByOrganization: "Organization",
-        parent: "ApiVersion",
-        tags: "Tag",
-        issues: "Issue",
-        bookmarkedBy: "User",
-        reactions: "Reaction",
-        viewedBy: "View",
+        versions: "NoteVersion",
         pullRequests: "PullRequest",
-        versions: "ApiVersion",
         labels: "Label",
-        stats: "StatsApi",
+        issues: "Issue",
+        tags: "Tag",
+        bookmarkedBy: "User",
         questions: "Question",
-        transfers: "Transfer",
     },
     joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
     countFields: {
         issuesCount: true,
+        labelsCount: true,
         pullRequestsCount: true,
         questionsCount: true,
         transfersCount: true,

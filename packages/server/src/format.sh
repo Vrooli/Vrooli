@@ -14,7 +14,7 @@ for file in models/base/*.ts; do
     typename=$(grep "^const __typename" "$file")
 
     # Extract the format section
-    format=$(awk '/format: {/{flag=1; count=1; next} flag && /{/{count+=gsub(/{/,"")} flag && /}/{count-=gsub(/}/,"")} flag && count>=0{print}' "$file")
+    format=$(awk '/format: {/{flag=1; count=1; next} flag && /{/{count++} flag && /}/{count--} flag && count>=0{print}' "$file")
 
     # Write to the format file
     echo "import { Formatter } from \"../types\";" >>"models/format/$filename.ts"

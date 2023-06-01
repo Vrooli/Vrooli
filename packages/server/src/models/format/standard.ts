@@ -1,46 +1,43 @@
-import { ModelApiLogic } from "../base";
 import { Formatter } from "../types";
 
-const __typename = "Api" as const;
-export const ApiFormat: Formatter<ModelApiLogic> = {
+const __typename = "Standard" as const;
+export const StandardFormat: Formatter<ModelStandardLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",
+        issues: "Issue",
+        labels: "Label",
         owner: {
             ownedByUser: "User",
             ownedByOrganization: "Organization",
         },
-        parent: "Api",
-        tags: "Tag",
-        versions: "ApiVersion",
-        labels: "Label",
-        issues: "Issue",
+        parent: "Project",
         pullRequests: "PullRequest",
         questions: "Question",
         bookmarkedBy: "User",
-        stats: "StatsApi",
+        tags: "Tag",
         transfers: "Transfer",
+        versions: "StandardVersion",
     },
     prismaRelMap: {
         __typename,
         createdBy: "User",
-        ownedByUser: "User",
         ownedByOrganization: "Organization",
-        parent: "ApiVersion",
-        tags: "Tag",
+        ownedByUser: "User",
         issues: "Issue",
-        bookmarkedBy: "User",
-        reactions: "Reaction",
-        viewedBy: "View",
-        pullRequests: "PullRequest",
-        versions: "ApiVersion",
         labels: "Label",
-        stats: "StatsApi",
+        parent: "StandardVersion",
+        tags: "Tag",
+        bookmarkedBy: "User",
+        versions: "StandardVersion",
+        pullRequests: "PullRequest",
+        stats: "StatsStandard",
         questions: "Question",
         transfers: "Transfer",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
+    joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
     countFields: {
+        forksCount: true,
         issuesCount: true,
         pullRequestsCount: true,
         questionsCount: true,

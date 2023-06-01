@@ -8,3 +8,33 @@ import { ApiFormat } from "./api";
 export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     Api: ApiFormat,
 };
+import { Formatter } from "../types";
+
+
+export const IndexFormat: Formatter<ModelIndexLogic> = {
+
+};
+import { Formatter } from "../types";
+
+
+export const IndexFormat: Formatter<ModelIndexLogic> = {
+
+};
+import { Formatter } from "../types";
+
+
+export const IndexFormat: Formatter<ModelIndexLogic> = {
+
+};
+import { Formatter } from "../types";
+
+
+export const IndexFormat: Formatter<ModelIndexLogic> = {
+
+};
+import { Formatter } from "../types";
+
+
+export const IndexFormat: Formatter<ModelIndexLogic> = {
+
+};

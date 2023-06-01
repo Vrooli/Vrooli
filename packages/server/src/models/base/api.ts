@@ -1,20 +1,37 @@
-import { ApiSortBy, apiValidation, ApiYou, MaxObjects } from "@local/shared";
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, apiValidation, ApiYou, MaxObjects } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import { noNull, shapeHelper } from "../builders";
-import { ApiFormat } from "../format/api";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
 import { BookmarkModel } from "./bookmark";
+import { ApiFormat } from "./format/api";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
-import { ModelApiLogic, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Api" as const;
 type Permissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
+export type ModelApiLogic = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: ApiCreateInput,
+    GqlUpdate: ApiUpdateInput,
+    GqlModel: Api,
+    GqlPermission: Permissions,
+    GqlSearch: ApiSearchInput,
+    GqlSort: ApiSortBy,
+    PrismaCreate: Prisma.apiUpsertArgs["create"],
+    PrismaUpdate: Prisma.apiUpsertArgs["update"],
+    PrismaModel: Prisma.apiGetPayload<SelectWrap<Prisma.apiSelect>>,
+    PrismaSelect: Prisma.apiSelect,
+    PrismaWhere: Prisma.apiWhereInput,
+}
 export const ApiModel: ModelLogic<ModelApiLogic, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api,
