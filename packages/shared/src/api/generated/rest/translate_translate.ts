@@ -266,4 +266,4 @@ export const translate_translate = {
   "path": {
     "key": "translate_translate"
   }
-};
+} as const;

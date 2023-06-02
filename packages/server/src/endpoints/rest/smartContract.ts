@@ -13,4 +13,4 @@ export const SmartContractRest = setupRoutes({
     "/smartContract": {
         post: [SmartContractEndpoints.Mutation.smartContractCreate, smartContract_create],
     },
-} as const);
+});

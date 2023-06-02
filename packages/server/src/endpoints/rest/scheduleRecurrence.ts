@@ -13,4 +13,4 @@ export const ScheduleRecurrenceRest = setupRoutes({
     "/scheduleRecurrence": {
         post: [ScheduleRecurrenceEndpoints.Mutation.scheduleRecurrenceCreate, scheduleRecurrence_create],
     },
-} as const);
+});

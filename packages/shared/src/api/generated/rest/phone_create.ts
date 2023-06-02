@@ -3,4 +3,4 @@ export const phone_create = {
   "phoneNumber": true,
   "verified": true,
   "__typename": "Phone"
-};
+} as const;

@@ -232,4 +232,4 @@ export const deleteOneOrMany_deleteOne = {
   "path": {
     "key": "deleteOneOrMany_deleteOne"
   }
-};
+} as const;

@@ -68,4 +68,4 @@ export const quizQuestionResponse_update = {
     "canUpdate": true
   },
   "__typename": "QuizQuestionResponse"
-};
+} as const;

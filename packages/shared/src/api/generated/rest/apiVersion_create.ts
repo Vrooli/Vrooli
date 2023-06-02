@@ -146,4 +146,4 @@ export const apiVersion_create = {
     "canRead": true
   },
   "__typename": "ApiVersion"
-};
+} as const;

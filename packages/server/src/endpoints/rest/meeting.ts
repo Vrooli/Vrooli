@@ -13,4 +13,4 @@ export const MeetingRest = setupRoutes({
     "/meeting": {
         post: [MeetingEndpoints.Mutation.meetingCreate, meeting_create],
     },
-} as const);
+});

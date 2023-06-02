@@ -7222,4 +7222,4 @@ export const auth_logOut = {
   "path": {
     "key": "auth_logOut"
   }
-};
+} as const;

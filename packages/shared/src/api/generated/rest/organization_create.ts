@@ -94,4 +94,4 @@ export const organization_create = {
     }
   },
   "__typename": "Organization"
-};
+} as const;

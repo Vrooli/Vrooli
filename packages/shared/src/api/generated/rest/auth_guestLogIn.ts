@@ -7114,4 +7114,4 @@ export const auth_guestLogIn = {
   "path": {
     "key": "auth_guestLogIn"
   }
-};
+} as const;

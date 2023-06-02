@@ -567,4 +567,4 @@ export const transfer_transferAccept = {
     "canUpdate": true
   },
   "__typename": "Transfer"
-};
+} as const;

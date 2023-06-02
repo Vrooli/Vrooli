@@ -133,4 +133,4 @@ export const note_create = {
     "reaction": true
   },
   "__typename": "Note"
-};
+} as const;

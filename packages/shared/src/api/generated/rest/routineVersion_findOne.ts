@@ -195,4 +195,4 @@ export const routineVersion_findOne = {
     "canReact": true
   },
   "__typename": "RoutineVersion"
-};
+} as const;

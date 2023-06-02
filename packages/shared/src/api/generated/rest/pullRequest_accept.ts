@@ -24,4 +24,4 @@ export const pullRequest_accept = {
     "canUpdate": true
   },
   "__typename": "PullRequest"
-};
+} as const;

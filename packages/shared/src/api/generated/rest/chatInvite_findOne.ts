@@ -167,4 +167,4 @@ export const chatInvite_findOne = {
     "canUpdate": true
   },
   "__typename": "ChatInvite"
-};
+} as const;

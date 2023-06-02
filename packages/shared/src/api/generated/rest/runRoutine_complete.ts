@@ -170,4 +170,4 @@ export const runRoutine_complete = {
     "canRead": true
   },
   "__typename": "RunRoutine"
-};
+} as const;

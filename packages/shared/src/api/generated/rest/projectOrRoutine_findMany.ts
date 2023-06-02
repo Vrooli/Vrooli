@@ -4260,4 +4260,4 @@ export const projectOrRoutine_findMany = {
   "path": {
     "key": "projectOrRoutine_findMany"
   }
-};
+} as const;

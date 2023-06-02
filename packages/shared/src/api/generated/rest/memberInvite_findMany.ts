@@ -47,4 +47,4 @@ export const memberInvite_findMany = {
     "hasNextPage": true
   },
   "__typename": "MemberInvite"
-};
+} as const;

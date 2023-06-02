@@ -170,4 +170,4 @@ export const runRoutine_cancel = {
     "canRead": true
   },
   "__typename": "RunRoutine"
-};
+} as const;

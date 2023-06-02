@@ -135,4 +135,4 @@ export const meetingInvite_findMany = {
     "hasNextPage": true
   },
   "__typename": "MeetingInvite"
-};
+} as const;

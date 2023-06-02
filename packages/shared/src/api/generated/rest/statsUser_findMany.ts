@@ -37,4 +37,4 @@ export const statsUser_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsUser"
-};
+} as const;

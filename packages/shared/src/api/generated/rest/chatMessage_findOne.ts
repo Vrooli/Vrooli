@@ -167,4 +167,4 @@ export const chatMessage_findOne = {
     "reaction": true
   },
   "__typename": "ChatMessage"
-};
+} as const;

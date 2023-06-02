@@ -13,4 +13,4 @@ export const ChatRest = setupRoutes({
     "/chat": {
         post: [ChatEndpoints.Mutation.chatCreate, chat_create],
     },
-} as const);
+});

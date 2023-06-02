@@ -161,4 +161,4 @@ export const member_update = {
     "__typename": "Role"
   },
   "__typename": "Member"
-};
+} as const;

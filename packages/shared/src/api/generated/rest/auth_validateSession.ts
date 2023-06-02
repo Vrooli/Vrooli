@@ -7222,4 +7222,4 @@ export const auth_validateSession = {
   "path": {
     "key": "auth_validateSession"
   }
-};
+} as const;

@@ -390,4 +390,4 @@ export const project_findOne = {
     "reaction": true
   },
   "__typename": "Project"
-};
+} as const;

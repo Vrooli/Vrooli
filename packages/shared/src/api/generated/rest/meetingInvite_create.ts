@@ -144,4 +144,4 @@ export const meetingInvite_create = {
     "canUpdate": true
   },
   "__typename": "MeetingInvite"
-};
+} as const;

@@ -98,4 +98,4 @@ export const focusMode_findOne = {
   "name": true,
   "description": true,
   "__typename": "FocusMode"
-};
+} as const;

@@ -289,4 +289,4 @@ export const routine_update = {
     "reaction": true
   },
   "__typename": "Routine"
-};
+} as const;

@@ -13,4 +13,4 @@ export const SmartContractVersionRest = setupRoutes({
     "/smartContractVersion": {
         post: [SmartContractVersionEndpoints.Mutation.smartContractVersionCreate, smartContractVersion_create],
     },
-} as const);
+});

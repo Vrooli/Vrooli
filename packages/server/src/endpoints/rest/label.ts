@@ -13,4 +13,4 @@ export const LabelRest = setupRoutes({
     "/label": {
         post: [LabelEndpoints.Mutation.labelCreate, label_create],
     },
-} as const);
+});

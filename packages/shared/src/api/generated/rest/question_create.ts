@@ -159,4 +159,4 @@ export const question_create = {
   },
   "you": {},
   "__typename": "Question"
-};
+} as const;

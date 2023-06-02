@@ -94,4 +94,4 @@ export const organization_update = {
     }
   },
   "__typename": "Organization"
-};
+} as const;

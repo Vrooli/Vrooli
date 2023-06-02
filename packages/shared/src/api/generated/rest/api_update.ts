@@ -146,4 +146,4 @@ export const api_update = {
     "reaction": true
   },
   "__typename": "Api"
-};
+} as const;

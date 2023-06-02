@@ -18,4 +18,4 @@ export const chatParticipant_findMany = {
     "hasNextPage": true
   },
   "__typename": "ChatParticipant"
-};
+} as const;

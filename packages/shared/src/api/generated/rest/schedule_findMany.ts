@@ -31,4 +31,4 @@ export const schedule_findMany = {
     "hasNextPage": true
   },
   "__typename": "Schedule"
-};
+} as const;

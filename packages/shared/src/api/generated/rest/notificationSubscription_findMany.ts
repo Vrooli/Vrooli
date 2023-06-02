@@ -959,4 +959,4 @@ export const notificationSubscription_findMany = {
     "hasNextPage": true
   },
   "__typename": "NotificationSubscription"
-};
+} as const;

@@ -124,4 +124,4 @@ export const meeting_findMany = {
     "hasNextPage": true
   },
   "__typename": "Meeting"
-};
+} as const;

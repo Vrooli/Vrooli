@@ -153,4 +153,4 @@ export const questionAnswer_create = {
   "isAccepted": true,
   "commentsCount": true,
   "__typename": "QuestionAnswer"
-};
+} as const;

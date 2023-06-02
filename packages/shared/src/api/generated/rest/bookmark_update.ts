@@ -891,4 +891,4 @@ export const bookmark_update = {
     }
   },
   "__typename": "Bookmark"
-};
+} as const;

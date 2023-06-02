@@ -38,4 +38,4 @@ export const projectVersionDirectory_findMany = {
     "hasNextPage": true
   },
   "__typename": "ProjectVersionDirectory"
-};
+} as const;

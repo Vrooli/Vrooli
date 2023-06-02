@@ -175,4 +175,4 @@ export const routineVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "RoutineVersion"
-};
+} as const;

@@ -28,4 +28,4 @@ export const user_findMany = {
     "hasNextPage": true
   },
   "__typename": "User"
-};
+} as const;

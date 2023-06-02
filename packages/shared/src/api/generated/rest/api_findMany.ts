@@ -92,4 +92,4 @@ export const api_findMany = {
     "hasNextPage": true
   },
   "__typename": "Api"
-};
+} as const;

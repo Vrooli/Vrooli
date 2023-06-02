@@ -32,4 +32,4 @@ export const pullRequest_findMany = {
     "hasNextPage": true
   },
   "__typename": "PullRequest"
-};
+} as const;

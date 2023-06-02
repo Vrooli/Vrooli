@@ -146,4 +146,4 @@ export const apiVersion_findOne = {
     "canRead": true
   },
   "__typename": "ApiVersion"
-};
+} as const;

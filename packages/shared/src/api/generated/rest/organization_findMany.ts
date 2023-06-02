@@ -43,4 +43,4 @@ export const organization_findMany = {
     "hasNextPage": true
   },
   "__typename": "Organization"
-};
+} as const;

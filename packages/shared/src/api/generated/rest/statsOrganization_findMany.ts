@@ -20,4 +20,4 @@ export const statsOrganization_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsOrganization"
-};
+} as const;

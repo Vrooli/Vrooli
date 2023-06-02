@@ -303,4 +303,4 @@ export const comment_update = {
     "reaction": true
   },
   "__typename": "Comment"
-};
+} as const;

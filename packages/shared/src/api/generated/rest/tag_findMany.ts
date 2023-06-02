@@ -22,4 +22,4 @@ export const tag_findMany = {
     "hasNextPage": true
   },
   "__typename": "Tag"
-};
+} as const;

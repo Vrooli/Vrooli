@@ -50,4 +50,4 @@ export const label_create = {
     "canUpdate": true
   },
   "__typename": "Label"
-};
+} as const;

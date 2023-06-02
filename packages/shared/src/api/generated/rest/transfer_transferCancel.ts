@@ -567,4 +567,4 @@ export const transfer_transferCancel = {
     "canUpdate": true
   },
   "__typename": "Transfer"
-};
+} as const;

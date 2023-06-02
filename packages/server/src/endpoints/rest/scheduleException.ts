@@ -13,4 +13,4 @@ export const ScheduleExceptionRest = setupRoutes({
     "/scheduleException": {
         post: [ScheduleExceptionEndpoints.Mutation.scheduleExceptionCreate, scheduleException_create],
     },
-} as const);
+});

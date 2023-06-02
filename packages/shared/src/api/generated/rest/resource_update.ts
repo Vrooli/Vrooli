@@ -10,4 +10,4 @@ export const resource_update = {
     "name": true
   },
   "__typename": "Resource"
-};
+} as const;

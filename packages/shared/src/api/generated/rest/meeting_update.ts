@@ -144,4 +144,4 @@ export const meeting_update = {
     "canUpdate": true
   },
   "__typename": "Meeting"
-};
+} as const;

@@ -88,4 +88,4 @@ export const note_findMany = {
     "hasNextPage": true
   },
   "__typename": "Note"
-};
+} as const;

@@ -29,4 +29,4 @@ export const resourceList_findMany = {
     "hasNextPage": true
   },
   "__typename": "ResourceList"
-};
+} as const;

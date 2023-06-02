@@ -180,4 +180,4 @@ export const auth_walletInit = {
   "path": {
     "key": "auth_walletInit"
   }
-};
+} as const;

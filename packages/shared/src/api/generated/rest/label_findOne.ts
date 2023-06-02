@@ -50,4 +50,4 @@ export const label_findOne = {
     "canUpdate": true
   },
   "__typename": "Label"
-};
+} as const;

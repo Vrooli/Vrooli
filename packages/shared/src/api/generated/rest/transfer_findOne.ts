@@ -567,4 +567,4 @@ export const transfer_findOne = {
     "canUpdate": true
   },
   "__typename": "Transfer"
-};
+} as const;

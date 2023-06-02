@@ -4189,4 +4189,4 @@ export const feed_home = {
   "path": {
     "key": "feed_home"
   }
-};
+} as const;

@@ -105,4 +105,4 @@ export const member_findMany = {
     "hasNextPage": true
   },
   "__typename": "Member"
-};
+} as const;

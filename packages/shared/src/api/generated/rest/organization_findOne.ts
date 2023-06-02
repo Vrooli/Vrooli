@@ -94,4 +94,4 @@ export const organization_findOne = {
     }
   },
   "__typename": "Organization"
-};
+} as const;

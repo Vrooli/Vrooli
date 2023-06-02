@@ -171,4 +171,4 @@ export const user_profile = {
     "isViewed": true
   },
   "__typename": "User"
-};
+} as const;

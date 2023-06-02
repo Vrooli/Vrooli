@@ -303,4 +303,4 @@ export const comment_findOne = {
     "reaction": true
   },
   "__typename": "Comment"
-};
+} as const;

@@ -13,4 +13,4 @@ export const RoleRest = setupRoutes({
     "/role": {
         post: [RoleEndpoints.Mutation.roleCreate, role_create],
     },
-} as const);
+});

@@ -15,4 +15,4 @@ export const statsApi_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsApi"
-};
+} as const;

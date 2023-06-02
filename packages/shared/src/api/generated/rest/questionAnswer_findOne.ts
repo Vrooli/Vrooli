@@ -153,4 +153,4 @@ export const questionAnswer_findOne = {
   "isAccepted": true,
   "commentsCount": true,
   "__typename": "QuestionAnswer"
-};
+} as const;

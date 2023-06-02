@@ -390,4 +390,4 @@ export const projectVersion_findOne = {
     "canRead": true
   },
   "__typename": "ProjectVersion"
-};
+} as const;

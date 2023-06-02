@@ -38,4 +38,4 @@ export const post_create = {
   "bookmarks": true,
   "views": true,
   "__typename": "Post"
-};
+} as const;

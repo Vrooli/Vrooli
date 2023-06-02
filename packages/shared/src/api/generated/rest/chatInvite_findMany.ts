@@ -132,4 +132,4 @@ export const chatInvite_findMany = {
     "hasNextPage": true
   },
   "__typename": "ChatInvite"
-};
+} as const;

@@ -15,4 +15,4 @@ export const statsSmartContract_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsSmartContract"
-};
+} as const;

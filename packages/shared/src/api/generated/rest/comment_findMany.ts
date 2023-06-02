@@ -170,4 +170,4 @@ export const comment_findMany = {
   },
   "totalThreads": true,
   "__typename": "Comment"
-};
+} as const;

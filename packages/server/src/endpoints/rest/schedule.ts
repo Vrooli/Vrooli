@@ -13,4 +13,4 @@ export const ScheduleRest = setupRoutes({
     "/schedule": {
         post: [ScheduleEndpoints.Mutation.scheduleCreate, schedule_create],
     },
-} as const);
+});

@@ -254,4 +254,4 @@ export const node_create = {
     "__typename": "RoutineVersion"
   },
   "__typename": "Node"
-};
+} as const;

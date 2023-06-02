@@ -26,4 +26,4 @@ export const schedule_findOne = {
     "__typename": "ScheduleRecurrence"
   },
   "__typename": "Schedule"
-};
+} as const;

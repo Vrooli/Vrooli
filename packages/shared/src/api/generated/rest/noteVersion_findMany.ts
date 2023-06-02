@@ -88,4 +88,4 @@ export const noteVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "NoteVersion"
-};
+} as const;

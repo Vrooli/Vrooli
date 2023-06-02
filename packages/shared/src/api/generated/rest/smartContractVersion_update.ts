@@ -171,4 +171,4 @@ export const smartContractVersion_update = {
     "canRead": true
   },
   "__typename": "SmartContractVersion"
-};
+} as const;

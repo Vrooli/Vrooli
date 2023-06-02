@@ -567,4 +567,4 @@ export const transfer_requestSend = {
     "canUpdate": true
   },
   "__typename": "Transfer"
-};
+} as const;

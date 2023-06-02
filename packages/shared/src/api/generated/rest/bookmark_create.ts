@@ -891,4 +891,4 @@ export const bookmark_create = {
     }
   },
   "__typename": "Bookmark"
-};
+} as const;

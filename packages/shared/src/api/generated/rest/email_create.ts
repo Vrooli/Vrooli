@@ -3,4 +3,4 @@ export const email_create = {
   "emailAddress": true,
   "verified": true,
   "__typename": "Email"
-};
+} as const;

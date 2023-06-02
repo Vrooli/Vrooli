@@ -90,4 +90,4 @@ export const focusMode_setActive = {
   "stopCondition": true,
   "stopTime": true,
   "__typename": "FocusMode"
-};
+} as const;

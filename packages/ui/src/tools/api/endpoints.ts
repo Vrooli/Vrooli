@@ -681,10 +681,10 @@ export const endpoints = {
             findMany: toQuery("transfers", "TransferSearchInput", ...(await toSearch(transferPartial))),
             requestSend: toMutation("transferRequestSend", "TransferRequestSendInput", transferPartial, "full"),
             requestReceive: toMutation("transferRequestReceive", "TransferRequestReceiveInput", transferPartial, "full"),
-            transferUpdate: toMutation("transferUpdate", "TransferUpdateInput", transferPartial, "full"),
-            transferCancel: toMutation("transferCancel", "FindByIdInput", transferPartial, "full"),
-            transferAccept: toMutation("transferAccept", "FindByIdInput", transferPartial, "full"),
-            transferDeny: toMutation("transferDeny", "TransferDenyInput", transferPartial, "full"),
+            update: toMutation("transferUpdate", "TransferUpdateInput", transferPartial, "full"),
+            cancel: toMutation("transferCancel", "FindByIdInput", transferPartial, "full"),
+            accept: toMutation("transferAccept", "FindByIdInput", transferPartial, "full"),
+            deny: toMutation("transferDeny", "TransferDenyInput", transferPartial, "full"),
         };
     },
     translate: async () => {

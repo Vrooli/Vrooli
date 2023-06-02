@@ -13,4 +13,4 @@ export const PullRequestRest = setupRoutes({
     "/pullRequest": {
         post: [PullRequestEndpoints.Mutation.pullRequestCreate, pullRequest_create],
     },
-} as const);
+});

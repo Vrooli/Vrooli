@@ -1043,4 +1043,4 @@ export const notificationSubscription_update = {
     }
   },
   "__typename": "NotificationSubscription"
-};
+} as const;

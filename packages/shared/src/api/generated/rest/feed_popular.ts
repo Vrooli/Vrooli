@@ -11281,4 +11281,4 @@ export const feed_popular = {
   "path": {
     "key": "feed_popular"
   }
-};
+} as const;

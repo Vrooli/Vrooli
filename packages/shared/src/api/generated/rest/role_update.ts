@@ -55,4 +55,4 @@ export const role_update = {
     "description": true
   },
   "__typename": "Role"
-};
+} as const;

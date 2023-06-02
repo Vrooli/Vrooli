@@ -24,4 +24,4 @@ export const pullRequest_findOne = {
     "canUpdate": true
   },
   "__typename": "PullRequest"
-};
+} as const;

@@ -167,4 +167,4 @@ export const chatInvite_accept = {
     "canUpdate": true
   },
   "__typename": "ChatInvite"
-};
+} as const;

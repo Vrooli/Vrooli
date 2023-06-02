@@ -26,4 +26,4 @@ export const scheduleException_update = {
   "newStartTime": true,
   "newEndTime": true,
   "__typename": "ScheduleException"
-};
+} as const;

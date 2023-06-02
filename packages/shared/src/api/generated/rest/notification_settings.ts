@@ -16,4 +16,4 @@ export const notification_settings = {
     "toPush": true
   },
   "__typename": "Notification"
-};
+} as const;

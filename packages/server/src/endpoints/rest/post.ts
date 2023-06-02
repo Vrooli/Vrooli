@@ -13,4 +13,4 @@ export const PostRest = setupRoutes({
     "/post": {
         post: [PostEndpoints.Mutation.postCreate, post_create],
     },
-} as const);
+});

@@ -10,4 +10,4 @@ export const chatParticipant_findOne = {
   "created_at": true,
   "updated_at": true,
   "__typename": "ChatParticipant"
-};
+} as const;

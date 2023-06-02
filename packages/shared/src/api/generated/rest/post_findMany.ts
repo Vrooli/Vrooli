@@ -45,4 +45,4 @@ export const post_findMany = {
     "hasNextPage": true
   },
   "__typename": "Post"
-};
+} as const;

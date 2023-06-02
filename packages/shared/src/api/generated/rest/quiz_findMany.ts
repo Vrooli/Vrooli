@@ -47,4 +47,4 @@ export const quiz_findMany = {
     "hasNextPage": true
   },
   "__typename": "Quiz"
-};
+} as const;

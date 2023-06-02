@@ -303,4 +303,4 @@ export const comment_create = {
     "reaction": true
   },
   "__typename": "Comment"
-};
+} as const;

@@ -19,4 +19,4 @@ export const scheduleRecurrence_findOne = {
   "month": true,
   "endDate": true,
   "__typename": "ScheduleRecurrence"
-};
+} as const;

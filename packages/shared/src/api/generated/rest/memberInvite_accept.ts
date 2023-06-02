@@ -40,4 +40,4 @@ export const memberInvite_accept = {
     "canUpdate": true
   },
   "__typename": "MemberInvite"
-};
+} as const;

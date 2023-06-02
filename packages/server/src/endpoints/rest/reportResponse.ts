@@ -13,4 +13,4 @@ export const ReportResponseRest = setupRoutes({
     "/reportResponse": {
         post: [ReportResponseEndpoints.Mutation.reportResponseCreate, reportResponse_create],
     },
-} as const);
+});

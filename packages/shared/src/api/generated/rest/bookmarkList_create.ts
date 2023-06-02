@@ -8,4 +8,4 @@ export const bookmarkList_create = {
   "label": true,
   "bookmarksCount": true,
   "__typename": "BookmarkList"
-};
+} as const;

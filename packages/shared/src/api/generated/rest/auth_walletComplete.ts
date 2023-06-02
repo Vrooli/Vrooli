@@ -4328,4 +4328,4 @@ export const auth_walletComplete = {
   "path": {
     "key": "auth_walletComplete"
   }
-};
+} as const;

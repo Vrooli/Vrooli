@@ -567,4 +567,4 @@ export const transfer_transferDeny = {
     "canUpdate": true
   },
   "__typename": "Transfer"
-};
+} as const;

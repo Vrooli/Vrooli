@@ -25,4 +25,4 @@ export const report_findOne = {
     "canUpdate": true
   },
   "__typename": "Report"
-};
+} as const;

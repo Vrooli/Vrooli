@@ -16,4 +16,4 @@ export const ProjectVersionRest = setupRoutes({
     "/projectVersion": {
         post: [ProjectVersionEndpoints.Mutation.projectVersionCreate, projectVersion_create],
     },
-} as const);
+});

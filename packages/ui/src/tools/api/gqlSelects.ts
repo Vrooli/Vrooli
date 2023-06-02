@@ -179,7 +179,7 @@ if (["rest", "both"].includes(target)) {
         const stringified = JSON.stringify(resolveInfo, null, 2);
         // Write the GraphQLResolveInfo object to a new file in the rest directory
         const restFilePath = `${restFolder}/${name}.ts`;
-        fs.writeFileSync(restFilePath, `export const ${name.replace(".ts", "")} = ${stringified};\n`);
+        fs.writeFileSync(restFilePath, `export const ${name.replace(".ts", "")} = ${stringified} as const;\n`);
         restFiles.push(name.replace(".ts", ""));
     }
     // Create index.ts for rest

@@ -7222,4 +7222,4 @@ export const auth_switchCurrentAccount = {
   "path": {
     "key": "auth_switchCurrentAccount"
   }
-};
+} as const;

@@ -7222,4 +7222,4 @@ export const auth_emailLogIn = {
   "path": {
     "key": "auth_emailLogIn"
   }
-};
+} as const;

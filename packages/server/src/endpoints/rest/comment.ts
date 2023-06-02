@@ -13,4 +13,4 @@ export const CommentRest = setupRoutes({
     "/comment": {
         post: [CommentEndpoints.Mutation.commentCreate, comment_create],
     },
-} as const);
+});

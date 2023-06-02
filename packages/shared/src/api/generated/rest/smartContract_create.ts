@@ -171,4 +171,4 @@ export const smartContract_create = {
     "reaction": true
   },
   "__typename": "SmartContract"
-};
+} as const;

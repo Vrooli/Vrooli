@@ -6,4 +6,4 @@ export const apiKey_validate = {
   "absoluteMax": true,
   "resetsAt": true,
   "__typename": "ApiKey"
-};
+} as const;

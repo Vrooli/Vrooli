@@ -13,4 +13,4 @@ export const StandardRest = setupRoutes({
     "/standard": {
         post: [StandardEndpoints.Mutation.standardCreate, standard_create],
     },
-} as const);
+});

@@ -18,4 +18,4 @@ export const focusMode_findMany = {
     "hasNextPage": true
   },
   "__typename": "FocusMode"
-};
+} as const;

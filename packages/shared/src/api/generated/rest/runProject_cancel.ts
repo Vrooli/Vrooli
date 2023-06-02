@@ -172,4 +172,4 @@ export const runProject_cancel = {
     "canRead": true
   },
   "__typename": "RunProject"
-};
+} as const;

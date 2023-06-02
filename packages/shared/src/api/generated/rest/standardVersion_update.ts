@@ -172,4 +172,4 @@ export const standardVersion_update = {
     "canRead": true
   },
   "__typename": "StandardVersion"
-};
+} as const;

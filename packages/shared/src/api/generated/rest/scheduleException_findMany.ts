@@ -31,4 +31,4 @@ export const scheduleException_findMany = {
     "hasNextPage": true
   },
   "__typename": "ScheduleException"
-};
+} as const;

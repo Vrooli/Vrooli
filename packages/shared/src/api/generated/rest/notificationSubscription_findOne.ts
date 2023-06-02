@@ -1043,4 +1043,4 @@ export const notificationSubscription_findOne = {
     }
   },
   "__typename": "NotificationSubscription"
-};
+} as const;

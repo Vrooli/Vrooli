@@ -232,4 +232,4 @@ export const auth_emailRequestPasswordChange = {
   "path": {
     "key": "auth_emailRequestPasswordChange"
   }
-};
+} as const;

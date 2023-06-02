@@ -436,4 +436,4 @@ export const reputationHistory_findOne = {
   "path": {
     "key": "reputationHistory_findOne"
   }
-};
+} as const;

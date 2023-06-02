@@ -10,7 +10,7 @@ export type EndpointFunction<TInput, TResult> = (
     context: Context,
     info: GraphQLResolveInfo | PartialGraphQLInfo,
 ) => Promise<TResult>;
-export type EndpointTuple = readonly [GQLEndpoint<any, any>, any];
+export type EndpointTuple = readonly [GQLEndpoint<any, any> | GQLEndpoint<never, any>, any];//GraphQLResolveInfo | PartialGraphQLInfo];
 export type EndpointGroup = {
     get?: EndpointTuple;
     post?: EndpointTuple;

@@ -25,4 +25,4 @@ export const statsProject_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsProject"
-};
+} as const;

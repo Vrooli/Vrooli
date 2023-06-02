@@ -133,4 +133,4 @@ export const note_findOne = {
     "reaction": true
   },
   "__typename": "Note"
-};
+} as const;

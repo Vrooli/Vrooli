@@ -13,4 +13,4 @@ export const ApiVersionRest = setupRoutes({
     "/apiVersion": {
         post: [ApiVersionEndpoints.Mutation.apiVersionCreate, apiVersion_create],
     },
-} as const);
+});

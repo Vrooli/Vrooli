@@ -96,4 +96,4 @@ export const smartContract_findMany = {
     "hasNextPage": true
   },
   "__typename": "SmartContract"
-};
+} as const;

@@ -13,4 +13,4 @@ export const ApiRest = setupRoutes({
     "/api": {
         post: [ApiEndpoints.Mutation.apiCreate, api_create],
     },
-} as const);
+});

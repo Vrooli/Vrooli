@@ -17,4 +17,4 @@ export const notification_findMany = {
     "hasNextPage": true
   },
   "__typename": "Notification"
-};
+} as const;

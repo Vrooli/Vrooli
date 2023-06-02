@@ -171,4 +171,4 @@ export const user_profileUpdate = {
     "isViewed": true
   },
   "__typename": "User"
-};
+} as const;

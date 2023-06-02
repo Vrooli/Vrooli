@@ -821,4 +821,4 @@ export const bookmark_findMany = {
     "hasNextPage": true
   },
   "__typename": "Bookmark"
-};
+} as const;

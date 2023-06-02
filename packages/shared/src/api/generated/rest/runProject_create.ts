@@ -172,4 +172,4 @@ export const runProject_create = {
     "canRead": true
   },
   "__typename": "RunProject"
-};
+} as const;

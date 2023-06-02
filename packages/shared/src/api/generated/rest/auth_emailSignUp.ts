@@ -7222,4 +7222,4 @@ export const auth_emailSignUp = {
   "path": {
     "key": "auth_emailSignUp"
   }
-};
+} as const;

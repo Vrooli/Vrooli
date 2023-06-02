@@ -144,4 +144,4 @@ export const meetingInvite_decline = {
     "canUpdate": true
   },
   "__typename": "MeetingInvite"
-};
+} as const;

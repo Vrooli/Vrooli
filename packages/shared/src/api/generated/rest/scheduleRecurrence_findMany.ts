@@ -25,4 +25,4 @@ export const scheduleRecurrence_findMany = {
     "hasNextPage": true
   },
   "__typename": "ScheduleRecurrence"
-};
+} as const;

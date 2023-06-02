@@ -44,4 +44,4 @@ export const statsSite_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsSite"
-};
+} as const;

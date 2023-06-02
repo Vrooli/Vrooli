@@ -100,4 +100,4 @@ export const issue_findOne = {
     "reaction": true
   },
   "__typename": "Issue"
-};
+} as const;

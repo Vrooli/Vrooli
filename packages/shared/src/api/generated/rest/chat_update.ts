@@ -167,4 +167,4 @@ export const chat_update = {
     "canUpdate": true
   },
   "__typename": "Chat"
-};
+} as const;

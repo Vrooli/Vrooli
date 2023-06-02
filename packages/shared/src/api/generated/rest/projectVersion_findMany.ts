@@ -90,4 +90,4 @@ export const projectVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "ProjectVersion"
-};
+} as const;

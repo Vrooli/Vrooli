@@ -68,4 +68,4 @@ export const runProject_findMany = {
     "hasNextPage": true
   },
   "__typename": "RunProject"
-};
+} as const;

@@ -390,4 +390,4 @@ export const projectVersion_create = {
     "canRead": true
   },
   "__typename": "ProjectVersion"
-};
+} as const;

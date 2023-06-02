@@ -107,4 +107,4 @@ export const quizQuestion_findOne = {
     "canUpdate": true
   },
   "__typename": "QuizQuestion"
-};
+} as const;

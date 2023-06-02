@@ -97,4 +97,4 @@ export const standard_findMany = {
     "hasNextPage": true
   },
   "__typename": "Standard"
-};
+} as const;

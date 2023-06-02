@@ -133,4 +133,4 @@ export const noteVersion_findOne = {
     "canRead": true
   },
   "__typename": "NoteVersion"
-};
+} as const;

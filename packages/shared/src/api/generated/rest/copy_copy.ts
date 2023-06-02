@@ -10044,4 +10044,4 @@ export const copy_copy = {
   "path": {
     "key": "copy_copy"
   }
-};
+} as const;

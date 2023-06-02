@@ -13,4 +13,4 @@ export const ReminderRest = setupRoutes({
     "/reminder": {
         post: [ReminderEndpoints.Mutation.reminderCreate, reminder_create],
     },
-} as const);
+});

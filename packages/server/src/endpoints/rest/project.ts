@@ -13,4 +13,4 @@ export const ProjectRest = setupRoutes({
     "/project": {
         post: [ProjectEndpoints.Mutation.projectCreate, project_create],
     },
-} as const);
+});

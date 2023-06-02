@@ -18,4 +18,4 @@ export const statsQuiz_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsQuiz"
-};
+} as const;

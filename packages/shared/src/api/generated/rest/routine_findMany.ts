@@ -231,4 +231,4 @@ export const routine_findMany = {
     "hasNextPage": true
   },
   "__typename": "Routine"
-};
+} as const;

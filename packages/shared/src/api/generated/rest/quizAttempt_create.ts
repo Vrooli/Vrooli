@@ -128,4 +128,4 @@ export const quizAttempt_create = {
     "canUpdate": true
   },
   "__typename": "QuizAttempt"
-};
+} as const;

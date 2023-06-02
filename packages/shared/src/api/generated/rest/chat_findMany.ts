@@ -121,4 +121,4 @@ export const chat_findMany = {
     "hasNextPage": true
   },
   "__typename": "Chat"
-};
+} as const;

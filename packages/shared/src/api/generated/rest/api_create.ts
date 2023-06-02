@@ -146,4 +146,4 @@ export const api_create = {
     "reaction": true
   },
   "__typename": "Api"
-};
+} as const;

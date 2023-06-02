@@ -12,4 +12,4 @@ export const pushDevice_findMany = {
     "hasNextPage": true
   },
   "__typename": "PushDevice"
-};
+} as const;

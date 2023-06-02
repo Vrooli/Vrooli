@@ -13,4 +13,4 @@ export const BookmarkRest = setupRoutes({
     "/bookmark": {
         post: [BookmarkEndpoints.Mutation.bookmarkCreate, bookmark_create],
     },
-} as const);
+});

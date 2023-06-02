@@ -13,4 +13,4 @@ export const RoutineVersionRest = setupRoutes({
     "/routineVersion": {
         post: [RoutineVersionEndpoints.Mutation.routineVersionCreate, routineVersion_create],
     },
-} as const);
+});

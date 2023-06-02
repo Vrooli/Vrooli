@@ -7222,4 +7222,4 @@ export const auth_emailResetPassword = {
   "path": {
     "key": "auth_emailResetPassword"
   }
-};
+} as const;

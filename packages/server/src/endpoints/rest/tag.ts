@@ -13,4 +13,4 @@ export const TagRest = setupRoutes({
     "/tag": {
         post: [TagEndpoints.Mutation.tagCreate, tag_create],
     },
-} as const);
+});

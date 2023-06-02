@@ -13,4 +13,4 @@ export const tag_findOne = {
     "isBookmarked": true
   },
   "__typename": "Tag"
-};
+} as const;

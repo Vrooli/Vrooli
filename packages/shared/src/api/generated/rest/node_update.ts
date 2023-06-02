@@ -254,4 +254,4 @@ export const node_update = {
     "__typename": "RoutineVersion"
   },
   "__typename": "Node"
-};
+} as const;

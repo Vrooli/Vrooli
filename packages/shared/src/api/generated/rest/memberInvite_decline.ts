@@ -40,4 +40,4 @@ export const memberInvite_decline = {
     "canUpdate": true
   },
   "__typename": "MemberInvite"
-};
+} as const;

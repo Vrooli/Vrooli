@@ -167,4 +167,4 @@ export const chatInvite_decline = {
     "canUpdate": true
   },
   "__typename": "ChatInvite"
-};
+} as const;

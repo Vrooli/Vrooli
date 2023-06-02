@@ -13,4 +13,4 @@ export const StandardVersionRest = setupRoutes({
     "/standardVersion": {
         post: [StandardVersionEndpoints.Mutation.standardVersionCreate, standardVersion_create],
     },
-} as const);
+});

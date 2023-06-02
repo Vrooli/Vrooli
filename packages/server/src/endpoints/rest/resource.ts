@@ -13,4 +13,4 @@ export const ResourceRest = setupRoutes({
     "/resource": {
         post: [ResourceEndpoints.Mutation.resourceCreate, resource_create],
     },
-} as const);
+});

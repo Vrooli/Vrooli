@@ -13,4 +13,4 @@ export const QuestionRest = setupRoutes({
     "/question": {
         post: [QuestionEndpoints.Mutation.questionCreate, question_create],
     },
-} as const);
+});

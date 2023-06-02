@@ -5,4 +5,4 @@ export const wallet_update = {
   "stakingAddress": true,
   "verified": true,
   "__typename": "Wallet"
-};
+} as const;

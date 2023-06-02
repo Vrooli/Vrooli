@@ -21,4 +21,4 @@ export const report_findMany = {
     "hasNextPage": true
   },
   "__typename": "Report"
-};
+} as const;

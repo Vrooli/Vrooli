@@ -81,4 +81,4 @@ export const question_findMany = {
     "hasNextPage": true
   },
   "__typename": "Question"
-};
+} as const;

@@ -13,4 +13,4 @@ export const tag_create = {
     "isBookmarked": true
   },
   "__typename": "Tag"
-};
+} as const;

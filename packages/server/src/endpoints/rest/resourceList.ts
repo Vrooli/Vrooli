@@ -13,4 +13,4 @@ export const ResourceListRest = setupRoutes({
     "/resourceList": {
         post: [ResourceListEndpoints.Mutation.resourceListCreate, resourceList_create],
     },
-} as const);
+});

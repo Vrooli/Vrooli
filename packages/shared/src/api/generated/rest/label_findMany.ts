@@ -47,4 +47,4 @@ export const label_findMany = {
     "hasNextPage": true
   },
   "__typename": "Label"
-};
+} as const;

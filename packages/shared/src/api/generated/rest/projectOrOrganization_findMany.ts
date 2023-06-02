@@ -3228,4 +3228,4 @@ export const projectOrOrganization_findMany = {
   "path": {
     "key": "projectOrOrganization_findMany"
   }
-};
+} as const;

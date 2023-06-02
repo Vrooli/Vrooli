@@ -17,4 +17,4 @@ export const award_findMany = {
     "hasNextPage": true
   },
   "__typename": "Award"
-};
+} as const;

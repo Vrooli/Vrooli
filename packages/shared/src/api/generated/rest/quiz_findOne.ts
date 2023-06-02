@@ -162,4 +162,4 @@ export const quiz_findOne = {
     "reaction": true
   },
   "__typename": "Quiz"
-};
+} as const;

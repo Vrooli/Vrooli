@@ -167,4 +167,4 @@ export const chatMessage_update = {
     "reaction": true
   },
   "__typename": "ChatMessage"
-};
+} as const;

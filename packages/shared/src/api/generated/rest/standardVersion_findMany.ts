@@ -42,4 +42,4 @@ export const standardVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "StandardVersion"
-};
+} as const;

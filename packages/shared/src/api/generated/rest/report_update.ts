@@ -25,4 +25,4 @@ export const report_update = {
     "canUpdate": true
   },
   "__typename": "Report"
-};
+} as const;

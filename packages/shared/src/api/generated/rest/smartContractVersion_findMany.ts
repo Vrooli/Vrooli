@@ -41,4 +41,4 @@ export const smartContractVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "SmartContractVersion"
-};
+} as const;

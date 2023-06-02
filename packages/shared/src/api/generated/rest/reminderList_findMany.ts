@@ -43,4 +43,4 @@ export const reminderList_findMany = {
     "hasNextPage": true
   },
   "__typename": "ReminderList"
-};
+} as const;

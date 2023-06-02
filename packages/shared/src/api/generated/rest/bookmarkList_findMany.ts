@@ -14,4 +14,4 @@ export const bookmarkList_findMany = {
     "hasNextPage": true
   },
   "__typename": "BookmarkList"
-};
+} as const;

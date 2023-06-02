@@ -172,4 +172,4 @@ export const standard_update = {
     "reaction": true
   },
   "__typename": "Standard"
-};
+} as const;

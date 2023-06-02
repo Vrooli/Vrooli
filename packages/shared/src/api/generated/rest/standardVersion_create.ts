@@ -172,4 +172,4 @@ export const standardVersion_create = {
     "canRead": true
   },
   "__typename": "StandardVersion"
-};
+} as const;

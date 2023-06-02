@@ -17,4 +17,4 @@ export const statsRoutine_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsRoutine"
-};
+} as const;

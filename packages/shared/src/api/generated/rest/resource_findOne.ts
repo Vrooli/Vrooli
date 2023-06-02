@@ -10,4 +10,4 @@ export const resource_findOne = {
     "name": true
   },
   "__typename": "Resource"
-};
+} as const;

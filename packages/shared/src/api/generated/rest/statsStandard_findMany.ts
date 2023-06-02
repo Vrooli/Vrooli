@@ -15,4 +15,4 @@ export const statsStandard_findMany = {
     "hasNextPage": true
   },
   "__typename": "StatsStandard"
-};
+} as const;

@@ -172,4 +172,4 @@ export const standardVersion_findOne = {
     "canRead": true
   },
   "__typename": "StandardVersion"
-};
+} as const;

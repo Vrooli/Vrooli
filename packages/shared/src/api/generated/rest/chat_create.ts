@@ -167,4 +167,4 @@ export const chat_create = {
     "canUpdate": true
   },
   "__typename": "Chat"
-};
+} as const;

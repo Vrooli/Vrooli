@@ -100,4 +100,4 @@ export const issue_update = {
     "reaction": true
   },
   "__typename": "Issue"
-};
+} as const;

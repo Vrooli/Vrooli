@@ -40,4 +40,4 @@ export const memberInvite_findOne = {
     "canUpdate": true
   },
   "__typename": "MemberInvite"
-};
+} as const;

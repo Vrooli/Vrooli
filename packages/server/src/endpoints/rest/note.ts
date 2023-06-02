@@ -13,4 +13,4 @@ export const NoteRest = setupRoutes({
     "/note": {
         post: [NoteEndpoints.Mutation.noteCreate, note_create],
     },
-} as const);
+});

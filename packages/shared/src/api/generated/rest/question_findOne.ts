@@ -159,4 +159,4 @@ export const question_findOne = {
   },
   "you": {},
   "__typename": "Question"
-};
+} as const;

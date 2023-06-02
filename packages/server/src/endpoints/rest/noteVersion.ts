@@ -13,4 +13,4 @@ export const NoteVersionRest = setupRoutes({
     "/noteVersion": {
         post: [NoteVersionEndpoints.Mutation.noteVersionCreate, noteVersion_create],
     },
-} as const);
+});

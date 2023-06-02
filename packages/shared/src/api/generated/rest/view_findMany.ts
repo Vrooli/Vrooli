@@ -768,4 +768,4 @@ export const view_findMany = {
     "hasNextPage": true
   },
   "__typename": "View"
-};
+} as const;

@@ -849,4 +849,4 @@ export const reaction_findMany = {
     "hasNextPage": true
   },
   "__typename": "Reaction"
-};
+} as const;

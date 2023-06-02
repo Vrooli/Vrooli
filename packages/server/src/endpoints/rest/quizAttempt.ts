@@ -13,4 +13,4 @@ export const QuizAttemptRest = setupRoutes({
     "/quizAttempt": {
         post: [QuizAttemptEndpoints.Mutation.quizAttemptCreate, quizAttempt_create],
     },
-} as const);
+});

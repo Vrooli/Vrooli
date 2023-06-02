@@ -8,4 +8,4 @@ export const notification_findOne = {
   "link": true,
   "imgLink": true,
   "__typename": "Notification"
-};
+} as const;

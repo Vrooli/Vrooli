@@ -90,4 +90,4 @@ export const project_findMany = {
     "hasNextPage": true
   },
   "__typename": "Project"
-};
+} as const;

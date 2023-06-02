@@ -891,4 +891,4 @@ export const bookmark_findOne = {
     }
   },
   "__typename": "Bookmark"
-};
+} as const;

@@ -540,4 +540,4 @@ export const transfer_findMany = {
     "hasNextPage": true
   },
   "__typename": "Transfer"
-};
+} as const;

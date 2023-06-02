@@ -75,4 +75,4 @@ export const runRoutine_findMany = {
     "hasNextPage": true
   },
   "__typename": "RunRoutine"
-};
+} as const;

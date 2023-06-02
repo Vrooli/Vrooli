@@ -3,4 +3,4 @@ export const pushDevice_create = {
   "expires": true,
   "name": true,
   "__typename": "PushDevice"
-};
+} as const;

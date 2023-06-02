@@ -144,4 +144,4 @@ export const meeting_findOne = {
     "canUpdate": true
   },
   "__typename": "Meeting"
-};
+} as const;

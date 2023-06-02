@@ -20,4 +20,4 @@ export const role_findMany = {
     "hasNextPage": true
   },
   "__typename": "Role"
-};
+} as const;

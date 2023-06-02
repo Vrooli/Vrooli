@@ -10,4 +10,4 @@ export const chatParticipant_update = {
   "created_at": true,
   "updated_at": true,
   "__typename": "ChatParticipant"
-};
+} as const;

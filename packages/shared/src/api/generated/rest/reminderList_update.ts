@@ -40,4 +40,4 @@ export const reminderList_update = {
     "__typename": "Reminder"
   },
   "__typename": "ReminderList"
-};
+} as const;

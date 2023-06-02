@@ -25,4 +25,4 @@ export const report_create = {
     "canUpdate": true
   },
   "__typename": "Report"
-};
+} as const;

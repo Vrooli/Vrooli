@@ -195,4 +195,4 @@ export const routineVersion_create = {
     "canReact": true
   },
   "__typename": "RoutineVersion"
-};
+} as const;

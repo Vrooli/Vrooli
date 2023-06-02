@@ -21,4 +21,4 @@ export const resourceList_create = {
     "__typename": "Resource"
   },
   "__typename": "ResourceList"
-};
+} as const;

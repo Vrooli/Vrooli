@@ -20,4 +20,4 @@ export const user_findOne = {
     "isViewed": true
   },
   "__typename": "User"
-};
+} as const;

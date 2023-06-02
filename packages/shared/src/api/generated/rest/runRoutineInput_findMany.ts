@@ -52,4 +52,4 @@ export const runRoutineInput_findMany = {
     "hasNextPage": true
   },
   "__typename": "RunRoutineInput"
-};
+} as const;

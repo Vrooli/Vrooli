@@ -92,4 +92,4 @@ export const apiVersion_findMany = {
     "hasNextPage": true
   },
   "__typename": "ApiVersion"
-};
+} as const;

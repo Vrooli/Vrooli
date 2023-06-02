@@ -33,4 +33,4 @@ export const chatMessage_findMany = {
     "hasNextPage": true
   },
   "__typename": "ChatMessage"
-};
+} as const;

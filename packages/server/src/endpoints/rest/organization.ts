@@ -13,4 +13,4 @@ export const OrganizationRest = setupRoutes({
     "/organization": {
         post: [OrganizationEndpoints.Mutation.organizationCreate, organization_create],
     },
-} as const);
+});
