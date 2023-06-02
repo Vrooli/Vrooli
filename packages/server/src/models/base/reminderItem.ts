@@ -1,32 +1,23 @@
 import { MaxObjects, reminderItemValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { ReminderItemFormat } from "../format/reminderItem";
+import { ModelLogic } from "../types";
 import { ReminderModel } from "./reminder";
-import { ModelLogic, ReminderItemModelLogic } from "./types";
+import { ReminderItemModelLogic } from "./types";
 
 const __typename = "ReminderItem" as const;
 const suppFields = [] as const;
 export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.reminder_item,
+    delegate: (prisma) => prisma.reminder_item,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            reminder: "Reminder",
-        },
-        prismaRelMap: {
-            __typename,
-            reminder: "Reminder",
-        },
-        countFields: {},
-    },
+    format: ReminderItemFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

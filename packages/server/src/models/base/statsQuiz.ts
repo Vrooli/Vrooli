@@ -1,17 +1,18 @@
 import { StatsQuizSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsQuizFormat } from "../format/statsQuiz";
+import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
-import { ModelLogic, StatsQuizModelLogic } from "./types";
+import { StatsQuizModelLogic } from "./types";
 
 const __typename = "StatsQuiz" as const;
 const suppFields = [] as const;
 export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_quiz,
+    delegate: (prisma) => prisma.stats_quiz,
     display: {
         label: {
             select: () => ({ id: true, quiz: selPad(QuizModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            quiz: "Quiz",
-        },
-        countFields: {},
-    },
+    format: StatsQuizFormat,
     search: {
         defaultSort: StatsQuizSortBy.PeriodStartAsc,
         sortBy: StatsQuizSortBy,

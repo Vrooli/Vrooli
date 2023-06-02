@@ -1,13 +1,15 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, standardVersionValidation, VersionYou } from "@local/shared";
-import { randomString } from "../auth/wallet";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType, SessionUserToken } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { sortify } from "../utils/objectTools";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, standardVersionValidation } from "@local/shared";
+import { randomString } from "../../auth/wallet";
+import { noNull, shapeHelper } from "../../builders";
+import { PrismaType, SessionUserToken } from "../../types";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { sortify } from "../../utils/objectTools";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { StandardVersionFormat } from "../format/standardVersion";
+import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
-import { ModelLogic, StandardVersionModelLogic } from "./types";
+import { StandardVersionModelLogic } from "./types";
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -87,11 +89,10 @@ const querier = () => ({
 });
 
 const __typename = "StandardVersion" as const;
-type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
 export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.standard_version,
+    delegate: (prisma) => prisma.standard_version,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -113,43 +114,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "StandardVersion",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            root: "Standard",
-        },
-        prismaRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "StandardVersion",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            root: "Standard",
-        },
-        countFields: {
-            commentsCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            reportsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: StandardVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -272,6 +237,16 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
          * only meant for a single input/output
          */
         customQueryData: () => ({ root: { isInternal: true } }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

@@ -1,14 +1,15 @@
 import { RoleSortBy, roleValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, translationShapeHelper } from "../utils";
-import { ModelLogic, RoleModelLogic } from "./types";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, translationShapeHelper } from "../../utils";
+import { RoleFormat } from "../format/role";
+import { ModelLogic } from "../types";
+import { RoleModelLogic } from "./types";
 
 const __typename = "Role" as const;
 const suppFields = [] as const;
 export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.role,
+    delegate: (prisma) => prisma.role,
     display: {
         label: {
             select: () => ({
@@ -24,22 +25,7 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            members: "Member",
-            organization: "Organization",
-        },
-        prismaRelMap: {
-            __typename,
-            members: "Member",
-            meetings: "Meeting",
-            organization: "Organization",
-        },
-        countFields: {
-            membersCount: true,
-        },
-    },
+    format: RoleFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

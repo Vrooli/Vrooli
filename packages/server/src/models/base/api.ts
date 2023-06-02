@@ -1,6 +1,5 @@
-import { ApiSortBy, apiValidation, ApiYou, MaxObjects } from "@local/shared";
+import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { PrismaType } from "../../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../../validators";
@@ -14,11 +13,10 @@ import { ApiModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Api" as const;
-type Permissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
 export const ApiModel: ModelLogic<ApiModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.api,
+    delegate: (prisma) => prisma.api,
     display: rootObjectDisplay(ApiVersionModel),
     format: ApiFormat,
     mutate: {

@@ -1,11 +1,13 @@
 import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, MaxObjects, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
-import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../builders";
-import { Trigger } from "../events";
-import { getLogic } from "../getters";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../../builders";
+import { Trigger } from "../../events";
+import { getLogic } from "../../getters";
+import { PrismaType } from "../../types";
+import { defaultPermissions } from "../../utils";
+import { BookmarkFormat } from "../format/bookmark";
+import { ModelLogic } from "../types";
 import { CommentModel } from "./comment";
 import { NoteModel } from "./note";
 import { OrganizationModel } from "./organization";
@@ -13,7 +15,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { BookmarkModelLogic, ModelLogic } from "./types";
+import { BookmarkModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -37,7 +39,7 @@ const __typename = "Bookmark" as const;
 const suppFields = [] as const;
 export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.bookmark,
+    delegate: (prisma) => prisma.bookmark,
     display: {
         label: {
             select: () => ({
@@ -78,73 +80,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            by: "User",
-            list: "BookmarkList",
-            to: {
-                api: "Api",
-                comment: "Comment",
-                issue: "Issue",
-                note: "Note",
-                organization: "Organization",
-                post: "Post",
-                project: "Project",
-                question: "Question",
-                questionAnswer: "QuestionAnswer",
-                quiz: "Quiz",
-                routine: "Routine",
-                smartContract: "SmartContract",
-                standard: "Standard",
-                tag: "Tag",
-                user: "User",
-            },
-        },
-        prismaRelMap: {
-            __typename,
-            api: "Api",
-            comment: "Comment",
-            issue: "Issue",
-            list: "BookmarkList",
-            note: "Note",
-            organization: "Organization",
-            post: "Post",
-            project: "Project",
-            question: "Question",
-            questionAnswer: "QuestionAnswer",
-            quiz: "Quiz",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-            tag: "Tag",
-            user: "User",
-        },
-        countFields: {},
-        supplemental: {
-            // Make sure to query for every bookmarked item, 
-            // so we can ensure that the mutation trigger can increment the bookmark count
-            dbFields: [
-                "apiId",
-                "commentId",
-                "issueId",
-                "noteId",
-                "organizationId",
-                "postId",
-                "projectId",
-                "questionId",
-                "questionAnswerId",
-                "quizId",
-                "routineId",
-                "smartContractId",
-                "standardId",
-                "tagId",
-                "userId",
-            ],
-            graphqlFields: [],
-            toGraphQL: async () => ({}),
-        },
-    },
+    format: BookmarkFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -275,6 +211,29 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
                 { user: UserModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            // Make sure to query for every bookmarked item, 
+            // so we can ensure that the mutation trigger can increment the bookmark count
+            dbFields: [
+                "apiId",
+                "commentId",
+                "issueId",
+                "noteId",
+                "organizationId",
+                "postId",
+                "projectId",
+                "questionId",
+                "questionAnswerId",
+                "quizId",
+                "routineId",
+                "smartContractId",
+                "standardId",
+                "tagId",
+                "userId",
+            ],
+            graphqlFields: [],
+            toGraphQL: async () => ({}),
+        },
     },
     validate: {
         isDeleted: () => false,

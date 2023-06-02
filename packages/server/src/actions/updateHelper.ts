@@ -2,7 +2,7 @@ import { assertRequestFrom } from "../auth/request";
 import { addSupplementalFields, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cudHelper";
 import { UpdateHelperProps } from "./types";

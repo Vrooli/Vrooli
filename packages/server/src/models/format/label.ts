@@ -1,7 +1,8 @@
+import { LabelModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Label" as const;
-export const LabelFormat: Formatter<ModelLabelLogic> = {
+export const LabelFormat: Formatter<LabelModelLogic> = {
     gqlRelMap: {
         __typename,
         apis: "Api",

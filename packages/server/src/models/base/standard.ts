@@ -1,83 +1,27 @@
-import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation, StandardYou } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { getLabels } from "../getters";
-import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { getLabels } from "../../getters";
+import { PrismaType, SessionUserToken } from "../../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../../validators";
+import { StandardFormat } from "../format/standard";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { StandardVersionModel } from "./standardVersion";
-import { ModelLogic, StandardModelLogic } from "./types";
+import { StandardModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Standard" as const;
-type Permissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
 export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.standard,
+    delegate: (prisma) => prisma.standard,
     display: rootObjectDisplay(StandardVersionModel),
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            issues: "Issue",
-            labels: "Label",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            parent: "Project",
-            pullRequests: "PullRequest",
-            questions: "Question",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "StandardVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            ownedByOrganization: "Organization",
-            ownedByUser: "User",
-            issues: "Issue",
-            labels: "Label",
-            parent: "StandardVersion",
-            tags: "Tag",
-            bookmarkedBy: "User",
-            versions: "StandardVersion",
-            pullRequests: "PullRequest",
-            stats: "StatsStandard",
-            questions: "Question",
-            transfers: "Transfer",
-        },
-        joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
-        countFields: {
-            forksCount: true,
-            issuesCount: true,
-            pullRequestsCount: true,
-            questionsCount: true,
-            transfersCount: true,
-            versionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
-                };
-            },
-        },
-    },
+    format: StandardFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -244,6 +188,20 @@ export const StandardModel: ModelLogic<StandardModelLogic, typeof suppFields> = 
          * only meant for a single input/output
          */
         customQueryData: () => ({ isInternal: true }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                };
+            },
+        },
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,

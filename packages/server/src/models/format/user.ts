@@ -1,7 +1,8 @@
+import { UserModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "User" as const;
-export const UserFormat: Formatter<ModelUserLogic> = {
+export const UserFormat: Formatter<UserModelLogic> = {
     gqlRelMap: {
         __typename,
         comments: "Comment",

@@ -1,14 +1,15 @@
 import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { AwardModelLogic, ModelLogic } from "./types";
+import { defaultPermissions } from "../../utils";
+import { AwardFormat } from "../format/award";
+import { ModelLogic } from "../types";
+import { AwardModelLogic } from "./types";
 
 const __typename = "Award" as const;
 const suppFields = ["title", "description"] as const;
 export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.award,
+    delegate: (prisma) => prisma.award,
     display: {
         label: {
             select: () => ({ id: true, category: true, progress: true }),
@@ -21,15 +22,18 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
+    format: AwardFormat,
+    search: {
+        defaultSort: AwardSortBy.DateUpdatedDesc,
+        sortBy: AwardSortBy,
+        searchFields: {
+            updatedTimeFrame: true,
         },
-        prismaRelMap: {
-            __typename,
-            user: "User",
-        },
-        countFields: {},
+        searchStringQuery: () => ({}),
+        /**
+         * Can only ever search your own awards
+         */
+        customQueryData: (_, user) => ({ user: { id: user!.id } }),
         supplemental: {
             dbFields: ["category", "progress"],
             graphqlFields: suppFields,
@@ -50,18 +54,6 @@ export const AwardModel: ModelLogic<AwardModelLogic, typeof suppFields> = ({
                 };
             },
         },
-    },
-    search: {
-        defaultSort: AwardSortBy.DateUpdatedDesc,
-        sortBy: AwardSortBy,
-        searchFields: {
-            updatedTimeFrame: true,
-        },
-        searchStringQuery: () => ({}),
-        /**
-         * Can only ever search your own awards
-         */
-        customQueryData: (_, user) => ({ user: { id: user!.id } }),
     },
     validate: {
         isDeleted: () => false,

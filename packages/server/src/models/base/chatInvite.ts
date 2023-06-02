@@ -1,17 +1,17 @@
-import { ChatInviteSortBy, ChatInviteYou, MaxObjects, uuidValidate } from "@local/shared";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { ChatInviteSortBy, MaxObjects, uuidValidate } from "@local/shared";
+import { defaultPermissions } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { ChatInviteFormat } from "../format/chatInvite";
+import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
-import { ChatInviteModelLogic, ModelLogic } from "./types";
+import { ChatInviteModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatInvite" as const;
-type Permissions = Pick<ChatInviteYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.chat_invite,
+    delegate: (prisma) => prisma.chat_invite,
     display: {
         // Label is the user label
         label: {
@@ -19,30 +19,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            chat: "Chat",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            chat: "Chat",
-            user: "User",
-        },
-        joinMap: {},
-        countFields: {},
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: ChatInviteFormat,
     mutate: {} as any,
     search: {
         defaultSort: ChatInviteSortBy.DateCreatedDesc,
@@ -61,6 +38,16 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
                 { user: UserModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 
 /**
  * Used in mutate.shape.pre of non-versioned objects which have translations

@@ -1,15 +1,16 @@
 import { ChatParticipantSortBy, MaxObjects } from "@local/shared";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions } from "../../utils";
+import { ChatParticipantFormat } from "../format/chatParticipant";
+import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
-import { ChatParticipantModelLogic, ModelLogic } from "./types";
+import { ChatParticipantModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatParticipant" as const;
 const suppFields = [] as const;
 export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.chat_participants,
+    delegate: (prisma) => prisma.chat_participants,
     display: {
         // Label is the user's label
         label: {
@@ -17,20 +18,7 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
             get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            chat: "Chat",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            chat: "Chat",
-            user: "User",
-        },
-        joinMap: {},
-        countFields: {},
-    },
+    format: ChatParticipantFormat,
     mutate: {} as any,
     search: {
         defaultSort: ChatParticipantSortBy.UserNameDesc,

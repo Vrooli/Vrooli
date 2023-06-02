@@ -1,16 +1,17 @@
 import { MemberSortBy } from "@local/shared";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
+import { selPad } from "../../builders";
+import { MemberFormat } from "../format/member";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";
-import { MemberModelLogic, ModelLogic } from "./types";
+import { MemberModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "Member" as const;
 const suppFields = [] as const;
 export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.member,
+    delegate: (prisma) => prisma.member,
     display: {
         label: {
             select: () => ({
@@ -20,21 +21,7 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
             get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            organization: "Organization",
-            roles: "Role",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            roles: "Role",
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: MemberFormat,
     search: {
         defaultSort: MemberSortBy.DateCreatedDesc,
         sortBy: MemberSortBy,

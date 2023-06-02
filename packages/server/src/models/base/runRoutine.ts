@@ -1,17 +1,18 @@
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation, RunRoutineYou } from "@local/shared";
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { GraphQLInfo } from "../builders/types";
-import { CustomError, Trigger } from "../events";
-import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { GraphQLInfo } from "../../builders/types";
+import { CustomError, Trigger } from "../../events";
+import { PrismaType, SessionUserToken } from "../../types";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { RunRoutineFormat } from "../format/runRoutine";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoutineVersionModel } from "./routineVersion";
-import { ModelLogic, RunRoutineModelLogic } from "./types";
+import { RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
-type Permissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
 const suppFields = ["you"] as const;
 export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields> = ({
     __typename,
@@ -44,7 +45,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
         },
     },
-    delegate: (prisma: PrismaType) => prisma.run_routine,
+    delegate: (prisma) => prisma.run_routine,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
@@ -57,44 +58,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            inputs: "RunRoutineInput",
-            organization: "Organization",
-            routineVersion: "RoutineVersion",
-            runProject: "RunProject",
-            schedule: "Schedule",
-            steps: "RunRoutineStep",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            inputs: "RunRoutineInput",
-            organization: "Organization",
-            routineVersion: "RoutineVersion",
-            runProject: "RunProject",
-            schedule: "Schedule",
-            steps: "RunRoutineStep",
-            user: "User",
-        },
-        countFields: {
-            inputsCount: true,
-            stepsCount: true,
-        },
-        supplemental: {
-            // Add fields needed for notifications when a run is started/completed
-            dbFields: ["name"],
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: RunRoutineFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
@@ -313,6 +277,18 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
                 { routineVersion: RoutineVersionModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            // Add fields needed for notifications when a run is started/completed
+            dbFields: ["name"],
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

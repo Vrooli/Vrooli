@@ -1,16 +1,17 @@
 import { MaxObjects, nodeRoutineListItemValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { NodeRoutineListItemFormat } from "../format/nodeRoutineListItem";
+import { ModelLogic } from "../types";
 import { NodeRoutineListModel } from "./nodeRoutineList";
 import { RoutineModel } from "./routine";
-import { ModelLogic, NodeRoutineListItemModelLogic } from "./types";
+import { NodeRoutineListItemModelLogic } from "./types";
 
 const __typename = "NodeRoutineListItem" as const;
 const suppFields = [] as const;
 export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
+    delegate: (prisma) => prisma.node_routine_list_item,
     display: {
         label: {
             select: () => ({
@@ -26,18 +27,7 @@ export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic,
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            routineVersion: "RoutineVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            list: "NodeRoutineList",
-            routineVersion: "RoutineVersion",
-        },
-        countFields: {},
-    },
+    format: NodeRoutineListItemFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

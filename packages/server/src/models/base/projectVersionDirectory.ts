@@ -1,52 +1,23 @@
 import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { ProjectVersionDirectoryFormat } from "../format/projectVersionDirectory";
+import { ModelLogic } from "../types";
 import { ProjectVersionModel } from "./projectVersion";
-import { ModelLogic, ProjectVersionDirectoryModelLogic } from "./types";
+import { ProjectVersionDirectoryModelLogic } from "./types";
 
 const __typename = "ProjectVersionDirectory" as const;
 const suppFields = [] as const;
 export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.project_version_directory,
+    delegate: (prisma) => prisma.project_version_directory,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            parentDirectory: "ProjectVersionDirectory",
-            projectVersion: "ProjectVersion",
-            children: "ProjectVersionDirectory",
-            childApiVersions: "ApiVersion",
-            childNoteVersions: "NoteVersion",
-            childOrganizations: "Organization",
-            childProjectVersions: "ProjectVersion",
-            childRoutineVersions: "RoutineVersion",
-            childSmartContractVersions: "SmartContractVersion",
-            childStandardVersions: "StandardVersion",
-            runProjectSteps: "RunProjectStep",
-        },
-        prismaRelMap: {
-            __typename,
-            parentDirectory: "ProjectVersionDirectory",
-            projectVersion: "ProjectVersion",
-            children: "ProjectVersionDirectory",
-            childApiVersions: "ApiVersion",
-            childNoteVersions: "NoteVersion",
-            childOrganizations: "Organization",
-            childProjectVersions: "ProjectVersion",
-            childRoutineVersions: "RoutineVersion",
-            childSmartContractVersions: "SmartContractVersion",
-            childStandardVersions: "StandardVersion",
-            runProjectSteps: "RunProjectStep",
-        },
-        countFields: {},
-    },
+    format: ProjectVersionDirectoryFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

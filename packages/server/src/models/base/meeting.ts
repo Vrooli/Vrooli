@@ -1,18 +1,18 @@
-import { MaxObjects, MeetingSortBy, meetingValidation, MeetingYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../validators";
+import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { getSingleTypePermissions } from "../../validators";
+import { MeetingFormat } from "../format/meeting";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { MeetingModelLogic, ModelLogic } from "./types";
+import { MeetingModelLogic } from "./types";
 
 const __typename = "Meeting" as const;
-type Permissions = Pick<MeetingYou, "canDelete" | "canInvite" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.meeting,
+    delegate: (prisma) => prisma.meeting,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -29,49 +29,7 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            attendees: "User",
-            invites: "MeetingInvite",
-            labels: "Label",
-            organization: "Organization",
-            restrictedToRoles: "Role",
-            schedule: "Schedule",
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            restrictedToRoles: "Role",
-            attendees: "User",
-            invites: "MeetingInvite",
-            labels: "Label",
-            schedule: "Schedule",
-        },
-        joinMap: {
-            labels: "label",
-            restrictedToRoles: "role",
-            attendees: "user",
-            invites: "user",
-        },
-        countFields: {
-            attendeesCount: true,
-            invitesCount: true,
-            labelsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            dbFields: ["organizationId"],
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, objects, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: MeetingFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList }) => {
@@ -147,6 +105,17 @@ export const MeetingModel: ModelLogic<MeetingModelLogic, typeof suppFields> = ({
                 "transDescriptionWrapped",
             ],
         }),
+        supplemental: {
+            dbFields: ["organizationId"],
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

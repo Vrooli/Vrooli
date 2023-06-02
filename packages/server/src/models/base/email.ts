@@ -1,30 +1,22 @@
 import { emailValidation, MaxObjects } from "@local/shared";
-import { CustomError, Trigger } from "../events";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { EmailModelLogic, ModelLogic } from "./types";
+import { CustomError, Trigger } from "../../events";
+import { defaultPermissions } from "../../utils";
+import { EmailFormat } from "../format/email";
+import { ModelLogic } from "../types";
+import { EmailModelLogic } from "./types";
 
 const __typename = "Email" as const;
 const suppFields = [] as const;
 export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.email,
+    delegate: (prisma) => prisma.email,
     display: {
         label: {
             select: () => ({ id: true, emailAddress: true }),
             get: (select) => select.emailAddress,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: EmailFormat,
     mutate: {
         shape: {
             pre: async ({ createList, deleteList, prisma, userData }) => {

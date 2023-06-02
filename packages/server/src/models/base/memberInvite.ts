@@ -1,19 +1,19 @@
-import { MaxObjects, MemberInviteSortBy, memberInviteValidation, MemberInviteYou } from "@local/shared";
+import { MaxObjects, MemberInviteSortBy, memberInviteValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { MemberInviteFormat } from "../format/memberInvite";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { MemberInviteModelLogic, ModelLogic } from "./types";
+import { MemberInviteModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "MemberInvite" as const;
-type Permissions = Pick<MemberInviteYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.member_invite,
+    delegate: (prisma) => prisma.member_invite,
     display: {
         // Label is the member label
         label: {
@@ -21,29 +21,7 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
             get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-        },
-        countFields: {},
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: MemberInviteFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -80,6 +58,16 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
                 { user: UserModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

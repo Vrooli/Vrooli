@@ -1,7 +1,8 @@
+import { NoteVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "NoteVersion" as const;
-export const NoteVersionFormat: Formatter<ModelNoteVersionLogic> = {
+export const NoteVersionFormat: Formatter<NoteVersionModelLogic> = {
     gqlRelMap: {
         __typename,
         comments: "Comment",

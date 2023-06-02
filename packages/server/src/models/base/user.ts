@@ -1,19 +1,19 @@
-import { MaxObjects, UserSortBy, userValidation, UserYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../validators";
+import { MaxObjects, UserSortBy, userValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { getSingleTypePermissions } from "../../validators";
+import { UserFormat } from "../format/user";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
-import { ModelLogic } from "./types";
+import { UserModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "User" as const;
-type Permissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
 const suppFields = ["you"] as const;
-export const UserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
+export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.user,
+    delegate: (prisma) => prisma.user,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
@@ -31,96 +31,7 @@ export const UserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            emails: "Email",
-            focusModes: "FocusMode",
-            labels: "Label",
-            // phones: 'Phone',
-            projects: "Project",
-            pushDevices: "PushDevice",
-            bookmarkedBy: "User",
-            reportsCreated: "Report",
-            reportsReceived: "Report",
-            routines: "Routine",
-        },
-        prismaRelMap: {
-            __typename,
-            apis: "Api",
-            apiKeys: "ApiKey",
-            comments: "Comment",
-            emails: "Email",
-            organizationsCreated: "Organization",
-            phones: "Phone",
-            posts: "Post",
-            focusModes: "FocusMode",
-            invitedByUser: "User",
-            invitedUsers: "User",
-            issuesCreated: "Issue",
-            issuesClosed: "Issue",
-            labels: "Label",
-            meetingsAttending: "Meeting",
-            meetingsInvited: "MeetingInvite",
-            pushDevices: "PushDevice",
-            notifications: "Notification",
-            memberships: "Member",
-            projectsCreated: "Project",
-            projects: "Project",
-            pullRequests: "PullRequest",
-            questionAnswered: "QuestionAnswer",
-            questionsAsked: "Question",
-            quizzesCreated: "Quiz",
-            quizzesTaken: "QuizAttempt",
-            reportsCreated: "Report",
-            reportsReceived: "Report",
-            reportResponses: "ReportResponse",
-            routinesCreated: "Routine",
-            routines: "Routine",
-            runProjects: "RunProject",
-            runRoutines: "RunRoutine",
-            smartContractsCreated: "SmartContract",
-            smartContracts: "SmartContract",
-            standardsCreated: "Standard",
-            standards: "Standard",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfersIncoming: "Transfer",
-            transfersOutgoing: "Transfer",
-            notesCreated: "Note",
-            notes: "Note",
-            wallets: "Wallet",
-            stats: "StatsUser",
-        },
-        joinMap: {
-            meetingsAttending: "user",
-            bookmarkedBy: "user",
-        },
-        countFields: {
-            apisCount: true,
-            membershipsCount: true,
-            notesCount: true,
-            projectsCount: true,
-            questionsAskedCount: true,
-            reportsReceivedCount: true,
-            routinesCount: true,
-            smartContractsCount: true,
-            standardsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: UserFormat,
     mutate: {
         shape: {
             pre: async ({ updateList }) => {
@@ -179,6 +90,18 @@ export const UserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> = ({
                 "handleWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

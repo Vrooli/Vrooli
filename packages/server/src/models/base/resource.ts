@@ -1,32 +1,23 @@
 import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, translationShapeHelper } from "../utils";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, translationShapeHelper } from "../../utils";
+import { ResourceFormat } from "../format/resource";
+import { ModelLogic } from "../types";
 import { ResourceListModel } from "./resourceList";
-import { ModelLogic, ResourceModelLogic } from "./types";
+import { ResourceModelLogic } from "./types";
 
 const __typename = "Resource" as const;
 const suppFields = [] as const;
 export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.resource,
+    delegate: (prisma) => prisma.resource,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            list: "ResourceList",
-        },
-        prismaRelMap: {
-            __typename,
-            list: "ResourceList",
-        },
-        countFields: {},
-    },
+    format: ResourceFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

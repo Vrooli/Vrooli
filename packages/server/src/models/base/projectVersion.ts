@@ -1,20 +1,20 @@
-import { MaxObjects, ProjectVersionSortBy, projectVersionValidation, VersionYou } from "@local/shared";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { PartialGraphQLInfo } from "../builders/types";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { PartialGraphQLInfo } from "../../builders/types";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { ProjectVersionFormat } from "../format/projectVersion";
+import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
-import { ModelLogic, ProjectVersionModelLogic } from "./types";
+import { ProjectVersionModelLogic } from "./types";
 
 const __typename = "ProjectVersion" as const;
-type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
 export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.project_version,
+    delegate: (prisma) => prisma.project_version,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -36,81 +36,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            directories: "ProjectVersionDirectory",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "Project",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            root: "Project",
-            // 'runs.project': 'RunProject', //TODO
-        },
-        prismaRelMap: {
-            __typename,
-            comments: "Comment",
-            directories: "ProjectVersionDirectory",
-            directoryListings: "ProjectVersionDirectory",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            resourceList: "ResourceList",
-            root: "Project",
-            forks: "Project",
-            runProjects: "RunProject",
-            suggestedNextByProject: "ProjectVersion",
-        },
-        joinMap: {
-            suggestedNextByProject: "toProjectVersion",
-        },
-        countFields: {
-            commentsCount: true,
-            directoriesCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            reportsCount: true,
-            runProjectsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                const runs = async () => {
-                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
-                    // Find requested fields of runs. Also add projectVersionId, so we 
-                    // can associate runs with their project
-                    const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
-                        projectVersionId: true,
-                    };
-                    // Query runs made by user
-                    let runs: any[] = await prisma.run_project.findMany({
-                        where: {
-                            AND: [
-                                { projectVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userData.id } },
-                            ],
-                        },
-                        ...selectHelper(runPartial),
-                    });
-                    // Format runs to GraphQL
-                    runs = runs.map(r => modelToGql(r, runPartial));
-                    // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
-                    // Split runs by id
-                    const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
-                    return projectRuns;
-                };
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        runs: await runs(),
-                    },
-                };
-            },
-        },
-    },
+    format: ProjectVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -303,6 +229,43 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 { root: "labelsWrapped" },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+                const runs = async () => {
+                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
+                    // Find requested fields of runs. Also add projectVersionId, so we 
+                    // can associate runs with their project
+                    const runPartial: PartialGraphQLInfo = {
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
+                        projectVersionId: true,
+                    };
+                    // Query runs made by user
+                    let runs: any[] = await prisma.run_project.findMany({
+                        where: {
+                            AND: [
+                                { projectVersion: { root: { id: { in: ids } } } },
+                                { user: { id: userData.id } },
+                            ],
+                        },
+                        ...selectHelper(runPartial),
+                    });
+                    // Format runs to GraphQL
+                    runs = runs.map(r => modelToGql(r, runPartial));
+                    // Add supplemental fields
+                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
+                    // Split runs by id
+                    const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
+                    return projectRuns;
+                };
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

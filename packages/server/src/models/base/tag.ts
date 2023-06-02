@@ -1,16 +1,17 @@
 import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
-import { getEmbeddableString } from "../utils/embeddings/getEmbeddableString";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { TagFormat } from "../format/tag";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
-import { ModelLogic } from "./types";
+import { TagModelLogic } from "./types";
 
 const __typename = "Tag" as const;
 const suppFields = ["you"] as const;
-export const TagModel: ModelLogic<StatsTagModelLogic, typeof suppFields> = ({
+export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.tag,
+    delegate: (prisma) => prisma.tag,
     display: {
         label: {
             select: () => ({ id: true, tag: true }),
@@ -28,59 +29,7 @@ export const TagModel: ModelLogic<StatsTagModelLogic, typeof suppFields> = ({
         },
     },
     idField: "tag",
-    format: {
-        gqlRelMap: {
-            __typename,
-            apis: "Api",
-            notes: "Note",
-            organizations: "Organization",
-            posts: "Post",
-            projects: "Project",
-            reports: "Report",
-            routines: "Routine",
-            smartContracts: "SmartContract",
-            standards: "Standard",
-            bookmarkedBy: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            apis: "Api",
-            notes: "Note",
-            organizations: "Organization",
-            posts: "Post",
-            projects: "Project",
-            reports: "Report",
-            routines: "Routine",
-            smartContracts: "SmartContract",
-            standards: "Standard",
-            bookmarkedBy: "User",
-            focusModeFilters: "FocusModeFilter",
-        },
-        joinMap: {
-            apis: "tagged",
-            notes: "tagged",
-            organizations: "tagged",
-            posts: "tagged",
-            projects: "tagged",
-            reports: "tagged",
-            routines: "tagged",
-            smartContracts: "tagged",
-            standards: "tagged",
-            bookmarkedBy: "user",
-        },
-        countFields: {},
-        supplemental: {
-            graphqlFields: suppFields,
-            dbFields: ["createdById", "id"],
-            toGraphQL: async ({ ids, objects, prisma, userData }) => ({
-                you: {
-                    isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                    isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
-                },
-            }),
-        },
-    },
+    format: TagFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList }) => {
@@ -116,6 +65,16 @@ export const TagModel: ModelLogic<StatsTagModelLogic, typeof suppFields> = ({
                 "tagWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            dbFields: ["createdById", "id"],
+            toGraphQL: async ({ ids, objects, prisma, userData }) => ({
+                you: {
+                    isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                    isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                },
+            }),
+        },
     },
     validate: {
         isTransferable: false,

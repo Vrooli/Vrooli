@@ -1,18 +1,18 @@
-import { ApiVersionSortBy, apiVersionValidation, MaxObjects, VersionYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { ApiVersionFormat } from "../format/apiVersion";
+import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
-import { ApiVersionModelLogic, ModelLogic } from "./types";
+import { ApiVersionModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
-type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
 export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.api_version,
+    delegate: (prisma) => prisma.api_version,
     display: {
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -42,45 +42,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "ApiVersion",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            resourceList: "ResourceList",
-            root: "Api",
-        },
-        prismaRelMap: {
-            __typename,
-            calledByRoutineVersions: "RoutineVersion",
-            comments: "Comment",
-            reports: "Report",
-            root: "Api",
-            forks: "Api",
-            resourceList: "ResourceList",
-            pullRequest: "PullRequest",
-            directoryListings: "ProjectVersionDirectory",
-        },
-        countFields: {
-            commentsCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            reportsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: ApiVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -156,6 +118,16 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 { root: "labelsWrapped" },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

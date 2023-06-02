@@ -1,7 +1,8 @@
+import { ProjectModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Project" as const;
-export const ProjectFormat: Formatter<ModelProjectLogic> = {
+export const ProjectFormat: Formatter<ProjectModelLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",

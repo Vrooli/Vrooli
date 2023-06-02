@@ -1,37 +1,24 @@
 import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { CustomError } from "../events";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { CustomError } from "../../events";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { WalletFormat } from "../format/wallet";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic } from "./types";
+import { WalletModelLogic } from "./types";
 
 const __typename = "Wallet" as const;
 const suppFields = [] as const;
-export const WalletModel: ModelLogic<StatsWalletModelLogic, typeof suppFields> = ({
+export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.wallet,
+    delegate: (prisma) => prisma.wallet,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            handles: "Handle",
-            user: "User",
-            organization: "Organization",
-        },
-        prismaRelMap: {
-            __typename,
-            handles: "Handle",
-            user: "User",
-            organization: "Organization",
-        },
-        countFields: {},
-    },
+    format: WalletFormat,
     mutate: {
         shape: {
             pre: async ({ deleteList, prisma, userData }) => {

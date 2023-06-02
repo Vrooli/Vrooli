@@ -9,7 +9,7 @@
  * is not directly in the tag's name/description.
  */
 import { Prisma, RunStatus } from "@prisma/client";
-import { ObjectMap } from "../../models";
+import { ObjectMap } from "../../models/base";
 import { ModelLogic } from "../../models/types";
 import { PrismaType } from "../../types";
 import { FindManyArgs } from "../../utils";

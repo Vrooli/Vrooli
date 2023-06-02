@@ -1,7 +1,8 @@
+import { ReportResponseModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "ReportResponse" as const;
-export const ReportResponseFormat: Formatter<ModelReportResponseLogic> = {
+export const ReportResponseFormat: Formatter<ReportResponseModelLogic> = {
     gqlRelMap: {
         __typename,
         report: "Report",
@@ -11,4 +12,7 @@ export const ReportResponseFormat: Formatter<ModelReportResponseLogic> = {
         report: "Report",
     },
     hiddenFields: ["createdById"], // Always hide report creator
+    countFields: {
+        responsesCount: true,
+    },
 };

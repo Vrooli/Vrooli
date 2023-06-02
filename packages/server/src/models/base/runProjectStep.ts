@@ -1,31 +1,20 @@
 import { runProjectStepValidation } from "@local/shared";
-import { PrismaType } from "../types";
-import { ModelLogic, RunProjectStepModelLogic } from "./types";
+import { RunProjectStepFormat } from "../format/runProjectStep";
+import { ModelLogic } from "../types";
+import { RunProjectStepModelLogic } from "./types";
 
 const __typename = "RunProjectStep" as const;
 const suppFields = [] as const;
 export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.run_project_step,
+    delegate: (prisma) => prisma.run_project_step,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            directory: "ProjectVersionDirectory",
-            run: "RunProject",
-        },
-        prismaRelMap: {
-            __typename,
-            directory: "ProjectVersionDirectory",
-            runProject: "RunProject",
-        },
-        countFields: {},
-    },
+    format: RunProjectStepFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

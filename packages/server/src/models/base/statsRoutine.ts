@@ -1,17 +1,18 @@
 import { StatsRoutineSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsRoutineFormat } from "../format/statsRoutine";
+import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
-import { ModelLogic, StatsRoutineModelLogic } from "./types";
+import { StatsRoutineModelLogic } from "./types";
 
 const __typename = "StatsRoutine" as const;
 const suppFields = [] as const;
 export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_routine,
+    delegate: (prisma) => prisma.stats_routine,
     display: {
         label: {
             select: () => ({ id: true, routine: selPad(RoutineModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            routine: "Routine",
-        },
-        countFields: {},
-    },
+    format: StatsRoutineFormat,
     search: {
         defaultSort: StatsRoutineSortBy.PeriodStartAsc,
         sortBy: StatsRoutineSortBy,

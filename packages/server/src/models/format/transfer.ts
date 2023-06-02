@@ -1,7 +1,8 @@
+import { TransferModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Transfer" as const;
-export const TransferFormat: Formatter<ModelTransferLogic> = {
+export const TransferFormat: Formatter<TransferModelLogic> = {
     gqlRelMap: {
         __typename,
         fromOwner: {

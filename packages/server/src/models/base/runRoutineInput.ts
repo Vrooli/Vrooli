@@ -1,16 +1,17 @@
 import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
 import { RoutineVersionInputModel } from ".";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { RunRoutineInputFormat } from "../format/runRoutineInput";
+import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic, RunRoutineInputModelLogic } from "./types";
+import { RunRoutineInputModelLogic } from "./types";
 
 const __typename = "RunRoutineInput" as const;
 const suppFields = [] as const;
 export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.run_routine_input,
+    delegate: (prisma) => prisma.run_routine_input,
     display: {
         label: {
             select: () => ({
@@ -29,19 +30,7 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            input: "RoutineVersionInput",
-            runRoutine: "RunRoutine",
-        },
-        prismaRelMap: {
-            __typename,
-            input: "RunRoutineInput",
-            runRoutine: "RunRoutine",
-        },
-        countFields: {},
-    },
+    format: RunRoutineInputFormat,
     mutate: {
         shape: {
             create: async ({ data }) => {

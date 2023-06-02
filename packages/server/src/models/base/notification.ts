@@ -1,28 +1,21 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { ModelLogic, NotificationModelLogic } from "./types";
+import { defaultPermissions } from "../../utils";
+import { NotificationFormat } from "../format/notification";
+import { ModelLogic } from "../types";
+import { NotificationModelLogic } from "./types";
 
 const __typename = "Notification" as const;
 const suppFields = [] as const;
 export const NotificationModel: ModelLogic<NotificationModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.notification,
+    delegate: (prisma) => prisma.notification,
     display: {
         label: {
             select: () => ({ id: true, title: true }),
             get: (select) => select.title,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-        },
-        countFields: {},
-    },
+    format: NotificationFormat,
     search: {
         defaultSort: NotificationSortBy.DateCreatedDesc,
         sortBy: NotificationSortBy,

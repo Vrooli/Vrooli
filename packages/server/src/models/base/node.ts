@@ -1,43 +1,25 @@
 import { MaxObjects, nodeValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { CustomError } from "../events";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, shapeHelper } from "../../builders";
+import { CustomError } from "../../events";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { NodeFormat } from "../format/node";
+import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
-import { ModelLogic, NodeModelLogic } from "./types";
+import { NodeModelLogic } from "./types";
 
 const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
 const suppFields = [] as const;
 export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node,
+    delegate: (prisma) => prisma.node,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            end: "NodeEnd",
-            loop: "NodeLoop",
-            routineList: "NodeRoutineList",
-            routineVersion: "RoutineVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            end: "NodeEnd",
-            loop: "NodeLoop",
-            next: "NodeLink",
-            previous: "NodeLink",
-            routineList: "NodeRoutineList",
-            routineVersion: "RoutineVersion",
-            runSteps: "RunRoutineStep",
-        },
-        countFields: {},
-    },
+    format: NodeFormat,
     mutate: {
         shape: {
             pre: async ({ createList, deleteList, prisma, userData }) => {

@@ -2,7 +2,7 @@ import { ReactInput, Reaction, ReactionSearchInput, Success } from "@local/share
 import { readManyHelper } from "../../actions";
 import { assertRequestFrom } from "../../auth";
 import { rateLimit } from "../../middleware";
-import { ReactionModel } from "../../models";
+import { ReactionModel } from "../../models/base";
 import { FindManyResult, GQLEndpoint } from "../../types";
 
 export type EndpointsReaction = {

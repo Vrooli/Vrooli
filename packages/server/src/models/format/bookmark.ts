@@ -1,7 +1,8 @@
+import { BookmarkModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Bookmark" as const;
-export const BookmarkFormat: Formatter<ModelBookmarkLogic> = {
+export const BookmarkFormat: Formatter<BookmarkModelLogic> = {
     gqlRelMap: {
         __typename,
         by: "User",

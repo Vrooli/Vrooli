@@ -1,92 +1,32 @@
-import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, CommentYou, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
-import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../builders";
-import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { getSearchStringQuery } from "../getters";
-import { PrismaType, SessionUserToken } from "../types";
-import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
-import { SortMap } from "../utils/sortMap";
-import { getSingleTypePermissions } from "../validators";
+import { getUser } from "../../auth";
+import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo, visibilityBuilder } from "../../builders";
+import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { getSearchStringQuery } from "../../getters";
+import { PrismaType, SessionUserToken } from "../../types";
+import { bestTranslation, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../../utils";
+import { SortMap } from "../../utils/sortMap";
+import { getSingleTypePermissions } from "../../validators";
+import { CommentFormat } from "../format/comment";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
-import { CommentModelLogic, ModelLogic } from "./types";
+import { CommentModelLogic } from "./types";
 
 const __typename = "Comment" as const;
-type Permissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
 const suppFields = ["you"] as const;
 export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.comment,
+    delegate: (prisma) => prisma.comment,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages).text ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            commentedOn: {
-                apiVersion: "ApiVersion",
-                issue: "Issue",
-                noteVersion: "NoteVersion",
-                post: "Post",
-                projectVersion: "ProjectVersion",
-                pullRequest: "PullRequest",
-                question: "Question",
-                questionAnswer: "QuestionAnswer",
-                routineVersion: "RoutineVersion",
-                smartContractVersion: "SmartContractVersion",
-                standardVersion: "StandardVersion",
-            },
-            reports: "Report",
-            bookmarkedBy: "User",
-        },
-        prismaRelMap: {
-            __typename: "Comment",
-            ownedByUser: "User",
-            ownedByOrganization: "Organization",
-            apiVersion: "ApiVersion",
-            issue: "Issue",
-            noteVersion: "NoteVersion",
-            parent: "Comment",
-            post: "Post",
-            projectVersion: "ProjectVersion",
-            pullRequest: "PullRequest",
-            question: "Question",
-            questionAnswer: "QuestionAnswer",
-            routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
-            standardVersion: "StandardVersion",
-            reports: "Report",
-            bookmarkedBy: "User",
-            reactions: "Reaction",
-            parents: "Comment",
-        },
-        joinMap: { bookmarkedBy: "user" },
-        countFields: {
-            reportsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: CommentFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -311,6 +251,18 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
         },
         sortBy: CommentSortBy,
         searchStringQuery: () => ({ translations: "transText" }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

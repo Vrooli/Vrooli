@@ -1,15 +1,16 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
-import { shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { ReminderListFormat } from "../format/reminderList";
+import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
-import { ModelLogic, ReminderListModelLogic } from "./types";
+import { ReminderListModelLogic } from "./types";
 
 const __typename = "ReminderList" as const;
 const suppFields = [] as const;
 export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.reminder_list,
+    delegate: (prisma) => prisma.reminder_list,
     display: {
         label: {
             select: () => ({ id: true, focusMode: { select: FocusModeModel.display.label.select() } }),
@@ -17,19 +18,7 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
             get: (select, languages) => FocusModeModel.display.label.get(select.focusMode as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            focusMode: "FocusMode",
-            reminders: "Reminder",
-        },
-        prismaRelMap: {
-            __typename,
-            focusMode: "FocusMode",
-            reminders: "Reminder",
-        },
-        countFields: {},
-    },
+    format: ReminderListFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

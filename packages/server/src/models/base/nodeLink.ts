@@ -1,14 +1,15 @@
 import { nodeLinkValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { NodeLinkFormat } from "../format/nodeLink";
+import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
-import { ModelLogic, NodeLinkModelLogic } from "./types";
+import { NodeLinkModelLogic } from "./types";
 
 const __typename = "NodeLink" as const;
 const suppFields = [] as const;
 export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_link,
+    delegate: (prisma) => prisma.node_link,
     display: {
         label: {
             select: () => ({
@@ -22,20 +23,7 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            whens: "NodeLinkWhen",
-        },
-        prismaRelMap: {
-            __typename,
-            from: "Node",
-            to: "Node",
-            routineVersion: "RoutineVersion",
-            whens: "NodeLinkWhen",
-        },
-        countFields: {},
-    },
+    format: NodeLinkFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

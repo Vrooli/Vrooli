@@ -1,18 +1,18 @@
-import { MaxObjects, NoteVersionSortBy, noteVersionValidation, VersionYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { NoteVersionFormat } from "../format/noteVersion";
+import { ModelLogic } from "../types";
 import { NoteModel } from "./note";
-import { ModelLogic, NoteVersionModelLogic } from "./types";
+import { NoteVersionModelLogic } from "./types";
 
 const __typename = "NoteVersion" as const;
-type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
 export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.note_version,
+    delegate: (prisma) => prisma.note_version,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -34,42 +34,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            pullRequest: "PullRequest",
-            forks: "NoteVersion",
-            reports: "Report",
-            root: "Note",
-        },
-        prismaRelMap: {
-            __typename,
-            root: "Note",
-            forks: "Note",
-            pullRequest: "PullRequest",
-            comments: "Comment",
-            reports: "Report",
-            directoryListings: "ProjectVersionDirectory",
-        },
-        countFields: {
-            commentsCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            reportsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: NoteVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -136,6 +101,16 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 { root: "labelsWrapped" },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

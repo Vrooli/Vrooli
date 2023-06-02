@@ -1,78 +1,24 @@
-import { MaxObjects, NoteSortBy, noteValidation, NoteYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../validators";
+import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../../validators";
+import { NoteFormat } from "../format/note";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { NoteVersionModel } from "./noteVersion";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
-import { ModelLogic, NoteModelLogic } from "./types";
+import { NoteModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Note" as const;
-type Permissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
 export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.note,
+    delegate: (prisma) => prisma.note,
     display: rootObjectDisplay(NoteVersionModel),
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            issues: "Issue",
-            labels: "Label",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            parent: "Note",
-            pullRequests: "PullRequest",
-            questions: "Question",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "NoteVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            parent: "NoteVersion",
-            createdBy: "User",
-            ownedByUser: "User",
-            ownedByOrganization: "Organization",
-            versions: "NoteVersion",
-            pullRequests: "PullRequest",
-            labels: "Label",
-            issues: "Issue",
-            tags: "Tag",
-            bookmarkedBy: "User",
-            questions: "Question",
-        },
-        joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
-        countFields: {
-            issuesCount: true,
-            labelsCount: true,
-            pullRequestsCount: true,
-            questionsCount: true,
-            transfersCount: true,
-            versionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: NoteFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -133,6 +79,19 @@ export const NoteModel: ModelLogic<NoteModelLogic, typeof suppFields> = ({
                 { versions: { some: "transNameWrapped" } },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         hasCompleteVersion: () => true,

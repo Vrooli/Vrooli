@@ -1,7 +1,8 @@
+import { ReportModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Report" as const;
-export const ReportFormat: Formatter<ModelReportLogic> = {
+export const ReportFormat: Formatter<ReportModelLogic> = {
     gqlRelMap: {
         __typename,
         responses: "ReportResponse",
@@ -10,26 +11,8 @@ export const ReportFormat: Formatter<ModelReportLogic> = {
         __typename,
         responses: "ReportResponse",
     },
-    hiddenFields: ["createdById"], // Always hide report creator
-}${ forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
-                            })),
-                        },
-                    });
-                    if (existing.length > 0)
-                        throw new CustomError("0337", "MaxReportsReached", userData.languages);
-                }
-            },
-            create: async ({ data, userData }) => {
-                return {
-                    id: data.id,
-                    language: data.language,
-                    reason: data.reason,
-                    details: data.details,
-                    status: ReportStatus.Open,
-                    createdBy: { connect: { id: userData.id } },
-                    [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
-                };
-                return {
-                    reason: data.reason ?? undefined,
-                    details: data.details,
+    hiddenFields: ["createdById"], // Always hide report creator,
+    countFields: {
+        responsesCount: true,
+    },
 };

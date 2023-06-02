@@ -1,18 +1,18 @@
-import { ChatMessageSortBy, ChatMessageYou, MaxObjects, uuidValidate } from "@local/shared";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { ChatMessageSortBy, MaxObjects, uuidValidate } from "@local/shared";
+import { bestTranslation, defaultPermissions } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { ChatMessageFormat } from "../format/chatMessage";
+import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
-import { ChatMessageModelLogic, ModelLogic } from "./types";
+import { ChatMessageModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatMessage" as const;
-type Permissions = Pick<ChatMessageYou, "canDelete" | "canUpdate" | "canReply" | "canReport" | "canReact">;
 const suppFields = ["you"] as const;
 export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.chat_message,
+    delegate: (prisma) => prisma.chat_message,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -22,40 +22,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            chat: "Chat",
-            user: "User",
-            // reactionSummaries: "ReactionSummary",
-            reports: "Report",
-        },
-        prismaRelMap: {
-            __typename,
-            chat: "Chat",
-            fork: "ChatMessage",
-            children: "ChatMessage",
-            user: "User",
-            // reactionSummaries: "ReactionSummary",
-            reports: "Report",
-        },
-        joinMap: {},
-        countFields: {
-            reportsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: ChatMessageFormat,
     mutate: {} as any, //TODO make sure that chat's updated_at is updated when a message is created, so that it shows up first in the list
     search: {
         defaultSort: ChatMessageSortBy.DateCreatedDesc,
@@ -74,6 +41,17 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 { user: UserModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

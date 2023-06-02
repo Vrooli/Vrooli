@@ -1,10 +1,12 @@
 import { exists, getReactionScore, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
 import { reaction_summary } from "@prisma/client";
 import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { onlyValidIds, selPad } from "../builders";
-import { CustomError, Trigger } from "../events";
-import { PrismaType, SessionUserToken } from "../types";
-import { ModelLogic, ReactionModelLogic } from "./types";
+import { onlyValidIds, selPad } from "../../builders";
+import { CustomError, Trigger } from "../../events";
+import { PrismaType, SessionUserToken } from "../../types";
+import { ReactionFormat } from "../format/reaction";
+import { ModelLogic } from "../types";
+import { ReactionModelLogic } from "./types";
 
 const forMapper: { [key in ReactionFor]: string } = {
     Api: "api",
@@ -26,7 +28,7 @@ const __typename = "Reaction" as const;
 const suppFields = [] as const;
 export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.reaction,
+    delegate: (prisma) => prisma.reaction,
     display: {
         label: {
             select: () => ({
@@ -63,45 +65,7 @@ export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            by: "User",
-            to: {
-                api: "Api",
-                chatMessage: "ChatMessage",
-                comment: "Comment",
-                issue: "Issue",
-                note: "Note",
-                post: "Post",
-                project: "Project",
-                question: "Question",
-                questionAnswer: "QuestionAnswer",
-                quiz: "Quiz",
-                routine: "Routine",
-                smartContract: "SmartContract",
-                standard: "Standard",
-            },
-        },
-        prismaRelMap: {
-            __typename,
-            by: "User",
-            api: "Api",
-            chatMessage: "ChatMessage",
-            comment: "Comment",
-            issue: "Issue",
-            note: "Note",
-            post: "Post",
-            project: "Project",
-            question: "Question",
-            questionAnswer: "QuestionAnswer",
-            quiz: "Quiz",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-        },
-        countFields: {},
-    },
+    format: ReactionFormat,
     query: {
         /**
          * Finds your reactions on a list of items, or null if you haven't reacted to that item

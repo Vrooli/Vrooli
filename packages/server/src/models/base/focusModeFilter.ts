@@ -1,35 +1,24 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
-import { shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { FocusModeFilterFormat } from "../format/focusModeFilter";
+import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";
-import { FocusModeFilterModelLogic, ModelLogic } from "./types";
+import { FocusModeFilterModelLogic } from "./types";
 
 const __typename = "FocusModeFilter" as const;
 const suppFields = [] as const;
 export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.focus_mode_filter,
+    delegate: (prisma) => prisma.focus_mode_filter,
     display: {
         label: {
             select: () => ({ id: true, tag: { select: TagModel.display.label.select() } }),
             get: (select, languages) => select.tag ? TagModel.display.label.get(select.tag as any, languages) : "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            focusMode: "FocusMode",
-            tag: "Tag",
-        },
-        prismaRelMap: {
-            __typename,
-            focusMode: "FocusMode",
-            tag: "Tag",
-        },
-        countFields: {},
-    },
+    format: FocusModeFilterFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

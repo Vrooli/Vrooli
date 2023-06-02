@@ -1,18 +1,18 @@
-import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation, VersionYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { MaxObjects, SmartContractVersionSortBy, smartContractVersionValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { SmartContractVersionFormat } from "../format/smartContractVersion";
+import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
-import { ModelLogic, SmartContractVersionModelLogic } from "./types";
+import { SmartContractVersionModelLogic } from "./types";
 
 const __typename = "SmartContractVersion" as const;
-type Permissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 const suppFields = ["you"] as const;
 export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.smart_contract_version,
+    delegate: (prisma) => prisma.smart_contract_version,
     display: {
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -34,43 +34,7 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "SmartContractVersion",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            root: "SmartContract",
-        },
-        prismaRelMap: {
-            __typename,
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "SmartContractVersion",
-            pullRequest: "PullRequest",
-            reports: "Report",
-            root: "SmartContract",
-        },
-        countFields: {
-            commentsCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            reportsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: SmartContractVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -152,6 +116,16 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
                 { root: "labelsWrapped" },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

@@ -1,15 +1,16 @@
-import { RoutineVersionOutput, routineVersionOutputValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { translationShapeHelper } from "../utils";
+import { routineVersionOutputValidation } from "@local/shared";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { translationShapeHelper } from "../../utils";
+import { RoutineVersionOutputFormat } from "../format/routineVersionOutput";
+import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
-import { ModelLogic } from "./types";
+import { RoutineVersionOutputModelLogic } from "./types";
 
 const __typename = "RoutineVersionOutput" as const;
 const suppFields = [] as const;
-export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutput, typeof suppFields> = ({
+export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutputModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.routine_version_output,
+    delegate: (prisma) => prisma.routine_version_output,
     display: {
         label: {
             select: () => ({
@@ -20,19 +21,7 @@ export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutput, typeof 
             get: (select, languages) => select.name ?? RoutineModel.display.label.get(select.routineVersion as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
-        },
-        countFields: {},
-    },
+    format: RoutineVersionOutputFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

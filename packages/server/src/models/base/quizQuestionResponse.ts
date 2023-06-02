@@ -1,19 +1,19 @@
-import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation, QuizQuestionResponseYou } from "@local/shared";
+import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { QuizQuestionResponseFormat } from "../format/quizQuestionResponse";
+import { ModelLogic } from "../types";
 import { QuizAttemptModel } from "./quizAttempt";
 import { QuizQuestionModel } from "./quizQuestion";
-import { ModelLogic, QuizQuestionResponseModelLogic } from "./types";
+import { QuizQuestionResponseModelLogic } from "./types";
 
 const __typename = "QuizQuestionResponse" as const;
-type Permissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.quiz_question_response,
+    delegate: (prisma) => prisma.quiz_question_response,
     display: {
         label: {
             select: () => ({ id: true, quizQuestion: selPad(QuizQuestionModel.display.label.select) }),
@@ -23,29 +23,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            quizAttempt: "QuizAttempt",
-            quizQuestion: "QuizQuestion",
-        },
-        prismaRelMap: {
-            __typename,
-            quizAttempt: "QuizAttempt",
-            quizQuestion: "QuizQuestion",
-        },
-        countFields: {},
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: QuizQuestionResponseFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -74,6 +52,16 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
                 "transResponseWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

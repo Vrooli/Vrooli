@@ -1,17 +1,18 @@
 import { StatsStandardSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsStandardFormat } from "../format/statsStandard";
+import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
-import { ModelLogic, StatsStandardModelLogic } from "./types";
+import { StatsStandardModelLogic } from "./types";
 
 const __typename = "StatsStandard" as const;
 const suppFields = [] as const;
 export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_standard,
+    delegate: (prisma) => prisma.stats_standard,
     display: {
         label: {
             select: () => ({ id: true, standard: selPad(StandardModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            standard: "Standard",
-        },
-        countFields: {},
-    },
+    format: StatsStandardFormat,
     search: {
         defaultSort: StatsStandardSortBy.PeriodStartAsc,
         sortBy: StatsStandardSortBy,

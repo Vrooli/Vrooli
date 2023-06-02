@@ -1,15 +1,16 @@
 import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions } from "../../utils";
+import { PremiumFormat } from "../format/premium";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic, PremiumModelLogic } from "./types";
+import { PremiumModelLogic } from "./types";
 
 const __typename = "Premium" as const;
 const suppFields = [] as const;
 export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.payment,
+    delegate: (prisma) => prisma.payment,
     display: {
         label: {
             select: () => ({ id: true, customPlan: true }),
@@ -20,17 +21,7 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: PremiumFormat,
     validate: {
         isDeleted: () => false,
         isPublic: () => true,

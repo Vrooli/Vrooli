@@ -1,7 +1,8 @@
+import { AwardModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Award" as const;
-export const AwardFormat: Formatter<ModelAwardLogic> = {
+export const AwardFormat: Formatter<AwardModelLogic> = {
     gqlRelMap: {
         __typename,
     },

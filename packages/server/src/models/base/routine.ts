@@ -1,16 +1,17 @@
-import { MaxObjects, RoutineSortBy, routineValidation, RoutineYou } from "@local/shared";
+import { MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { getLabels } from "../getters";
-import { PrismaType } from "../types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { getLabels } from "../../getters";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../../validators";
+import { RoutineFormat } from "../format/routine";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { RoutineVersionModel } from "./routineVersion";
-import { ModelLogic, RoutineModelLogic } from "./types";
+import { RoutineModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
@@ -196,71 +197,12 @@ import { ViewModel } from "./view";
 // })
 
 const __typename = "Routine" as const;
-type Permissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
 export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.routine,
+    delegate: (prisma) => prisma.routine,
     display: rootObjectDisplay(RoutineVersionModel),
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            forks: "Routine",
-            issues: "Issue",
-            labels: "Label",
-            parent: "Routine",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            versions: "RoutineVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            ownedByUser: "User",
-            ownedByOrganization: "Organization",
-            parent: "RoutineVersion",
-            questions: "Question",
-            quizzes: "Quiz",
-            issues: "Issue",
-            labels: "Label",
-            pullRequests: "PullRequest",
-            bookmarkedBy: "User",
-            stats: "StatsRoutine",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "RoutineVersion",
-            viewedBy: "View",
-        },
-        joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
-        countFields: {
-            forksCount: true,
-            issuesCount: true,
-            pullRequestsCount: true,
-            questionsCount: true,
-            quizzesCount: true,
-            transfersCount: true,
-            versionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
-                };
-            },
-        },
-    },
+    format: RoutineFormat,
     mutate: {
         shape: {
             // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
@@ -334,6 +276,20 @@ export const RoutineModel: ModelLogic<RoutineModelLogic, typeof suppFields> = ({
                 { versions: { some: "transNameWrapped" } },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                };
+            },
+        },
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,

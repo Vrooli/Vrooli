@@ -1,7 +1,8 @@
+import { NoteModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Note" as const;
-export const NoteFormat: Formatter<ModelNoteLogic> = {
+export const NoteFormat: Formatter<NoteModelLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",

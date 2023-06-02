@@ -2,7 +2,7 @@ import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectComp
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
 import { assertRequestFrom } from "../../auth";
 import { rateLimit } from "../../middleware";
-import { RunProjectModel } from "../../models";
+import { RunProjectModel } from "../../models/base";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
 
 export type EndpointsRunProject = {

@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { hasProfanity } from "../utils/censor";
 
 /**

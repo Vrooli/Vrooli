@@ -1,7 +1,8 @@
+import { MemberInviteModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "MemberInvite" as const;
-export const MemberInviteFormat: Formatter<ModelMemberInviteLogic> = {
+export const MemberInviteFormat: Formatter<MemberInviteModelLogic> = {
     gqlRelMap: {
         __typename,
         organization: "Organization",

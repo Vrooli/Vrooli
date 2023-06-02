@@ -1,87 +1,25 @@
-import { LabelSortBy, labelValidation, LabelYou, MaxObjects } from "@local/shared";
+import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { LabelFormat } from "../format/label";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { LabelModelLogic, ModelLogic } from "./types";
+import { LabelModelLogic } from "./types";
 
 const __typename = "Label" as const;
-type Permissions = Pick<LabelYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.label,
+    delegate: (prisma) => prisma.label,
     display: {
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            apis: "Api",
-            focusModes: "FocusMode",
-            issues: "Issue",
-            meetings: "Meeting",
-            notes: "Note",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            projects: "Project",
-            routines: "Routine",
-            schedules: "Schedule",
-        },
-        prismaRelMap: {
-            __typename,
-            apis: "Api",
-            focusModes: "FocusMode",
-            issues: "Issue",
-            meetings: "Meeting",
-            notes: "Note",
-            ownedByUser: "User",
-            ownedByOrganization: "Organization",
-            projects: "Project",
-            routines: "Routine",
-            schedules: "Schedule",
-        },
-        joinMap: {
-            apis: "labelled",
-            focusModes: "labelled",
-            issues: "labelled",
-            meetings: "labelled",
-            notes: "labelled",
-            projects: "labelled",
-            routines: "labelled",
-            schedules: "labelled",
-        },
-        countFields: {
-            apisCount: true,
-            focusModesCount: true,
-            issuesCount: true,
-            meetingsCount: true,
-            notesCount: true,
-            projectsCount: true,
-            smartContractsCount: true,
-            standardsCount: true,
-            routinesCount: true,
-            schedulesCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: LabelFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -127,6 +65,16 @@ export const LabelModel: ModelLogic<LabelModelLogic, typeof suppFields> = ({
                 "transDescriptionWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

@@ -1,7 +1,8 @@
+import { TagModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Tag" as const;
-export const TagFormat: Formatter<ModelTagLogic> = {
+export const TagFormat: Formatter<TagModelLogic> = {
     gqlRelMap: {
         __typename,
         apis: "Api",

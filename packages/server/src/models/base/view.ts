@@ -1,16 +1,18 @@
 import { Count, GqlModelType, ViewFor, ViewSortBy } from "@local/shared";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
-import { onlyValidIds, selPad } from "../builders";
-import { CustomError } from "../events";
-import { getLabels, getLogic } from "../getters";
-import { initializeRedis } from "../redisConn";
-import { PrismaType, SessionUserToken } from "../types";
-import { defaultPermissions } from "../utils";
+import { onlyValidIds, selPad } from "../../builders";
+import { CustomError } from "../../events";
+import { getLabels, getLogic } from "../../getters";
+import { initializeRedis } from "../../redisConn";
+import { PrismaType, SessionUserToken } from "../../types";
+import { defaultPermissions } from "../../utils";
+import { ViewFormat } from "../format/view";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { ModelLogic } from "./types";
+import { ViewModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const toWhere = (key: string, nestedKey: string | null, id: string) => {
@@ -148,9 +150,9 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
 
 const __typename = "View" as const;
 const suppFields = [] as const;
-export const ViewModel: ModelLogic<StatsViewModelLogic, typeof suppFields> = ({
+export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.view,
+    delegate: (prisma) => prisma.view,
     display: {
         label: {
             select: () => ({
@@ -181,41 +183,7 @@ export const ViewModel: ModelLogic<StatsViewModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            by: "User",
-            to: {
-                api: "Api",
-                issue: "Issue",
-                note: "Note",
-                organization: "Organization",
-                post: "Post",
-                project: "Project",
-                question: "Question",
-                routine: "Routine",
-                smartContract: "SmartContract",
-                standard: "Standard",
-                user: "User",
-            },
-        },
-        prismaRelMap: {
-            __typename,
-            by: "User",
-            api: "Api",
-            issue: "Issue",
-            note: "Note",
-            organization: "Organization",
-            post: "Post",
-            project: "Project",
-            question: "Question",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: ViewFormat,
     search: {
         defaultSort: ViewSortBy.LastViewedDesc,
         sortBy: ViewSortBy,

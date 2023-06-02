@@ -1,7 +1,8 @@
+import { OrganizationModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Organization" as const;
-export const OrganizationFormat: Formatter<ModelOrganizationLogic> = {
+export const OrganizationFormat: Formatter<OrganizationModelLogic> = {
     gqlRelMap: {
         __typename,
         apis: "Api",

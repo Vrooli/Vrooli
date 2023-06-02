@@ -1,16 +1,16 @@
-import { ChatSortBy, ChatYou, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatSortBy, MaxObjects, uuidValidate } from "@local/shared";
 import { ChatInviteStatus } from "@prisma/client";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../utils";
-import { getSingleTypePermissions } from "../validators";
-import { ChatModelLogic, ModelLogic } from "./types";
+import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { ChatFormat } from "../format/chat";
+import { ModelLogic } from "../types";
+import { ChatModelLogic } from "./types";
 
 const __typename = "Chat" as const;
-type Permissions = Pick<ChatYou, "canDelete" | "canInvite" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.chat,
+    delegate: (prisma) => prisma.chat,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -27,45 +27,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            organization: "Organization",
-            restrictedToRoles: "Role",
-            messages: "ChatMessage",
-            participants: "ChatParticipant",
-            invites: "ChatInvite",
-            labels: "Label",
-        },
-        prismaRelMap: {
-            __typename,
-            creator: "User",
-            organization: "Organization",
-            restrictedToRoles: "Role",
-            messages: "ChatMessage",
-            participants: "ChatParticipant",
-            invites: "ChatInvite",
-            labels: "Label",
-        },
-        joinMap: { labels: "label", restrictedToRoles: "role" },
-        countFields: {
-            participantsCount: true,
-            invitesCount: true,
-            labelsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        // hasUnread: await ChatModel.query.getHasUnread(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: ChatFormat,
     mutate: {} as any,
     search: {
         defaultSort: ChatSortBy.DateUpdatedDesc,
@@ -86,6 +48,17 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 "transDescriptionWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        // hasUnread: await ChatModel.query.getHasUnread(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

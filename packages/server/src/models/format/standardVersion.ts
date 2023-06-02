@@ -1,7 +1,8 @@
+import { StandardVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "StandardVersion" as const;
-export const StandardVersionFormat: Formatter<ModelStandardVersionLogic> = {
+export const StandardVersionFormat: Formatter<StandardVersionModelLogic> = {
     gqlRelMap: {
         __typename,
         comments: "Comment",

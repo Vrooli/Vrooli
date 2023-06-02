@@ -1,81 +1,26 @@
-import { MaxObjects, SmartContractSortBy, smartContractValidation, SmartContractYou } from "@local/shared";
+import { MaxObjects, SmartContractSortBy, smartContractValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { getLabels } from "../getters";
-import { PrismaType } from "../types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { getLabels } from "../../getters";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../../validators";
+import { SmartContractFormat } from "../format/smartContract";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ReactionModel } from "./reaction";
 import { SmartContractVersionModel } from "./smartContractVersion";
-import { ModelLogic, SmartContractModelLogic } from "./types";
+import { SmartContractModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "SmartContract" as const;
-type Permissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
 export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.smart_contract,
+    delegate: (prisma) => prisma.smart_contract,
     display: rootObjectDisplay(SmartContractVersionModel),
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            issues: "Issue",
-            labels: "Label",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            parent: "SmartContract",
-            pullRequests: "PullRequest",
-            questions: "Question",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "NoteVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            issues: "Issue",
-            labels: "Label",
-            ownedByUser: "User",
-            ownedByOrganization: "Organization",
-            parent: "NoteVersion",
-            pullRequests: "PullRequest",
-            questions: "Question",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "NoteVersion",
-        },
-        joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
-        countFields: {
-            issuesCount: true,
-            pullRequestsCount: true,
-            questionsCount: true,
-            transfersCount: true,
-            versionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "smartContract.translatedName"),
-                };
-            },
-        },
-    },
+    format: SmartContractFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -143,6 +88,20 @@ export const SmartContractModel: ModelLogic<SmartContractModelLogic, typeof supp
                 { versions: { some: "transDescriptionWrapped" } },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "smartContract.translatedName"),
+                };
+            },
+        },
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,

@@ -1,7 +1,8 @@
+import { MeetingModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Meeting" as const;
-export const MeetingFormat: Formatter<ModelMeetingLogic> = {
+export const MeetingFormat: Formatter<MeetingModelLogic> = {
     gqlRelMap: {
         __typename,
         attendees: "User",

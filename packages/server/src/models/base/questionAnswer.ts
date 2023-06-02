@@ -1,41 +1,22 @@
 import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
-import { shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, translationShapeHelper } from "../utils";
-import { ModelLogic, QuestionAnswerModelLogic } from "./types";
+import { shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
+import { QuestionAnswerFormat } from "../format/questionAnswer";
+import { ModelLogic } from "../types";
+import { QuestionAnswerModelLogic } from "./types";
 
 const __typename = "QuestionAnswer" as const;
 const suppFields = [] as const;
 export const QuestionAnswerModel: ModelLogic<QuestionAnswerModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.question_answer,
+    delegate: (prisma) => prisma.question_answer,
     display: {
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            bookmarkedBy: "User",
-            createdBy: "User",
-            comments: "Comment",
-            question: "Question",
-        },
-        prismaRelMap: {
-            __typename,
-            bookmarkedBy: "User",
-            createdBy: "User",
-            comments: "Comment",
-            question: "Question",
-            reactions: "Reaction",
-        },
-        countFields: {
-            commentsCount: true,
-        },
-        joinMap: { bookmarkedBy: "user" },
-    },
+    format: QuestionAnswerFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

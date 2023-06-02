@@ -1,10 +1,11 @@
-import { PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation, PullRequestYou } from "@local/shared";
+import { PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, noNull } from "../builders";
-import { getLogic } from "../getters";
-import { PrismaType } from "../types";
-import { translationShapeHelper } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { findFirstRel, noNull } from "../../builders";
+import { getLogic } from "../../getters";
+import { translationShapeHelper } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { PullRequestFormat } from "../format/pullRequest";
+import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
 import { NoteModel } from "./note";
@@ -17,7 +18,7 @@ import { SmartContractModel } from "./smartContract";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
-import { ModelLogic, PullRequestModelLogic } from "./types";
+import { PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -38,11 +39,10 @@ const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUps
 };
 
 const __typename = "PullRequest" as const;
-type Permissions = Pick<PullRequestYou, "canComment" | "canDelete" | "canUpdate" | "canReport">;
 const suppFields = ["you"] as const;
 export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.pull_request,
+    delegate: (prisma) => prisma.pull_request,
     display: {
         label: {
             select: () => ({
@@ -80,60 +80,7 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            comments: "Comment",
-            from: {
-                fromApiVersion: "ApiVersion",
-                fromNoteVersion: "NoteVersion",
-                fromProjectVersion: "ProjectVersion",
-                fromRoutineVersion: "RoutineVersion",
-                fromSmartContractVersion: "SmartContractVersion",
-                fromStandardVersion: "StandardVersion",
-            },
-            to: {
-                toApi: "Api",
-                toNote: "Note",
-                toProject: "Project",
-                toRoutine: "Routine",
-                toSmartContract: "SmartContract",
-                toStandard: "Standard",
-            },
-        },
-        prismaRelMap: {
-            __typename,
-            fromApiVersion: "ApiVersion",
-            fromNoteVersion: "NoteVersion",
-            fromProjectVersion: "ProjectVersion",
-            fromRoutineVersion: "RoutineVersion",
-            fromSmartContractVersion: "SmartContractVersion",
-            fromStandardVersion: "StandardVersion",
-            toApi: "Api",
-            toNote: "Note",
-            toProject: "Project",
-            toRoutine: "Routine",
-            toSmartContract: "SmartContract",
-            toStandard: "Standard",
-            createdBy: "User",
-            comments: "Comment",
-        },
-        countFields: {
-            commentsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: PullRequestFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -171,6 +118,16 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
                 "transTextWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     // NOTE: Combines owner/permissions for creator of pull request and owner 
     // of object that has the pull request

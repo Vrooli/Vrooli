@@ -1,13 +1,15 @@
-import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation, RoutineVersionYou } from "@local/shared";
-import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
-import { PartialGraphQLInfo } from "../builders/types";
-import { PrismaType } from "../types";
-import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../utils";
-import { preShapeVersion } from "../utils/preShapeVersion";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation } from "@local/shared";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../../builders";
+import { PartialGraphQLInfo } from "../../builders/types";
+import { PrismaType } from "../../types";
+import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, postShapeVersion, translationShapeHelper } from "../../utils";
+import { preShapeVersion } from "../../utils/preShapeVersion";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
+import { RoutineVersionFormat } from "../format/routineVersion";
+import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic, RoutineVersionModelLogic } from "./types";
+import { RoutineVersionModelLogic } from "./types";
 
 /**
  * Validates node positions
@@ -30,11 +32,10 @@ const validateNodePositions = async (
 };
 
 const __typename = "RoutineVersion" as const;
-type Permissions = Pick<RoutineVersionYou, "canComment" | "canCopy" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRun" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
 export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.routine_version,
+    delegate: (prisma) => prisma.routine_version,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -56,96 +57,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            apiVersion: "ApiVersion",
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "Routine",
-            inputs: "RoutineVersionInput",
-            nodes: "Node",
-            outputs: "RoutineVersionOutput",
-            pullRequest: "PullRequest",
-            resourceList: "ResourceList",
-            reports: "Report",
-            root: "Routine",
-            smartContractVersion: "SmartContractVersion",
-            suggestedNextByRoutineVersion: "RoutineVersion",
-            // you.runs: 'RunRoutine', //TODO
-        },
-        prismaRelMap: {
-            __typename,
-            apiVersion: "ApiVersion",
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            reports: "Report",
-            smartContractVersion: "SmartContractVersion",
-            nodes: "Node",
-            nodeLinks: "NodeLink",
-            resourceList: "ResourceList",
-            root: "Routine",
-            forks: "Routine",
-            inputs: "RoutineVersionInput",
-            outputs: "RoutineVersionOutput",
-            pullRequest: "PullRequest",
-            runRoutines: "RunRoutine",
-            runSteps: "RunRoutineStep",
-            suggestedNextByRoutineVersion: "RoutineVersion",
-        },
-        joinMap: {
-            suggestedNextByRoutineVersion: "toRoutineVersion",
-        },
-        countFields: {
-            commentsCount: true,
-            directoryListingsCount: true,
-            forksCount: true,
-            inputsCount: true,
-            nodeLinksCount: true,
-            nodesCount: true,
-            outputsCount: true,
-            reportsCount: true,
-            suggestedNextByRoutineVersionCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                const runs = async () => {
-                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
-                    // Find requested fields of runs. Also add routineVersionId, so we 
-                    // can associate runs with their routine
-                    const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
-                        routineVersionId: true,
-                    };
-                    // Query runs made by user
-                    let runs: any[] = await prisma.run_routine.findMany({
-                        where: {
-                            AND: [
-                                { routineVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userData.id } },
-                            ],
-                        },
-                        ...selectHelper(runPartial),
-                    });
-                    // Format runs to GraphQL
-                    runs = runs.map(r => modelToGql(r, runPartial));
-                    // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
-                    // Split runs by id
-                    const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
-                    return routineRuns;
-                };
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        runs: await runs(),
-                    },
-                };
-            },
-        },
-    },
+    format: RoutineVersionFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -276,6 +188,43 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 { root: "labelsWrapped" },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+                const runs = async () => {
+                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
+                    // Find requested fields of runs. Also add routineVersionId, so we 
+                    // can associate runs with their routine
+                    const runPartial: PartialGraphQLInfo = {
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
+                        routineVersionId: true,
+                    };
+                    // Query runs made by user
+                    let runs: any[] = await prisma.run_routine.findMany({
+                        where: {
+                            AND: [
+                                { routineVersion: { root: { id: { in: ids } } } },
+                                { user: { id: userData.id } },
+                            ],
+                        },
+                        ...selectHelper(runPartial),
+                    });
+                    // Format runs to GraphQL
+                    runs = runs.map(r => modelToGql(r, runPartial));
+                    // Add supplemental fields
+                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
+                    // Split runs by id
+                    const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
+                    return routineRuns;
+                };
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,

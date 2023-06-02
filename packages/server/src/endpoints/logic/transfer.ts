@@ -3,7 +3,7 @@ import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
 import { assertRequestFrom } from "../../auth";
 import { CustomError } from "../../events";
 import { rateLimit } from "../../middleware";
-import { TransferModel } from "../../models";
+import { TransferModel } from "../../models/base";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsTransfer = {

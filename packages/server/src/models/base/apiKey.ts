@@ -1,16 +1,17 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { randomString } from "../auth";
-import { noNull } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { randomString } from "../../auth";
+import { noNull } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { ApiKeyFormat } from "../format/apiKey";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ApiKeyModelLogic, ModelLogic } from "./types";
+import { ApiKeyModelLogic } from "./types";
 
 const __typename = "ApiKey" as const;
 const suppFields = [] as const;
 export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.api_key,
+    delegate: (prisma) => prisma.api_key,
     display: {
         label: {
             select: () => ({ id: true, key: true }),
@@ -23,15 +24,7 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-        },
-        countFields: {},
-    },
+    format: ApiKeyFormat,
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({

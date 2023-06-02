@@ -1,9 +1,10 @@
 import { MaxObjects, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, shapeHelper } from "../builders";
-import { getLogic } from "../getters";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { findFirstRel, shapeHelper } from "../../builders";
+import { getLogic } from "../../getters";
+import { bestTranslation, defaultPermissions, oneIsPublic, translationShapeHelper } from "../../utils";
+import { ResourceListFormat } from "../format/resourceList";
+import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { FocusModeModel } from "./focusMode";
 import { OrganizationModel } from "./organization";
@@ -12,46 +13,20 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { ModelLogic, ResourceListModelLogic } from "./types";
+import { ResourceListModelLogic } from "./types";
 
 const __typename = "ResourceList" as const;
 const suppFields = [] as const;
 export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.resource_list,
+    delegate: (prisma) => prisma.resource_list,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            resources: "Resource",
-            apiVersion: "ApiVersion",
-            organization: "Organization",
-            post: "Post",
-            projectVersion: "ProjectVersion",
-            routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
-            standardVersion: "StandardVersion",
-            focusMode: "FocusMode",
-        },
-        prismaRelMap: {
-            __typename,
-            resources: "Resource",
-            apiVersion: "ApiVersion",
-            organization: "Organization",
-            post: "Post",
-            projectVersion: "ProjectVersion",
-            routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
-            standardVersion: "StandardVersion",
-            focusMode: "FocusMode",
-        },
-        countFields: {},
-    },
+    format: ResourceListFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

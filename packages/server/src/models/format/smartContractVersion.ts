@@ -1,7 +1,8 @@
+import { SmartContractVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "SmartContractVersion" as const;
-export const SmartContractVersionFormat: Formatter<ModelSmartContractVersionLogic> = {
+export const SmartContractVersionFormat: Formatter<SmartContractVersionModelLogic> = {
     gqlRelMap: {
         __typename,
         comments: "Comment",

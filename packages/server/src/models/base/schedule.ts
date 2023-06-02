@@ -1,20 +1,21 @@
 import { MaxObjects, ScheduleSortBy, scheduleValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, noNull, selPad, shapeHelper } from "../builders";
-import { getLogic } from "../getters";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { findFirstRel, noNull, selPad, shapeHelper } from "../../builders";
+import { getLogic } from "../../getters";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { ScheduleFormat } from "../format/schedule";
+import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";
 import { RunProjectModel } from "./runProject";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic, ScheduleModelLogic } from "./types";
+import { ScheduleModelLogic } from "./types";
 
 const __typename = "Schedule" as const;
 const suppFields = [] as const;
 export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.schedule,
+    delegate: (prisma) => prisma.schedule,
     display: {
         label: {
             select: () => ({
@@ -33,30 +34,7 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            exceptions: "ScheduleException",
-            labels: "Label",
-            recurrences: "ScheduleRecurrence",
-            runProjects: "RunProject",
-            runRoutines: "RunRoutine",
-            focusModes: "FocusMode",
-            meetings: "Meeting",
-        },
-        prismaRelMap: {
-            __typename,
-            exceptions: "ScheduleException",
-            labels: "Label",
-            recurrences: "ScheduleRecurrence",
-            runProjects: "RunProject",
-            runRoutines: "RunRoutine",
-            focusModes: "FocusMode",
-            meetings: "Meeting",
-        },
-        joinMap: { labels: "label" },
-        countFields: {},
-    },
+    format: ScheduleFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {

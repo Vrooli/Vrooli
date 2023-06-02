@@ -3,7 +3,7 @@
  * or PartialGraphQLInfo objects, depending on whether the desired endpoint is a graphql endpoint or a rest endpoint.
  * This is done during build to reduce runtime computation.
  */
-import { resolveGQLInfo } from "@local/shared/src/api/resolveGQLInfo";
+import { resolveGQLInfo } from "@local/shared";
 import fs from "fs";
 import { DocumentNode, FieldNode, FragmentDefinitionNode, GraphQLResolveInfo, OperationDefinitionNode, parse } from "graphql";
 import { FormatMap } from "../../../../server/src/models/format";

@@ -1,17 +1,18 @@
-import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, transferValidation, TransferYou } from "@local/shared";
+import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, transferValidation } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { noNull, permissionsSelectHelper, selPad } from "../builders";
-import { PartialGraphQLInfo } from "../builders/types";
-import { CustomError } from "../events";
-import { getLogic } from "../getters";
-import { Notify } from "../notify";
-import { PrismaType, SessionUserToken } from "../types";
-import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
-import { ModelLogic } from "./types";
+import { noNull, permissionsSelectHelper, selPad } from "../../builders";
+import { PartialGraphQLInfo } from "../../builders/types";
+import { CustomError } from "../../events";
+import { getLogic } from "../../getters";
+import { Notify } from "../../notify";
+import { PrismaType, SessionUserToken } from "../../types";
+import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
+import { TransferFormat } from "../format/transfer";
+import { ModelLogic } from "../types";
+import { TransferModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
-type Permissions = Pick<TransferYou, "canDelete" | "canUpdate">;
 const suppFields = [] as const;
 
 /**
@@ -258,9 +259,9 @@ export const transfer = (prisma: PrismaType) => ({
     },
 });
 
-export const TransferModel: ModelLogic<StatsTransferModelLogic, typeof suppFields> = ({
+export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.transfer,
+    delegate: (prisma) => prisma.transfer,
     display: {
         label: {
             select: () => ({
@@ -283,40 +284,16 @@ export const TransferModel: ModelLogic<StatsTransferModelLogic, typeof suppField
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            fromOwner: {
-                fromUser: "User",
-                fromOrganization: "Organization",
-            },
-            object: {
-                api: "Api",
-                note: "Note",
-                project: "Project",
-                routine: "Routine",
-                smartContract: "SmartContract",
-                standard: "Standard",
-            },
-            toOwner: {
-                toUser: "User",
-                toOrganization: "Organization",
-            },
+    format: TransferFormat,
+    mutate: {
+        shape: {
+            update: async ({ data }) => ({
+                message: noNull(data.message),
+            }),
         },
-        prismaRelMap: {
-            __typename,
-            fromUser: "User",
-            fromOrganization: "Organization",
-            toUser: "User",
-            toOrganization: "Organization",
-            api: "Api",
-            note: "Note",
-            project: "Project",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-        },
-        countFields: {},
+        yup: transferValidation,
+    },
+    search: {
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
@@ -327,15 +304,7 @@ export const TransferModel: ModelLogic<StatsTransferModelLogic, typeof suppField
                 };
             },
         },
-    },
-    mutate: {
-        shape: {
-            update: async ({ data }) => ({
-                message: noNull(data.message),
-            }),
-        },
-        yup: transferValidation,
-    },
+    } as any,
     transfer,
     validate: {} as any,
 });

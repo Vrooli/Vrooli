@@ -1,17 +1,18 @@
 import { StatsSmartContractSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsSmartContractFormat } from "../format/statsSmartContract";
+import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
-import { ModelLogic, StatsSmartContractModelLogic } from "./types";
+import { StatsSmartContractModelLogic } from "./types";
 
 const __typename = "StatsSmartContract" as const;
 const suppFields = [] as const;
 export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_smart_contract,
+    delegate: (prisma) => prisma.stats_smart_contract,
     display: {
         label: {
             select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            smartContract: "SmartContract",
-        },
-        countFields: {},
-    },
+    format: StatsSmartContractFormat,
     search: {
         defaultSort: StatsSmartContractSortBy.PeriodStartAsc,
         sortBy: StatsSmartContractSortBy,

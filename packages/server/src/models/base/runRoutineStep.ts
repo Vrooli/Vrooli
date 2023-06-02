@@ -1,8 +1,9 @@
 import { MaxObjects, runRoutineStepValidation } from "@local/shared";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions } from "../../utils";
+import { RunRoutineStepFormat } from "../format/runRoutineStep";
+import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
-import { ModelLogic, RunRoutineStepModelLogic } from "./types";
+import { RunRoutineStepModelLogic } from "./types";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -16,28 +17,14 @@ const __typename = "RunRoutineStep" as const;
 const suppFields = [] as const;
 export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.run_routine_step,
+    delegate: (prisma) => prisma.run_routine_step,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            run: "RunRoutine",
-            node: "Node",
-            subroutine: "Routine",
-        },
-        prismaRelMap: {
-            __typename,
-            node: "Node",
-            runRoutine: "RunRoutine",
-            subroutine: "RoutineVersion",
-        },
-        countFields: {},
-    },
+    format: RunRoutineStepFormat,
     mutate: {
         shape: {
             create: async ({ data, userData }) => {

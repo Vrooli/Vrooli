@@ -1,15 +1,16 @@
 import { MaxObjects, nodeLoopValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { NodeLoopFormat } from "../format/nodeLoop";
+import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
-import { ModelLogic, NodeLoopModelLogic } from "./types";
+import { NodeLoopModelLogic } from "./types";
 
 const __typename = "NodeLoop" as const;
 const suppFields = [] as const;
 export const NodeLoopModel: ModelLogic<NodeLoopModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_loop,
+    delegate: (prisma) => prisma.node_loop,
     // Doesn't make sense to have a displayer for this model
     display: {
         label: {
@@ -17,18 +18,7 @@ export const NodeLoopModel: ModelLogic<NodeLoopModelLogic, typeof suppFields> = 
             get: () => "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            whiles: "NodeLoopWhile",
-        },
-        prismaRelMap: {
-            __typename,
-            node: "Node",
-            whiles: "NodeLoopWhile",
-        },
-        countFields: {},
-    },
+    format: NodeLoopFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

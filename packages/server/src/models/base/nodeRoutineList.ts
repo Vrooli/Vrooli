@@ -1,33 +1,23 @@
 import { MaxObjects, nodeRoutineListValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { NodeRoutineListFormat } from "../format/nodeRoutineList";
+import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
-import { ModelLogic, NodeRoutineListModelLogic } from "./types";
+import { NodeRoutineListModelLogic } from "./types";
 
 const __typename = "NodeRoutineList" as const;
 const suppFields = [] as const;
 export const NodeRoutineListModel: ModelLogic<NodeRoutineListModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_routine_list,
+    delegate: (prisma) => prisma.node_routine_list,
     display: {
         label: {
             select: () => ({ id: true, node: selPad(NodeModel.display.label.select) }),
             get: (select, languages) => NodeModel.display.label.get(select.node as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            items: "NodeRoutineListItem",
-        },
-        prismaRelMap: {
-            __typename,
-            node: "Node",
-            items: "NodeRoutineListItem",
-        },
-        countFields: {},
-    },
+    format: NodeRoutineListFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

@@ -1,14 +1,15 @@
 import { nodeLinkWhenValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { translationShapeHelper } from "../utils";
-import { ModelLogic, NodeLinkWhenModelLogic } from "./types";
+import { noNull, shapeHelper } from "../../builders";
+import { translationShapeHelper } from "../../utils";
+import { NodeLinkWhenFormat } from "../format/nodeLinkWhen";
+import { ModelLogic } from "../types";
+import { NodeLinkWhenModelLogic } from "./types";
 
 const __typename = "NodeLinkWhen" as const;
 const suppFields = [] as const;
 export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_link,
+    delegate: (prisma) => prisma.node_link,
     // Doesn't make sense to have a displayer for this model
     display: {
         label: {
@@ -16,16 +17,7 @@ export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFi
             get: () => "",
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            link: "NodeLink",
-        },
-        countFields: {},
-    },
+    format: NodeLinkWhenFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

@@ -1,9 +1,9 @@
-import { MaxObjects, ReportFor, ReportSortBy, reportValidation, ReportYou } from "@local/shared";
+import { MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { selPad } from "../builders";
-import { CustomError } from "../events";
-import { PrismaType } from "../types";
-import { getSingleTypePermissions } from "../validators";
+import { selPad } from "../../builders";
+import { CustomError } from "../../events";
+import { ReportFormat } from "../format/report";
+import { ModelLogic } from "../types";
 import { ApiVersionModel } from "./apiVersion";
 import { CommentModel } from "./comment";
 import { IssueModel } from "./issue";
@@ -15,7 +15,7 @@ import { RoutineVersionModel } from "./routineVersion";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardVersionModel } from "./standardVersion";
 import { TagModel } from "./tag";
-import { ModelLogic, ReportModelLogic } from "./types";
+import { ReportModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
@@ -33,11 +33,10 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 };
 
 const __typename = "Report" as const;
-type Permissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
 const suppFields = ["you"] as const;
 export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.report,
+    delegate: (prisma) => prisma.report,
     display: {
         label: {
             select: () => ({
@@ -72,31 +71,7 @@ export const ReportModel: ModelLogic<ReportModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            responses: "ReportResponse",
-        },
-        prismaRelMap: {
-            __typename,
-            responses: "ReportResponse",
-        },
-        hiddenFields: ["createdById"], // Always hide report creator
-        supplemental: {
-            graphqlFields: suppFields,
-            dbFields: ["createdById"],
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-        countFields: {
-            responsesCount: true,
-        },
-    },
+    format: ReportFormat,
     mutate: {
         shape: {
             pre: async ({ createList, prisma, userData }) => {

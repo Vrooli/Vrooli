@@ -1,15 +1,16 @@
-import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberSearchInput, MemberSortBy, MemberUpdateInput, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, Reaction, ReactionSearchInput, ReactionSortBy, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferSearchInput, TransferSortBy, TransferUpdateInput, User, UserSearchInput, UserSortBy, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
+import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, Reaction, ReactionSearchInput, ReactionSortBy, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Resource } from "i18next";
 import { SelectWrap } from "../../builders/types";
 
+export type ApiPermissions = Pick<ApiYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type ApiModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: ApiCreateInput,
     GqlUpdate: ApiUpdateInput,
     GqlModel: Api,
-    GqlPermission: Permissions,
+    GqlPermission: ApiPermissions,
     GqlSearch: ApiSearchInput,
     GqlSort: ApiSortBy,
     PrismaCreate: Prisma.apiUpsertArgs["create"],
@@ -35,12 +36,13 @@ export type ApiKeyModelLogic = {
     PrismaWhere: Prisma.api_keyWhereInput,
 }
 
+export type ApiVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type ApiVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiVersionCreateInput,
     GqlUpdate: ApiVersionUpdateInput,
-    GqlPermission: Permissions,
+    GqlPermission: ApiVersionPermissions,
     GqlModel: ApiVersion,
     GqlSearch: ApiVersionSearchInput,
     GqlSort: ApiVersionSortBy,
@@ -99,6 +101,7 @@ export type BookmarkListModelLogic = {
     PrismaWhere: Prisma.bookmark_listWhereInput,
 }
 
+export type ChatPermissions = Pick<ChatYou, "canDelete" | "canInvite" | "canUpdate">;
 export type ChatModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -107,7 +110,7 @@ export type ChatModelLogic = {
     GqlModel: Chat,
     GqlSearch: ChatSearchInput,
     GqlSort: ChatSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ChatPermissions,
     PrismaCreate: Prisma.chatUpsertArgs["create"],
     PrismaUpdate: Prisma.chatUpsertArgs["update"],
     PrismaModel: Prisma.chatGetPayload<SelectWrap<Prisma.chatSelect>>,
@@ -115,6 +118,7 @@ export type ChatModelLogic = {
     PrismaWhere: Prisma.chatWhereInput,
 }
 
+export type ChatInvitePermissions = Pick<ChatInviteYou, "canDelete" | "canUpdate">;
 export type ChatInviteModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -123,7 +127,7 @@ export type ChatInviteModelLogic = {
     GqlModel: ChatInvite,
     GqlSearch: ChatInviteSearchInput,
     GqlSort: ChatInviteSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ChatInvitePermissions,
     PrismaCreate: Prisma.chat_inviteUpsertArgs["create"],
     PrismaUpdate: Prisma.chat_inviteUpsertArgs["update"],
     PrismaModel: Prisma.chat_inviteGetPayload<SelectWrap<Prisma.chat_inviteSelect>>,
@@ -131,6 +135,7 @@ export type ChatInviteModelLogic = {
     PrismaWhere: Prisma.chat_inviteWhereInput,
 }
 
+export type ChatMessagePermissions = Pick<ChatMessageYou, "canDelete" | "canUpdate" | "canReply" | "canReport" | "canReact">;
 export type ChatMessageModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -139,7 +144,7 @@ export type ChatMessageModelLogic = {
     GqlModel: ChatMessage,
     GqlSearch: ChatMessageSearchInput,
     GqlSort: ChatMessageSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ChatMessagePermissions,
     PrismaCreate: Prisma.chat_messageUpsertArgs["create"],
     PrismaUpdate: Prisma.chat_messageUpsertArgs["update"],
     PrismaModel: Prisma.chat_messageGetPayload<SelectWrap<Prisma.chat_messageSelect>>,
@@ -163,13 +168,14 @@ export type ChatParticipantModelLogic = {
     PrismaWhere: Prisma.chat_participantsWhereInput,
 }
 
+export type CommentPermissions = Pick<CommentYou, "canDelete" | "canUpdate" | "canBookmark" | "canReply" | "canReport" | "canReact">;
 export type CommentModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: CommentCreateInput,
     GqlUpdate: CommentUpdateInput,
     GqlModel: Comment,
-    GqlPermission: Permissions,
+    GqlPermission: CommentPermissions,
     GqlSearch: CommentSearchInput,
     GqlSort: CommentSortBy,
     PrismaCreate: Prisma.commentUpsertArgs["create"],
@@ -227,7 +233,7 @@ export type FocusModeFilterModelLogic = {
     PrismaWhere: Prisma.focus_mode_filterWhereInput,
 }
 
-
+export type IssuePermissions = Pick<IssueYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRead" | "canReact">;
 export type IssueModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -236,7 +242,7 @@ export type IssueModelLogic = {
     GqlModel: Issue,
     GqlSearch: IssueSearchInput,
     GqlSort: IssueSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: IssuePermissions,
     PrismaCreate: Prisma.issueUpsertArgs["create"],
     PrismaUpdate: Prisma.issueUpsertArgs["update"],
     PrismaModel: Prisma.issueGetPayload<SelectWrap<Prisma.issueSelect>>,
@@ -244,6 +250,7 @@ export type IssueModelLogic = {
     PrismaWhere: Prisma.issueWhereInput,
 }
 
+export type LabelPermissions = Pick<LabelYou, "canDelete" | "canUpdate">;
 export type LabelModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -252,7 +259,7 @@ export type LabelModelLogic = {
     GqlModel: Label,
     GqlSearch: LabelSearchInput,
     GqlSort: LabelSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: LabelPermissions,
     PrismaCreate: Prisma.labelUpsertArgs["create"],
     PrismaUpdate: Prisma.labelUpsertArgs["update"],
     PrismaModel: Prisma.labelGetPayload<SelectWrap<Prisma.labelSelect>>,
@@ -260,6 +267,7 @@ export type LabelModelLogic = {
     PrismaWhere: Prisma.labelWhereInput,
 }
 
+export type MeetingPermissions = Pick<MeetingYou, "canDelete" | "canInvite" | "canUpdate">;
 export type MeetingModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -268,7 +276,7 @@ export type MeetingModelLogic = {
     GqlModel: Meeting,
     GqlSearch: MeetingSearchInput,
     GqlSort: MeetingSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: MeetingPermissions,
     PrismaCreate: Prisma.meetingUpsertArgs["create"],
     PrismaUpdate: Prisma.meetingUpsertArgs["update"],
     PrismaModel: Prisma.meetingGetPayload<SelectWrap<Prisma.meetingSelect>>,
@@ -276,6 +284,7 @@ export type MeetingModelLogic = {
     PrismaWhere: Prisma.meetingWhereInput,
 }
 
+export type MeetingInvitePermissions = Pick<MeetingInviteYou, "canDelete" | "canUpdate">;
 export type MeetingInviteModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -284,7 +293,7 @@ export type MeetingInviteModelLogic = {
     GqlModel: MeetingInvite,
     GqlSearch: MeetingInviteSearchInput,
     GqlSort: MeetingInviteSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: MeetingInvitePermissions,
     PrismaCreate: Prisma.meeting_inviteUpsertArgs["create"],
     PrismaUpdate: Prisma.meeting_inviteUpsertArgs["update"],
     PrismaModel: Prisma.meeting_inviteGetPayload<SelectWrap<Prisma.meeting_inviteSelect>>,
@@ -308,6 +317,7 @@ export type MemberModelLogic = {
     PrismaWhere: Prisma.memberWhereInput,
 }
 
+export type MemberInvitePermissions = Pick<MemberInviteYou, "canDelete" | "canUpdate">;
 export type MemberInviteModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -316,7 +326,7 @@ export type MemberInviteModelLogic = {
     GqlModel: MemberInvite,
     GqlSearch: MemberInviteSearchInput,
     GqlSort: MemberInviteSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: MemberInvitePermissions,
     PrismaCreate: Prisma.member_inviteUpsertArgs["create"],
     PrismaUpdate: Prisma.member_inviteUpsertArgs["update"],
     PrismaModel: Prisma.member_inviteGetPayload<SelectWrap<Prisma.member_inviteSelect>>,
@@ -452,6 +462,7 @@ export type NodeRoutineListItemModelLogic = {
     PrismaWhere: Prisma.node_routine_list_itemWhereInput,
 }
 
+export type NotePermissions = Pick<NoteYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type NoteModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
@@ -460,7 +471,7 @@ export type NoteModelLogic = {
     GqlModel: Note,
     GqlSearch: NoteSearchInput,
     GqlSort: NoteSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: NotePermissions,
     PrismaCreate: Prisma.noteUpsertArgs["create"],
     PrismaUpdate: Prisma.noteUpsertArgs["update"],
     PrismaModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
@@ -468,6 +479,7 @@ export type NoteModelLogic = {
     PrismaWhere: Prisma.noteWhereInput,
 }
 
+export type NoteVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type NoteVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -476,7 +488,7 @@ export type NoteVersionModelLogic = {
     GqlModel: NoteVersion,
     GqlSearch: NoteVersionSearchInput,
     GqlSort: NoteVersionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: NoteVersionPermissions,
     PrismaCreate: Prisma.note_versionUpsertArgs["create"],
     PrismaUpdate: Prisma.note_versionUpsertArgs["update"],
     PrismaModel: Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>,
@@ -516,6 +528,7 @@ export type NotificationSubscriptionModelLogic = {
     PrismaWhere: Prisma.notification_subscriptionWhereInput,
 }
 
+export type OrganizationPermissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
 export type OrganizationModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -524,7 +537,7 @@ export type OrganizationModelLogic = {
     GqlModel: Organization,
     GqlSearch: OrganizationSearchInput,
     GqlSort: OrganizationSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: OrganizationPermissions,
     PrismaCreate: Prisma.organizationUpsertArgs["create"],
     PrismaUpdate: Prisma.organizationUpsertArgs["update"],
     PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
@@ -596,6 +609,7 @@ export type PremiumModelLogic = {
     PrismaWhere: Prisma.premiumWhereInput,
 }
 
+export type ProjectPermissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type ProjectModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
@@ -604,7 +618,7 @@ export type ProjectModelLogic = {
     GqlModel: Project,
     GqlSearch: ProjectSearchInput,
     GqlSort: ProjectSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ProjectPermissions,
     PrismaCreate: Prisma.projectUpsertArgs["create"],
     PrismaUpdate: Prisma.projectUpsertArgs["update"],
     PrismaModel: Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
@@ -612,6 +626,7 @@ export type ProjectModelLogic = {
     PrismaWhere: Prisma.projectWhereInput,
 }
 
+export type ProjectVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type ProjectVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -620,7 +635,7 @@ export type ProjectVersionModelLogic = {
     GqlModel: ProjectVersion,
     GqlSearch: ProjectVersionSearchInput,
     GqlSort: ProjectVersionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ProjectVersionPermissions,
     PrismaCreate: Prisma.project_versionUpsertArgs["create"],
     PrismaUpdate: Prisma.project_versionUpsertArgs["update"],
     PrismaModel: Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>,
@@ -644,6 +659,7 @@ export type ProjectVersionDirectoryModelLogic = {
     PrismaWhere: Prisma.project_version_directoryWhereInput,
 }
 
+export type PullRequestPermissions = Pick<PullRequestYou, "canComment" | "canDelete" | "canUpdate" | "canReport">;
 export type PullRequestModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -652,7 +668,7 @@ export type PullRequestModelLogic = {
     GqlModel: PullRequest,
     GqlSearch: PullRequestSearchInput,
     GqlSort: PullRequestSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: PullRequestPermissions,
     PrismaCreate: Prisma.pull_requestUpsertArgs["create"],
     PrismaUpdate: Prisma.pull_requestUpsertArgs["update"],
     PrismaModel: Prisma.pull_requestGetPayload<SelectWrap<Prisma.pull_requestSelect>>,
@@ -676,6 +692,7 @@ export type PushDeviceModelLogic = {
     PrismaWhere: Prisma.push_deviceWhereInput,
 }
 
+export type QuestionPermissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type QuestionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -684,7 +701,7 @@ export type QuestionModelLogic = {
     GqlModel: Question,
     GqlSearch: QuestionSearchInput,
     GqlSort: QuestionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: QuestionPermissions,
     PrismaCreate: Prisma.questionUpsertArgs["create"],
     PrismaUpdate: Prisma.questionUpsertArgs["update"],
     PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,
@@ -708,6 +725,7 @@ export type QuestionAnswerModelLogic = {
     PrismaWhere: Prisma.question_answerWhereInput,
 }
 
+export type QuizPermissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type QuizModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -716,7 +734,7 @@ export type QuizModelLogic = {
     GqlModel: Quiz,
     GqlSearch: QuizSearchInput,
     GqlSort: QuizSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: QuizPermissions,
     PrismaCreate: Prisma.quizUpsertArgs["create"],
     PrismaUpdate: Prisma.quizUpsertArgs["update"],
     PrismaModel: Prisma.quizGetPayload<SelectWrap<Prisma.quizSelect>>,
@@ -724,6 +742,7 @@ export type QuizModelLogic = {
     PrismaWhere: Prisma.quizWhereInput,
 }
 
+export type QuizAttemptPermissions = Pick<QuizAttemptYou, "canDelete" | "canUpdate">;
 export type QuizAttemptModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -732,7 +751,7 @@ export type QuizAttemptModelLogic = {
     GqlModel: QuizAttempt,
     GqlSearch: QuizAttemptSearchInput,
     GqlSort: QuizAttemptSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: QuizAttemptPermissions,
     PrismaCreate: Prisma.quiz_attemptUpsertArgs["create"],
     PrismaUpdate: Prisma.quiz_attemptUpsertArgs["update"],
     PrismaModel: Prisma.quiz_attemptGetPayload<SelectWrap<Prisma.quiz_attemptSelect>>,
@@ -740,6 +759,7 @@ export type QuizAttemptModelLogic = {
     PrismaWhere: Prisma.quiz_attemptWhereInput,
 }
 
+export type QuizQuestionPermissions = Pick<QuizQuestionYou, "canDelete" | "canUpdate">;
 export type QuizQuestionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -748,7 +768,7 @@ export type QuizQuestionModelLogic = {
     GqlModel: QuizQuestion,
     GqlSearch: QuizQuestionSearchInput,
     GqlSort: QuizQuestionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: QuizQuestionPermissions,
     PrismaCreate: Prisma.quiz_questionUpsertArgs["create"],
     PrismaUpdate: Prisma.quiz_questionUpsertArgs["update"],
     PrismaModel: Prisma.quiz_questionGetPayload<SelectWrap<Prisma.quiz_questionSelect>>,
@@ -756,6 +776,7 @@ export type QuizQuestionModelLogic = {
     PrismaWhere: Prisma.quiz_questionWhereInput,
 }
 
+type QuizQuestionResponsePermissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
 export type QuizQuestionResponseModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -764,7 +785,7 @@ export type QuizQuestionResponseModelLogic = {
     GqlModel: QuizQuestionResponse,
     GqlSearch: QuizQuestionResponseSearchInput,
     GqlSort: QuizQuestionResponseSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: QuizQuestionResponsePermissions,
     PrismaCreate: Prisma.quiz_question_responseUpsertArgs["create"],
     PrismaUpdate: Prisma.quiz_question_responseUpsertArgs["update"],
     PrismaModel: Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>,
@@ -836,6 +857,7 @@ export type ReminderListModelLogic = {
     PrismaWhere: Prisma.reminder_listWhereInput,
 }
 
+export type ReportPermissions = Pick<ReportYou, "canDelete" | "canUpdate" | "canRespond">;
 export type ReportModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -844,7 +866,7 @@ export type ReportModelLogic = {
     GqlModel: Report,
     GqlSearch: ReportSearchInput,
     GqlSort: ReportSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: ReportPermissions,
     PrismaCreate: Prisma.reportUpsertArgs["create"],
     PrismaUpdate: Prisma.reportUpsertArgs["update"],
     PrismaModel: Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
@@ -852,6 +874,7 @@ export type ReportModelLogic = {
     PrismaWhere: Prisma.reportWhereInput,
 }
 
+export type ReportResponsePermissions = Pick<ReportResponseYou, "canDelete" | "canUpdate">;
 export type ReportResponseModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -860,7 +883,7 @@ export type ReportResponseModelLogic = {
     GqlModel: ReportResponse,
     GqlSearch: ReportResponseSearchInput,
     GqlSort: ReportResponseSortBy,
-    GqlPermission: object,
+    GqlPermission: ReportResponsePermissions,
     PrismaCreate: Prisma.report_responseUpsertArgs["create"],
     PrismaUpdate: Prisma.report_responseUpsertArgs["update"],
     PrismaModel: Prisma.report_responseGetPayload<SelectWrap<Prisma.report_responseSelect>>,
@@ -916,6 +939,7 @@ export type RoleModelLogic = {
     PrismaWhere: Prisma.roleWhereInput,
 }
 
+type RoutinePermissions = Pick<RoutineYou, "canComment" | "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 export type RoutineModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
@@ -924,7 +948,7 @@ export type RoutineModelLogic = {
     GqlModel: Routine,
     GqlSearch: RoutineSearchInput,
     GqlSort: RoutineSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: RoutinePermissions,
     PrismaCreate: Prisma.routineUpsertArgs["create"],
     PrismaUpdate: Prisma.routineUpsertArgs["update"],
     PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
@@ -932,6 +956,7 @@ export type RoutineModelLogic = {
     PrismaWhere: Prisma.routineWhereInput,
 }
 
+export type RoutineVersionPermissions = Pick<RoutineVersionYou, "canComment" | "canCopy" | "canDelete" | "canUpdate" | "canBookmark" | "canReport" | "canRun" | "canRead" | "canReact">;
 export type RoutineVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -940,7 +965,7 @@ export type RoutineVersionModelLogic = {
     GqlModel: RoutineVersion,
     GqlSearch: RoutineVersionSearchInput,
     GqlSort: RoutineVersionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: RoutineVersionPermissions,
     PrismaCreate: Prisma.routine_versionUpsertArgs["create"],
     PrismaUpdate: Prisma.routine_versionUpsertArgs["update"],
     PrismaModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
@@ -980,6 +1005,7 @@ export type RoutineVersionOutputModelLogic = {
     PrismaWhere: Prisma.routine_version_outputWhereInput,
 }
 
+export type RunProjectPermissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
 export type RunProjectModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -988,7 +1014,7 @@ export type RunProjectModelLogic = {
     GqlModel: RunProject,
     GqlSearch: RunProjectSearchInput,
     GqlSort: RunProjectSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: RunProjectPermissions,
     PrismaCreate: Prisma.run_projectUpsertArgs["create"],
     PrismaUpdate: Prisma.run_projectUpsertArgs["update"],
     PrismaModel: Prisma.run_projectGetPayload<SelectWrap<Prisma.run_projectSelect>>,
@@ -1012,6 +1038,7 @@ export type RunProjectStepModelLogic = {
     PrismaWhere: Prisma.run_project_stepWhereInput,
 }
 
+export type RunRoutinePermissions = Pick<RunRoutineYou, "canDelete" | "canUpdate" | "canRead">;
 export type RunRoutineModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -1020,7 +1047,7 @@ export type RunRoutineModelLogic = {
     GqlModel: RunRoutine,
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: RunRoutinePermissions,
     PrismaCreate: Prisma.run_routineUpsertArgs["create"],
     PrismaUpdate: Prisma.run_routineUpsertArgs["update"],
     PrismaModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
@@ -1108,6 +1135,7 @@ export type ScheduleRecurrenceModelLogic = {
     PrismaWhere: Prisma.schedule_recurrenceWhereInput,
 }
 
+export type SmartContractPermissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type SmartContractModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
@@ -1116,7 +1144,7 @@ export type SmartContractModelLogic = {
     GqlModel: SmartContract,
     GqlSearch: SmartContractSearchInput,
     GqlSort: SmartContractSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: SmartContractPermissions,
     PrismaCreate: Prisma.smart_contractUpsertArgs["create"],
     PrismaUpdate: Prisma.smart_contractUpsertArgs["update"],
     PrismaModel: Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>,
@@ -1124,6 +1152,7 @@ export type SmartContractModelLogic = {
     PrismaWhere: Prisma.smart_contractWhereInput,
 }
 
+export type SmartContractVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type SmartContractVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -1132,7 +1161,7 @@ export type SmartContractVersionModelLogic = {
     GqlModel: SmartContractVersion,
     GqlSearch: SmartContractVersionSearchInput,
     GqlSort: SmartContractVersionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: SmartContractVersionPermissions,
     PrismaCreate: Prisma.smart_contract_versionUpsertArgs["create"],
     PrismaUpdate: Prisma.smart_contract_versionUpsertArgs["update"],
     PrismaModel: Prisma.smart_contract_versionGetPayload<SelectWrap<Prisma.smart_contract_versionSelect>>,
@@ -1140,6 +1169,7 @@ export type SmartContractVersionModelLogic = {
     PrismaWhere: Prisma.smart_contract_versionWhereInput,
 }
 
+export type StandardPermissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type StandardModelLogic = {
     IsTransferable: true,
     IsVersioned: true,
@@ -1148,7 +1178,7 @@ export type StandardModelLogic = {
     GqlModel: Standard,
     GqlSearch: StandardSearchInput,
     GqlSort: StandardSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: StandardPermissions,
     PrismaCreate: Prisma.standardUpsertArgs["create"],
     PrismaUpdate: Prisma.standardUpsertArgs["update"],
     PrismaModel: Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
@@ -1156,6 +1186,7 @@ export type StandardModelLogic = {
     PrismaWhere: Prisma.standardWhereInput,
 }
 
+export type StandardVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
 export type StandardVersionModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -1164,7 +1195,7 @@ export type StandardVersionModelLogic = {
     GqlModel: StandardVersion,
     GqlSearch: StandardVersionSearchInput,
     GqlSort: StandardVersionSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: StandardVersionPermissions,
     PrismaCreate: Prisma.standard_versionUpsertArgs["create"],
     PrismaUpdate: Prisma.standard_versionUpsertArgs["update"],
     PrismaModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
@@ -1332,6 +1363,7 @@ export type TagModelLogic = {
     PrismaWhere: Prisma.tagWhereInput,
 }
 
+export type TransferPermissions = Pick<TransferYou, "canDelete" | "canUpdate">;
 export type TransferModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -1340,7 +1372,7 @@ export type TransferModelLogic = {
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
     GqlSort: TransferSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: TransferPermissions,
     PrismaCreate: Prisma.transferUpsertArgs["create"],
     PrismaUpdate: Prisma.transferUpsertArgs["update"],
     PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
@@ -1348,6 +1380,7 @@ export type TransferModelLogic = {
     PrismaWhere: Prisma.transferWhereInput,
 }
 
+export type UserPermissions = Pick<UserYou, "canDelete" | "canUpdate" | "canReport">
 export type UserModelLogic = {
     IsTransferable: false,
     IsVersioned: false,
@@ -1356,7 +1389,7 @@ export type UserModelLogic = {
     GqlModel: User,
     GqlSearch: UserSearchInput,
     GqlSort: UserSortBy,
-    GqlPermission: Permissions,
+    GqlPermission: UserPermissions,
     PrismaCreate: Prisma.userUpsertArgs["create"],
     PrismaUpdate: Prisma.userUpsertArgs["update"],
     PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,

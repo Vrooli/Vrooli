@@ -1,22 +1,22 @@
-import { MaxObjects, QuizSortBy, quizValidation, QuizYou } from "@local/shared";
+import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, oneIsPublic, translationShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { getSingleTypePermissions } from "../../validators";
+import { QuizFormat } from "../format/quiz";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ProjectModel } from "./project";
 import { ReactionModel } from "./reaction";
 import { RoutineModel } from "./routine";
-import { ModelLogic, QuizModelLogic } from "./types";
+import { QuizModelLogic } from "./types";
 
 const __typename = "Quiz" as const;
-type Permissions = Pick<QuizYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
 export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.quiz,
+    delegate: (prisma) => prisma.quiz,
     display: {
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -33,44 +33,7 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            attempts: "QuizAttempt",
-            createdBy: "User",
-            project: "Project",
-            quizQuestions: "QuizQuestion",
-            routine: "Routine",
-            bookmarkedBy: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            attempts: "QuizAttempt",
-            createdBy: "User",
-            project: "Project",
-            quizQuestions: "QuizQuestion",
-            routine: "Routine",
-            bookmarkedBy: "User",
-        },
-        joinMap: { bookmarkedBy: "user" },
-        countFields: {
-            attemptsCount: true,
-            quizQuestionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: QuizFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList }) => {
@@ -138,6 +101,19 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
                 "transNameWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

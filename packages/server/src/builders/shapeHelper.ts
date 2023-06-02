@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";

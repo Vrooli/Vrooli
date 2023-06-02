@@ -1,40 +1,22 @@
 import { FocusModeSortBy, focusModeValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, labelShapeHelper } from "../utils";
-import { FocusModeModelLogic, ModelLogic } from "./types";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions, labelShapeHelper } from "../../utils";
+import { FocusModeFormat } from "../format/focusMode";
+import { ModelLogic } from "../types";
+import { FocusModeModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
 const suppFields = [] as const;
 export const FocusModeModel: ModelLogic<FocusModeModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.focus_mode,
+    delegate: (prisma) => prisma.focus_mode,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            filters: "FocusModeFilter",
-            labels: "Label",
-            reminderList: "ReminderList",
-            schedule: "Schedule",
-        },
-        prismaRelMap: {
-            __typename,
-            reminderList: "ReminderList",
-            resourceList: "ResourceList",
-            user: "User",
-            labels: "Label",
-            filters: "FocusModeFilter",
-            schedule: "Schedule",
-        },
-        countFields: {},
-        joinMap: { labels: "label" },
-    },
+    format: FocusModeFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

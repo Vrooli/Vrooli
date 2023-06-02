@@ -1,14 +1,15 @@
 import { MaxObjects, pushDeviceValidation } from "@local/shared";
-import { noNull } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { ModelLogic, PushDeviceModelLogic } from "./types";
+import { noNull } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { PushDeviceFormat } from "../format/pushDevice";
+import { ModelLogic } from "../types";
+import { PushDeviceModelLogic } from "./types";
 
 const __typename = "PushDevice" as const;
 const suppFields = [] as const;
 export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.push_device,
+    delegate: (prisma) => prisma.push_device,
     display: {
         label: {
             select: () => ({ id: true, name: true, p256dh: true }),
@@ -20,16 +21,7 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: PushDeviceFormat,
     mutate: {
         shape: {
             create: async ({ data, userData }) => ({

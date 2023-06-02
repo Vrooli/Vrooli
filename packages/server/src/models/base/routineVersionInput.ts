@@ -1,15 +1,16 @@
 import { routineVersionInputValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { translationShapeHelper } from "../utils";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { translationShapeHelper } from "../../utils";
+import { RoutineVersionInputFormat } from "../format/routineVersionInput";
+import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
-import { ModelLogic, RoutineVersionInputModelLogic } from "./types";
+import { RoutineVersionInputModelLogic } from "./types";
 
 const __typename = "RoutineVersionInput" as const;
 const suppFields = [] as const;
 export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.routine_version_input,
+    delegate: (prisma) => prisma.routine_version_input,
     display: {
         label: {
             select: () => ({
@@ -20,20 +21,7 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
             get: (select, languages) => select.name ?? RoutineModel.display.label.get(select.routineVersion as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
-            runInputs: "RunRoutineInput",
-        },
-        countFields: {},
-    },
+    format: RoutineVersionInputFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

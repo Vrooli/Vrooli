@@ -1,7 +1,8 @@
+import { ApiVersionModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "ApiVersion" as const;
-export const ApiVersionFormat: Formatter<ModelApiVersionLogic> = {
+export const ApiVersionFormat: Formatter<ApiVersionModelLogic> = {
     gqlRelMap: {
         __typename,
         comments: "Comment",

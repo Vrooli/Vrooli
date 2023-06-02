@@ -1,86 +1,26 @@
-import { MaxObjects, ProjectSortBy, projectValidation, ProjectYou } from "@local/shared";
+import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { getLabels } from "../getters";
-import { PrismaType } from "../types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { getLabels } from "../../getters";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../../validators";
+import { ProjectFormat } from "../format/project";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";
 import { ReactionModel } from "./reaction";
-import { ModelLogic, ProjectModelLogic } from "./types";
+import { ProjectModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Project" as const;
-type Permissions = Pick<ProjectYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 const suppFields = ["you", "translatedName"] as const;
 export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.project,
+    delegate: (prisma) => prisma.project,
     display: rootObjectDisplay(ProjectVersionModel),
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            issues: "Issue",
-            labels: "Label",
-            owner: {
-                ownedByUser: "User",
-                ownedByOrganization: "Organization",
-            },
-            parent: "Project",
-            pullRequests: "PullRequest",
-            questions: "Question",
-            quizzes: "Quiz",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfers: "Transfer",
-            versions: "ProjectVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            ownedByOrganization: "Organization",
-            ownedByUser: "User",
-            parent: "ProjectVersion",
-            issues: "Issue",
-            labels: "Label",
-            tags: "Tag",
-            versions: "ProjectVersion",
-            bookmarkedBy: "User",
-            pullRequests: "PullRequest",
-            stats: "StatsProject",
-            questions: "Question",
-            transfers: "Transfer",
-            quizzes: "Quiz",
-        },
-        joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
-        countFields: {
-            issuesCount: true,
-            labelsCount: true,
-            pullRequestsCount: true,
-            questionsCount: true,
-            quizzesCount: true,
-            transfersCount: true,
-            versionsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
-                };
-            },
-        },
-    },
+    format: ProjectFormat,
     mutate: {
         shape: {
             pre: async (params) => {
@@ -150,6 +90,20 @@ export const ProjectModel: ModelLogic<ProjectModelLogic, typeof suppFields> = ({
                 { versions: { some: "transNameWrapped" } },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                };
+            },
+        },
     },
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,

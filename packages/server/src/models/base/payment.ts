@@ -1,14 +1,15 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions } from "../../utils";
+import { PaymentFormat } from "../format/payment";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic, PaymentModelLogic } from "./types";
+import { PaymentModelLogic } from "./types";
 
 const __typename = "Payment" as const;
 const suppFields = [] as const;
 export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.payment,
+    delegate: (prisma) => prisma.payment,
     display: {
         label: {
             select: () => ({ id: true, description: true }),
@@ -16,19 +17,7 @@ export const PaymentModel: ModelLogic<PaymentModelLogic, typeof suppFields> = ({
             get: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: PaymentFormat,
     search: {
         defaultSort: PaymentSortBy.DateCreatedDesc,
         sortBy: PaymentSortBy,

@@ -1,16 +1,16 @@
-import { QuizAttemptSortBy, quizAttemptValidation, QuizAttemptYou } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { getSingleTypePermissions } from "../validators";
+import { QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
+import { getSingleTypePermissions } from "../../validators";
+import { QuizAttemptFormat } from "../format/quizAttempt";
+import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
-import { ModelLogic, QuizAttemptModelLogic } from "./types";
+import { QuizAttemptModelLogic } from "./types";
 
 const __typename = "QuizAttempt" as const;
-type Permissions = Pick<QuizAttemptYou, "canDelete" | "canUpdate">;
 const suppFields = ["you"] as const;
 export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.quiz_attempt,
+    delegate: (prisma) => prisma.quiz_attempt,
     display: {
         label: {
             select: () => ({
@@ -26,33 +26,7 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            quiz: "Quiz",
-            responses: "QuizQuestionResponse",
-            user: "User",
-        },
-        prismaRelMap: {
-            __typename,
-            quiz: "Quiz",
-            responses: "QuizQuestionResponse",
-            user: "User",
-        },
-        countFields: {
-            responsesCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: QuizAttemptFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
@@ -86,6 +60,16 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({}), // No strings to search
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {} as any,
 });

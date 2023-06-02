@@ -1,21 +1,22 @@
-import { exists, MaxObjects, OrganizationSortBy, organizationValidation, OrganizationYou, uuid } from "@local/shared";
+import { exists, MaxObjects, OrganizationSortBy, organizationValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
-import { noNull, onlyValidIds, shapeHelper } from "../builders";
-import { getLabels } from "../getters";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
+import { noNull, onlyValidIds, shapeHelper } from "../../builders";
+import { getLabels } from "../../getters";
+import { PrismaType } from "../../types";
+import { bestTranslation, defaultPermissions, getEmbeddableString, tagShapeHelper, translationShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
+import { OrganizationFormat } from "../format/organization";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
-import { ModelLogic, OrganizationModelLogic } from "./types";
+import { OrganizationModelLogic } from "./types";
 import { ViewModel } from "./view";
 
 const __typename = "Organization" as const;
-type Permissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
 const suppFields = ["you", "translatedName"] as const;
 export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.organization,
+    delegate: (prisma) => prisma.organization,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -32,99 +33,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            apis: "Api",
-            comments: "Comment",
-            directoryListings: "ProjectVersionDirectory",
-            forks: "Organization",
-            issues: "Issue",
-            labels: "Label",
-            meetings: "Meeting",
-            members: "Member",
-            notes: "Note",
-            parent: "Organization",
-            paymentHistory: "Payment",
-            posts: "Post",
-            premium: "Premium",
-            projects: "Project",
-            questions: "Question",
-            reports: "Report",
-            resourceList: "ResourceList",
-            roles: "Role",
-            routines: "Routine",
-            smartContracts: "SmartContract",
-            standards: "Standard",
-            bookmarkedBy: "User",
-            tags: "Tag",
-            transfersIncoming: "Transfer",
-            transfersOutgoing: "Transfer",
-            wallets: "Wallet",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            directoryListings: "ProjectVersionDirectory",
-            issues: "Issue",
-            labels: "Label",
-            notes: "Note",
-            apis: "Api",
-            comments: "Comment",
-            forks: "Organization",
-            meetings: "Meeting",
-            parent: "Organization",
-            posts: "Post",
-            smartContracts: "SmartContract",
-            tags: "Tag",
-            members: "Member",
-            memberInvites: "MemberInvite",
-            projects: "Project",
-            questions: "Question",
-            reports: "Report",
-            resourceList: "ResourceList",
-            roles: "Role",
-            routines: "Routine",
-            runRoutines: "RunRoutine",
-            standards: "Standard",
-            bookmarkedBy: "User",
-            transfersIncoming: "Transfer",
-            transfersOutgoing: "Transfer",
-            wallets: "Wallet",
-        },
-        joinMap: { bookmarkedBy: "user", tags: "tag" },
-        countFields: {
-            apisCount: true,
-            commentsCount: true,
-            issuesCount: true,
-            labelsCount: true,
-            meetingsCount: true,
-            membersCount: true,
-            notesCount: true,
-            postsCount: true,
-            projectsCount: true,
-            questionsCount: true,
-            reportsCount: true,
-            rolesCount: true,
-            routinesCount: true,
-            smartContractsCount: true,
-            standardsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "organization.translatedName"),
-                };
-            },
-        },
-    },
+    format: OrganizationFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList, prisma, userData }) => {
@@ -226,6 +135,19 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                 "transBioWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    },
+                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "organization.translatedName"),
+                };
+            },
+        },
     },
     query: {
         /**

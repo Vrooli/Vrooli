@@ -1,8 +1,9 @@
 
+import { ApiModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Api" as const;
-export const ApiFormat: Formatter<ModelApiLogic> = {
+export const ApiFormat: Formatter<ApiModelLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",

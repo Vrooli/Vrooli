@@ -1,16 +1,17 @@
 import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
+import { noNull, shapeHelper } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { PostFormat } from "../format/post";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic, PostModelLogic } from "./types";
+import { PostModelLogic } from "./types";
 
 const __typename = "Post" as const;
 const suppFields = [] as const;
 export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.post,
+    delegate: (prisma) => prisma.post,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -27,40 +28,7 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            comments: "Comment",
-            owner: {
-                user: "User",
-                organization: "Organization",
-            },
-            reports: "Report",
-            repostedFrom: "Post",
-            reposts: "Post",
-            resourceList: "ResourceList",
-            bookmarkedBy: "User",
-            tags: "Tag",
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-            user: "User",
-            repostedFrom: "Post",
-            reposts: "Post",
-            resourceList: "ResourceList",
-            comments: "Comment",
-            bookmarkedBy: "User",
-            reactions: "Reaction",
-            viewedBy: "View",
-            reports: "Report",
-            tags: "Tag",
-        },
-        countFields: {
-            commentsCount: true,
-            repostsCount: true,
-        },
-    },
+    format: PostFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList }) => {

@@ -1,6 +1,6 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { ModelLogic } from "../models/types";
 
 type LogicProps = "delegate" | "display" | "duplicate" | "format" | "mutate" | "search" | "validate";

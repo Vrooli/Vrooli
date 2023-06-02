@@ -1,15 +1,16 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
-import { Trigger } from "../events";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { Trigger } from "../../events";
+import { defaultPermissions } from "../../utils";
+import { PhoneFormat } from "../format/phone";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic, PhoneModelLogic } from "./types";
+import { PhoneModelLogic } from "./types";
 
 const __typename = "Phone" as const;
 const suppFields = [] as const;
 export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.phone,
+    delegate: (prisma) => prisma.phone,
     display: {
         label: {
             select: () => ({ id: true, phoneNumber: true }),
@@ -21,16 +22,7 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            user: "User",
-        },
-        countFields: {},
-    },
+    format: PhoneFormat,
     mutate: {
         shape: {
             create: async ({ data, userData }) => ({

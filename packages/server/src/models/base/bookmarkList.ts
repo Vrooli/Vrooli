@@ -1,33 +1,22 @@
 import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { BookmarkListModelLogic, ModelLogic } from "./types";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { BookmarkListFormat } from "../format/bookmarkList";
+import { ModelLogic } from "../types";
+import { BookmarkListModelLogic } from "./types";
 
 const __typename = "BookmarkList" as const;
 const suppFields = [] as const;
 export const BookmarkListModel: ModelLogic<BookmarkListModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.bookmark_list,
+    delegate: (prisma) => prisma.bookmark_list,
     display: {
         label: {
             select: () => ({ id: true, label: true }),
             get: (select) => select.label,
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            bookmarks: "Bookmark",
-        },
-        prismaRelMap: {
-            __typename,
-            bookmarks: "Bookmark",
-        },
-        countFields: {
-            bookmarksCount: true,
-        },
-    },
+    format: BookmarkListFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

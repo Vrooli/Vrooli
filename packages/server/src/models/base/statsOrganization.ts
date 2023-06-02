@@ -1,17 +1,18 @@
 import { StatsOrganizationSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsOrganizationFormat } from "../format/statsOrganization";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { ModelLogic, StatsOrganizationModelLogic } from "./types";
+import { StatsOrganizationModelLogic } from "./types";
 
 const __typename = "StatsOrganization" as const;
 const suppFields = [] as const;
 export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_organization,
+    delegate: (prisma) => prisma.stats_organization,
     display: {
         label: {
             select: () => ({ id: true, organization: selPad(OrganizationModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            organization: "Organization",
-        },
-        countFields: {},
-    },
+    format: StatsOrganizationFormat,
     search: {
         defaultSort: StatsOrganizationSortBy.PeriodStartAsc,
         sortBy: StatsOrganizationSortBy,

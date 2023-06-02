@@ -1,8 +1,9 @@
 import { MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation, SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
+import { noNull } from "../../builders";
+import { defaultPermissions } from "../../utils";
+import { NotificationSubscriptionFormat } from "../format/notificationSubscription";
+import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
 import { IssueModel } from "./issue";
@@ -18,7 +19,7 @@ import { RoutineModel } from "./routine";
 import { ScheduleModel } from "./schedule";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { ModelLogic, NotificationSubscriptionModelLogic } from "./types";
+import { NotificationSubscriptionModelLogic } from "./types";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
     Api: "api",
@@ -42,7 +43,7 @@ const __typename = "NotificationSubscription" as const;
 const suppFields = [] as const;
 export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.notification_subscription,
+    delegate: (prisma) => prisma.notification_subscription,
     display: {
         label: {
             select: () => ({
@@ -84,48 +85,7 @@ export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionM
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            object: {
-                api: "Api",
-                comment: "Comment",
-                issue: "Issue",
-                meeting: "Meeting",
-                note: "Note",
-                organization: "Organization",
-                project: "Project",
-                pullRequest: "PullRequest",
-                question: "Question",
-                quiz: "Quiz",
-                report: "Report",
-                routine: "Routine",
-                schedule: "Schedule",
-                smartContract: "SmartContract",
-                standard: "Standard",
-            },
-        },
-        prismaRelMap: {
-            __typename,
-            api: "Api",
-            comment: "Comment",
-            issue: "Issue",
-            meeting: "Meeting",
-            note: "Note",
-            organization: "Organization",
-            project: "Project",
-            pullRequest: "PullRequest",
-            question: "Question",
-            quiz: "Quiz",
-            report: "Report",
-            routine: "Routine",
-            schedule: "Schedule",
-            smartContract: "SmartContract",
-            standard: "Standard",
-            subscriber: "User",
-        },
-        countFields: {},
-    },
+    format: NotificationSubscriptionFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({

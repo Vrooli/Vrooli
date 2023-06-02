@@ -1,17 +1,18 @@
 import { StatsProjectSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { selPad } from "../../builders";
+import { defaultPermissions, oneIsPublic } from "../../utils";
+import { StatsProjectFormat } from "../format/statsProject";
+import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
-import { ModelLogic, StatsProjectModelLogic } from "./types";
+import { StatsProjectModelLogic } from "./types";
 
 const __typename = "StatsProject" as const;
 const suppFields = [] as const;
 export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_project,
+    delegate: (prisma) => prisma.stats_project,
     display: {
         label: {
             select: () => ({ id: true, project: selPad(ProjectModel.display.label.select) }),
@@ -21,16 +22,7 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-            project: "Api",
-        },
-        countFields: {},
-    },
+    format: StatsProjectFormat,
     search: {
         defaultSort: StatsProjectSortBy.PeriodStartAsc,
         sortBy: StatsProjectSortBy,

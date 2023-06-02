@@ -1,13 +1,14 @@
-import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation, QuestionYou } from "@local/shared";
+import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull } from "../builders";
-import { PrismaType } from "../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
-import { preShapeEmbeddableTranslatable } from "../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../validators";
+import { noNull } from "../../builders";
+import { bestTranslation, defaultPermissions, getEmbeddableString, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../../utils";
+import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
+import { getSingleTypePermissions } from "../../validators";
+import { QuestionFormat } from "../format/question";
+import { ModelLogic } from "../types";
 import { BookmarkModel } from "./bookmark";
 import { ReactionModel } from "./reaction";
-import { ModelLogic, QuestionModelLogic } from "./types";
+import { QuestionModelLogic } from "./types";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
@@ -20,11 +21,10 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["cr
 };
 
 const __typename = "Question" as const;
-type Permissions = Pick<QuestionYou, "canDelete" | "canUpdate" | "canBookmark" | "canRead" | "canReact">;
 const suppFields = ["you"] as const;
 export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.question,
+    delegate: (prisma) => prisma.question,
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -41,63 +41,7 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            createdBy: "User",
-            answers: "QuestionAnswer",
-            comments: "Comment",
-            forObject: {
-                api: "Api",
-                note: "Note",
-                organization: "Organization",
-                project: "Project",
-                routine: "Routine",
-                smartContract: "SmartContract",
-                standard: "Standard",
-            },
-            reports: "Report",
-            bookmarkedBy: "User",
-            tags: "Tag",
-        },
-        prismaRelMap: {
-            __typename,
-            createdBy: "User",
-            api: "Api",
-            note: "Note",
-            organization: "Organization",
-            project: "Project",
-            routine: "Routine",
-            smartContract: "SmartContract",
-            standard: "Standard",
-            comments: "Comment",
-            answers: "QuestionAnswer",
-            reports: "Report",
-            tags: "Tag",
-            bookmarkedBy: "User",
-            reactions: "Reaction",
-            viewedBy: "User",
-        },
-        joinMap: { bookmarkedBy: "user", tags: "tag" },
-        countFields: {
-            answersCount: true,
-            commentsCount: true,
-            reportsCount: true,
-            translationsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
-                    },
-                };
-            },
-        },
-    },
+    format: QuestionFormat,
     mutate: {
         shape: {
             pre: async ({ createList, updateList }) => {
@@ -164,6 +108,18 @@ export const QuestionModel: ModelLogic<QuestionModelLogic, typeof suppFields> = 
                 "transNameWrapped",
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isDeleted: () => false,

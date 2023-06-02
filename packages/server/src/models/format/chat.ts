@@ -1,7 +1,8 @@
+import { ChatModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Chat" as const;
-export const ChatFormat: Formatter<ModelChatLogic> = {
+export const ChatFormat: Formatter<ChatModelLogic> = {
     gqlRelMap: {
         __typename,
         organization: "Organization",

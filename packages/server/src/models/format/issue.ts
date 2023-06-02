@@ -1,7 +1,8 @@
+import { IssueModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Issue" as const;
-export const IssueFormat: Formatter<ModelIssueLogic> = {
+export const IssueFormat: Formatter<IssueModelLogic> = {
     gqlRelMap: {
         __typename,
         closedBy: "User",

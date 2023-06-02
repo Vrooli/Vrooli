@@ -2,7 +2,7 @@ import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineComp
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
 import { assertRequestFrom } from "../../auth";
 import { rateLimit } from "../../middleware";
-import { RunRoutineModel } from "../../models";
+import { RunRoutineModel } from "../../models/base";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
 
 export type EndpointsRunRoutine = {

@@ -1,9 +1,8 @@
-import { noNull } from "../../builders";
-import { translationShapeHelper } from "../../utils";
+import { PullRequestModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "PullRequest" as const;
-export const PullRequestFormat: Formatter<ModelPullRequestLogic> = {
+export const PullRequestFormat: Formatter<PullRequestModelLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",
@@ -46,12 +45,4 @@ export const PullRequestFormat: Formatter<ModelPullRequestLogic> = {
         commentsCount: true,
         translationsCount: true,
     },
-}'Canceled'.
-    // Owner of object that pull request is on can set status to anything but 'Canceled'
-    // TODO need to update params for shape to account for this (probably). Then need to update this function
-    update: async ({ data, ...rest }) => ({
-        status: noNull(data.status),
-        ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
-        if(data.createdBy?.id === userId) return({
-            User: data.createdBy,
-    };
+};

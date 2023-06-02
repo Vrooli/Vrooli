@@ -1,34 +1,23 @@
 import { nodeEndValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { nodeEndNextShapeHelper } from "../utils";
+import { noNull, selPad, shapeHelper } from "../../builders";
+import { nodeEndNextShapeHelper } from "../../utils";
+import { NodeEndFormat } from "../format/nodeEnd";
+import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
-import { ModelLogic, NodeEndModelLogic } from "./types";
+import { NodeEndModelLogic } from "./types";
 
 const __typename = "NodeEnd" as const;
 const suppFields = [] as const;
 export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_end,
+    delegate: (prisma) => prisma.node_end,
     display: {
         label: {
             select: () => ({ id: true, node: selPad(NodeModel.display.label.select) }),
             get: (select, languages) => NodeModel.display.label.get(select.node as any, languages),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            suggestedNextRoutineVersions: "RoutineVersion",
-        },
-        prismaRelMap: {
-            __typename,
-            suggestedNextRoutineVersions: "RoutineVersion",
-            node: "Node",
-        },
-        joinMap: { suggestedNextRoutineVersions: "toRoutineVersion" },
-        countFields: {},
-    },
+    format: NodeEndFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {

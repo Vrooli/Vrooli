@@ -1,19 +1,19 @@
-import { MaxObjects, RunProjectSortBy, runProjectValidation, RunProjectYou, RunStatus } from "@local/shared";
+import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { noNull, shapeHelper } from "../builders";
-import { PrismaType } from "../types";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { getSingleTypePermissions } from "../../validators";
+import { RunProjectFormat } from "../format/runProject";
+import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectVersionModel } from "./projectVersion";
-import { ModelLogic, RunProjectModelLogic } from "./types";
+import { RunProjectModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
-type Permissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
 const suppFields = ["you"] as const;
 export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.run_project,
+    delegate: (prisma) => prisma.run_project,
     display: {
         label: {
             select: () => ({ id: true, name: true }),
@@ -26,37 +26,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
             },
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-            projectVersion: "ProjectVersion",
-            schedule: "Schedule",
-            steps: "RunProjectStep",
-            user: "User",
-            organization: "Organization",
-        },
-        prismaRelMap: {
-            __typename,
-            projectVersion: "ProjectVersion",
-            schedule: "Schedule",
-            steps: "RunProjectStep",
-            user: "User",
-            organization: "Organization",
-        },
-        countFields: {
-            stepsCount: true,
-        },
-        supplemental: {
-            graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    },
-                };
-            },
-        },
-    },
+    format: RunProjectFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
@@ -114,6 +84,16 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
                 { projectVersion: ProjectVersionModel.search!.searchStringQuery() },
             ],
         }),
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                };
+            },
+        },
     },
     validate: {
         isTransferable: false,

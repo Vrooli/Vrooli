@@ -1,7 +1,8 @@
+import { QuizModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Quiz" as const;
-export const QuizFormat: Formatter<ModelQuizLogic> = {
+export const QuizFormat: Formatter<QuizModelLogic> = {
     gqlRelMap: {
         __typename,
         attempts: "QuizAttempt",

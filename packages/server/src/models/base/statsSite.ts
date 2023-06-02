@@ -1,14 +1,15 @@
 import { StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
-import { PrismaType } from "../types";
-import { defaultPermissions } from "../utils";
-import { ModelLogic, StatsSiteModelLogic } from "./types";
+import { defaultPermissions } from "../../utils";
+import { StatsSiteFormat } from "../format/statsSite";
+import { ModelLogic } from "../types";
+import { StatsSiteModelLogic } from "./types";
 
 const __typename = "StatsSite" as const;
 const suppFields = [] as const;
 export const StatsSiteModel: ModelLogic<StatsSiteModelLogic, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.stats_site,
+    delegate: (prisma) => prisma.stats_site,
     display: {
         label: {
             select: () => ({ id: true }),
@@ -17,15 +18,7 @@ export const StatsSiteModel: ModelLogic<StatsSiteModelLogic, typeof suppFields> 
             }),
         },
     },
-    format: {
-        gqlRelMap: {
-            __typename,
-        },
-        prismaRelMap: {
-            __typename,
-        },
-        countFields: {},
-    },
+    format: StatsSiteFormat,
     search: {
         defaultSort: StatsSiteSortBy.PeriodStartAsc,
         sortBy: StatsSiteSortBy,

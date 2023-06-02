@@ -1,7 +1,8 @@
+import { RoutineModelLogic } from "../base/types";
 import { Formatter } from "../types";
 
 const __typename = "Routine" as const;
-export const RoutineFormat: Formatter<ModelRoutineLogic> = {
+export const RoutineFormat: Formatter<RoutineModelLogic> = {
     gqlRelMap: {
         __typename,
         createdBy: "User",
