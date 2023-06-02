@@ -6,8 +6,8 @@
 import { resolveGQLInfo } from "@local/shared";
 import fs from "fs";
 import { DocumentNode, FieldNode, FragmentDefinitionNode, GraphQLResolveInfo, OperationDefinitionNode, parse } from "graphql";
-import { FormatMap } from "../../../../server/src/models/format";
 import { injectTypenames } from "../../../../server/src/builders/injectTypenames";
+import { FormatMap } from "../../../../server/src/models/format";
 import { endpoints } from "./endpoints";
 
 // Specify whether to generate graphql-tag strings, PartialGraphQLInfo objects, or both. 
@@ -168,13 +168,15 @@ if (["rest", "both"].includes(target)) {
         // Parse the gql tag into a DocumentNode
         const documentNode: DocumentNode = parse(gqlTag);
         // Generate the GraphQLResolveInfo object
-        const resolveInfo = gqlToGraphQLResolveInfo(documentNode, name.replace(".ts", ""));
+        let resolveInfo: any = gqlToGraphQLResolveInfo(documentNode, name.replace(".ts", ""));
         // Convert to PartialGraphQLResolveInfo, a shorter version of GraphQLResolveInfo
         const __typename = name.split("_")[0][0].toUpperCase() + name.split("_")[0].slice(1);
-        let partialResolveInfo = resolveGQLInfo(resolveInfo);
-        partialResolveInfo = injectTypenames(partialResolveInfo, FormatMap[__typename].gqlRelMap);
+        if (__typename in FormatMap) {
+            resolveInfo = resolveGQLInfo(resolveInfo);
+            resolveInfo = injectTypenames(resolveInfo, FormatMap[__typename].gqlRelMap);
+        }
         // Stringify and format the resolveInfo object
-        const stringified = JSON.stringify(partialResolveInfo, null, 2);
+        const stringified = JSON.stringify(resolveInfo, null, 2);
         // Write the GraphQLResolveInfo object to a new file in the rest directory
         const restFilePath = `${restFolder}/${name}.ts`;
         fs.writeFileSync(restFilePath, `export const ${name.replace(".ts", "")} = ${stringified};\n`);
