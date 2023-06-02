@@ -426,7 +426,7 @@ const main = async () => {
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
-        app.use("/api/v2", restRoutes[key]);
+        app.use("/api/v2/rest", restRoutes[key]);
     });
 
     // Apollo server for latest API version

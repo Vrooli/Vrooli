@@ -1,5 +1,5 @@
 import { stringifySearchParams } from "@local/shared";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -11,13 +11,13 @@ type RequestState<TData> = {
 let urlBase: string;
 // If running locally
 if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-    urlBase = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+    urlBase = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/rest`;
 }
 // If running on server
 else {
     urlBase = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
         `${import.meta.env.VITE_SERVER_URL}/v2` :
-        `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+        `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/rest`;
 }
 
 /**
@@ -32,7 +32,7 @@ else {
  * @returns A tuple where the first element is a function
  * to initiate the request and the second element is an object representing the current state of the request.
  */
-export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint: string, method: "GET" | "POST" = "GET", options: RequestInit = {}): [
+export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint: string, method: "GET" | "POST" | "PUT" = "GET", options: RequestInit = {}): [
     (input: TInput) => void,
     RequestState<TData>
 ] {
@@ -42,25 +42,31 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint
         error: null,
     });
 
+    // Store the latest endpoint, method and options in a ref
+    const fetchParamsRef = useRef({ endpoint, method, options });
+    useEffect(() => {
+        fetchParamsRef.current = { endpoint, method, options };
+    }, [endpoint, method, options]); // This will update the ref each time endpoint, method or options change
+
     const makeRequest = useCallback((input: TInput) => {
         setState(s => ({ ...s, loading: true }));
 
-        let url = `${urlBase}${endpoint}`;
+        let url = `${urlBase}${fetchParamsRef.current.endpoint}`;
         let body: string | null = null;
 
-        if (method === "GET") {
+        if (fetchParamsRef.current.method === "GET") {
             if (Object.keys(input).length !== 0) {
                 url += `?${stringifySearchParams(input)}`;
             }
-        } else if (method === "POST") {
+        } else if (["POST", "PUT"].includes(fetchParamsRef.current.method)) {
             body = JSON.stringify({ input });
         }
 
         fetch(url, {
-            ...options,
-            method,
+            ...fetchParamsRef.current.options,
+            method: fetchParamsRef.current.method,
             headers: {
-                ...options.headers,
+                ...fetchParamsRef.current.options.headers,
                 "Content-Type": "application/json",
             },
             body,
@@ -72,7 +78,7 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint
             .catch(error => {
                 setState({ loading: false, data: null, error });
             });
-    }, [endpoint, method, options]);
+    }, []); // Empty dependency array
 
     return [makeRequest, state];
 }
