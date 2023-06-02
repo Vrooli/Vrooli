@@ -9,7 +9,7 @@ import i18next from "i18next";
 import Stripe from "stripe";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
-import apiRest from "./endpoints/rest/api";
+import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
@@ -425,7 +425,9 @@ const main = async () => {
     app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
     // Set up REST API
-    app.use("/api/v2", apiRest);
+    Object.keys(restRoutes).forEach((key) => {
+        app.use("/api/v2", restRoutes[key]);
+    });
 
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({

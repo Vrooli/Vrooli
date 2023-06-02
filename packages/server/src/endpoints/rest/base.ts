@@ -33,7 +33,8 @@ export const handleEndpoint = async <TInput, TResult>(
     }
 };
 
-export const setupRoutes = (router: Router, restEndpoints: Record<string, EndpointGroup>) => {
+export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
+    const router = Router();
     Object.entries(restEndpoints).forEach(([route, methods]) => {
         const routerChain = router.route(route);
         Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
@@ -43,4 +44,5 @@ export const setupRoutes = (router: Router, restEndpoints: Record<string, Endpoi
             });
         });
     });
+    return router;
 };
