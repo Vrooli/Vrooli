@@ -20,26 +20,26 @@ const objectType = "ProjectVersion";
 export const ProjectVersionEndpoints: EndpointsProjectVersion = {
     Query: {
         projectVersion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         projectVersions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
         projectVersionContents: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             throw new CustomError("0000", "NotImplemented", ["en"]);
             // return ProjectVersionModel.query.searchContents(prisma, req, input, info);
         },
     },
     Mutation: {
         projectVersionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+            await rateLimit({ maxUser: 100, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         projectVersionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

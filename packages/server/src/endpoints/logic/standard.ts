@@ -18,21 +18,21 @@ const objectType = "Standard";
 export const StandardEndpoints: EndpointsStandard = {
     Query: {
         standard: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         standards: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         standardCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         standardUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+            await rateLimit({ maxUser: 500, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

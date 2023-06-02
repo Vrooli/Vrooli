@@ -23,36 +23,36 @@ const objectType = "RunRoutine";
 export const RunRoutineEndpoints: EndpointsRunRoutine = {
     Query: {
         runRoutine: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         runRoutines: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         runRoutineCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         runRoutineUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-        runRoutineDeleteAll: async (_p, _d, { prisma, req }, info) => {
+        runRoutineDeleteAll: async (_p, _d, { prisma, req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 25, req });
+            await rateLimit({ maxUser: 25, req });
             return RunRoutineModel.danger.deleteAll(prisma, { __typename: "User", id: userData.id });
         },
         runRoutineComplete: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return RunRoutineModel.run.complete(prisma, userData, input, info);
         },
         runRoutineCancel: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return RunRoutineModel.run.cancel(prisma, userData, input, info);
         },
     },

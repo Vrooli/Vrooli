@@ -426,10 +426,6 @@ const main = async () => {
 
     // Set up REST API
     app.use("/api/v2", apiRest);
-    // app.use("/api/v2/apis", (req, res) => {
-    //     console.log("Test endpoint hit");
-    //     res.status(200).send("Test endpoint");
-    // });
 
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({

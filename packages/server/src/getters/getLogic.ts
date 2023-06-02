@@ -17,20 +17,33 @@ type GetLogicReturn<
     validate: "validate" extends Logic ? Required<ModelLogic<any, any>>["validate"] : ModelLogic<any, any>["validate"],
 }
 
+type Undefinable<T> = {
+    [K in keyof T]: T[K] | undefined;
+}
+
 /**
  * Finds the requested helper functions for working with model logic
  */
 export function getLogic<
     Logic extends readonly LogicProps[],
+    ThrowError extends boolean = true,
 >(
     props: Logic,
     objectType: `${GqlModelType}`,
     languages: string[],
     errorTrace: string,
-): GetLogicReturn<Logic[number]> {
+    throwErrorIfNotFound: ThrowError = true as ThrowError,
+): ThrowError extends true ? GetLogicReturn<Logic[number]> : Undefinable<GetLogicReturn<Logic[number]>> {
     // Make sure object exists in map
     const object = ObjectMap[objectType];
-    if (!object) throw new CustomError("0280", "InvalidArgs", languages, { errorTrace, objectType });
+    if (!object) {
+        if (throwErrorIfNotFound) throw new CustomError("0280", "InvalidArgs", languages, { errorTrace, objectType });
+        const result: any = props.reduce((acc, cur) => {
+            acc[cur] = undefined;
+            return acc;
+        }, {} as Undefinable<GetLogicReturn<Logic[number]>>);
+        return result as GetLogicReturn<Logic[number]>;
+    }
     // If no props are requested, return the entire object
     if (!props.length) return object as GetLogicReturn<Logic[number]>;
     // Loop through requested types to validate that all requested types exist
@@ -38,7 +51,9 @@ export function getLogic<
         // Get logic function
         const logic = object[field as any];
         // Make sure logic function exists
-        if (!logic) throw new CustomError("0367", "InvalidArgs", languages, { errorTrace, objectType, field });
+        if (!logic && throwErrorIfNotFound) {
+            throw new CustomError("0367", "InvalidArgs", languages, { errorTrace, objectType, field });
+        }
     }
     return object as GetLogicReturn<Logic[number]>;
 }

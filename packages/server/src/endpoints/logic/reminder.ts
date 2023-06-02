@@ -18,21 +18,21 @@ const objectType = "Reminder";
 export const ReminderEndpoints: EndpointsReminder = {
     Query: {
         reminder: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         reminders: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         reminderCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+            await rateLimit({ maxUser: 500, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         reminderUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

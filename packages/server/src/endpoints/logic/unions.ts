@@ -17,7 +17,7 @@ export type EndpointsUnions = {
 export const UnionsEndpoints: EndpointsUnions = {
     Query: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
+            await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrRoutineSearchResult",
                 Project: "Project",
@@ -132,7 +132,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             return combined;
         },
         projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
+            await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrOrganizationSearchResult",
                 Project: "Project",
@@ -239,7 +239,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             return combined;
         },
         runProjectOrRunRoutines: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 2000, req });
+            await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "RunProjectOrRunRoutineSearchResult",
                 RunProject: "RunProject",

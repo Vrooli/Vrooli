@@ -18,21 +18,21 @@ const objectType = "SmartContractVersion";
 export const SmartContractVersionEndpoints: EndpointsSmartContractVersion = {
     Query: {
         smartContractVersion: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         smartContractVersions: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         smartContractVersionCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+            await rateLimit({ maxUser: 100, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         smartContractVersionUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

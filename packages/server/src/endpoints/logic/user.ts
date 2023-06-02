@@ -31,17 +31,17 @@ export const UserEndpoints: EndpointsUser = {
             return readOneHelper({ info, input: { id }, objectType, prisma, req });
         },
         user: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         users: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         profileUpdate: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             // Add user id to input, since IDs are required for validation checks
             const { id } = assertRequestFrom(req, { isUser: true });
             return updateHelper({ info, input: { ...input, id }, objectType, prisma, req });
@@ -49,7 +49,7 @@ export const UserEndpoints: EndpointsUser = {
         profileEmailUpdate: async (_, { input }, { prisma, req, res }, info) => {
             throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ info, maxUser: 100, req });
+            // await rateLimit({ maxUser: 100, req });
             // // Update object
             // const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
             // if (!updated)
@@ -59,12 +59,12 @@ export const UserEndpoints: EndpointsUser = {
         userDeleteOne: async (_, { input }, { prisma, req, res }, info) => {
             throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ info, maxUser: 5, req });
+            // await rateLimit({ maxUser: 5, req });
             // // TODO anonymize public data
             // return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
         },
         importCalendar: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 25, req });
+            await rateLimit({ maxUser: 25, req });
             await parseICalFile(input.file);
             throw new CustomError("0999", "NotImplemented", ["en"]);
         },
@@ -78,7 +78,7 @@ export const UserEndpoints: EndpointsUser = {
         exportData: async (_p, _d, { prisma, req, res }, info) => {
             throw new CustomError("0999", "NotImplemented", ["en"]);
             // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ info, maxUser: 5, req });
+            // await rateLimit({ maxUser: 5, req });
             // return await ProfileModel.port(prisma).exportData(userData.id);
         },
     },

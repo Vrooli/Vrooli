@@ -22,8 +22,8 @@ export const WalletEndpoints: EndpointsWallet = {
         /**
          * Finds all ADA handles for your profile, or an organization you belong to.
          */
-        findHandles: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 50, req });
+        findHandles: async (_, { input }, { prisma, req }) => {
+            await rateLimit({ maxUser: 50, req });
             // const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'; // Fake policy ID for testing
             const policyID = "f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a"; // Mainnet ADA Handle policy ID
             const walletFields = {
@@ -142,7 +142,7 @@ export const WalletEndpoints: EndpointsWallet = {
     },
     Mutation: {
         walletUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

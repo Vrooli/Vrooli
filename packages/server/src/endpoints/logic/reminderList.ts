@@ -14,11 +14,11 @@ const objectType = "ReminderList";
 export const ReminderListEndpoints: EndpointsReminderList = {
     Mutation: {
         reminderListCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+            await rateLimit({ maxUser: 100, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         reminderListUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

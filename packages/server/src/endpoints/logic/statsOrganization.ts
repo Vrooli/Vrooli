@@ -13,7 +13,7 @@ const objectType = "StatsOrganization";
 export const StatsOrganizationEndpoints: EndpointsStatsOrganization = {
     Query: {
         statsOrganization: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },

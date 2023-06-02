@@ -21,29 +21,29 @@ const objectType = "MemberInvite";
 export const MemberInviteEndpoints: EndpointsMemberInvite = {
     Query: {
         memberInvite: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         memberInvites: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         memberInviteCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+            await rateLimit({ maxUser: 100, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         memberInviteUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
         memberInviteAccept: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             throw new CustomError("0000", "NotImplemented", ["en"]);
         },
         memberInviteDecline: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             throw new CustomError("0000", "NotImplemented", ["en"]);
         },
     },

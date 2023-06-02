@@ -15,11 +15,11 @@ const objectType = "Email";
 export const EmailEndpoints: EndpointsEmail = {
     Mutation: {
         emailCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 10, req });
+            await rateLimit({ maxUser: 10, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
-        sendVerificationEmail: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 50, req });
+        sendVerificationEmail: async (_, { input }, { prisma, req }) => {
+            await rateLimit({ maxUser: 50, req });
             await setupVerificationCode(input.emailAddress, prisma, req.languages);
             return { __typename: "Success" as const, success: true };
         },

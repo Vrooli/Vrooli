@@ -18,7 +18,7 @@ export const FeedEndpoints: EndpointsFeed = {
     Query: {
         home: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 5000, req });
+            await rateLimit({ maxUser: 5000, req });
             const activeFocusMode = userData.activeFocusMode;
             const partial = toPartialGqlInfo(info, {
                 __typename: "HomeResult",
@@ -93,7 +93,7 @@ export const FeedEndpoints: EndpointsFeed = {
         },
         popular: async (_, { input }, { prisma, req }, info) => {
             //TODO implement sorting. Must do in UI too if combining multiple types.
-            await rateLimit({ info, maxUser: 5000, req });
+            await rateLimit({ maxUser: 5000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "PopularResult",
                 apis: "Api",

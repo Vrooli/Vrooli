@@ -32,7 +32,7 @@ export const addSupplementalFields = async (
     for (const [type, ids] of Object.entries(objectTypesIdsDict)) {
         // Find the supplemental data for each object id in ids
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
-        const { search } = getLogic(["search"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields");
+        const { search } = getLogic(["search"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields", false);
         const valuesWithSupplements = search?.supplemental ?
             await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;

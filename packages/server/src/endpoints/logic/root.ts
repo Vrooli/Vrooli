@@ -16,14 +16,14 @@ export type EndpointsRoot = {
 
 export const RootEndpoints: EndpointsRoot = {
     Query: {
-        readAssets: async (_parent, { input }, { req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+        readAssets: async (_parent, { input }, { req }) => {
+            await rateLimit({ maxUser: 1000, req });
             return await readFiles(input.files);
         },
     },
     Mutation: {
-        writeAssets: async (_parent, { input }, { req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+        writeAssets: async (_parent, { input }, { req }) => {
+            await rateLimit({ maxUser: 500, req });
             throw new CustomError("0327", "NotImplemented", req.languages); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null

@@ -18,9 +18,9 @@ export type EndpointsPushDevice = {
 const objectType = "PushDevice";
 export const PushDeviceEndpoints: EndpointsPushDevice = {
     Query: {
-        pushDevices: async (_p, _d, { prisma, req }, info) => {
+        pushDevices: async (_p, _d, { prisma, req }) => {
             const { id } = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return prisma.push_device.findMany({
                 where: { userId: id },
                 select: { id: true, name: true, expires: true },
@@ -41,7 +41,7 @@ export const PushDeviceEndpoints: EndpointsPushDevice = {
             });
         },
         pushDeviceUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 10, req });
+            await rateLimit({ maxUser: 10, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
     },

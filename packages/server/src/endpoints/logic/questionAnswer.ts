@@ -20,25 +20,25 @@ const objectType = "QuestionAnswer";
 export const QuestionAnswerEndpoints: EndpointsQuestionAnswer = {
     Query: {
         questionAnswer: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         questionAnswers: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
     Mutation: {
         questionAnswerCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+            await rateLimit({ maxUser: 500, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         questionAnswerUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+            await rateLimit({ maxUser: 500, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
         questionAnswerMarkAsAccepted: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+            await rateLimit({ maxUser: 500, req });
             throw new CustomError("000", "NotImplemented", ["en"]);
         },
     },

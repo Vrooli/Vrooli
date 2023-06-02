@@ -21,21 +21,21 @@ const objectType = "FocusMode";
 export const FocusModeEndpoints: EndpointsFocusMode = {
     Query: {
         focusMode: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, prisma, req });
         },
         focusModes: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 1000, req });
+            await rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         focusModeCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+            await rateLimit({ maxUser: 100, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         focusModeUpdate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
+            await rateLimit({ maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
         setActiveFocusMode: async (_, { input }, { prisma, req, res }) => {

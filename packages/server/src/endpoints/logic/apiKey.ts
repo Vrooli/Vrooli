@@ -19,21 +19,21 @@ export const ApiKeyEndpoints: EndpointsApiKey = {
     Mutation: {
         apiKeyCreate: async (_, { input }, { prisma, req }, info) => {
             assertRequestFrom(req, { isOfficialUser: true });
-            await rateLimit({ info, maxUser: 10, req });
+            await rateLimit({ maxUser: 10, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         apiKeyUpdate: async (_, { input }, { prisma, req }, info) => {
             assertRequestFrom(req, { isOfficialUser: true });
-            await rateLimit({ info, maxUser: 10, req });
+            await rateLimit({ maxUser: 10, req });
             return updateHelper({ info, input, objectType, prisma, req });
         },
-        apiKeyDeleteOne: async (_, { input }, { prisma, req }, info) => {
+        apiKeyDeleteOne: async (_, { input }, { prisma, req }) => {
             assertRequestFrom(req, { isOfficialUser: true });
-            await rateLimit({ info, maxUser: 10, req });
+            await rateLimit({ maxUser: 10, req });
             return deleteOneHelper({ input, objectType, prisma, req });
         },
-        apiKeyValidate: async (_, { input }, { req, res }, info) => {
-            await rateLimit({ info, maxApi: 5000, req });
+        apiKeyValidate: async (_, { input }, { req, res }) => {
+            await rateLimit({ maxApi: 5000, req });
             // If session is expired
             if (!req.apiToken || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);

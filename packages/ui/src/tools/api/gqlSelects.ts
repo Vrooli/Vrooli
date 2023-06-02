@@ -169,7 +169,7 @@ if (["rest", "both"].includes(target)) {
         const documentNode: DocumentNode = parse(gqlTag);
         // Generate the GraphQLResolveInfo object
         let resolveInfo: any = gqlToGraphQLResolveInfo(documentNode, name.replace(".ts", ""));
-        // Convert to PartialGraphQLResolveInfo, a shorter version of GraphQLResolveInfo
+        // Attempt to convert to PartialGraphQLResolveInfo, a shorter version of GraphQLResolveInfo
         const __typename = name.split("_")[0][0].toUpperCase() + name.split("_")[0].slice(1);
         if (__typename in FormatMap) {
             resolveInfo = resolveGQLInfo(resolveInfo);

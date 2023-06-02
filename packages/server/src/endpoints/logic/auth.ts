@@ -30,8 +30,8 @@ const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
  */
 export const AuthEndpoints: EndpointsAuth = {
     Mutation: {
-        emailLogIn: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+        emailLogIn: async (_, { input }, { prisma, req, res }) => {
+            await rateLimit({ maxUser: 100, req });
             // Validate arguments with schema
             emailLogInFormValidation.validateSync(input, { abortEarly: false });
             let user;
@@ -104,8 +104,8 @@ export const AuthEndpoints: EndpointsAuth = {
                 }
             }
         },
-        emailSignUp: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 10, req });
+        emailSignUp: async (_, { input }, { prisma, req, res }) => {
+            await rateLimit({ maxUser: 10, req });
             // Validate input format
             emailSignUpFormValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
@@ -154,8 +154,8 @@ export const AuthEndpoints: EndpointsAuth = {
             // Return user data
             return session;
         },
-        emailRequestPasswordChange: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 10, req });
+        emailRequestPasswordChange: async (_, { input }, { prisma, req }) => {
+            await rateLimit({ maxUser: 10, req });
             // Validate input format
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
@@ -170,8 +170,8 @@ export const AuthEndpoints: EndpointsAuth = {
             const success = await setupPasswordReset(user, prisma);
             return { __typename: "Success", success };
         },
-        emailResetPassword: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 10, req });
+        emailResetPassword: async (_, { input }, { prisma, req, res }) => {
+            await rateLimit({ maxUser: 10, req });
             // Validate input format
             passwordValidation.validateSync(input.newPassword, { abortEarly: false });
             // Find user
@@ -207,8 +207,8 @@ export const AuthEndpoints: EndpointsAuth = {
             await generateSessionJwt(res, session as any);
             return session;
         },
-        guestLogIn: async (_p, _d, { req, res }, info) => {
-            await rateLimit({ info, maxUser: 500, req });
+        guestLogIn: async (_p, _d, { req, res }) => {
+            await rateLimit({ maxUser: 500, req });
             // Create session
             const session = {
                 __typename: "Session" as const,
@@ -238,8 +238,8 @@ export const AuthEndpoints: EndpointsAuth = {
                 return session as any;
             }
         },
-        validateSession: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 5000, req });
+        validateSession: async (_, { input }, { prisma, req, res }) => {
+            await rateLimit({ maxUser: 5000, req });
             const userId = getUser(req)?.id;
             // If session is expired
             if (!userId || !req.validToken) {
@@ -283,8 +283,8 @@ export const AuthEndpoints: EndpointsAuth = {
          * Starts handshake for establishing trust between backend and user wallet
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
-        walletInit: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+        walletInit: async (_, { input }, { prisma, req }) => {
+            await rateLimit({ maxUser: 100, req });
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
             if (!deserializedStakingAddress.startsWith("stake1"))
@@ -330,8 +330,8 @@ export const AuthEndpoints: EndpointsAuth = {
             return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        walletComplete: async (_, { input }, { prisma, req, res }, info) => {
-            await rateLimit({ info, maxUser: 100, req });
+        walletComplete: async (_, { input }, { prisma, req, res }) => {
+            await rateLimit({ maxUser: 100, req });
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { stakingAddress: input.stakingAddress },

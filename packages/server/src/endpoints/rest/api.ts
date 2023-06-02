@@ -3,7 +3,7 @@ import { Router } from "express";
 import { ApiEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 
-export const ApiRest: any = {
+export const ApiRest = {
     "/api/:id": {
         get: [ApiEndpoints.Query.api, api_findOne],
         put: [ApiEndpoints.Mutation.apiUpdate, api_update],
@@ -14,7 +14,7 @@ export const ApiRest: any = {
     "/api": {
         post: [ApiEndpoints.Mutation.apiCreate, api_create],
     },
-};
+} as const;
 
 const router = Router();
 setupRoutes(router, ApiRest);
