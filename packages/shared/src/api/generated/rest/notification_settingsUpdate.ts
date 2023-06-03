@@ -1,7 +1,19 @@
 export const notification_settingsUpdate = {
-  "includedEmails": {},
-  "includedSms": {},
-  "includedPush": {},
+  "includedEmails": {
+    "id": true,
+    "emailAddress": true,
+    "verified": true
+  },
+  "includedSms": {
+    "id": true,
+    "phoneNumber": true,
+    "verified": true
+  },
+  "includedPush": {
+    "id": true,
+    "expires": true,
+    "name": true
+  },
   "toEmails": true,
   "toSms": true,
   "toPush": true,

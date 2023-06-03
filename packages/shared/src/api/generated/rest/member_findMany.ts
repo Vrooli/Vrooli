@@ -13,7 +13,21 @@ export const member_findMany = {
         "membersCount": true,
         "reportsCount": true,
         "bookmarks": true,
-        "tags": {},
+        "tags": {
+          "id": true,
+          "created_at": true,
+          "tag": true,
+          "bookmarks": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "description": true
+          },
+          "you": {
+            "isOwn": true,
+            "isBookmarked": true
+          }
+        },
         "translations": {
           "id": true,
           "language": true,

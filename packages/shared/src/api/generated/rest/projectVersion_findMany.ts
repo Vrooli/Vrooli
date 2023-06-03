@@ -8,7 +8,46 @@ export const projectVersion_findMany = {
         "updated_at": true,
         "isPrivate": true,
         "issuesCount": true,
-        "labels": {},
+        "labels": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "Organization": {
+              "id": true,
+              "handle": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
+            "User": {
+              "id": true,
+              "isBot": true,
+              "name": true,
+              "handle": true
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          }
+        },
         "owner": {
           "Organization": {
             "id": true,
@@ -42,7 +81,21 @@ export const projectVersion_findMany = {
         "questionsCount": true,
         "score": true,
         "bookmarks": true,
-        "tags": {},
+        "tags": {
+          "id": true,
+          "created_at": true,
+          "tag": true,
+          "bookmarks": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "description": true
+          },
+          "you": {
+            "isOwn": true,
+            "isBookmarked": true
+          }
+        },
         "transfersCount": true,
         "views": true,
         "you": {

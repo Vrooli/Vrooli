@@ -13,21 +13,28 @@ import { endpoints } from "./endpoints";
 // Specify whether to generate graphql-tag strings, PartialGraphQLInfo objects, or both. 
 // Tags strings are more flexible, but PartialGraphQLInfo objects are more efficient.
 type Target = "graphql" | "rest" | "both";
-const target: Target = "both";
+const target: Target = "rest";
 
 console.info("Generating graphql-tag strings for endpoints...");
 
-// Create the output folders if they doesn't exist
-const outputFolder = "../shared/src/api/generated";
-const fragmentsFolder = `${outputFolder}/fragments`;
-const endpointsFolder = `${outputFolder}/endpoints`;
-const restFolder = `${outputFolder}/rest`;
 const createFolder = (folder: string) => {
     if (!fs.existsSync(folder)) {
         console.info(`Creating folder: ${folder}`);
         fs.mkdirSync(folder);
     }
 };
+const deleteFolder = (folder: string) => {
+    if (fs.existsSync(folder)) {
+        console.info(`Deleting folder: ${folder}`);
+        fs.rmdirSync(folder, { recursive: true });
+    }
+};
+
+// Create the output folders if they doesn't exist
+const outputFolder = "../shared/src/api/generated";
+const fragmentsFolder = `${outputFolder}/fragments`;
+const endpointsFolder = `${outputFolder}/endpoints`;
+const restFolder = `${outputFolder}/rest`;
 createFolder(outputFolder);
 if (["graphql", "both"].includes(target)) {
     createFolder(fragmentsFolder);
@@ -45,7 +52,7 @@ const allEndpoints: { [name: string]: string } = {};
 // Unlazy each endpoint property and write it to a separate file
 for (const objectType of Object.keys(endpoints)) {
     const endpointGroup = await (endpoints as any)[objectType]();
-    console.log(`generating endpoints for ${objectType}...`);
+    console.info(`generating endpoints for ${objectType}...`);
     for (const endpointName of Object.keys(endpointGroup)) {
         // Get the endpoint data
         const { fragments, tag } = await endpointGroup[endpointName] as { fragments: [string, string][], tag: string };
@@ -80,14 +87,14 @@ if (["graphql", "both"].includes(target)) {
     // Store endpoints
     for (const [name, endpoint] of Object.entries(allEndpoints)) {
         const outputPath = `${outputFolder}/endpoints/${name}.ts`;
-        console.log(`generating endpoint ${name}...`);
+        console.info(`generating endpoint ${name}...`);
         // Write to file
         fs.writeFileSync(outputPath, endpoint);
     }
     // Store fragments
     for (const [name, fragment] of Object.entries(allFragments)) {
         const outputPath = `${outputFolder}/fragments/${name}.ts`;
-        console.log(`generating fragment ${name}...`);
+        console.info(`generating fragment ${name}...`);
         // Write to file
         fs.writeFileSync(outputPath, fragment);
     }
@@ -104,8 +111,8 @@ if (["graphql", "both"].includes(target)) {
 }
 // Otherwise, delete the endpoints and fragments folders
 else {
-    fs.rmdirSync(endpointsFolder, { recursive: true });
-    fs.rmdirSync(fragmentsFolder, { recursive: true });
+    deleteFolder(endpointsFolder);
+    deleteFolder(fragmentsFolder);
 }
 
 // If target is "rest", convert endpoint tags to PartialGraphQLInfo objects, 
@@ -124,7 +131,11 @@ if (["rest", "both"].includes(target)) {
                 ...result,
                 [current.name.value]: current,
             }), {});
-        const fieldNodes: FieldNode[] = operation?.selectionSet.selections as FieldNode[];
+
+        const operationFieldNodes: FieldNode[] = operation?.selectionSet.selections as FieldNode[];
+        // Add fields from fragments to the operation's fieldNodes
+        const fragmentFieldNodes: FieldNode[] = fragmentDefinitions.flatMap(fragment => fragment.selectionSet.selections) as FieldNode[];
+        const fieldNodes = [...operationFieldNodes, ...fragmentFieldNodes];
         const resolveInfo: GraphQLResolveInfo = {
             fieldName: fieldNodes[0]?.name.value || "",
             fieldNodes,
@@ -144,7 +155,7 @@ if (["rest", "both"].includes(target)) {
     };
     // Loop through allEndpoints
     for (const [name, endpoint] of Object.entries(allEndpoints)) {
-        console.log(`Generating GraphQLResolveInfo for ${name}...`);
+        console.info(`Generating GraphQLResolveInfo for ${name}...`);
         // Extract the gql tag using a regex
         const gqlTagMatch = endpoint.match(/gql`([\s\S]*?)`;/);
         if (!gqlTagMatch) {
@@ -189,7 +200,7 @@ if (["rest", "both"].includes(target)) {
 }
 // Otherwise, delete the rest folder
 else {
-    fs.rmdirSync(restFolder, { recursive: true });
+    deleteFolder(restFolder);
 }
 
 // Create index.ts for generated folder

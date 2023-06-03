@@ -3,7 +3,13 @@ export const bookmark_findMany = {
     "cursor": true,
     "node": {
       "id": true,
-      "list": {},
+      "list": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "label": true,
+        "bookmarksCount": true
+      },
       "to": {
         "Api": {
           "versions": {
@@ -41,7 +47,46 @@ export const bookmark_findMany = {
           "updated_at": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -75,7 +120,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {
@@ -178,7 +237,46 @@ export const bookmark_findMany = {
           "updated_at": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -212,7 +310,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {
@@ -238,7 +350,21 @@ export const bookmark_findMany = {
           "membersCount": true,
           "reportsCount": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "translations": {
             "id": true,
             "language": true,
@@ -326,7 +452,46 @@ export const bookmark_findMany = {
           "updated_at": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -360,7 +525,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {
@@ -446,8 +625,24 @@ export const bookmark_findMany = {
               "isPrivate": true
             }
           },
-          "tags": {},
-          "you": {}
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
+          "you": {
+            "reaction": true
+          }
         },
         "QuestionAnswer": {
           "translations": {
@@ -549,7 +744,46 @@ export const bookmark_findMany = {
           "isInternal": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -583,7 +817,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {
@@ -638,7 +886,46 @@ export const bookmark_findMany = {
           "updated_at": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -672,7 +959,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {
@@ -728,7 +1029,46 @@ export const bookmark_findMany = {
           "updated_at": true,
           "isPrivate": true,
           "issuesCount": true,
-          "labels": {},
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Organization": {
+                "id": true,
+                "handle": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "isBot": true,
+                "name": true,
+                "handle": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
           "owner": {
             "Organization": {
               "id": true,
@@ -762,7 +1102,21 @@ export const bookmark_findMany = {
           "questionsCount": true,
           "score": true,
           "bookmarks": true,
-          "tags": {},
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
           "transfersCount": true,
           "views": true,
           "you": {

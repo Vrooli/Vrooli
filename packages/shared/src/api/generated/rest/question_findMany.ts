@@ -72,8 +72,24 @@ export const question_findMany = {
           "isPrivate": true
         }
       },
-      "tags": {},
-      "you": {}
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        }
+      },
+      "you": {
+        "reaction": true
+      }
     }
   },
   "pageInfo": {

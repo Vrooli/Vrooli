@@ -43,6 +43,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -81,6 +121,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -132,6 +185,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -170,6 +263,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -214,6 +320,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -252,6 +398,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -311,6 +470,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -349,6 +548,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -408,6 +620,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -446,6 +698,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -506,6 +771,46 @@ export const transfer_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -544,6 +849,19 @@ export const transfer_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,

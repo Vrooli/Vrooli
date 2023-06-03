@@ -3,7 +3,46 @@ export const chatInvite_findMany = {
     "cursor": true,
     "node": {
       "chat": {
-        "labels": {},
+        "labels": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "Organization": {
+              "id": true,
+              "handle": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
+            "User": {
+              "id": true,
+              "isBot": true,
+              "name": true,
+              "handle": true
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          }
+        },
         "translations": {
           "id": true,
           "language": true,

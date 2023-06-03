@@ -37,9 +37,78 @@ export const runRoutine_findMany = {
       "stepsCount": true,
       "inputsCount": true,
       "wasRunAutomatically": true,
-      "organization": {},
+      "organization": {
+        "id": true,
+        "handle": true,
+        "you": {
+          "canAddMembers": true,
+          "canDelete": true,
+          "canBookmark": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canRead": true,
+          "isBookmarked": true,
+          "isViewed": true,
+          "yourMembership": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "isAdmin": true,
+            "permissions": true
+          }
+        }
+      },
       "schedule": {
-        "labels": {},
+        "labels": {
+          "apisCount": true,
+          "focusModesCount": true,
+          "issuesCount": true,
+          "meetingsCount": true,
+          "notesCount": true,
+          "projectsCount": true,
+          "routinesCount": true,
+          "schedulesCount": true,
+          "smartContractsCount": true,
+          "standardsCount": true,
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "Organization": {
+              "id": true,
+              "handle": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
+            "User": {
+              "id": true,
+              "isBot": true,
+              "name": true,
+              "handle": true
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          }
+        },
         "id": true,
         "created_at": true,
         "updated_at": true,
@@ -62,7 +131,12 @@ export const runRoutine_findMany = {
           "endDate": true
         }
       },
-      "user": {},
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true
+      },
       "you": {
         "canDelete": true,
         "canUpdate": true,

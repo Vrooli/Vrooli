@@ -41,6 +41,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -79,6 +119,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -225,6 +278,46 @@ export const notificationSubscription_update = {
       "bookmarks": true,
       "views": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "you": {
@@ -242,9 +335,115 @@ export const notificationSubscription_update = {
     },
     "Meeting": {
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "schedule": {
+        "labels": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "User": {
+              "id": true,
+              "isBot": true,
+              "name": true,
+              "handle": true,
+              "__typename": "User"
+            },
+            "Organization": {
+              "id": true,
+              "handle": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              },
+              "__typename": "Organization"
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
+          "__typename": "Label"
+        },
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "startTime": true,
+        "endTime": true,
+        "timezone": true,
+        "exceptions": {
+          "id": true,
+          "originalStartTime": true,
+          "newStartTime": true,
+          "newEndTime": true,
+          "__typename": "ScheduleException"
+        },
+        "recurrences": {
+          "id": true,
+          "recurrenceType": true,
+          "interval": true,
+          "dayOfWeek": true,
+          "dayOfMonth": true,
+          "month": true,
+          "endDate": true,
+          "__typename": "ScheduleRecurrence"
+        },
         "__typename": "Schedule"
       },
       "translations": {
@@ -402,6 +601,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -440,6 +679,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -469,6 +721,19 @@ export const notificationSubscription_update = {
       "reportsCount": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "translations": {
@@ -523,6 +788,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -561,6 +866,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -685,9 +1003,24 @@ export const notificationSubscription_update = {
         }
       },
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
-      "you": {},
+      "you": {
+        "reaction": true
+      },
       "__typename": "Question"
     },
     "Quiz": {
@@ -791,6 +1124,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -829,6 +1202,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -888,6 +1274,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -926,6 +1352,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -986,6 +1425,46 @@ export const notificationSubscription_update = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -1024,6 +1503,19 @@ export const notificationSubscription_update = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,

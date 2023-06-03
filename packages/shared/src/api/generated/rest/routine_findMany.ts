@@ -127,9 +127,78 @@ export const routine_findMany = {
             "stepsCount": true,
             "inputsCount": true,
             "wasRunAutomatically": true,
-            "organization": {},
+            "organization": {
+              "id": true,
+              "handle": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
             "schedule": {
-              "labels": {},
+              "labels": {
+                "apisCount": true,
+                "focusModesCount": true,
+                "issuesCount": true,
+                "meetingsCount": true,
+                "notesCount": true,
+                "projectsCount": true,
+                "routinesCount": true,
+                "schedulesCount": true,
+                "smartContractsCount": true,
+                "standardsCount": true,
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "color": true,
+                "label": true,
+                "owner": {
+                  "Organization": {
+                    "id": true,
+                    "handle": true,
+                    "you": {
+                      "canAddMembers": true,
+                      "canDelete": true,
+                      "canBookmark": true,
+                      "canReport": true,
+                      "canUpdate": true,
+                      "canRead": true,
+                      "isBookmarked": true,
+                      "isViewed": true,
+                      "yourMembership": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "isAdmin": true,
+                        "permissions": true
+                      }
+                    }
+                  },
+                  "User": {
+                    "id": true,
+                    "isBot": true,
+                    "name": true,
+                    "handle": true
+                  }
+                },
+                "you": {
+                  "canDelete": true,
+                  "canUpdate": true
+                }
+              },
               "id": true,
               "created_at": true,
               "updated_at": true,
@@ -152,7 +221,12 @@ export const routine_findMany = {
                 "endDate": true
               }
             },
-            "user": {},
+            "user": {
+              "id": true,
+              "isBot": true,
+              "name": true,
+              "handle": true
+            },
             "you": {
               "canDelete": true,
               "canUpdate": true,
@@ -176,7 +250,46 @@ export const routine_findMany = {
       "isInternal": true,
       "isPrivate": true,
       "issuesCount": true,
-      "labels": {},
+      "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            }
+          },
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        }
+      },
       "owner": {
         "Organization": {
           "id": true,
@@ -210,7 +323,21 @@ export const routine_findMany = {
       "questionsCount": true,
       "score": true,
       "bookmarks": true,
-      "tags": {},
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        }
+      },
       "transfersCount": true,
       "views": true,
       "you": {

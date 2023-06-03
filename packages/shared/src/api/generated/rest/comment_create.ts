@@ -162,9 +162,24 @@ export const comment_create = {
         }
       },
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
-      "you": {},
+      "you": {
+        "reaction": true
+      },
       "__typename": "Question"
     },
     "QuestionAnswer": {

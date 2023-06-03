@@ -1,5 +1,10 @@
 export const bookmark_findOne = {
   "list": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "label": true,
+    "bookmarksCount": true,
     "__typename": "BookmarkList"
   },
   "id": true,
@@ -42,6 +47,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -80,6 +125,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -191,6 +249,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -229,6 +327,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -258,6 +369,19 @@ export const bookmark_findOne = {
       "reportsCount": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "translations": {
@@ -353,6 +477,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -391,6 +555,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -488,9 +665,24 @@ export const bookmark_findOne = {
         }
       },
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
-      "you": {},
+      "you": {
+        "reaction": true
+      },
       "__typename": "Question"
     },
     "QuestionAnswer": {
@@ -601,6 +793,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -639,6 +871,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -698,6 +943,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -736,6 +1021,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -796,6 +1094,46 @@ export const bookmark_findOne = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -834,6 +1172,19 @@ export const bookmark_findOne = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,

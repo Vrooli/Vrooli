@@ -7,6 +7,46 @@ export const runProject_create = {
       "isPrivate": true,
       "issuesCount": true,
       "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "User": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "Organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
         "__typename": "Label"
       },
       "owner": {
@@ -45,6 +85,19 @@ export const runProject_create = {
       "score": true,
       "bookmarks": true,
       "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
         "__typename": "Tag"
       },
       "transfersCount": true,
@@ -132,10 +185,79 @@ export const runProject_create = {
   "status": true,
   "stepsCount": true,
   "organization": {
+    "id": true,
+    "handle": true,
+    "you": {
+      "canAddMembers": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canRead": true,
+      "isBookmarked": true,
+      "isViewed": true,
+      "yourMembership": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isAdmin": true,
+        "permissions": true
+      }
+    },
     "__typename": "Organization"
   },
   "schedule": {
     "labels": {
+      "apisCount": true,
+      "focusModesCount": true,
+      "issuesCount": true,
+      "meetingsCount": true,
+      "notesCount": true,
+      "projectsCount": true,
+      "routinesCount": true,
+      "schedulesCount": true,
+      "smartContractsCount": true,
+      "standardsCount": true,
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "color": true,
+      "label": true,
+      "owner": {
+        "User": {
+          "id": true,
+          "isBot": true,
+          "name": true,
+          "handle": true,
+          "__typename": "User"
+        },
+        "Organization": {
+          "id": true,
+          "handle": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Organization"
+        }
+      },
+      "you": {
+        "canDelete": true,
+        "canUpdate": true
+      },
       "__typename": "Label"
     },
     "id": true,
@@ -164,6 +286,10 @@ export const runProject_create = {
     "__typename": "Schedule"
   },
   "user": {
+    "id": true,
+    "isBot": true,
+    "name": true,
+    "handle": true,
     "__typename": "User"
   },
   "you": {
