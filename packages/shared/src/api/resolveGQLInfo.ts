@@ -28,7 +28,6 @@ export function parseFieldNode(node: FieldNode, fragments: { [x: string]: Fragme
  * @returns Select object with fields as keys and "true" as values
  */
 export function parseFragmentSpreadNode(node: FragmentSpreadNode, fragments: { [x: string]: FragmentDefinitionNode }): { [x: string]: any } {
-    console.log("in parseFragmentSpreadNode", node, fragments);
     // Get fragment
     const fragment: FragmentDefinitionNode = fragments[node.name.value];
     // Create result object
@@ -80,7 +79,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
             const inlineFragments: InlineFragmentNode[] = (node.selectionSet?.selections.filter((selection: SelectionNode) => selection.kind === "InlineFragment") ?? []) as InlineFragmentNode[];
             const isUnion = inlineFragments.length > 0 && inlineFragments.length === node.selectionSet!.selections.length - 1;
             if (isUnion) {
-                console.log("found union", JSON.stringify(node));
                 const union: { [x: string]: any } = {};
                 for (const selection of inlineFragments!) {
                     union[`${selection.typeCondition?.name.value}`] = parseInlineFragmentNode(selection, fragments);
@@ -93,7 +91,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
             break;
         }
         case "FragmentSpread": {
-            console.log("found fragment spread", node);
             const spread = parseFragmentSpreadNode(node, fragments);
             for (const key in spread) {
                 result[key] = spread[key];
@@ -101,7 +98,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
             break;
         }
         case "InlineFragment":
-            console.log("found inline fragment", node);
             result[`${node.typeCondition?.name.value}`] = parseInlineFragmentNode(node, fragments);
             break;
     }
@@ -116,7 +112,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
  * @param info - GraphQL resolve info object
  */
 export const resolveGQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {
-    console.log("in resolveGQLInfo", info.fragments);
     // Get selected nodes
     const selectionNodes = info.fieldNodes[0].selectionSet?.selections;
     if (!selectionNodes) return {};

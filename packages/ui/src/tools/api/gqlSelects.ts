@@ -16,10 +16,6 @@ type Target = "graphql" | "rest" | "both";
 const target: Target = "rest";
 // If true, will generate endpoint/method pairs for each endpoint, based on what's defined in `packages/server/src/endpoints/rest`. 
 // Only used if `target` is "rest" or "both".
-type EndpointMethodPair = {
-    endpoint: string;
-    method: string;
-};
 const createEndpointMethodPairs = true;
 
 const createFolder = (folder: string) => {
@@ -165,6 +161,28 @@ async function main() {
             } as any;
             return resolveInfo;
         };
+        // Define function to convert endpoints to proper names
+        const endpointToCamelCase = (endpoint: string): string => {
+            // Split string by slash and filter out empty strings and strings containing ':'
+            const parts = endpoint.split("/").filter(p => p && !p.includes(":"));
+
+            // If there's only one part, return it
+            if (parts.length === 1) {
+                return parts[0];
+            }
+
+            // Map through the array to construct the camelCase string
+            const camelCaseString = parts.map((part, index) => {
+                // If it's the first part, return it with the first character lowercase
+                if (index === 0) {
+                    return part.charAt(0).toLowerCase() + part.slice(1);
+                }
+                // If it's not the first part, return it with the first character capitalized
+                return part.charAt(0).toUpperCase() + part.slice(1);
+            }).join("");
+
+            return camelCaseString;
+        };
         // Loop through allEndpoints
         for (const [name, endpoint] of Object.entries(allEndpoints)) {
             console.info(`Generating GraphQLResolveInfo for ${name}...`);
@@ -214,49 +232,63 @@ async function main() {
         if (createEndpointMethodPairs) {
             console.info("Generating endpoint/method pairs...");
             const restEndpoints: { [name: string]: any } = {};
-            const endpointMethodPairs: EndpointMethodPair[] = [];
             const pairsSrcFolder = "../server/src/endpoints/rest";
+
             // Find the name of every file in the pairs folder
             const excludedFiles = ["base", "index", "types"];
-            const pairsFiles = fs.readdirSync(pairsSrcFolder).map(file => file.replace(".ts", "")).filter(file => !excludedFiles.includes(file));
-            // Import each file and add it to the restEndpoints object
-            for (const restFile of pairsFiles) {
-                console.info("importing", restFile);
+            const restFiles = fs.readdirSync(pairsSrcFolder).map(file => file.replace(".ts", "")).filter(file => !excludedFiles.includes(file));
+
+            // Import each rest file and add it to the restEndpoints object
+            for (const restFile of restFiles) {
                 try {
+                    console.info("importing", restFile);
                     const endpoint = await import(`../../../${pairsSrcFolder}/${restFile}.ts`);
-                    // Each file should an export with a name ending in "Rest". This is what we want.
                     const endpointName = Object.keys(endpoint).find(name => name.endsWith("Rest"));
                     if (!endpointName) {
                         console.error(`No endpoint found in ${restFile}.ts`);
                         continue;
                     }
-                    console.log("setting restEndpoints[restFile]", restFile, endpoint[endpointName]);
                     restEndpoints[restFile] = endpoint[endpointName];
-                    // Map over each method for each endpoint and create an EndpointMethodPair
-                    const endpointRouter: any = endpoint[endpointName];
+                } catch (error) {
+                    console.error(`Error importing REST file ${restFile}.ts: ${error}`);
+                }
+            }
+
+            const endpointMethodPairs: { name: string; endpoint: string; method: string; }[] = [];
+            for (const restFile of restFiles) {
+                try {
+                    const endpointRouter = restEndpoints[restFile];
                     endpointRouter.stack.forEach(middleware => {
                         if (middleware.route) {
                             const path = middleware.route.path;
                             const methods = Object.keys(middleware.route.methods);
-                            methods.forEach((method) => {
+                            methods.forEach(method => {
                                 endpointMethodPairs.push({
+                                    name: endpointToCamelCase(`${method.toLowerCase()}/${path}`),
                                     endpoint: path,
-                                    method: method.toUpperCase(), // convert to uppercase to match GET, POST, etc.
+                                    method: method.toUpperCase(),
                                 });
                             });
                         }
                     });
-                } catch (e) {
-                    console.error(`Failed to import or process ${restFile}.ts`, e);
-                    continue;
+                } catch (error) {
+                    console.error(`Error processing REST file ${restFile}.ts: ${error}`);
                 }
             }
-            // Print the endpoint/method pairs for testing
+            // Save the endpoint/method pairs
             endpointMethodPairs.forEach(pair => {
-                console.log(JSON.stringify(pair));
+                const pairFilePath = `${pairsFolder}/${pair.name}.ts`;
+                console.info("Saving endpoint/method pair to", pairFilePath);
+                fs.writeFileSync(pairFilePath, `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
+    endpoint: "${pair.endpoint}",
+    method: "${pair.method}",
+} as const;\n`);
             });
+            // Create index.ts for pairs
+            console.info("Generating index.ts for pairs...");
+            const indexContentPairs = endpointMethodPairs.sort((a, b) => a.name.localeCompare(b.name)).map(pair => `export * from "./${pair.name}";`).join("\n");
+            fs.writeFileSync(`${pairsFolder}/index.ts`, indexContentPairs);
         }
-
     }
     // Otherwise, delete the rest folder
     else {
@@ -268,9 +300,9 @@ async function main() {
     const indexArray = ["graphqlTypes"];
     if (["rest", "both"].includes(target)) {
         indexArray.push("rest");
-        // if (createEndpointMethodPairs) {
-        //     indexArray.push("pairs");
-        // }
+        if (createEndpointMethodPairs) {
+            indexArray.push("pairs");
+        }
     }
     if (["graphql", "both"].includes(target)) {
         indexArray.push("endpoints");
@@ -282,4 +314,4 @@ async function main() {
     console.info("Finished generating graphql-tag strings for endpoints🚀");
 }
 
-main().catch(console.error);
+main().catch(console.error).finally(() => process.exit());
