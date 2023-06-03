@@ -1,11 +1,12 @@
-import { FindVersionInput, ProjectVersion, projectVersionCreate, ProjectVersionCreateInput, projectVersionFindOne, projectVersionUpdate, ProjectVersionUpdateInput } from "@local/shared";
-import { useCustomLazyQuery, useCustomMutation } from "api";
+import { FindVersionInput, ProjectVersion, projectVersionCreate, ProjectVersionCreateInput, projectVersionUpdate, ProjectVersionUpdateInput } from "@local/shared";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -23,8 +24,8 @@ export const ProjectUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ProjectVersion, FindVersionInput>(projectVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ProjectVersion>("/projectVersion");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => projectInitialValues(session, existing), [existing, session]);

@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, routineVersionFindOne, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, exists, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
 import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
@@ -55,8 +55,8 @@ export const RoutineView = ({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
-        query: routineVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
+        endpoint: "/routineVersion",
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });

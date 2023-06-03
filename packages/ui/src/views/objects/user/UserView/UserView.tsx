@@ -1,6 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, userFindOne, userProfile, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -17,7 +16,8 @@ import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } fro
 import { useTranslation } from "react-i18next";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -63,13 +63,13 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userFindOne, { errorPolicy: "all" } as any);
-    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userProfile, { errorPolicy: "all" } as any);
+    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>("/user");
+    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useLazyFetch<any, User>("/profile");
     const [user, setUser] = useState<User | null | undefined>(null);
-    useDisplayApolloError(userError ?? profileError);
+    useDisplayServerError(userError ?? profileError);
     useEffect(() => {
         const urlEnding = getLastUrlPart();
-        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ variables: { id: base36ToUuid(urlEnding) } as any });
+        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
         else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
     }, [getUserData, getProfileData]);

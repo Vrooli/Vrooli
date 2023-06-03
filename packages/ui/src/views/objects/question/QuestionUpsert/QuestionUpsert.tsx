@@ -1,10 +1,11 @@
-import { FindByIdInput, Question, questionCreate, QuestionCreateInput, questionFindOne, questionUpdate, QuestionUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { FindByIdInput, Question, questionCreate, QuestionCreateInput, questionUpdate, QuestionUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -22,8 +23,8 @@ export const QuestionUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Question, FindByIdInput>(questionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Question>("/question");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);

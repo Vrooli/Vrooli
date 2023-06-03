@@ -1,4 +1,4 @@
-import { FindByIdInput, RunProject, runProjectFindOne, useLocation } from "@local/shared";
+import { RunProject, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
@@ -18,8 +18,8 @@ export const RunProjectView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setRunProject } = useObjectFromUrl<RunProject, FindByIdInput>({
-        query: runProjectFindOne,
+    const { object: existing, isLoading, setObject: setRunProject } = useObjectFromUrl<RunProject>({
+        endpoint: "/runProject",
         partialData,
     });
 

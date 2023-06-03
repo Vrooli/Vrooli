@@ -1,4 +1,4 @@
-import { ApiIcon, ApiSearchInput, ApiSearchResult, ApiVersion, apiVersionFindOne, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList, useLocation } from "@local/shared";
+import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, ResourceList, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -11,7 +11,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SessionContext } from "utils/SessionContext";
@@ -28,20 +27,8 @@ export const ApiView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    // const temp = fetch("/apis")
-    //     .then(response => response.json())
-    //     .then(data => console.log(data))
-    //     .catch(error => console.error("Error:", error));
-    // console.log("rest api test: ", temp);
-    const [getApis, { data, loading, error }] = useLazyFetch<ApiSearchInput, ApiSearchResult>("/apis");
-    useEffect(() => {
-        getApis({});
-    }, [getApis]);
-    console.log("rest api test data", data, loading, error);
-
-
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
-        query: apiVersionFindOne,
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
+        endpoint: "/apiVersion",
         partialData,
     });
 

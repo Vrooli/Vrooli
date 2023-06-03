@@ -1,4 +1,4 @@
-import { focusModeFindMany, FocusModeSortBy } from "@local/shared";
+import { FocusModeSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const focusModeSearchSchema = (): FormSchema => ({
     fields: [],
 });
 
-export const focusModeSearchParams = () => toParams(focusModeSearchSchema(), focusModeFindMany, FocusModeSortBy, FocusModeSortBy.NameAsc);
+export const focusModeSearchParams = () => toParams(focusModeSearchSchema(), "/focusModes", FocusModeSortBy, FocusModeSortBy.NameAsc);

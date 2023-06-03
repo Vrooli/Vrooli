@@ -8,7 +8,7 @@ import { TitleContainer } from "components/containers/TitleContainer/TitleContai
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
@@ -61,11 +61,11 @@ export const ReminderList = ({
 
     // Handle add mutation (for undo)
     const [addMutation, { error: addError }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
-    useDisplayApolloError(addError);
+    useDisplayServerError(addError);
 
     // Handle update mutation
     const [updateMutation, { error: updateError }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
-    useDisplayApolloError(updateError);
+    useDisplayServerError(updateError);
     const saveUpdate = useCallback((index: number, original: Reminder, updated: Reminder) => {
         // Don't wait for the mutation to call handleUpdated
         handleUpdated(index, updated);

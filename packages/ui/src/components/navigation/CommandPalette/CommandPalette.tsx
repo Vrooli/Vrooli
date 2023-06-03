@@ -1,6 +1,5 @@
-import { feedPopular, LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
+import { LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
@@ -9,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -60,12 +60,11 @@ export const CommandPalette = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, []);
 
-    const [refetch, { data, loading, error }] = useCustomLazyQuery<PopularResult, PopularInput>(feedPopular, {
-        variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
-        errorPolicy: "all",
+    const [refetch, { data, loading, error }] = useLazyFetch<PopularInput, PopularResult>("/feed/popular", {
+        searchString: searchString.replaceAll(/![^\s]{1,}/g, ""),
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
 
     const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
         __typename: "Shortcut",

@@ -1,4 +1,4 @@
-import { statsSmartContractFindMany, StatsSmartContractSortBy } from "@local/shared";
+import { StatsSmartContractSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const statsSmartContractSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsSmartContractSearchParams = () => toParams(statsSmartContractSearchSchema(), statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.PeriodStartAsc);
+export const statsSmartContractSearchParams = () => toParams(statsSmartContractSearchSchema(), "/stats/smartContract", StatsSmartContractSortBy, StatsSmartContractSortBy.PeriodStartAsc);

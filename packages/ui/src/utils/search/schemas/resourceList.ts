@@ -1,4 +1,4 @@
-import { resourceListFindMany, ResourceListSortBy } from "@local/shared";
+import { ResourceListSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const resourceListSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc);
+export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), "/resourceLists", ResourceListSortBy, ResourceListSortBy.DateCreatedDesc);

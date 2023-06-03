@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ProjectVersion, projectVersionFindOne, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, ProjectVersion, useLocation } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -28,8 +28,8 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion, FindVersionInput>({
-        query: projectVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
+        endpoint: "/projectVersion",
         partialData,
     });
 

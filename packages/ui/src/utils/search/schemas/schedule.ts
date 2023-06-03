@@ -1,4 +1,4 @@
-import { scheduleFindMany, ScheduleSortBy } from "@local/shared";
+import { ScheduleSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const scheduleSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), scheduleFindMany, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);
+export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), "/schedules", ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);

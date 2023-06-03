@@ -7,7 +7,7 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
 import { Wrap } from "types";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
@@ -17,7 +17,7 @@ export const SettingsNotificationsView = ({
 }: SettingsNotificationsViewProps) => {
 
     const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
     const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
 
     return (

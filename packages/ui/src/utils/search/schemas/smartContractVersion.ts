@@ -1,4 +1,4 @@
-import { smartContractVersionFindMany, SmartContractVersionSortBy } from "@local/shared";
+import { SmartContractVersionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
@@ -23,4 +23,4 @@ export const smartContractVersionSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const smartContractVersionSearchParams = () => toParams(smartContractVersionSearchSchema(), smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc);
+export const smartContractVersionSearchParams = () => toParams(smartContractVersionSearchSchema(), "/smartContractVersions", SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc);

@@ -1,11 +1,12 @@
-import { FindByIdInput, RunProject, runProjectCreate, RunProjectCreateInput, runProjectFindOne, runProjectUpdate, RunProjectUpdateInput } from "@local/shared";
-import { useCustomLazyQuery, useCustomMutation } from "api";
+import { FindByIdInput, RunProject, runProjectCreate, RunProjectCreateInput, runProjectUpdate, RunProjectUpdateInput } from "@local/shared";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -23,8 +24,8 @@ export const RunProjectUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RunProject, FindByIdInput>(runProjectFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, RunProject>("/runProject");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => runProjectInitialValues(session, existing), [existing, session]);

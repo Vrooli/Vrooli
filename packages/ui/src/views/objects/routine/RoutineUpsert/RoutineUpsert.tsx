@@ -1,10 +1,11 @@
-import { FindVersionInput, RoutineVersion, routineVersionCreate, RoutineVersionCreateInput, routineVersionFindOne, routineVersionUpdate, RoutineVersionUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { FindVersionInput, RoutineVersion, routineVersionCreate, RoutineVersionCreateInput, routineVersionUpdate, RoutineVersionUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -24,8 +25,8 @@ export const RoutineUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     console.log("routine upsertt id", id);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, RoutineVersion>("/routineVersion");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);

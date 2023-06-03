@@ -1,4 +1,4 @@
-import { chatMessageFindMany, ChatMessageSortBy } from "@local/shared";
+import { ChatMessageSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const chatMessageSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const chatMessageSearchParams = () => toParams(chatMessageSearchSchema(), chatMessageFindMany, ChatMessageSortBy, ChatMessageSortBy.DateUpdatedDesc);
+export const chatMessageSearchParams = () => toParams(chatMessageSearchSchema(), "/chatMessages", ChatMessageSortBy, ChatMessageSortBy.DateUpdatedDesc);

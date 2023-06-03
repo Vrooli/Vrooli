@@ -1,4 +1,4 @@
-import { meetingInviteFindMany, MeetingInviteSortBy } from "@local/shared";
+import { MeetingInviteSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const meetingInviteSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const meetingInviteSearchParams = () => toParams(meetingInviteSearchSchema(), meetingInviteFindMany, MeetingInviteSortBy, MeetingInviteSortBy.DateCreatedDesc);
+export const meetingInviteSearchParams = () => toParams(meetingInviteSearchSchema(), "/meetingInvites", MeetingInviteSortBy, MeetingInviteSortBy.DateCreatedDesc);

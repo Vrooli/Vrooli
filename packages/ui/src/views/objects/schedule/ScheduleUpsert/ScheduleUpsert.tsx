@@ -1,5 +1,5 @@
-import { FindByIdInput, parseSearchParams, Schedule, scheduleCreate, ScheduleCreateInput, scheduleFindOne, scheduleUpdate, ScheduleUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { FindByIdInput, parseSearchParams, Schedule, scheduleCreate, ScheduleCreateInput, scheduleUpdate, ScheduleUpdateInput } from "@local/shared";
+import { mutationWrapper, useCustomMutation } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -8,6 +8,7 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -69,8 +70,8 @@ export const ScheduleUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Schedule, FindByIdInput>(scheduleFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Schedule>("/schedule");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => scheduleInitialValues(session, {

@@ -1,14 +1,15 @@
 /**
  * Displays all search options for an organization
  */
-import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, bookmarkFindMany, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
+import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
-import { useCustomLazyQuery, useCustomMutation } from "api";
+import { useCustomMutation } from "api";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { SessionContext } from "utils/SessionContext";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListUpsert } from "views/objects/bookmarkList";
@@ -39,11 +40,8 @@ export const SelectBookmarkListDialog = ({
     }, [session]);
 
     // Fetch all bookmarks for object
-    const [refetch, { data, loading: isFindLoading, error }] = useCustomLazyQuery<BookmarkSearchResult, BookmarkSearchInput>(bookmarkFindMany, {
-        variables: {
-            [`${lowercaseFirstLetter(objectType)}Id`]: objectId!,
-        },
-        errorPolicy: "all",
+    const [refetch, { data, loading: isFindLoading, error }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>("/bookmarks", {
+        [`${lowercaseFirstLetter(objectType)}Id`]: objectId!,
     });
     useEffect(() => {
         if (!isCreate && isOpen) {
@@ -52,7 +50,7 @@ export const SelectBookmarkListDialog = ({
             setSelectedLists([]);
         }
     }, [refetch, isCreate, objectId]);
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
     useEffect(() => {
         if (data) {
             setSelectedLists(data.edges.map(e => e.node.list));

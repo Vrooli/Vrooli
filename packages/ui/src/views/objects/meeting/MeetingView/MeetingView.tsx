@@ -1,4 +1,4 @@
-import { FindByIdInput, Meeting, meetingFindOne, useLocation } from "@local/shared";
+import { Meeting, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
@@ -18,8 +18,8 @@ export const MeetingView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting, FindByIdInput>({
-        query: meetingFindOne,
+    const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
+        endpoint: "/meeting",
         partialData,
     });
 

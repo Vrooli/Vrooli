@@ -1,4 +1,4 @@
-import { memberFindMany, MemberSortBy } from "@local/shared";
+import { MemberSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const memberSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const memberSearchParams = () => toParams(memberSearchSchema(), memberFindMany, MemberSortBy, MemberSortBy.DateCreatedDesc);
+export const memberSearchParams = () => toParams(memberSearchSchema(), "/members", MemberSortBy, MemberSortBy.DateCreatedDesc);

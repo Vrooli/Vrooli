@@ -1,4 +1,4 @@
-import { noteFindMany, NoteSortBy } from "@local/shared";
+import { NoteSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -19,4 +19,4 @@ export const noteSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const noteSearchParams = () => toParams(noteSearchSchema(), noteFindMany, NoteSortBy, NoteSortBy.ScoreDesc);
+export const noteSearchParams = () => toParams(noteSearchSchema(), "/notes", NoteSortBy, NoteSortBy.ScoreDesc);

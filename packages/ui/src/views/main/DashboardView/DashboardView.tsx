@@ -18,7 +18,7 @@ import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
@@ -73,7 +73,7 @@ export const DashboardView = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
     const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
     useEffect(() => { refetch(); }, [refetch, searchString, activeFocusMode]);
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
 
     // Only show tabs if:
     // 1. The user is logged in 

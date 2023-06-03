@@ -1,11 +1,12 @@
-import { Bookmark, bookmarkCreate, BookmarkCreateInput, bookmarkFindMany, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, exists, Success, uuid } from "@local/shared";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, exists, Success, uuid } from "@local/shared";
+import { mutationWrapper, useCustomMutation } from "api";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeBookmark } from "utils/shape/models/bookmark";
+import { useLazyFetch } from "./useLazyFetch";
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
@@ -28,7 +29,7 @@ export const useBookmarker = ({
     const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData, { data, loading }] = useCustomLazyQuery<BookmarkSearchResult, BookmarkSearchInput>(bookmarkFindMany, { errorPolicy: "all" });
+    const [getData, { data, loading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>("/bookmarks");
 
     const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
 
@@ -60,11 +61,9 @@ export const useBookmarker = ({
 
     const handleRemove = useCallback(async () => {
         // First we must query for bookmarks on this object. There may be more than one.
-        await getData({
-            variables: {
-                //Lowercase first letter of objectType and add "Id"
-                [`${objectType[0].toLowerCase()}${objectType.slice(1)}Id`]: objectId,
-            },
+        getData({
+            //Lowercase first letter of objectType and add "Id"
+            [`${objectType[0].toLowerCase()}${objectType.slice(1)}Id`]: objectId,
         });
     }, [getData, objectId, objectType]);
     useEffect(() => {

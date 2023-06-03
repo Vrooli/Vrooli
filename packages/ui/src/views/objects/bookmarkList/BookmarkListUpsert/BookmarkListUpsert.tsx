@@ -1,11 +1,12 @@
-import { BookmarkList, bookmarkListCreate, BookmarkListCreateInput, bookmarkListFindOne, bookmarkListUpdate, BookmarkListUpdateInput, FindByIdInput } from "@local/shared";
-import { useCustomLazyQuery, useCustomMutation } from "api";
+import { BookmarkList, bookmarkListCreate, BookmarkListCreateInput, bookmarkListUpdate, BookmarkListUpdateInput, FindByIdInput } from "@local/shared";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListForm, bookmarkListInitialValues, transformBookmarkListValues, validateBookmarkListValues } from "forms/BookmarkListForm/BookmarkListForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -23,8 +24,8 @@ export const BookmarkListUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<BookmarkList, FindByIdInput>(bookmarkListFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, BookmarkList>("/bookmarkList");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => bookmarkListInitialValues(session, existing), [existing, session]);

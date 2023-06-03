@@ -10,7 +10,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { listToListItems } from "utils/display/listTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { useTabs } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
@@ -60,7 +60,7 @@ export const InboxView = ({
     const [deleteMutation, { error: deleteError }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const [markAsReadMutation, { error: markError }] = useCustomMutation<Success, FindByIdInput>(notificationMarkAsRead);
     const [markAllAsReadMutation, { error: markAllError }] = useCustomMutation<Success, undefined>(notificationMarkAllAsRead);
-    useDisplayApolloError(deleteError ?? markError ?? markAllError);
+    useDisplayServerError(deleteError ?? markError ?? markAllError);
 
     const openNotification = useCallback((notification: Notification) => {
         if (notification.link) {

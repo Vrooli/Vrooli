@@ -1,6 +1,6 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, projectVersionDirectoryFindMany, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, routineVersionFindMany, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, runRoutineUpdate, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, runRoutineUpdate, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
+import { mutationWrapper, useCustomMutation } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, Rou
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -577,8 +578,8 @@ export const RunView = ({
     }, [currStepLocation]);
 
     // Query current subroutine or directory, if needed. Main routine may have the data
-    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useCustomLazyQuery<RoutineVersionSearchResult, RoutineVersionSearchInput>(routineVersionFindMany, { errorPolicy: "all" });
-    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useCustomLazyQuery<ProjectVersionDirectorySearchResult, ProjectVersionDirectorySearchInput>(projectVersionDirectoryFindMany, { errorPolicy: "all" });
+    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>("/routineVersions");
+    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>("/projectVersionDirectories");
     const [currentStep, setCurrentStep] = useState<ProjectStep | null>(null);
     useEffect(() => {
         // If no steps, redirect to first step
@@ -615,12 +616,12 @@ export const RunView = ({
         }
         // If current step is a Directory and needs querying, then query the data
         if (currStep.type === ProjectStepType.Directory && stepNeedsQuerying(currStep)) {
-            getDirectories({ variables: { parentDirectoryId: currStep.directoryId } });
+            getDirectories({ parentDirectoryId: currStep.directoryId });
             return;
         }
         // If current step is a Subroutine and needs querying, then query the data
         if (currStep.type === RoutineStepType.Subroutine && stepNeedsQuerying(currStep)) {
-            getSubroutines({ variables: { ids: [currStep.routineVersion.id] } });
+            getSubroutines({ ids: [currStep.routineVersion.id] });
             return;
         }
         // Finally, if we don't need to query, we set the current step.
@@ -1013,7 +1014,7 @@ export const RunView = ({
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
                             currStep={currStepLocation}
-                            handleLoadSubroutine={(id: string) => { getSubroutines({ variables: { ids: [id] } }); }}
+                            handleLoadSubroutine={(id: string) => { getSubroutines({ ids: [id] }); }}
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}

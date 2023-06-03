@@ -1,4 +1,4 @@
-import { reportResponseFindMany, ReportResponseSortBy } from "@local/shared";
+import { ReportResponseSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const reportResponseSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const reportResponseSearchParams = () => toParams(reportResponseSearchSchema(), reportResponseFindMany, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc);
+export const reportResponseSearchParams = () => toParams(reportResponseSearchSchema(), "/reportResponses", ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc);

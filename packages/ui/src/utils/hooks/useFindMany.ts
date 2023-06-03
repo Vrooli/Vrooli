@@ -1,5 +1,4 @@
 import { addSearchParams, exists, lowercaseFirstLetter, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
-import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
@@ -8,7 +7,8 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { SessionContext } from "utils/SessionContext";
-import { useDisplayApolloError } from "./useDisplayApolloError";
+import { useDisplayServerError } from "./useDisplayServerError";
+import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";
 
@@ -154,23 +154,20 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<Record<string, string>>({});
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.current.query, {
-        variables: ({
-            take,
-            sortBy: params.current.sortBy,
-            searchString: params.current.searchString,
-            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
-                after: params.current.timeFrame.after?.toISOString(),
-                before: params.current.timeFrame.before?.toISOString(),
-            } : undefined,
-            ...after.current,
-            ...params.current.where,
-            ...advancedSearchParams,
-        } as any),
-        errorPolicy: "all",
-    });
+    const [getPageData, { data: pageData, loading, error }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>(params!.current.endpoint, {
+        take,
+        sortBy: params.current.sortBy,
+        searchString: params.current.searchString,
+        createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
+            after: params.current.timeFrame.after?.toISOString(),
+            before: params.current.timeFrame.before?.toISOString(),
+        } : undefined,
+        ...after.current,
+        ...params.current.where,
+        ...advancedSearchParams,
+    } as any);
     // Display a snack error message if there is an error
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
     const [allData, setAllData] = useState<DataType[]>(() => {
         // TODO Check if we just navigated back to this page from an object page. If so, use results stored in sessionStorage. Also TODO for storing results in sessionStorage
         const lastPath = sessionStorage.getItem("lastPath");

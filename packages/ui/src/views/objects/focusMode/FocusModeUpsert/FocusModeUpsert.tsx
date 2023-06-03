@@ -1,11 +1,12 @@
-import { FindByIdInput, FocusMode, focusModeCreate, FocusModeCreateInput, focusModeFindOne, focusModeUpdate, FocusModeUpdateInput } from "@local/shared";
-import { useCustomLazyQuery, useCustomMutation } from "api";
+import { FindByIdInput, FocusMode, focusModeCreate, FocusModeCreateInput, focusModeUpdate, FocusModeUpdateInput } from "@local/shared";
+import { useCustomMutation } from "api";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeForm, focusModeInitialValues, transformFocusModeValues, validateFocusModeValues } from "forms/FocusModeForm/FocusModeForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -23,8 +24,8 @@ export const FocusModeUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<FocusMode, FindByIdInput>(focusModeFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, FocusMode>("/focusMode");
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => focusModeInitialValues(session, existing), [existing, session]);

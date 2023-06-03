@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type RequestState<TData> = {
     loading: boolean;
-    data: TData | null;
+    data: TData | undefined;
     error: any;
 };
 
@@ -32,34 +32,48 @@ else {
  * @returns A tuple where the first element is a function
  * to initiate the request and the second element is an object representing the current state of the request.
  */
-export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint: string, method: "GET" | "POST" | "PUT" = "GET", options: RequestInit = {}): [
-    (input: TInput) => void,
-    RequestState<TData>
-] {
+export function useLazyFetch<TInput extends Record<string, any>, TData>(
+    endpoint: string | undefined,
+    initialInputs: TInput = {} as TInput,
+    method: "GET" | "POST" | "PUT" = "GET",
+    options: RequestInit = {},
+): [
+        (input?: TInput) => void,
+        RequestState<TData>
+    ] {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
-        data: null,
+        data: undefined,
         error: null,
     });
 
-    // Store the latest endpoint, method and options in a ref
-    const fetchParamsRef = useRef({ endpoint, method, options });
+    // Store the latest endpoint, method, options and inputs in a ref
+    const fetchParamsRef = useRef({ endpoint, method, options, inputs: initialInputs });
     useEffect(() => {
-        fetchParamsRef.current = { endpoint, method, options };
-    }, [endpoint, method, options]); // This will update the ref each time endpoint, method or options change
+        fetchParamsRef.current = { endpoint, method, options, inputs: initialInputs };
+    }, [endpoint, method, options, initialInputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback((input: TInput) => {
+    const makeRequest = useCallback((input?: TInput) => {
+        if (!fetchParamsRef.current.endpoint) {
+            console.error("No endpoint provided to useLazyFetch");
+            return;
+        }
+        // Update the inputs stored in the ref if a new input is provided
+        if (input) {
+            fetchParamsRef.current.inputs = input;
+        }
+
         setState(s => ({ ...s, loading: true }));
 
         let url = `${urlBase}${fetchParamsRef.current.endpoint}`;
         let body: string | null = null;
 
         if (fetchParamsRef.current.method === "GET") {
-            if (Object.keys(input).length !== 0) {
-                url += `?${stringifySearchParams(input)}`;
+            if (Object.keys(fetchParamsRef.current.inputs).length !== 0) {
+                url += `?${stringifySearchParams(fetchParamsRef.current.inputs)}`;
             }
         } else if (["POST", "PUT"].includes(fetchParamsRef.current.method)) {
-            body = JSON.stringify({ input });
+            body = JSON.stringify({ input: fetchParamsRef.current.inputs });
         }
 
         fetch(url, {
@@ -70,15 +84,18 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>(endpoint
                 "Content-Type": "application/json",
             },
             body,
+            credentials: "include",
         })
             .then(response => response.json())
             .then(data => {
+                console.log("useLazyFetch data", data);
                 setState({ loading: false, data, error: null });
             })
             .catch(error => {
-                setState({ loading: false, data: null, error });
+                console.log("useLazyFetch error", error);
+                setState({ loading: false, data: undefined, error });
             });
-    }, []); // Empty dependency array
+    }, []);
 
     return [makeRequest, state];
 }

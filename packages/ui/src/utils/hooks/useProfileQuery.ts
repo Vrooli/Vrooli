@@ -1,12 +1,14 @@
-import { User, userProfile } from "@local/shared";
-import { useCustomLazyQuery } from "api";
+import { User } from "@local/shared";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { SessionContext } from "utils/SessionContext";
+import { useDisplayServerError } from "./useDisplayServerError";
+import { useLazyFetch } from "./useLazyFetch";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: "all" });
+    const [getData, { data, loading: isProfileLoading, error }] = useLazyFetch<any, User>("/profile");
+    useDisplayServerError(error);
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session]);

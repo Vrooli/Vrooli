@@ -1,4 +1,4 @@
-import { FindByIdInput, RunRoutine, runRoutineFindOne, useLocation } from "@local/shared";
+import { RunRoutine, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
@@ -18,8 +18,8 @@ export const RunRoutineView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine, FindByIdInput>({
-        query: runRoutineFindOne,
+    const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
+        endpoint: "/runRoutine",
         partialData,
     });
 

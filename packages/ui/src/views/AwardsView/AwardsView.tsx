@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { SessionContext } from "utils/SessionContext";
 import { AwardsViewProps } from "views/types";
 
@@ -40,7 +40,7 @@ export const AwardsView = ({
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
     const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, "awards">, Wrap<AwardSearchInput, "input">>(awardFindMany, { variables: { input: {} }, errorPolicy: "all" });
-    useDisplayApolloError(error);
+    useDisplayServerError(error);
     useEffect(() => {
         if (!data) return;
         // Add to awards array, and sort by award category

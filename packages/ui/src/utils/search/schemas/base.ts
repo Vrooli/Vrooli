@@ -1,11 +1,10 @@
 import { FormSchema } from "forms/types";
-import { DocumentNode } from "graphql";
 
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;
     defaultSortBy: any;
+    endpoint: string;
     sortByOptions: any;
-    query: DocumentNode;
 }
 
 /**
@@ -13,12 +12,12 @@ export type SearchParams = {
  */
 export const toParams = (
     advancedSearchSchema: FormSchema,
-    query: DocumentNode,
+    endpoint: string,
     sortByOptions: { [key: string]: string },
     defaultSortBy: string,
 ): SearchParams => ({
     advancedSearchSchema,
     defaultSortBy,
-    query,
+    endpoint,
     sortByOptions,
 });

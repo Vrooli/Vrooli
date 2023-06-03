@@ -1,4 +1,4 @@
-import { statsApiFindMany, StatsApiSortBy } from "@local/shared";
+import { StatsApiSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const statsApiSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), statsApiFindMany, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);
+export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), "/stats/api", StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);

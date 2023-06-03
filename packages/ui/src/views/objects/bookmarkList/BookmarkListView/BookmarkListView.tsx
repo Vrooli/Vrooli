@@ -1,4 +1,4 @@
-import { AddIcon, BookmarkList, bookmarkListFindOne, EditIcon, FindByIdInput, useLocation } from "@local/shared";
+import { AddIcon, BookmarkList, EditIcon, useLocation } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -22,8 +22,8 @@ export const BookmarkListView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList, FindByIdInput>({
-        query: bookmarkListFindOne,
+    const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
+        endpoint: "/bookmarkList",
         partialData,
     });
 

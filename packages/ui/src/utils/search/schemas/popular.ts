@@ -1,4 +1,4 @@
-import { feedPopular, PopularSortBy } from "@local/shared";
+import { PopularSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const popularSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const popularSearchParams = () => toParams(popularSearchSchema(), feedPopular, PopularSortBy, PopularSortBy.StarsDesc);
+export const popularSearchParams = () => toParams(popularSearchSchema(), "/feed/popular", PopularSortBy, PopularSortBy.StarsDesc);

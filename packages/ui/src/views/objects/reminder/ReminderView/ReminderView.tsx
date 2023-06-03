@@ -1,4 +1,4 @@
-import { EllipsisIcon, FindByIdInput, Reminder, reminderFindOne, useLocation } from "@local/shared";
+import { EllipsisIcon, Reminder, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -18,8 +18,8 @@ export const ReminderView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder, FindByIdInput>({
-        query: reminderFindOne,
+    const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder>({
+        endpoint: "/reminder",
         partialData,
     });
 

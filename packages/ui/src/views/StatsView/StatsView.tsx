@@ -1,6 +1,5 @@
-import { StatPeriodType, StatsSite, statsSiteFindMany, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
@@ -12,6 +11,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { StatsViewProps } from "../types";
 
 /**
@@ -102,16 +103,14 @@ export const StatsView = ({
     }, []);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading }] = useCustomLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput>(statsSiteFindMany, {
-        variables: ({
-            periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
-            periodTimeFrame: {
-                after: period.after.toISOString(),
-                before: period.before.toISOString(),
-            },
-        }),
-        errorPolicy: "all",
+    const [getStats, { data: statsData, loading, error }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>("/stats/site", {
+        periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
+        periodTimeFrame: {
+            after: period.after.toISOString(),
+            before: period.before.toISOString(),
+        },
     });
+    useDisplayServerError(error);
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
         if (statsData) {
