@@ -1,5 +1,4 @@
-import { FindVersionInput, StandardVersion, standardVersionCreate, StandardVersionCreateInput, standardVersionUpdate, StandardVersionUpdateInput } from "@local/shared";
-import { useCustomMutation } from "api";
+import { endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -24,14 +23,14 @@ export const StandardUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, StandardVersion>("/standardVersion");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, StandardVersion>(endpointGetStandardVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<StandardVersion, StandardVersionUpdateInput>(standardVersionUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<StandardVersionCreateInput, StandardVersion>(endpointPostStandardVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<StandardVersionUpdateInput, StandardVersion>(endpointPutStandardVersion);
     const mutation = isCreate ? create : update;
 
     return (

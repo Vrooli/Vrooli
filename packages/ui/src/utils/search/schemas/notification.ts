@@ -1,4 +1,4 @@
-import { NotificationSortBy } from "@local/shared";
+import { endpointGetNotifications, NotificationSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const notificationSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const notificationSearchParams = () => toParams(notificationSearchSchema(), "/notifications", NotificationSortBy, NotificationSortBy.DateCreatedDesc);
+export const notificationSearchParams = () => toParams(notificationSearchSchema(), endpointGetNotifications, NotificationSortBy, NotificationSortBy.DateCreatedDesc);

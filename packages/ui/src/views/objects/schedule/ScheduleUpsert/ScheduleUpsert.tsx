@@ -1,5 +1,5 @@
-import { FindByIdInput, parseSearchParams, Schedule, scheduleCreate, ScheduleCreateInput, scheduleUpdate, ScheduleUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, FindByIdInput, parseSearchParams, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -70,7 +70,7 @@ export const ScheduleUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Schedule>("/schedule");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Schedule>(endpointGetSchedule);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
@@ -88,8 +88,8 @@ export const ScheduleUpsert = ({
         } : {}),
     } as Schedule), [canSetScheduleFor, currTab.value, existing, isCreate, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Schedule, ScheduleCreateInput>(scheduleCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<Schedule, ScheduleUpdateInput>(scheduleUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<ScheduleCreateInput, Schedule>(endpointPostSchedule);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<ScheduleUpdateInput, Schedule>(endpointPutSchedule);
     const mutation = isCreate ? create : update;
 
     return (

@@ -1,4 +1,4 @@
-import { stringifySearchParams } from "@local/shared";
+import { fetchData } from "api/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type RequestState<TData> = {
@@ -7,18 +7,12 @@ type RequestState<TData> = {
     error: any;
 };
 
-// Determine origin of API server
-let urlBase: string;
-// If running locally
-if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-    urlBase = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/rest`;
-}
-// If running on server
-else {
-    urlBase = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
-        `${import.meta.env.VITE_SERVER_URL}/v2` :
-        `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2/rest`;
-}
+type UseLazyFetchProps<TInput extends Record<string, any>, TData> = {
+    endpoint: string | undefined;
+    inputs?: TInput;
+    method?: "GET" | "POST" | "PUT";
+    options?: RequestInit;
+};
 
 /**
  * `useCustomLazyFetch` is a custom React hook for making HTTP requests.
@@ -32,12 +26,12 @@ else {
  * @returns A tuple where the first element is a function
  * to initiate the request and the second element is an object representing the current state of the request.
  */
-export function useLazyFetch<TInput extends Record<string, any>, TData>(
-    endpoint: string | undefined,
-    initialInputs: TInput = {} as TInput,
-    method: "GET" | "POST" | "PUT" = "GET",
-    options: RequestInit = {},
-): [
+export function useLazyFetch<TInput extends Record<string, any>, TData>({
+    endpoint,
+    inputs = {} as TInput,
+    method = "GET",
+    options = {} as RequestInit,
+}: UseLazyFetchProps<TInput, TData>): [
         (input?: TInput) => void,
         RequestState<TData>
     ] {
@@ -48,10 +42,10 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>(
     });
 
     // Store the latest endpoint, method, options and inputs in a ref
-    const fetchParamsRef = useRef({ endpoint, method, options, inputs: initialInputs });
+    const fetchParamsRef = useRef({ endpoint, method, options, inputs });
     useEffect(() => {
-        fetchParamsRef.current = { endpoint, method, options, inputs: initialInputs };
-    }, [endpoint, method, options, initialInputs]); // This will update the ref each time endpoint, method, options or inputs change
+        fetchParamsRef.current = { endpoint, method, options, inputs };
+    }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
     const makeRequest = useCallback((input?: TInput) => {
         if (!fetchParamsRef.current.endpoint) {
@@ -65,35 +59,17 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>(
 
         setState(s => ({ ...s, loading: true }));
 
-        let url = `${urlBase}${fetchParamsRef.current.endpoint}`;
-        let body: string | null = null;
-
-        if (fetchParamsRef.current.method === "GET") {
-            if (Object.keys(fetchParamsRef.current.inputs).length !== 0) {
-                url += `?${stringifySearchParams(fetchParamsRef.current.inputs)}`;
-            }
-        } else if (["POST", "PUT"].includes(fetchParamsRef.current.method)) {
-            body = JSON.stringify({ input: fetchParamsRef.current.inputs });
-        }
-
-        fetch(url, {
-            ...fetchParamsRef.current.options,
-            method: fetchParamsRef.current.method,
-            headers: {
-                ...fetchParamsRef.current.options.headers,
-                "Content-Type": "application/json",
-            },
-            body,
-            credentials: "include",
-        })
+        fetchData(fetchParamsRef.current as any)
             .then(response => response.json())
             .then(data => {
                 console.log("useLazyFetch data", data);
                 setState({ loading: false, data, error: null });
+                // return { data };
             })
             .catch(error => {
                 console.log("useLazyFetch error", error);
                 setState({ loading: false, data: undefined, error });
+                // return { error };
             });
     }, []);
 

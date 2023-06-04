@@ -1,4 +1,4 @@
-import { RunProjectOrRunRoutineSortBy } from "@local/shared";
+import { endpointGetUnionsRunProjectOrRunRoutines, RunProjectOrRunRoutineSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const runProjectOrRunRoutineSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const runProjectOrRunRoutineSearchParams = () => toParams(runProjectOrRunRoutineSearchSchema(), "/unions/runProjectOrRunRoutines", RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc);
+export const runProjectOrRunRoutineSearchParams = () => toParams(runProjectOrRunRoutineSearchSchema(), endpointGetUnionsRunProjectOrRunRoutines, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc);

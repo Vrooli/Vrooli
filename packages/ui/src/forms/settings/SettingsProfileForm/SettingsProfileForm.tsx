@@ -1,4 +1,4 @@
-import { FindHandlesInput, userTranslationValidation } from "@local/shared";
+import { endpointPostWalletHandles, FindHandlesInput, userTranslationValidation } from "@local/shared";
 import { Grid, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -44,7 +44,7 @@ export const SettingsProfileForm = ({
 
     // Handle handles
     const [handlesField, , handlesHelpers] = useField("handle");
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyFetch<FindHandlesInput, string[]>("/wallet/handles");
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyFetch<FindHandlesInput, string[]>(endpointPostWalletHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         if (numVerifiedWallets > 0) {

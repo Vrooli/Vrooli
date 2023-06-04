@@ -1,4 +1,4 @@
-import { ApiSortBy } from "@local/shared";
+import { ApiSortBy, endpointGetApis } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -21,4 +21,4 @@ export const apiSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const apiSearchParams = () => toParams(apiSearchSchema(), "/apis", ApiSortBy, ApiSortBy.ScoreDesc);
+export const apiSearchParams = () => toParams(apiSearchSchema(), endpointGetApis, ApiSortBy, ApiSortBy.ScoreDesc);

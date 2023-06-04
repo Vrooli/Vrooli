@@ -4,9 +4,9 @@ import { setupRoutes } from "./base";
 
 export const FeedRest = setupRoutes({
     "/feed/home": {
-        post: [FeedEndpoints.Query.home, feed_home],
+        get: [FeedEndpoints.Query.home, feed_home],
     },
     "/feed/popular": {
-        post: [FeedEndpoints.Query.popular, feed_popular],
+        get: [FeedEndpoints.Query.popular, feed_popular],
     },
 });

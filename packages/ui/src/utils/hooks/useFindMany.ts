@@ -154,17 +154,20 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<Record<string, string>>({});
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>(params!.current.endpoint, {
-        take,
-        sortBy: params.current.sortBy,
-        searchString: params.current.searchString,
-        createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
-            after: params.current.timeFrame.after?.toISOString(),
-            before: params.current.timeFrame.before?.toISOString(),
-        } : undefined,
-        ...after.current,
-        ...params.current.where,
-        ...advancedSearchParams,
+    const [getPageData, { data: pageData, loading, error }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>({
+        endpoint: params!.current.endpoint,
+        inputs: {
+            take,
+            sortBy: params.current.sortBy,
+            searchString: params.current.searchString,
+            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
+                after: params.current.timeFrame.after?.toISOString(),
+                before: params.current.timeFrame.before?.toISOString(),
+            } : undefined,
+            ...after.current,
+            ...params.current.where,
+            ...advancedSearchParams,
+        },
     } as any);
     // Display a snack error message if there is an error
     useDisplayServerError(error);

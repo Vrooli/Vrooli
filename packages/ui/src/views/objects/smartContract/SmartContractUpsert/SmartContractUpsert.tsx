@@ -1,5 +1,5 @@
-import { FindVersionInput, smartContractCreate, smartContractUpdate, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -23,14 +23,14 @@ export const SmartContractUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, SmartContractVersion>("/smartContractVersion");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, SmartContractVersion>(endpointGetSmartContractVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => smartContractInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionUpdateInput>(smartContractUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<SmartContractVersionCreateInput, SmartContractVersion>(endpointPostSmartContractVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<SmartContractVersionUpdateInput, SmartContractVersion>(endpointPutSmartContractVersion);
     const mutation = isCreate ? create : update;
 
     return (

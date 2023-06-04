@@ -1,5 +1,5 @@
-import { ApiVersion, apiVersionCreate, ApiVersionCreateInput, apiVersionUpdate, ApiVersionUpdateInput, FindVersionInput } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, FindVersionInput } from "@local/shared";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
@@ -23,14 +23,14 @@ export const ApiUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ApiVersion>("/apiVersion");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ApiVersion>(endpointGetApiVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => apiInitialValues(session), [session]);
     const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<ApiVersion, ApiVersionCreateInput>(apiVersionCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<ApiVersionCreateInput, ApiVersion>(endpointPostApiVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<ApiVersionUpdateInput, ApiVersion>(endpointPutApiVersion);
     const mutation = isCreate ? create : update;
 
     return (

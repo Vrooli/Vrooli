@@ -1,4 +1,4 @@
-import { ActiveFocusMode, authValidateSession, focusModeSetActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointPostAuthValidateSession, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { useCustomMutation } from "api";
@@ -21,6 +21,7 @@ import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authenticat
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { getDeviceInfo } from "utils/display/device";
 import { themes } from "utils/display/theme";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -118,7 +119,7 @@ export function App() {
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
+    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useCustomMutation<ActiveFocusMode, SetActiveFocusModeInput>(focusModeSetActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
 

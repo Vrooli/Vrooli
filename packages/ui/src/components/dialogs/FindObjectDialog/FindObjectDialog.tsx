@@ -302,7 +302,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     // If item selected from search AND find is 'Object', query for full data
-    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>(endpoint);
+    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
         if (!endpoint || find !== "Full") return false;

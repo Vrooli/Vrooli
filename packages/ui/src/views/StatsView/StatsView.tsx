@@ -1,4 +1,4 @@
-import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
@@ -103,11 +103,14 @@ export const StatsView = ({
     }, []);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading, error }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>("/stats/site", {
-        periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
-        periodTimeFrame: {
-            after: period.after.toISOString(),
-            before: period.before.toISOString(),
+    const [getStats, { data: statsData, loading, error }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
+        ...endpointGetStatsSite,
+        input: {
+            periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
+            periodTimeFrame: {
+                after: period.after.toISOString(),
+                before: period.before.toISOString(),
+            },
         },
     });
     useDisplayServerError(error);

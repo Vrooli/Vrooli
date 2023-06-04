@@ -1,4 +1,4 @@
-import { StandardVersionSortBy } from "@local/shared";
+import { endpointGetStandardVersions, StandardVersionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
@@ -23,4 +23,4 @@ export const standardVersionSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const standardVersionSearchParams = () => toParams(standardVersionSearchSchema(), "/standardVersions", StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc);
+export const standardVersionSearchParams = () => toParams(standardVersionSearchSchema(), endpointGetStandardVersions, StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc);

@@ -1,6 +1,6 @@
-import { DeleteIcon, FindByIdInput, Reminder, reminderCreate, ReminderCreateInput, reminderUpdate, ReminderUpdateInput } from "@local/shared";
+import { DeleteIcon, endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -29,14 +29,14 @@ export const ReminderUpsert = ({
 
     // Fetch existing data
     const id = useMemo(() => isCreate ? undefined : (partialData?.id ?? parseSingleItemUrl()?.id), [isCreate, partialData?.id]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Reminder>("/reminder");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Reminder>(endpointGetReminder);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => reminderInitialValues(session, listId, { ...existing, ...partialData } as Reminder), [existing, listId, partialData, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Reminder>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<ReminderCreateInput, Reminder>(endpointPostReminder);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
     const mutation = isCreate ? create : update;
 
     return (

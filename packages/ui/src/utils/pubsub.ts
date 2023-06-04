@@ -28,15 +28,15 @@ export type Pubs = "Celebration" |
     "Welcome";
 
 
-export type TranslatedSnackMessage = {
-    messageKey: ErrorKey | CommonKey;
+export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
+    messageKey: KeyList;
     messageVariables?: { [key: string]: string | number };
 }
 export type UntranslatedSnackMessage = {
     message: string;
 }
-export type SnackMessage = TranslatedSnackMessage | UntranslatedSnackMessage;
-export type SnackPub = SnackMessage & {
+export type SnackMessage<KeyList = CommonKey | ErrorKey> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
+export type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
     buttonClicked?: (event?: any) => any;
     buttonKey?: CommonKey;

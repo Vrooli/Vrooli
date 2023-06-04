@@ -1,5 +1,5 @@
-import { FindByIdInput, Question, questionCreate, QuestionCreateInput, questionUpdate, QuestionUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -23,14 +23,14 @@ export const QuestionUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Question>("/question");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Question>(endpointGetQuestion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Question>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Question, QuestionCreateInput>(questionCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<Question, QuestionUpdateInput>(questionUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<QuestionCreateInput, Question>(endpointPostQuestion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<QuestionUpdateInput, Question>(endpointPutQuestion);
     const mutation = isCreate ? create : update;
 
     return (

@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -63,8 +63,8 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>("/user");
-    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useLazyFetch<any, User>("/profile");
+    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
     const [user, setUser] = useState<User | null | undefined>(null);
     useDisplayServerError(userError ?? profileError);
     useEffect(() => {

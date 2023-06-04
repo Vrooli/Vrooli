@@ -12,12 +12,12 @@ export type SearchParams = {
  */
 export const toParams = (
     advancedSearchSchema: FormSchema,
-    endpoint: string,
+    pair: { endpoint: string },
     sortByOptions: { [key: string]: string },
     defaultSortBy: string,
 ): SearchParams => ({
     advancedSearchSchema,
     defaultSortBy,
-    endpoint,
+    endpoint: pair.endpoint,
     sortByOptions,
 });

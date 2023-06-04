@@ -1,5 +1,5 @@
-import { FindVersionInput, RoutineVersion, routineVersionCreate, RoutineVersionCreateInput, routineVersionUpdate, RoutineVersionUpdateInput } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
+import { mutationWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -25,14 +25,14 @@ export const RoutineUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     console.log("routine upsertt id", id);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, RoutineVersion>("/routineVersion");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, RoutineVersion>(endpointGetRoutineVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<RoutineVersion, RoutineVersionCreateInput>(routineVersionCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<RoutineVersion, RoutineVersionUpdateInput>(routineVersionUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<RoutineVersionCreateInput, RoutineVersion>(endpointPostRoutineVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<RoutineVersionUpdateInput, RoutineVersion>(endpointPutRoutineVersion);
     const mutation = isCreate ? create : update;
 
     return (

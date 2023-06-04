@@ -1,4 +1,4 @@
-import { InputType, ProjectOrOrganizationSortBy } from "@local/shared";
+import { endpointGetUnionsProjectOrOrganizations, InputType, ProjectOrOrganizationSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
@@ -32,4 +32,4 @@ export const projectOrOrganizationSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), "/unions/projectOrOrganizations", ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc);
+export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), endpointGetUnionsProjectOrOrganizations, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc);

@@ -1,7 +1,7 @@
 /**
  * Displays all search options for an organization
  */
-import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
+import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, endpointGetBookmarks, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
 import { useCustomMutation } from "api";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -40,8 +40,9 @@ export const SelectBookmarkListDialog = ({
     }, [session]);
 
     // Fetch all bookmarks for object
-    const [refetch, { data, loading: isFindLoading, error }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>("/bookmarks", {
-        [`${lowercaseFirstLetter(objectType)}Id`]: objectId!,
+    const [refetch, { data, loading: isFindLoading, error }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
+        ...endpointGetBookmarks,
+        input: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId! },
     });
     useEffect(() => {
         if (!isCreate && isOpen) {

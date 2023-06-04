@@ -1,5 +1,4 @@
-import { FindVersionInput, NoteVersion, noteVersionCreate, NoteVersionCreateInput, noteVersionUpdate, NoteVersionUpdateInput } from "@local/shared";
-import { useCustomMutation } from "api";
+import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -24,14 +23,14 @@ export const NoteUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, NoteVersion>("/noteVersion");
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, NoteVersion>(endpointGetNoteVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => noteInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<NoteVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<NoteVersion, NoteVersionCreateInput>(noteVersionCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<NoteVersion, NoteVersionUpdateInput>(noteVersionUpdate);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<NoteVersionCreateInput, NoteVersion>(endpointPostNoteVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<NoteVersionUpdateInput, NoteVersion>(endpointPutNoteVersion);
     const mutation = isCreate ? create : update;
 
     return (

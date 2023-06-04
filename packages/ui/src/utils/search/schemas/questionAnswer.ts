@@ -1,4 +1,4 @@
-import { QuestionAnswerSortBy } from "@local/shared";
+import { endpointGetQuestionAnswers, QuestionAnswerSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const questionAnswerSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const questionAnswerSearchParams = () => toParams(questionAnswerSearchSchema(), "/questionAnswers", QuestionAnswerSortBy, QuestionAnswerSortBy.ScoreDesc);
+export const questionAnswerSearchParams = () => toParams(questionAnswerSearchSchema(), endpointGetQuestionAnswers, QuestionAnswerSortBy, QuestionAnswerSortBy.ScoreDesc);

@@ -1,4 +1,4 @@
-import { StatsUserSortBy } from "@local/shared";
+import { endpointGetStatsUser, StatsUserSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -9,4 +9,4 @@ export const statsUserSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsUserSearchParams = () => toParams(statsUserSearchSchema(), "/stats/user", StatsUserSortBy, StatsUserSortBy.PeriodStartAsc);
+export const statsUserSearchParams = () => toParams(statsUserSearchSchema(), endpointGetStatsUser, StatsUserSortBy, StatsUserSortBy.PeriodStartAsc);

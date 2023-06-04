@@ -1,4 +1,4 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, endpointGetTranslate, LanguageIcon, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { queryWrapper } from "api/utils";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
@@ -67,7 +67,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>("/translate");
+    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointGetTranslate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);

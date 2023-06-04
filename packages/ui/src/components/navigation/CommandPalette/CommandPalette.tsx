@@ -1,4 +1,4 @@
-import { LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
+import { endpointGetFeedPopular, LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -60,8 +60,9 @@ export const CommandPalette = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, []);
 
-    const [refetch, { data, loading, error }] = useLazyFetch<PopularInput, PopularResult>("/feed/popular", {
-        searchString: searchString.replaceAll(/![^\s]{1,}/g, ""),
+    const [refetch, { data, loading, error }] = useLazyFetch<PopularInput, PopularResult>({
+        ...endpointGetFeedPopular,
+        inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
     useDisplayServerError(error);

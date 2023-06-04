@@ -1,4 +1,4 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, runRoutineUpdate, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, runRoutineUpdate, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { mutationWrapper, useCustomMutation } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -578,8 +578,8 @@ export const RunView = ({
     }, [currStepLocation]);
 
     // Query current subroutine or directory, if needed. Main routine may have the data
-    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>("/routineVersions");
-    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>("/projectVersionDirectories");
+    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>(endpointGetRoutineVersions);
+    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>(endpointGetProjectVersionDirectories);
     const [currentStep, setCurrentStep] = useState<ProjectStep | null>(null);
     useEffect(() => {
         // If no steps, redirect to first step

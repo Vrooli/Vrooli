@@ -1,4 +1,4 @@
-import { BookmarkSortBy } from "@local/shared";
+import { BookmarkSortBy, endpointGetBookmarks } from "@local/shared";
 import { FormSchema } from "forms/types";
 import i18next from "i18next";
 import { toParams } from "./base";
@@ -23,4 +23,4 @@ export const bookmarkSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const bookmarkSearchParams = () => toParams(bookmarkSearchSchema(), "/bookmarks", BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);
+export const bookmarkSearchParams = () => toParams(bookmarkSearchSchema(), endpointGetBookmarks, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);
