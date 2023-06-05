@@ -1,13 +1,12 @@
-import { useQuery } from "@apollo/client";
-import { endpointPutNotificationSettings, NotificationSettings, notificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
+import { endpointGetNotificationSettings, endpointPutNotificationSettings, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
 import { Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
-import { Wrap } from "types";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useFetch } from "utils/hooks/useFetch";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { SettingsNotificationsViewProps } from "../types";
 
@@ -17,7 +16,9 @@ export const SettingsNotificationsView = ({
     zIndex,
 }: SettingsNotificationsViewProps) => {
 
-    const { data, refetch, loading: isLoading, errors } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
+    const { data, refetch, loading: isLoading, errors } = useFetch<undefined, NotificationSettings>({
+        ...endpointGetNotificationSettings,
+    });
     useDisplayServerError(errors);
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 

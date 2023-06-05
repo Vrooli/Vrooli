@@ -1,5 +1,4 @@
-import { useQuery } from "@apollo/client";
-import { AddIcon, calculateOccurrences, DUMMY_ID, feedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { AddIcon, calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
@@ -14,11 +13,12 @@ import { PageTab } from "components/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { centeredDiv } from "styles";
-import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from "types";
+import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useFetch } from "utils/hooks/useFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
@@ -26,8 +26,6 @@ import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
-
-const zIndex = 200;
 
 /**
  * View displayed for Home page when logged in
@@ -71,7 +69,10 @@ export const DashboardView = ({
         if (typeof searchParams.search === "string") setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
-    const { data, refetch, loading, errors } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
+    const { data, refetch, loading, errors } = useFetch<HomeInput, HomeResult>({
+        ...endpointGetFeedHome,
+        inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
+    });
     useEffect(() => { refetch(); }, [refetch, searchString, activeFocusMode]);
     useDisplayServerError(errors);
 
@@ -90,8 +91,8 @@ export const DashboardView = ({
         translations: [],
     });
     useEffect(() => {
-        if (data?.home?.resources) {
-            setResourceList(r => ({ ...r, resources: data.home.resources }));
+        if (data?.resources) {
+            setResourceList(r => ({ ...r, resources: data.resources }));
         }
     }, [data]);
     useEffect(() => {
@@ -124,12 +125,12 @@ export const DashboardView = ({
             });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
-        const flattened = (Object.values(data?.home ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [searchString, data?.home, languages, shortcutsItems]);
+    }, [searchString, data, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -165,8 +166,8 @@ export const DashboardView = ({
 
     const [reminders, setReminders] = useState<Reminder[]>([]);
     useEffect(() => {
-        if (data?.home?.reminders) {
-            setReminders(data.home.reminders);
+        if (data?.reminders) {
+            setReminders(data.reminders);
         }
     }, [data]);
     const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
@@ -183,8 +184,8 @@ export const DashboardView = ({
 
     const [notes, setNotes] = useState<Note[]>([]);
     useEffect(() => {
-        if (data?.home?.notes) {
-            setNotes(data.home.notes);
+        if (data?.notes) {
+            setNotes(data.notes);
         }
     }, [data]);
 
@@ -195,7 +196,7 @@ export const DashboardView = ({
         loading,
         onClick,
         zIndex,
-    }), [onClick, notes, loading]);
+    }), [onClick, notes, loading, zIndex]);
 
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
@@ -210,7 +211,7 @@ export const DashboardView = ({
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
-        const schedules = data?.home?.schedules ?? [];
+        const schedules = data?.schedules ?? [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
@@ -242,7 +243,7 @@ export const DashboardView = ({
             onClick,
             zIndex,
         });
-    }, [onClick, data?.home?.schedules, loading, session]);
+    }, [onClick, data?.schedules, loading, session, zIndex]);
 
     return (
         <PageContainer>

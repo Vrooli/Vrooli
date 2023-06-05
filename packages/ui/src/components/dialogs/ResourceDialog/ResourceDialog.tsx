@@ -4,7 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
 import { useCallback, useContext, useMemo, useRef } from "react";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -31,8 +31,9 @@ export const ResourceDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
-    const [addMutation, { loading: addLoading }] = useLazyFetch<ResourceCreateInput, Resource>(endpointPostResource);
-    const [updateMutation, { loading: updateLoading }] = useLazyFetch<ResourceUpdateInput, Resource>(endpointPutResource);
+    const [create, { loading: addLoading }] = useLazyFetch<ResourceCreateInput, Resource>(endpointPostResource);
+    const [update, { loading: updateLoading }] = useLazyFetch<ResourceUpdateInput, Resource>(endpointPutResource);
+    const fetch = (index < 0 ? create : update) as MakeLazyRequest<ResourceCreateInput | ResourceUpdateInput, Resource>;
 
     const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Confirm dialog is dirty and closed by clicking outside
@@ -72,7 +73,7 @@ export const ResourceDialog = ({
                                 return;
                             }
                             fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
-                                fetch: isCreating ? addMutation : updateMutation,
+                                fetch,
                                 inputs: transformResourceValues(values, partialData as any),
                                 successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,

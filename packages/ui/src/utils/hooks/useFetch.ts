@@ -1,5 +1,6 @@
 import { fetchData, Method, ServerResponse } from "api";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebounce } from "./useDebounce";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -7,36 +8,32 @@ type RequestState<TData> = {
     errors: ServerResponse["errors"] | undefined;
 };
 
-type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
     endpoint: string | undefined;
     inputs?: TInput;
     method?: Method;
     options?: RequestInit;
+    debounceMs?: number;
 };
-
-export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (input?: TInput) => Promise<ServerResponse<TData>>;
 
 /**
  * Custom React hook for making HTTP requests.
- * It is "lazy" in the sense that it doesn't run automatically when the component mounts,
- * but instead provides a function that can be called to initiate the request.
+ * It is "non-lazy" in the sense that it runs automatically when the component mounts
+ * and whenever the inputs change.
  * This hook handles the lifecycle of the request and provides updates on its status through its return value.
  *
  * @param endpoint - The URL to make the request to.
  * @param method - The HTTP method to use for the request (defaults to 'GET').
  * @param options - Additional options to pass to the `fetch` function.
- * @returns A tuple where the first element is a function
- * to initiate the request and the second element is an object representing the current state of the request.
+ * @returns An object containing the current state of the request, and a function to manually re-fetch the data.
  */
-export function useLazyFetch<TInput extends Record<string, any> | undefined, TData>({
+export function useFetch<TInput extends Record<string, any> | undefined, TData>({
     endpoint,
     inputs = {} as TInput,
     method = "GET",
     options = {} as RequestInit,
-}: UseLazyFetchProps<TInput, TData>): [
-        MakeLazyRequest<TInput, TData>,
-        RequestState<TData>
-    ] {
+    debounceMs = 0,
+}: UseFetchProps<TInput, TData>): RequestState<TData> & { refetch: (input?: TInput) => void } {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
         data: undefined,
@@ -49,7 +46,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input?: TInput) => {
+    const refetch = useCallback<(input?: TInput) => Promise<ServerResponse<TData>>>(async (input?: TInput) => {
         if (!fetchParamsRef.current.endpoint) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
@@ -76,5 +73,11 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         return result;
     }, []);
 
-    return [makeRequest, state];
+    const debouncedRefetch = useDebounce<TInput | undefined>((input?: TInput) => refetch(input), debounceMs);
+
+    useEffect(() => {
+        debouncedRefetch(undefined);
+    }, [debouncedRefetch]); // This will automatically make the request when the component mounts or the inputs change
+
+    return { ...state, refetch: debouncedRefetch };
 }

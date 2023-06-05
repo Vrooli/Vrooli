@@ -1,10 +1,11 @@
 import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineForm, runRoutineInitialValues, transformRunRoutineValues, validateRunRoutineValues } from "forms/RunRoutineForm/RunRoutineForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const RunRoutineUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const RunRoutineUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<RunRoutine, RunRoutineCreateInput | RunRoutineUpdateInput>({
-                        mutation,
-                        input: transformRunRoutineValues(values, existing),
+                    fetchLazyWrapper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
+                        fetch,
+                        inputs: transformRunRoutineValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

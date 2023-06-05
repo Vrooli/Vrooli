@@ -1,13 +1,14 @@
-import { authEmailRequestPasswordChange, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, LINKS, Success, useLocation } from "@local/shared";
+import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { ForgotPasswordFormProps } from "../../types";
 
@@ -17,7 +18,7 @@ export const ForgotPasswordForm = ({
 }: ForgotPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useCustomMutation<Success, EmailRequestPasswordChangeInput>(authEmailRequestPasswordChange);
+    const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointPostAuthEmailRequestPasswordChange);
 
     const toSignUp = () => onFormChange(Forms.SignUp);
     const toLogIn = () => onFormChange(Forms.LogIn);
@@ -36,9 +37,9 @@ export const ForgotPasswordForm = ({
                     email: "",
                 }}
                 onSubmit={(values, helpers) => {
-                    mutationWrapper<Success, EmailRequestPasswordChangeInput>({
-                        mutation: emailRequestPasswordChange,
-                        input: { ...values },
+                    fetchLazyWrapper<EmailRequestPasswordChangeInput, Success>({
+                        fetch: emailRequestPasswordChange,
+                        inputs: { ...values },
                         successCondition: (data) => data.success === true,
                         onSuccess: () => setLocation(LINKS.Home),
                         onError: () => { helpers.setSubmitting(false); },

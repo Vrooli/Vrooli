@@ -1,14 +1,15 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, PushDevice, pushDeviceCreate, PushDeviceCreateInput, pushDeviceUpdate, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostPushDevice, endpointPutPushDevice, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDeviceInfo } from "utils/display/device";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { updateArray } from "utils/shape/general";
@@ -24,7 +25,7 @@ export const PushList = ({
     const { t } = useTranslation();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useCustomMutation<PushDevice, PushDeviceCreateInput>(pushDeviceCreate);
+    const [addMutation, { loading: loadingAdd }] = useLazyFetch<PushDeviceCreateInput, PushDevice>(endpointPostPushDevice);
     const formik = useFormik({
         initialValues: {
             endpoint: "",
@@ -38,9 +39,9 @@ export const PushList = ({
         validationSchema: pushDeviceValidation.create({}),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
-            mutationWrapper<PushDevice, PushDeviceCreateInput>({
-                mutation: addMutation,
-                input: {
+            fetchLazyWrapper<PushDeviceCreateInput, PushDevice>({
+                fetch: addMutation,
+                inputs: {
                     endpoint: values.endpoint,
                     expires: values.expires,
                     keys: values.keys,
@@ -56,12 +57,12 @@ export const PushList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<PushDevice, PushDeviceUpdateInput>(pushDeviceUpdate);
+    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<PushDeviceUpdateInput, PushDevice>(endpointPutPushDevice);
     const onUpdate = useCallback((index: number, updatedDevice: PushDevice) => {
         if (loadingUpdate) return;
-        mutationWrapper<PushDevice, PushDeviceUpdateInput>({
-            mutation: updateMutation,
-            input: {
+        fetchLazyWrapper<PushDeviceUpdateInput, PushDevice>({
+            fetch: updateMutation,
+            inputs: {
                 id: updatedDevice.id,
                 name: updatedDevice.name,
             },
@@ -71,12 +72,12 @@ export const PushList = ({
         });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const onDelete = useCallback((device: PushDevice) => {
         if (loadingDelete) return;
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteMutation,
-            input: { id: device.id, objectType: DeleteType.Email },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id: device.id, objectType: DeleteType.Email },
             onSuccess: () => {
                 handleUpdate([...list.filter(w => w.id !== device.id)]);
             },

@@ -26,10 +26,10 @@ export const handleEndpoint = async <TInput, TResult>(
     res: Response,
 ) => {
     try {
-        const result = await endpoint(undefined, { input }, context({ req, res }), selection);
-        res.json(result);
+        const response = await endpoint(undefined, { input }, context({ req, res }), selection);
+        res.json({ response });
     } catch (error: any) {
-        res.status(500).json({ error: error.toString() });
+        res.status(500).json({ errors: [error.toString()] }); //TODO need to handle errors better (i.e. codes)
     }
 };
 

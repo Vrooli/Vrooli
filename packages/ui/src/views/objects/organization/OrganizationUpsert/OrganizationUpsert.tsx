@@ -1,10 +1,11 @@
 import { endpointGetOrganization, endpointPostOrganization, endpointPutOrganization, FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const OrganizationUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Organization>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<OrganizationCreateInput, Organization>(endpointPostOrganization);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<OrganizationUpdateInput, Organization>(endpointPutOrganization);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<OrganizationCreateInput | OrganizationUpdateInput, Organization>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const OrganizationUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Organization, OrganizationCreateInput | OrganizationUpdateInput>({
-                        mutation,
-                        input: transformOrganizationValues(values, existing),
+                    fetchLazyWrapper<OrganizationCreateInput | OrganizationUpdateInput, Organization>({
+                        fetch,
+                        inputs: transformOrganizationValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

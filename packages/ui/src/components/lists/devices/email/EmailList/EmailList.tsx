@@ -1,14 +1,15 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, Email, emailCreate, EmailCreateInput, emailValidation, emailVerify, SendVerificationEmailInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
 import { Stack, TextField, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { EmailListItem } from "../EmailListItem/EmailListItem";
 import { EmailListProps } from "../types";
@@ -22,7 +23,7 @@ export const EmailList = ({
     const { t } = useTranslation();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useCustomMutation<Email, EmailCreateInput>(emailCreate);
+    const [addMutation, { loading: loadingAdd }] = useLazyFetch<EmailCreateInput, Email>(endpointPostEmail);
     const formik = useFormik({
         initialValues: {
             emailAddress: "",
@@ -31,9 +32,9 @@ export const EmailList = ({
         validationSchema: emailValidation.create({}),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
-            mutationWrapper<Email, EmailCreateInput>({
-                mutation: addMutation,
-                input: {
+            fetchLazyWrapper<EmailCreateInput, Email>({
+                fetch: addMutation,
+                inputs: {
                     emailAddress: values.emailAddress,
                 },
                 onSuccess: (data) => {
@@ -46,7 +47,7 @@ export const EmailList = ({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -63,9 +64,9 @@ export const EmailList = ({
                 {
                     labelKey: "Yes",
                     onClick: () => {
-                        mutationWrapper<Success, DeleteOneInput>({
-                            mutation: deleteMutation,
-                            input: { id: email.id, objectType: DeleteType.Email },
+                        fetchLazyWrapper<DeleteOneInput, Success>({
+                            fetch: deleteMutation,
+                            inputs: { id: email.id, objectType: DeleteType.Email },
                             onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== email.id)]);
                             },
@@ -77,12 +78,12 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useCustomMutation<Success, SendVerificationEmailInput>(emailVerify);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useLazyFetch<SendVerificationEmailInput, Success>(endpointPostEmailVerification);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
-        mutationWrapper<Success, SendVerificationEmailInput>({
-            mutation: verifyMutation,
-            input: { emailAddress: email.emailAddress },
+        fetchLazyWrapper<SendVerificationEmailInput, Success>({
+            fetch: verifyMutation,
+            inputs: { emailAddress: email.emailAddress },
             onSuccess: () => {
                 PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
             },

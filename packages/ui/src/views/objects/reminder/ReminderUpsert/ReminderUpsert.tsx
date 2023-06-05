@@ -1,13 +1,13 @@
 import { DeleteIcon, endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -37,7 +37,7 @@ export const ReminderUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Reminder>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ReminderCreateInput, Reminder>(endpointPostReminder);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<ReminderCreateInput | ReminderUpdateInput, Reminder>;
 
     return (
         <>
@@ -67,9 +67,9 @@ export const ReminderUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Reminder, ReminderCreateInput | ReminderUpdateInput>({
-                        mutation,
-                        input: transformReminderValues(values, existing),
+                    fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
+                        fetch,
+                        inputs: transformReminderValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

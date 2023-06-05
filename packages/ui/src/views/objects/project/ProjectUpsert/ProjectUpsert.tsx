@@ -1,10 +1,11 @@
 import { endpointGetProjectVersion, endpointPostProjectVersion, endpointPutProjectVersion, FindVersionInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const ProjectUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<ProjectVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ProjectVersionCreateInput, ProjectVersion>(endpointPostProjectVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ProjectVersionUpdateInput, ProjectVersion>(endpointPutProjectVersion);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const ProjectUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
-                        mutation,
-                        input: transformProjectValues(values, existing),
+                    fetchLazyWrapper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
+                        fetch,
+                        inputs: transformProjectValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

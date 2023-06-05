@@ -1,11 +1,11 @@
 import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -33,7 +33,7 @@ export const RoutineUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<RoutineVersionCreateInput, RoutineVersion>(endpointPostRoutineVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<RoutineVersionUpdateInput, RoutineVersion>(endpointPutRoutineVersion);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>;
 
     return (
         <>
@@ -52,9 +52,9 @@ export const RoutineUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({
-                        mutation,
-                        input: transformRoutineValues(values, existing),
+                    fetchLazyWrapper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
+                        fetch,
+                        inputs: transformRoutineValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

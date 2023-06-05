@@ -1,10 +1,11 @@
 import { endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "forms/StandardForm/StandardForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const StandardUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<StandardVersionCreateInput, StandardVersion>(endpointPostStandardVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<StandardVersionUpdateInput, StandardVersion>(endpointPutStandardVersion);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const StandardUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
-                        mutation,
-                        input: transformStandardValues(values, existing),
+                    fetchLazyWrapper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
+                        fetch,
+                        inputs: transformStandardValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

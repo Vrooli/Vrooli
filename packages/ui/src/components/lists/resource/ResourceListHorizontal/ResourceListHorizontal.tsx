@@ -1,12 +1,13 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, deleteOneOrManyDeleteMany, LinkIcon, Resource } from "@local/shared";
+import { Count, DeleteManyInput, endpointPostDeleteMany, LinkIcon, Resource } from "@local/shared";
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { cardRoot } from "components/lists/styles";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceCard } from "../ResourceCard/ResourceCard";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
@@ -56,14 +57,14 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteMany);
+    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<Count, DeleteManyInput>({
-                mutation: deleteMutation,
-                input: { ids: [resource.id], objectType: "Resource" as any },
+            fetchLazyWrapper<DeleteManyInput, Count>({
+                fetch: deleteMutation,
+                inputs: { ids: [resource.id], objectType: "Resource" as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({

@@ -1,11 +1,12 @@
-import { Comment, commentCreate, CommentCreateInput, commentUpdate, CommentUpdateInput, exists } from "@local/shared";
+import { Comment, CommentCreateInput, CommentUpdateInput, endpointPostComment, endpointPutComment, exists } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
 import { useContext, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { SessionContext } from "utils/SessionContext";
@@ -31,9 +32,9 @@ export const CommentUpsertInput = ({
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => commentInitialValues(session, objectType, objectId, language, comment), [comment, language, objectId, objectType, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Comment>("dialog", !exists(comment), onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Comment, CommentCreateInput>(commentCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<Comment, CommentUpdateInput>(commentUpdate);
-    const mutation = !exists(comment) ? create : update;
+    const [create, { loading: isCreateLoading }] = useLazyFetch<CommentCreateInput, Comment>(endpointPostComment);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<Comment, CommentUpdateInput>(endpointPutComment);
+    const fetch = (!exists(comment) ? create : update) as MakeLazyRequest<CommentCreateInput | CommentUpdateInput, Comment>;
 
     return (
         <Formik
@@ -42,9 +43,9 @@ export const CommentUpsertInput = ({
             onSubmit={(values, helpers) => {
                 // If not logged in, open login dialog
                 //TODO
-                mutationWrapper<Comment, CommentCreateInput | CommentUpdateInput>({
-                    mutation,
-                    input: transformCommentValues(values, comment),
+                fetchLazyWrapper<CommentCreateInput | CommentUpdateInput, Comment>({
+                    fetch,
+                    inputs: transformCommentValues(values, comment),
                     successCondition: (data) => data !== null,
                     successMessage: () => ({ messageKey: "CommentUpdated" }),
                     onSuccess: (data) => {

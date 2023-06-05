@@ -1,9 +1,8 @@
 /**
  * Displays all search options for an organization
  */
-import { AddIcon, Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, deleteOneOrManyDeleteMany, endpointGetBookmarks, lowercaseFirstLetter, uuid } from "@local/shared";
+import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,7 +49,7 @@ export const SelectBookmarkListDialog = ({
         } else {
             setSelectedLists([]);
         }
-    }, [refetch, isCreate, objectId]);
+    }, [refetch, isCreate, isOpen, objectId]);
     useDisplayServerError(errors);
     useEffect(() => {
         if (data) {
@@ -58,49 +57,41 @@ export const SelectBookmarkListDialog = ({
         }
     }, [data]);
 
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Bookmark, BookmarkCreateInput>(bookmarkCreate);
-    const [deleteMutation, { loading: isDeleteLoading }] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteMany);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const handleSubmit = useCallback(async () => {
         // Iterate over selected lists
         for (const list of selectedLists) {
             // If the list was not already selected, add the bookmark
             if (isCreate || !data?.edges.some(e => e.node.id === list.id)) {
-                await create({
-                    variables: {
-                        input: shapeBookmark.create({
-                            id: uuid(),
-                            bookmarkFor: {
-                                __typename: objectType as BookmarkFor,
-                                id: objectId!,
-                            },
-                            list: {
-                                __typename: "BookmarkList",
-                                id: list.id,
-                            },
-                        }),
+                await create(shapeBookmark.create({
+                    id: uuid(),
+                    bookmarkFor: {
+                        __typename: objectType as BookmarkFor,
+                        id: objectId!,
                     },
-                });
+                    list: {
+                        __typename: "BookmarkList",
+                        id: list.id,
+                    },
+                }));
             }
         }
         // Iterate over non-selected lists
         const deletedBookmarks = data?.edges.filter(e => !selectedLists.some(sl => sl.id === e.node.list.id));
         if (deletedBookmarks) {
             await deleteMutation({
-                variables: {
-                    input: {
-                        ids: deletedBookmarks.map(e => e.node.id),
-                        objectType: "Bookmark",
-                    },
-                },
+                ids: deletedBookmarks.map(e => e.node.id),
+                objectType: DeleteType.Bookmark,
             });
         }
         onClose(selectedLists.length > 0);
-    }, [selectedLists, create, deleteMutation, lists, objectId, onClose]);
+    }, [selectedLists, create, data?.edges, deleteMutation, isCreate, objectId, objectType, onClose]);
 
     const onCancel = useCallback(() => {
         setSelectedLists([]);
         onClose(selectedLists.length > 0);
-    }, [setSelectedLists]);
+    }, [onClose, selectedLists.length, setSelectedLists]);
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const openCreate = useCallback(() => { setIsCreateOpen(true); }, []);
@@ -108,7 +99,7 @@ export const SelectBookmarkListDialog = ({
     const onCreated = useCallback((bookmarkList: BookmarkList) => {
         setLists([...lists, bookmarkList]);
         setSelectedLists([bookmarkList]);
-    }, []);
+    }, [lists]);
 
     const listItems = useMemo(() => lists.sort((a, b) => a.label.localeCompare(b.label)).map(list => (
         <ListItem key={list.id} onClick={() => {

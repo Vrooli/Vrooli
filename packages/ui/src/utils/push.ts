@@ -1,5 +1,5 @@
-import { PushDevice, pushDeviceCreate, PushDeviceCreateInput } from "@local/shared";
-import { documentNodeWrapper, errorToCode } from "api";
+import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
+import { errorToCode, fetchWrapper } from "api";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
@@ -26,9 +26,9 @@ export const setupPush = async () => {
     const authString = authArray.map((b) => String.fromCharCode(b)).join("");
     // Call pushDeviceCreate
     console.log("got subscription", subscription, subscription.getKey("p256dh")?.toString(), subscription.getKey("auth")?.toString());
-    documentNodeWrapper<PushDevice, PushDeviceCreateInput>({
-        node: pushDeviceCreate,
-        input: {
+    fetchWrapper<PushDeviceCreateInput, PushDevice>({
+        ...endpointPostPushDevice,
+        inputs: {
             endpoint: subscription.endpoint,
             expires: subscription.expirationTime ?? undefined,
             keys: {

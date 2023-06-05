@@ -1,6 +1,6 @@
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, endpointGetTranslate, LanguageIcon, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { queryWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
@@ -75,9 +75,9 @@ export const SelectLanguageMenu = ({
             PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
-        queryWrapper<Translate, TranslateInput>({
-            query: getAutoTranslation as any,
-            input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
+        fetchLazyWrapper<TranslateInput, Translate>({
+            fetch: getAutoTranslation,
+            inputs: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
                 // Try parse
                 if (data) {

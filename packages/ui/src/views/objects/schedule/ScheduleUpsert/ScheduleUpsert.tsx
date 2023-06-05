@@ -1,5 +1,5 @@
 import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, FindByIdInput, parseSearchParams, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -8,7 +8,7 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -90,7 +90,7 @@ export const ScheduleUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ScheduleCreateInput, Schedule>(endpointPostSchedule);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ScheduleUpdateInput, Schedule>(endpointPutSchedule);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<ScheduleCreateInput | ScheduleUpdateInput, Schedule>;
 
     return (
         <>
@@ -117,9 +117,9 @@ export const ScheduleUpsert = ({
                         return;
                     }
                     if (isMutate) {
-                        mutationWrapper<Schedule, ScheduleCreateInput | ScheduleUpdateInput>({
-                            mutation,
-                            input: transformScheduleValues(values, existing),
+                        fetchLazyWrapper<ScheduleCreateInput | ScheduleUpdateInput, Schedule>({
+                            fetch,
+                            inputs: transformScheduleValues(values, existing),
                             onSuccess: (data) => { handleCompleted(data); },
                             onError: () => { helpers.setSubmitting(false); },
                         });

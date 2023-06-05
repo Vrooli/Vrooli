@@ -5,7 +5,7 @@ import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -31,7 +31,7 @@ export const ApiUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ApiVersionCreateInput, ApiVersion>(endpointPostApiVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ApiVersionUpdateInput, ApiVersion>(endpointPutApiVersion);
-    const fetch = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>;
 
     return (
         <>

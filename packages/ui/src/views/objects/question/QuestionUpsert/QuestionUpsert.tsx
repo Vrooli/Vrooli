@@ -1,11 +1,11 @@
 import { endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -31,7 +31,7 @@ export const QuestionUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<Question>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<QuestionCreateInput, Question>(endpointPostQuestion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<QuestionUpdateInput, Question>(endpointPutQuestion);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<QuestionCreateInput | QuestionUpdateInput, Question>;
 
     return (
         <>
@@ -53,9 +53,9 @@ export const QuestionUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Question, QuestionCreateInput | QuestionUpdateInput>({
-                        mutation,
-                        input: transformQuestionValues(values, existing),
+                    fetchLazyWrapper<QuestionCreateInput | QuestionUpdateInput, Question>({
+                        fetch,
+                        inputs: transformQuestionValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

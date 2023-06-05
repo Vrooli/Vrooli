@@ -1,10 +1,11 @@
 import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const NoteUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<NoteVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<NoteVersionCreateInput, NoteVersion>(endpointPostNoteVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<NoteVersionUpdateInput, NoteVersion>(endpointPutNoteVersion);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const NoteUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<NoteVersion, NoteVersionCreateInput | NoteVersionUpdateInput>({
-                        mutation,
-                        input: transformNoteValues(values, existing),
+                    fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+                        fetch,
+                        inputs: transformNoteValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

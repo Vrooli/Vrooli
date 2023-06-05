@@ -1,14 +1,15 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, deleteOneOrManyDeleteMany, LinkIcon } from "@local/shared";
+import { Count, DeleteManyInput, endpointPostDeleteMany, LinkIcon } from "@local/shared";
 import { Box, CircularProgress, Tooltip, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { cardRoot } from "components/lists/styles";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DirectoryCard } from "../DirectoryCard/DirectoryCard";
@@ -99,14 +100,14 @@ export const DirectoryListHorizontal = ({
         closeDialog();
     }, [closeDialog, directory, handleUpdate, list]);
 
-    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteMany);
+    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!directory) return;
         const item = list[index];
         if (mutate) {
-            mutationWrapper<Count, DeleteManyInput>({
-                mutation: deleteMutation,
-                input: { ids: [item.id], objectType: item.__typename as any },
+            fetchLazyWrapper<DeleteManyInput, Count>({
+                fetch: deleteMutation,
+                inputs: { ids: [item.id], objectType: item.__typename as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({

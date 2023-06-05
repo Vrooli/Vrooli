@@ -1,6 +1,6 @@
-import { authEmailResetPassword, EmailResetPasswordInput, emailResetPasswordSchema, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
 import { Button, Grid } from "@mui/material";
-import { useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -8,6 +8,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResetPasswordFormProps } from "forms/types";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formPaper, formSubmit } from "../../styles";
 
@@ -16,7 +17,7 @@ export const ResetPasswordForm = ({
 }: ResetPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useCustomMutation<Session, EmailResetPasswordInput>(authEmailResetPassword);
+    const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointPostAuthEmailResetPassword);
 
     // Get userId and code from url. Should be set if coming from email link
     const { userId, code } = useMemo(() => {
@@ -47,9 +48,9 @@ export const ResetPasswordForm = ({
                         PubSub.get().publishSnack({ messageKey: "InvalidResetPasswordUrl", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Session, EmailResetPasswordInput>({
-                        mutation: emailResetPassword,
-                        input: { id: userId, code, newPassword: values.newPassword },
+                    fetchLazyWrapper<EmailResetPasswordInput, Session>({
+                        fetch: emailResetPassword,
+                        inputs: { id: userId, code, newPassword: values.newPassword },
                         onSuccess: (data) => {
                             PubSub.get().publishSession(data);
                             setLocation(LINKS.Home);

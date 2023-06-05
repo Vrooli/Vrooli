@@ -1,6 +1,6 @@
 import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -805,9 +805,9 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
-                mutation: logRunUpdate,
-                input: {
+            fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+                fetch: logRunUpdate,
+                inputs: {
                     id: run.id,
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     stepsCreate,
@@ -827,9 +827,9 @@ export const RunView = ({
             // const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
             // const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
             const wasSuccessful = true; //TODO
-            mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-                mutation: logRunComplete,
-                input: {
+            fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+                fetch: logRunComplete,
+                inputs: {
                     id: run.id,
                     exists: true,
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
@@ -847,7 +847,7 @@ export const RunView = ({
                 },
             });
         }
-    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, session, setLocation, steps, testMode]);
+    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, setLocation, steps, testMode]);
 
     /**
      * End run after reaching an EndStep
@@ -865,9 +865,9 @@ export const RunView = ({
         }
         // Log complete. No step data because this function was called from a decision node, 
         // which we currently don't store data about
-        mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-            mutation: logRunComplete,
-            input: {
+        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+            fetch: logRunComplete,
+            inputs: {
                 id: run.id,
                 exists: true,
                 name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
@@ -897,9 +897,9 @@ export const RunView = ({
         } : undefined;
         // Send data to server
         //TODO support run projects
-        mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
-            mutation: logRunUpdate,
-            input: {
+        fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+            fetch: logRunUpdate,
+            inputs: {
                 id: run.id,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),

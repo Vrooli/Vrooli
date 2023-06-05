@@ -1,8 +1,9 @@
-import { exists, getReactionScore, ReactInput, ReactionFor, reactionReact, Success } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { endpointPostReact, exists, getReactionScore, ReactInput, ReactionFor, Success } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
+import { useLazyFetch } from "./useLazyFetch";
 
 type UseVoterProps = {
     objectId: string | null | undefined;
@@ -18,7 +19,7 @@ export const useVoter = ({
     objectType,
     onActionComplete,
 }: UseVoterProps) => {
-    const [mutation] = useCustomMutation<Success, ReactInput>(reactionReact);
+    const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
     const hasVotingSupport = exists(ReactionFor[objectType]);
 
@@ -32,16 +33,16 @@ export const useVoter = ({
             PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
-        mutationWrapper<Success, ReactInput>({
-            mutation,
-            input: {
+        fetchLazyWrapper<ReactInput, Success>({
+            fetch,
+            inputs: {
                 emoji,
                 forConnect: objectId,
                 reactionFor: ReactionFor[objectType],
             },
             onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data); },
         });
-    }, [hasVotingSupport, mutation, objectId, objectType, onActionComplete]);
+    }, [hasVotingSupport, fetch, objectId, objectType, onActionComplete]);
 
     return { handleVote, hasVotingSupport };
 };

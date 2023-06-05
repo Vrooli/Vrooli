@@ -1,10 +1,11 @@
 import { endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, FindByIdInput, RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const RunProjectUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<RunProject>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunProjectCreateInput | RunProjectUpdateInput, RunProject>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const RunProjectUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<RunProject, RunProjectCreateInput | RunProjectUpdateInput>({
-                        mutation,
-                        input: transformRunProjectValues(values, existing),
+                    fetchLazyWrapper<RunProjectCreateInput | RunProjectUpdateInput, RunProject>({
+                        fetch,
+                        inputs: transformRunProjectValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

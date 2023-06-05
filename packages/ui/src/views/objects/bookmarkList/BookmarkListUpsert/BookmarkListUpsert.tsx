@@ -1,10 +1,11 @@
 import { BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, endpointGetBookmarkList, endpointPostBookmarkList, endpointPutBookmarkList, FindByIdInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListForm, bookmarkListInitialValues, transformBookmarkListValues, validateBookmarkListValues } from "forms/BookmarkListForm/BookmarkListForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const BookmarkListUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<BookmarkList>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<BookmarkListCreateInput, BookmarkList>(endpointPostBookmarkList);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<BookmarkListUpdateInput, BookmarkList>(endpointPutBookmarkList);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const BookmarkListUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<BookmarkList, BookmarkListCreateInput | BookmarkListUpdateInput>({
-                        mutation,
-                        input: transformBookmarkListValues(values, existing),
+                    fetchLazyWrapper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
+                        fetch,
+                        inputs: transformBookmarkListValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

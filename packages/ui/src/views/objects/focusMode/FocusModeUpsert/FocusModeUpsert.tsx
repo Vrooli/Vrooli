@@ -1,10 +1,11 @@
 import { endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from "@local/shared";
-import { useLazyFetch } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeForm, focusModeInitialValues, transformFocusModeValues, validateFocusModeValues } from "forms/FocusModeForm/FocusModeForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -30,7 +31,7 @@ export const FocusModeUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<FocusModeCreateInput, FocusMode>(endpointPostFocusMode);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<FocusModeUpdateInput, FocusMode>(endpointPutFocusMode);
-    const mutation = isCreate ? create : update;
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<FocusModeCreateInput | FocusModeUpdateInput, FocusMode>;
 
     return (
         <>
@@ -49,9 +50,9 @@ export const FocusModeUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<FocusMode, FocusModeCreateInput | FocusModeUpdateInput>({
-                        mutation,
-                        input: transformFocusModeValues(values, existing),
+                    fetchLazyWrapper<FocusModeCreateInput | FocusModeUpdateInput, FocusMode>({
+                        fetch,
+                        inputs: transformFocusModeValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

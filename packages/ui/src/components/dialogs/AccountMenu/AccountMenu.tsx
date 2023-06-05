@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
@@ -103,7 +104,7 @@ export const AccountMenu = ({
         else {
             fetchLazyWrapper<SwitchCurrentAccountInput, Session>({
                 fetch: switchCurrentAccount,
-                input: { id: user.id },
+                inputs: { id: user.id },
                 successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => { PubSub.get().publishSession(data); },
             });

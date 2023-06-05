@@ -63,10 +63,10 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
+    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
     const [user, setUser] = useState<User | null | undefined>(null);
-    useDisplayServerError(userError ?? profileError);
+    useDisplayServerError(userErrors ?? profileErrors);
     useEffect(() => {
         const urlEnding = getLastUrlPart();
         if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
