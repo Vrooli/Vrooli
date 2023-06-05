@@ -4,7 +4,6 @@
 import { AddIcon, DeleteOneInput, deleteOneOrManyDeleteOne, Success, Wallet, walletUpdate, WalletUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";

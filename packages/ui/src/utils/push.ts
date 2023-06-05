@@ -1,5 +1,5 @@
 import { PushDevice, pushDeviceCreate, PushDeviceCreateInput } from "@local/shared";
-import { documentNodeWrapper, errorToCode } from "api/utils";
+import { documentNodeWrapper, errorToCode } from "api";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";

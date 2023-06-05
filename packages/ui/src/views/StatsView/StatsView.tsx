@@ -103,9 +103,9 @@ export const StatsView = ({
     }, []);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading, error }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
+    const [getStats, { data: statsData, loading, errors }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointGetStatsSite,
-        input: {
+        inputs: {
             periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
             periodTimeFrame: {
                 after: period.after.toISOString(),
@@ -113,7 +113,7 @@ export const StatsView = ({
             },
         },
     });
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
         if (statsData) {

@@ -40,9 +40,9 @@ export function useObjectFromUrl<TData extends ListObjectType>({
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
 
     // Fetch data
-    const [getData, { data, loading: isLoading, error }] = useLazyFetch<any, TData>({ endpoint });
+    const [getData, { data, loading: isLoading, errors }] = useLazyFetch<any, TData>({ endpoint });
     const [object, setObject] = useState<TData | null | undefined>(null);
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
     useEffect(() => {
         console.log("parseSingleItemUrl", urlParams);
         // Objects can be found using a few different unique identifiers

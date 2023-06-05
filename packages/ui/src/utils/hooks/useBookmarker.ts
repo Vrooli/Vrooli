@@ -1,5 +1,5 @@
-import { Bookmark, bookmarkCreate, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, endpointGetBookmarks, exists, Success, uuid } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, exists, Success, uuid } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
@@ -25,8 +25,8 @@ export const useBookmarker = ({
     const session = useContext(SessionContext);
     const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [addBookmark] = useCustomMutation<Bookmark, BookmarkCreateInput>(bookmarkCreate);
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData, { data, loading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
@@ -39,9 +39,9 @@ export const useBookmarker = ({
 
     const handleAdd = useCallback(() => {
         const bookmarkListId = bookmarkLists && bookmarkLists.length ? bookmarkLists[0].id : undefined;
-        mutationWrapper<Bookmark, BookmarkCreateInput>({
-            mutation: addBookmark,
-            input: shapeBookmark.create({
+        fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
+            fetch: addBookmark,
+            inputs: shapeBookmark.create({
                 id: uuid(),
                 bookmarkFor: {
                     __typename: BookmarkFor[objectType],
@@ -75,9 +75,9 @@ export const useBookmarker = ({
         }
         // If there is exactly one bookmark, delete it
         else if (bookmarks.length === 1) {
-            mutationWrapper<Success, DeleteOneInput>({
-                mutation: deleteOne,
-                input: { id: bookmarks[0].id, objectType: DeleteType.Bookmark },
+            fetchLazyWrapper<DeleteOneInput, Success>({
+                fetch: deleteOne,
+                inputs: { id: bookmarks[0].id, objectType: DeleteType.Bookmark },
                 onSuccess: (data) => { onActionComplete(ObjectActionComplete.BookmarkUndo, data); },
             });
             return;

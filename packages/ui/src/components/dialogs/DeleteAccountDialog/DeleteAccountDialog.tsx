@@ -1,12 +1,12 @@
-import { DeleteIcon, LINKS, Success, useLocation, UserDeleteInput, userDeleteOne, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { DeleteIcon, endpointDeleteUser, LINKS, Success, useLocation, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -30,7 +30,7 @@ export const DeleteAccountDialog = ({
     const [, setLocation] = useLocation();
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
-    const [deleteAccount] = useCustomMutation<Success, UserDeleteInput>(userDeleteOne);
+    const [deleteAccount] = useLazyFetch<UserDeleteInput, Success>(endpointDeleteUser);
 
     return (
         <LargeDialog
@@ -56,9 +56,9 @@ export const DeleteAccountDialog = ({
                         PubSub.get().publishSnack({ messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Success, UserDeleteInput>({
-                        mutation: deleteAccount,
-                        input: values,
+                    fetchLazyWrapper<UserDeleteInput, Success>({
+                        fetch: deleteAccount,
+                        inputs: values,
                         successCondition: (data) => data.success,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
                         onSuccess: () => {

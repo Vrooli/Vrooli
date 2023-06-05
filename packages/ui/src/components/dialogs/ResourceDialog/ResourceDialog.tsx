@@ -1,10 +1,10 @@
-import { Resource, resourceCreate, ResourceCreateInput, resourceUpdate, ResourceUpdateInput } from "@local/shared";
-import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
+import { endpointPostResource, endpointPutResource, Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
 import { useCallback, useContext, useMemo, useRef } from "react";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -31,8 +31,8 @@ export const ResourceDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
-    const [addMutation, { loading: addLoading }] = useCustomMutation<Resource, ResourceCreateInput>(resourceCreate);
-    const [updateMutation, { loading: updateLoading }] = useCustomMutation<Resource, ResourceUpdateInput>(resourceUpdate);
+    const [addMutation, { loading: addLoading }] = useLazyFetch<ResourceCreateInput, Resource>(endpointPostResource);
+    const [updateMutation, { loading: updateLoading }] = useLazyFetch<ResourceUpdateInput, Resource>(endpointPutResource);
 
     const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Confirm dialog is dirty and closed by clicking outside
@@ -71,9 +71,9 @@ export const ResourceDialog = ({
                                 PubSub.get().publishSnack({ messageKey: "ResourceNotFound", severity: "Error" });
                                 return;
                             }
-                            mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
-                                mutation: isCreating ? addMutation : updateMutation,
-                                input: transformResourceValues(values, partialData as any),
+                            fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
+                                fetch: isCreating ? addMutation : updateMutation,
+                                inputs: transformResourceValues(values, partialData as any),
                                 successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,

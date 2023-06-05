@@ -1,13 +1,14 @@
 import { useQuery } from "@apollo/client";
-import { NotificationSettings, notificationSettings, NotificationSettingsCategory, notificationSettingsUpdate, NotificationSettingsUpdateInput } from "@local/shared";
+import { endpointPutNotificationSettings, NotificationSettings, notificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
 import { Stack } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
+import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
 import { Wrap } from "types";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
@@ -16,9 +17,9 @@ export const SettingsNotificationsView = ({
     zIndex,
 }: SettingsNotificationsViewProps) => {
 
-    const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
-    useDisplayServerError(error);
-    const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
+    const { data, refetch, loading: isLoading, errors } = useQuery<Wrap<NotificationSettings, "notificationSettings">>(notificationSettings, { errorPolicy: "all" });
+    useDisplayServerError(errors);
+    const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 
     return (
         <>
@@ -46,9 +47,9 @@ export const SettingsNotificationsView = ({
                         categories: [] as NotificationSettingsCategory[],
                     } as NotificationSettingsUpdateInput}
                     onSubmit={(values, helpers) =>
-                        mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
-                            mutation,
-                            input: values,
+                        fetchLazyWrapper<NotificationSettingsUpdateInput, NotificationSettings>({
+                            fetch: updateFetch,
+                            inputs: values,
                             onError: () => { helpers.setSubmitting(false); },
                         })
                     }

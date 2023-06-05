@@ -1,16 +1,16 @@
-import { fetchData } from "api/utils";
+import { fetchData, Method, ServerResponse } from "api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type RequestState<TData> = {
     loading: boolean;
     data: TData | undefined;
-    error: any;
+    errors: ServerResponse["errors"] | undefined;
 };
 
 type UseLazyFetchProps<TInput extends Record<string, any>, TData> = {
     endpoint: string | undefined;
     inputs?: TInput;
-    method?: "GET" | "POST" | "PUT";
+    method?: Method;
     options?: RequestInit;
 };
 
@@ -32,13 +32,13 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>({
     method = "GET",
     options = {} as RequestInit,
 }: UseLazyFetchProps<TInput, TData>): [
-        (input?: TInput) => void,
+        (input?: TInput) => Promise<ServerResponse<TData>>,
         RequestState<TData>
     ] {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
         data: undefined,
-        error: null,
+        errors: undefined,
     });
 
     // Store the latest endpoint, method, options and inputs in a ref
@@ -47,10 +47,11 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>({
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback((input?: TInput) => {
+    const makeRequest = useCallback<(input?: TInput) => Promise<ServerResponse<TData>>>(async (input?: TInput) => {
         if (!fetchParamsRef.current.endpoint) {
-            console.error("No endpoint provided to useLazyFetch");
-            return;
+            const message = "No endpoint provided to useLazyFetch";
+            console.error(message);
+            return { errors: [{ message }] };
         }
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
@@ -59,18 +60,18 @@ export function useLazyFetch<TInput extends Record<string, any>, TData>({
 
         setState(s => ({ ...s, loading: true }));
 
-        fetchData(fetchParamsRef.current as any)
-            .then(response => response.json())
-            .then(data => {
-                console.log("useLazyFetch data", data);
-                setState({ loading: false, data, error: null });
-                // return { data };
+        const result = await fetchData(fetchParamsRef.current as any)
+            .then(({ data, errors, version }: ServerResponse) => {
+                console.log("useLazyFetch data", data, errors);
+                setState({ loading: false, data, errors });
+                return { data, errors, version };
             })
-            .catch(error => {
-                console.log("useLazyFetch error", error);
-                setState({ loading: false, data: undefined, error });
-                // return { error };
+            .catch(({ errors, version }: ServerResponse) => {
+                console.log("useLazyFetch error", errors);
+                setState({ loading: false, data: undefined, errors });
+                return { errors, version };
             });
+        return result;
     }, []);
 
     return [makeRequest, state];

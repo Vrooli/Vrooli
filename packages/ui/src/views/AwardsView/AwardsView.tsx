@@ -39,8 +39,8 @@ export const AwardsView = ({
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
-    const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, "awards">, Wrap<AwardSearchInput, "input">>(awardFindMany, { variables: { input: {} }, errorPolicy: "all" });
-    useDisplayServerError(error);
+    const { data, refetch, loading, errors } = useQuery<Wrap<AwardSearchResult, "awards">, Wrap<AwardSearchInput, "input">>(awardFindMany, { variables: { input: {} }, errorPolicy: "all" });
+    useDisplayServerError(errors);
     useEffect(() => {
         if (!data) return;
         // Add to awards array, and sort by award category

@@ -60,12 +60,12 @@ export const CommandPalette = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, []);
 
-    const [refetch, { data, loading, error }] = useLazyFetch<PopularInput, PopularResult>({
+    const [refetch, { data, loading, errors }] = useLazyFetch<PopularInput, PopularResult>({
         ...endpointGetFeedPopular,
         inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
 
     const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
         __typename: "Shortcut",

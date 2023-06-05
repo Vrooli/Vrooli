@@ -40,9 +40,9 @@ export const SelectBookmarkListDialog = ({
     }, [session]);
 
     // Fetch all bookmarks for object
-    const [refetch, { data, loading: isFindLoading, error }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
+    const [refetch, { data, loading: isFindLoading, errors }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
         ...endpointGetBookmarks,
-        input: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId! },
+        inputs: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId! },
     });
     useEffect(() => {
         if (!isCreate && isOpen) {
@@ -51,7 +51,7 @@ export const SelectBookmarkListDialog = ({
             setSelectedLists([]);
         }
     }, [refetch, isCreate, objectId]);
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
     useEffect(() => {
         if (data) {
             setSelectedLists(data.edges.map(e => e.node.list));

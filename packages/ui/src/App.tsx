@@ -1,8 +1,7 @@
-import { ActiveFocusMode, endpointPostAuthValidateSession, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
-import { useCustomMutation } from "api";
-import { hasErrorCode, mutationWrapper } from "api/utils";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -120,7 +119,7 @@ export function App() {
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
-    const [setActiveFocusMode] = useCustomMutation<ActiveFocusMode, SetActiveFocusModeInput>(focusModeSetActive);
+    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
 
     // Applies language change
@@ -274,9 +273,9 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        mutationWrapper<Session, ValidateSessionInput>({
-            mutation: validateSession,
-            input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        fetchLazyWrapper<ValidateSessionInput, Session>({
+            fetch: validateSession,
+            inputs: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             onSuccess: (data) => {
                 //TODO store in local storage. validateSession will only return full data for the current user.
                 //Other logged in users will not have their full data returned (will be in shape SessionUserToken
@@ -284,7 +283,7 @@ export function App() {
                 setSession(data);
             },
             showDefaultErrorSnack: false,
-            onError: (error: any) => {
+            onError: (error) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
                 if (hasErrorCode(error, "SessionExpired")) {
@@ -375,9 +374,9 @@ export function App() {
             if (!isSettingActiveFocusMode.current) {
                 isSettingActiveFocusMode.current = true;
                 const { mode, ...rest } = data;
-                mutationWrapper<ActiveFocusMode, SetActiveFocusModeInput>({
-                    mutation: setActiveFocusMode,
-                    input: { ...rest, id: data.mode.id },
+                fetchLazyWrapper<SetActiveFocusModeInput, ActiveFocusMode>({
+                    fetch: setActiveFocusMode,
+                    inputs: { ...rest, id: data.mode.id },
                     successCondition: (data) => data !== null,
                     onSuccess: () => { isSettingActiveFocusMode.current = false; },
                     onError: (error) => {

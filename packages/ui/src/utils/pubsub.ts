@@ -63,7 +63,9 @@ export type AlertDialogPub = {
 
 export class PubSub {
     private static instance: PubSub;
+    // eslint-disable-next-line @typescript-eslint/ban-types
     private subscribers: { [key: string]: [symbol, Function][] } = {};
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     static get(): PubSub {
         if (!PubSub.instance) {
@@ -140,6 +142,7 @@ export class PubSub {
         this.publish("Welcome");
     }
 
+    // eslint-disable-next-line @typescript-eslint/ban-types
     subscribe(key: Pubs, subscriber: Function): symbol {
         // Create unique token, so we can unsubscribe later
         const token = Symbol(key);

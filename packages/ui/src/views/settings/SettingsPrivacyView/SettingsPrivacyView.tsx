@@ -1,7 +1,6 @@
 import { ProfileUpdateInput, User, userProfileUpdate, userValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";

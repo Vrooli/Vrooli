@@ -1,7 +1,6 @@
 import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, deleteOneOrManyDeleteOne, DeleteType, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";

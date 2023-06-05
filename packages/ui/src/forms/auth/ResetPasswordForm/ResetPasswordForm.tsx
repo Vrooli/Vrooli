@@ -1,7 +1,6 @@
 import { authEmailResetPassword, EmailResetPasswordInput, emailResetPasswordSchema, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
 import { Button, Grid } from "@mui/material";
 import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";

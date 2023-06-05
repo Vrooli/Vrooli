@@ -1,5 +1,5 @@
-import { LINKS, ProfileUpdateInput, Session, User, userProfileUpdate } from "@local/shared";
-import { documentNodeWrapper, errorToCode } from "api/utils";
+import { endpointPutProfile, LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
+import { errorToCode, fetchWrapper } from "api";
 import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
@@ -230,9 +230,9 @@ export const performAction = async (option: ActionOption, session: Session | nul
         case "activate-dark-mode":
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
-                documentNodeWrapper<User, ProfileUpdateInput>({
-                    node: userProfileUpdate,
-                    input: { theme: "dark" },
+                fetchWrapper<ProfileUpdateInput, User>({
+                    ...endpointPutProfile,
+                    inputs: { theme: "dark" },
                     onSuccess: () => { PubSub.get().publishTheme("dark"); },
                     onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
                 });
@@ -243,9 +243,9 @@ export const performAction = async (option: ActionOption, session: Session | nul
         case "activate-light-mode":
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
-                documentNodeWrapper<User, ProfileUpdateInput>({
-                    node: userProfileUpdate,
-                    input: { theme: "light" },
+                fetchWrapper<ProfileUpdateInput, User>({
+                    ...endpointPutProfile,
+                    inputs: { theme: "light" },
                     onSuccess: () => { PubSub.get().publishTheme("light"); },
                     onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
                 });

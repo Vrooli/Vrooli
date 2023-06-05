@@ -154,7 +154,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<Record<string, string>>({});
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>({
+    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>({
         endpoint: params!.current.endpoint,
         inputs: {
             take,
@@ -170,7 +170,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         },
     } as any);
     // Display a snack error message if there is an error
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
     const [allData, setAllData] = useState<DataType[]>(() => {
         // TODO Check if we just navigated back to this page from an object page. If so, use results stored in sessionStorage. Also TODO for storing results in sessionStorage
         const lastPath = sessionStorage.getItem("lastPath");

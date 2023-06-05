@@ -1,10 +1,10 @@
-import { DeleteIcon, DeleteOneInput, deleteOneOrManyDeleteOne, LINKS, Success, useLocation } from "@local/shared";
+import { DeleteIcon, DeleteOneInput, endpointPostDeleteOne, LINKS, Success, useLocation } from "@local/shared";
 import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 
@@ -28,11 +28,11 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteOne,
-            input: { id: objectId, objectType },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteOne,
+            inputs: { id: objectId, objectType },
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName } }),
             onSuccess: () => {

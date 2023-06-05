@@ -1,5 +1,5 @@
 import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, FindVersionInput } from "@local/shared";
-import { mutationWrapper } from "api";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
@@ -31,7 +31,7 @@ export const ApiUpsert = ({
     const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ApiVersionCreateInput, ApiVersion>(endpointPostApiVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ApiVersionUpdateInput, ApiVersion>(endpointPutApiVersion);
-    const mutation = isCreate ? create : update;
+    const fetch = isCreate ? create : update;
 
     return (
         <>
@@ -50,9 +50,9 @@ export const ApiUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<ApiVersion, ApiVersionCreateInput | ApiVersionUpdateInput>({
-                        mutation,
-                        input: transformApiValues(values, existing),
+                    fetchLazyWrapper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
+                        fetch,
+                        inputs: transformApiValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

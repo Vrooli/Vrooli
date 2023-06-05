@@ -1,18 +1,19 @@
-import { ApolloError } from "@apollo/client";
-import { errorToMessage } from "api";
+import { errorToMessage, ServerResponse } from "api";
 import { useEffect } from "react";
 import { PubSub } from "utils/pubsub";
 
 /**
  * When the server throws an error, this function will display
  * it as a snack bar notification
- * @param error The error to display
+ * @param errors Errors from the server
  */
-export const useDisplayServerError = (error: ApolloError | undefined) => {
+export const useDisplayServerError = (errors: ServerResponse["errors"]) => {
     useEffect(() => {
-        if (error) {
-            const message = errorToMessage(error);
-            PubSub.get().publishSnack({ message, severity: "Error" });
+        if (errors) {
+            for (const error of errors) {
+                const message = errorToMessage({ errors: [error] });
+                PubSub.get().publishSnack({ message, severity: "Error" });
+            }
         }
-    }, [error]);
+    }, [errors]);
 };

@@ -1,4 +1,5 @@
 import { stringifySearchParams } from "@local/shared";
+import { Method, ServerResponse } from "api";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.0.");
@@ -10,11 +11,11 @@ export const urlBase: string = isLocalhost ?
         `${import.meta.env.VITE_SERVER_URL}/v2` :
         `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api/v2/rest`;
 
-type FetchDataProps = {
+type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;
-    method: "GET" | "POST" | "PUT";
-    inputs: Record<string, any>;
-    options: RequestInit;
+    method: Method;
+    inputs: Input;
+    options?: RequestInit;
 };
 
 /**
@@ -35,26 +36,28 @@ type FetchDataProps = {
  *
  * @throws Will throw an error if the fetch request fails.
  */
-export const fetchData = async ({
+export const fetchData = async <Input extends object | undefined, Output>({
     endpoint,
     method,
     inputs,
     options,
-}: FetchDataProps): Promise<Response> => {
+}: FetchDataProps<Input>): Promise<ServerResponse<Output>> => {
 
     // Replace variables in the endpoint with their values from inputs.
-    endpoint = endpoint.replace(/:([a-zA-Z]+)/g, (_, key) => {
-        const value = inputs[key];
-        delete inputs[key];  // remove substituted values from inputs
-        return value;
-    });
+    if (inputs !== undefined) {
+        endpoint = endpoint.replace(/:([a-zA-Z]+)/g, (_, key) => {
+            const value = inputs[key];
+            delete inputs[key];  // remove substituted values from inputs
+            return value;
+        });
+    }
 
     let url = `${urlBase}${endpoint}`;
     let body: string | null = null;
 
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
-        if (Object.keys(inputs).length !== 0) {
+        if (inputs !== undefined && Object.keys(inputs).length !== 0) {
             url += `?${stringifySearchParams(inputs)}`;
         }
     }
@@ -67,12 +70,12 @@ export const fetchData = async ({
         ...options,
         method,
         headers: {
-            ...options.headers,
+            ...options?.headers,
             "Content-Type": "application/json",
         },
         body,
         credentials: "include",
     };
 
-    return fetch(url, finalOptions);
+    return fetch(url, finalOptions).then(response => response.json()) as Promise<ServerResponse<Output>>;
 };

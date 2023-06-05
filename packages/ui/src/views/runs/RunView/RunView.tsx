@@ -1,6 +1,6 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, runRoutineComplete, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, runRoutineUpdate, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
+import { mutationWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -760,8 +760,8 @@ export const RunView = ({
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
-    const [logRunUpdate] = useCustomMutation<RunRoutine, RunRoutineUpdateInput>(runRoutineUpdate);
-    const [logRunComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
+    const [logRunUpdate] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const [logRunComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics

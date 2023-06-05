@@ -71,9 +71,9 @@ export const DashboardView = ({
         if (typeof searchParams.search === "string") setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
-    const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
+    const { data, refetch, loading, errors } = useQuery<Wrap<HomeResult, "home">, Wrap<HomeInput, "input">>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") } }, errorPolicy: "all" });
     useEffect(() => { refetch(); }, [refetch, searchString, activeFocusMode]);
-    useDisplayServerError(error);
+    useDisplayServerError(errors);
 
     // Only show tabs if:
     // 1. The user is logged in 

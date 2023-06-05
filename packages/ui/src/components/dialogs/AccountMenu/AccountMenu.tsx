@@ -1,8 +1,7 @@
-import { authLogOut, authSwitchCurrentAccount, AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userProfileUpdate, userValidation } from "@local/shared";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { useCustomMutation } from "api";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
@@ -51,7 +50,7 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false); }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
+    const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? "light",
@@ -76,9 +75,9 @@ export const AccountMenu = ({
                 formik.setSubmitting(false);
                 return;
             }
-            mutationWrapper<User, ProfileUpdateInput>({
-                mutation,
-                input,
+            fetchLazyWrapper<ProfileUpdateInput, User>({
+                fetch,
+                inputs: input,
                 onSuccess: () => { formik.setSubmitting(false); },
                 onError: () => { formik.setSubmitting(false); },
             });
@@ -92,7 +91,7 @@ export const AccountMenu = ({
         closeDisplaySettings();
     }, [closeAdditionalResources, closeDisplaySettings, formik, onClose]);
 
-    const [switchCurrentAccount] = useCustomMutation<Session, SwitchCurrentAccountInput>(authSwitchCurrentAccount);
+    const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointPostAuthSwitchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
         handleClose(event);
@@ -102,8 +101,8 @@ export const AccountMenu = ({
         }
         // Otherwise, switch to selected account
         else {
-            mutationWrapper<Session, SwitchCurrentAccountInput>({
-                mutation: switchCurrentAccount,
+            fetchLazyWrapper<SwitchCurrentAccountInput, Session>({
+                fetch: switchCurrentAccount,
                 input: { id: user.id },
                 successMessage: () => ({ messageKey: "LoggedInAs", messageVariables: { name: user.name ?? user.handle ?? "" } }),
                 onSuccess: (data) => { PubSub.get().publishSession(data); },
@@ -116,13 +115,13 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
+    const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleClose(event);
         const user = getCurrentUser(session);
-        mutationWrapper<Session, LogOutInput>({
-            mutation: logOut,
-            input: { id: user.id },
+        fetchLazyWrapper<LogOutInput, Session>({
+            fetch: logOut,
+            inputs: { id: user.id },
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
