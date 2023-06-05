@@ -30,6 +30,12 @@ const deleteFolder = (folder: string) => {
         fs.rmdirSync(folder, { recursive: true });
     }
 };
+const deleteFile = (file: string) => {
+    if (fs.existsSync(file)) {
+        console.info(`Deleting file: ${file}`);
+        fs.unlinkSync(file);
+    }
+};
 
 async function main() {
     // Create the output folders if they doesn't exist
@@ -37,7 +43,6 @@ async function main() {
     const fragmentsFolder = `${outputFolder}/fragments`;
     const endpointsFolder = `${outputFolder}/endpoints`;
     const restFolder = `${outputFolder}/rest`;
-    const pairsFolder = `${outputFolder}/pairs`;
     createFolder(outputFolder);
     if (["graphql", "both"].includes(target)) {
         createFolder(fragmentsFolder);
@@ -45,9 +50,6 @@ async function main() {
     }
     if (["rest", "both"].includes(target)) {
         createFolder(restFolder);
-        if (createEndpointMethodPairs) {
-            createFolder(pairsFolder);
-        }
     }
 
     // Store GraphQL data, which is used to generate both the graphql-tag strings and the PartialGraphQLInfo objects
@@ -275,25 +277,25 @@ async function main() {
                     console.error(`Error processing REST file ${restFile}.ts: ${error}`);
                 }
             }
-            // Save the endpoint/method pairs
-            endpointMethodPairs.forEach(pair => {
-                const pairFilePath = `${pairsFolder}/${pair.name}.ts`;
-                console.info("Saving endpoint/method pair to", pairFilePath);
-                fs.writeFileSync(pairFilePath, `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
+
+            // Save the endpoint/method pairs to a single file
+            const pairFilePath = `${outputFolder}/pairs.ts`;
+            console.info("Saving endpoint/method pairs to", pairFilePath);
+
+            const fileContent = endpointMethodPairs.map(pair => {
+                return `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
     endpoint: "${pair.endpoint}",
     method: "${pair.method}",
-} as const;\n`);
-            });
-            // Create index.ts for pairs
-            console.info("Generating index.ts for pairs...");
-            const indexContentPairs = endpointMethodPairs.sort((a, b) => a.name.localeCompare(b.name)).map(pair => `export * from "./${pair.name}";`).join("\n");
-            fs.writeFileSync(`${pairsFolder}/index.ts`, indexContentPairs);
+} as const;`;
+            }).join("\n\n");
+
+            fs.writeFileSync(pairFilePath, fileContent);
         }
     }
-    // Otherwise, delete the rest folder
+    // Otherwise, delete the rest folder and pairs file
     else {
         deleteFolder(restFolder);
-        deleteFolder(pairsFolder);
+        deleteFile(`${outputFolder}/pairs.ts`);
     }
 
     // Create index.ts for generated folder
