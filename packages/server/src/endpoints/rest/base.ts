@@ -26,11 +26,11 @@ export type EndpointGroup = {
  * @param input Search parameters from request
  * @returns Object with key/value pairs, or empty object if no params
  */
-const parseInput = (input: Record<string, string>): Record<string, any> => {
+const parseInput = (input: any): Record<string, any> => {
     const parsed: any = {};
     Object.entries(input).forEach(([key, value]) => {
         try {
-            parsed[key] = JSON.parse(value);
+            parsed[key] = JSON.parse(value as any);
         } catch (error) {
             parsed[key] = value;
         }
@@ -42,12 +42,12 @@ const version = "v2";
 export const handleEndpoint = async <TInput extends object | undefined, TResult extends object>(
     endpoint: EndpointFunction<TInput, TResult>,
     selection: GraphQLResolveInfo | PartialGraphQLInfo,
-    input: Record<string, string> | undefined,
+    input: TInput | undefined,
     req: Request,
     res: Response,
 ) => {
     try {
-        const data = await endpoint(undefined, (input ? { input: parseInput(input) } : undefined) as any, context({ req, res }), selection);
+        const data = await endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection);
         res.json({ data, version });
     } catch (error: any) {
         // Assume that error is from CustomError by default
@@ -77,11 +77,21 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
     Object.entries(restEndpoints).forEach(([route, methods]) => {
         // Create route
         const routerChain = router.route(route);
+        const testn1 = route;
+        const test0 = methods;
         // Loop through each method
         Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
             routerChain[method]((req: Request, res: Response) => {
                 // Find input from request
-                const input: Record<string, string> = method === "get" ? { ...req.params, ...req.query } : { ...req.params, ...req.body };
+                const test1 = req.params;
+                const test2 = req.query;
+                const test3 = req.body;
+                const test4 = typeof req.body === "object" ? req.body : {};
+                const test5 = { ...req.params, ...parseInput(req.query) };
+                const test6 = { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                const input: Record<string, string> = method === "get" ?
+                    { ...req.params, ...parseInput(req.query) } :
+                    { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
                 handleEndpoint(endpoint as any, selection, input, req, res);
             });
         });
