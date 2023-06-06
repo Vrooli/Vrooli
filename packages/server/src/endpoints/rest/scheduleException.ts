@@ -1,4 +1,4 @@
-import { scheduleException_create, scheduleException_findMany, scheduleException_findOne, scheduleException_update } from "@local/shared";
+import { scheduleException_create, scheduleException_findMany, scheduleException_findOne, scheduleException_update } from "../generated";
 import { ScheduleExceptionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

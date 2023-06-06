@@ -1,4 +1,4 @@
-import { comment_create, comment_findMany, comment_findOne, comment_update } from "@local/shared";
+import { comment_create, comment_findMany, comment_findOne, comment_update } from "../generated";
 import { CommentEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

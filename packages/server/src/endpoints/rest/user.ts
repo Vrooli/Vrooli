@@ -1,4 +1,4 @@
-import { user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "@local/shared";
+import { user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
 import { UserEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

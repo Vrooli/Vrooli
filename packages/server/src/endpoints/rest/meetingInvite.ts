@@ -1,4 +1,4 @@
-import { meetingInvite_accept, meetingInvite_create, meetingInvite_decline, meetingInvite_findMany, meetingInvite_findOne, meetingInvite_update } from "@local/shared";
+import { meetingInvite_accept, meetingInvite_create, meetingInvite_decline, meetingInvite_findMany, meetingInvite_findOne, meetingInvite_update } from "../generated";
 import { MeetingInviteEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

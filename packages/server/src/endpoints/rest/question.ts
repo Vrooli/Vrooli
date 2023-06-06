@@ -1,4 +1,4 @@
-import { question_create, question_findMany, question_findOne, question_update } from "@local/shared";
+import { question_create, question_findMany, question_findOne, question_update } from "../generated";
 import { QuestionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

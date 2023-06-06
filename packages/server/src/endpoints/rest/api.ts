@@ -1,4 +1,4 @@
-import { api_create, api_findMany, api_findOne, api_update } from "@local/shared";
+import { api_create, api_findMany, api_findOne, api_update } from "../generated";
 import { ApiEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

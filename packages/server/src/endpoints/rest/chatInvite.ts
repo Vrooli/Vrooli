@@ -1,4 +1,4 @@
-import { chatInvite_accept, chatInvite_create, chatInvite_decline, chatInvite_findMany, chatInvite_findOne, chatInvite_update } from "@local/shared";
+import { chatInvite_accept, chatInvite_create, chatInvite_decline, chatInvite_findMany, chatInvite_findOne, chatInvite_update } from "../generated";
 import { ChatInviteEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

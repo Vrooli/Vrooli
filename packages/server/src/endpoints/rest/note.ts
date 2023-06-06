@@ -1,4 +1,4 @@
-import { note_create, note_findMany, note_findOne, note_update } from "@local/shared";
+import { note_create, note_findMany, note_findOne, note_update } from "../generated";
 import { NoteEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

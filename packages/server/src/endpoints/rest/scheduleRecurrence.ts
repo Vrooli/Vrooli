@@ -1,4 +1,4 @@
-import { scheduleRecurrence_create, scheduleRecurrence_findMany, scheduleRecurrence_findOne, scheduleRecurrence_update } from "@local/shared";
+import { scheduleRecurrence_create, scheduleRecurrence_findMany, scheduleRecurrence_findOne, scheduleRecurrence_update } from "../generated";
 import { ScheduleRecurrenceEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

@@ -1,4 +1,4 @@
-import { pushDevice_create, pushDevice_findMany, pushDevice_update } from "@local/shared";
+import { pushDevice_create, pushDevice_findMany, pushDevice_update } from "../generated";
 import { PushDeviceEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

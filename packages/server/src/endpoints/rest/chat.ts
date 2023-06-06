@@ -1,4 +1,4 @@
-import { chat_create, chat_findMany, chat_findOne, chat_update } from "@local/shared";
+import { chat_create, chat_findMany, chat_findOne, chat_update } from "../generated";
 import { ChatEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

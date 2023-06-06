@@ -1,4 +1,4 @@
-import { node_create, node_update } from "@local/shared";
+import { node_create, node_update } from "../generated";
 import { NodeEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

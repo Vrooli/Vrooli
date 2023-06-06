@@ -1,4 +1,4 @@
-import { projectVersion_create, projectVersion_findMany, projectVersion_findOne, projectVersion_update } from "@local/shared";
+import { projectVersion_create, projectVersion_findMany, projectVersion_findOne, projectVersion_update } from "../generated";
 import { ProjectVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

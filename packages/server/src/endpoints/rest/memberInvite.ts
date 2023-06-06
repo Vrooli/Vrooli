@@ -1,4 +1,4 @@
-import { memberInvite_accept, memberInvite_create, memberInvite_decline, memberInvite_findMany, memberInvite_findOne, memberInvite_update } from "@local/shared";
+import { memberInvite_accept, memberInvite_create, memberInvite_decline, memberInvite_findMany, memberInvite_findOne, memberInvite_update } from "../generated";
 import { MemberInviteEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

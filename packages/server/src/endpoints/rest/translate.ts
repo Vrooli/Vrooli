@@ -1,4 +1,4 @@
-import { translate_translate } from "@local/shared";
+import { translate_translate } from "../generated";
 import { TranslateEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

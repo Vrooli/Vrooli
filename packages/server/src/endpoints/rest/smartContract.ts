@@ -1,4 +1,4 @@
-import { smartContract_create, smartContract_findMany, smartContract_findOne, smartContract_update } from "@local/shared";
+import { smartContract_create, smartContract_findMany, smartContract_findOne, smartContract_update } from "../generated";
 import { SmartContractEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

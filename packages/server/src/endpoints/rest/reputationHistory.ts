@@ -1,4 +1,4 @@
-import { reputationHistory_findMany, reputationHistory_findOne } from "@local/shared";
+import { reputationHistory_findMany, reputationHistory_findOne } from "../generated";
 import { ReputationHistoryEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

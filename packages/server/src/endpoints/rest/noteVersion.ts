@@ -1,4 +1,4 @@
-import { noteVersion_create, noteVersion_findMany, noteVersion_findOne, noteVersion_update } from "@local/shared";
+import { noteVersion_create, noteVersion_findMany, noteVersion_findOne, noteVersion_update } from "../generated";
 import { NoteVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

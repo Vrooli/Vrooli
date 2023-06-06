@@ -1,4 +1,4 @@
-import { member_findMany, member_findOne, member_update } from "@local/shared";
+import { member_findMany, member_findOne, member_update } from "../generated";
 import { MemberEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

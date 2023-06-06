@@ -1,4 +1,4 @@
-import { statsSmartContract_findMany } from "@local/shared";
+import { statsSmartContract_findMany } from "../generated";
 import { StatsSmartContractEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

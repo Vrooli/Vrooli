@@ -1,4 +1,4 @@
-import { award_findMany } from "@local/shared";
+import { award_findMany } from "../generated";
 import { AwardEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

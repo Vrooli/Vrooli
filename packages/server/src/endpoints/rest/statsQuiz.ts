@@ -1,4 +1,4 @@
-import { statsQuiz_findMany } from "@local/shared";
+import { statsQuiz_findMany } from "../generated";
 import { StatsQuizEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

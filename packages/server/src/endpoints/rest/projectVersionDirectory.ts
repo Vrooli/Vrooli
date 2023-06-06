@@ -1,4 +1,4 @@
-import { projectVersionDirectory_findMany } from "@local/shared";
+import { projectVersionDirectory_findMany } from "../generated";
 import { ProjectVersionDirectoryEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

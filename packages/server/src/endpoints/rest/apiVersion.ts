@@ -1,4 +1,4 @@
-import { apiVersion_create, apiVersion_findMany, apiVersion_findOne, apiVersion_update } from "@local/shared";
+import { apiVersion_create, apiVersion_findMany, apiVersion_findOne, apiVersion_update } from "../generated";
 import { ApiVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

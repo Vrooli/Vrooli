@@ -1,4 +1,4 @@
-import { quizAttempt_create, quizAttempt_findMany, quizAttempt_findOne, quizAttempt_update } from "@local/shared";
+import { quizAttempt_create, quizAttempt_findMany, quizAttempt_findOne, quizAttempt_update } from "../generated";
 import { QuizAttemptEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

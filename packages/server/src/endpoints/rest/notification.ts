@@ -1,4 +1,4 @@
-import { notification_findMany, notification_findOne, notification_markAllAsRead, notification_markAsRead, notification_settings, notification_settingsUpdate } from "@local/shared";
+import { notification_findMany, notification_findOne, notification_markAllAsRead, notification_markAsRead, notification_settings, notification_settingsUpdate } from "../generated";
 import { NotificationEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

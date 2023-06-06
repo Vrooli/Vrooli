@@ -1,4 +1,4 @@
-import { view_findMany } from "@local/shared";
+import { view_findMany } from "../generated";
 import { ViewEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

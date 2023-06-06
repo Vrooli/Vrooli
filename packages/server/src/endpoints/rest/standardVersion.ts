@@ -1,4 +1,4 @@
-import { standardVersion_create, standardVersion_findMany, standardVersion_findOne, standardVersion_update } from "@local/shared";
+import { standardVersion_create, standardVersion_findMany, standardVersion_findOne, standardVersion_update } from "../generated";
 import { StandardVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

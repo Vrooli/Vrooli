@@ -1,4 +1,4 @@
-import { email_create, email_verify } from "@local/shared";
+import { email_create, email_verify } from "../generated";
 import { EmailEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

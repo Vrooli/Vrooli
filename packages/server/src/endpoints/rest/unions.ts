@@ -1,4 +1,4 @@
-import { projectOrOrganization_findMany, projectOrRoutine_findMany, runProjectOrRunRoutine_findMany } from "@local/shared";
+import { projectOrOrganization_findMany, projectOrRoutine_findMany, runProjectOrRunRoutine_findMany } from "../generated";
 import { UnionsEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

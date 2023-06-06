@@ -1,4 +1,4 @@
-import { reportResponse_create, reportResponse_findMany, reportResponse_findOne, reportResponse_update } from "@local/shared";
+import { reportResponse_create, reportResponse_findMany, reportResponse_findOne, reportResponse_update } from "../generated";
 import { ReportResponseEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

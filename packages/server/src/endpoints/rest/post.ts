@@ -1,4 +1,4 @@
-import { post_create, post_findMany, post_findOne, post_update } from "@local/shared";
+import { post_create, post_findMany, post_findOne, post_update } from "../generated";
 import { PostEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

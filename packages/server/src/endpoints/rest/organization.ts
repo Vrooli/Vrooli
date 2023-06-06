@@ -1,4 +1,4 @@
-import { organization_create, organization_findMany, organization_findOne, organization_update } from "@local/shared";
+import { organization_create, organization_findMany, organization_findOne, organization_update } from "../generated";
 import { OrganizationEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

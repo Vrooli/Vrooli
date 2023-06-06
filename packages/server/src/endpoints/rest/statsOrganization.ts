@@ -1,4 +1,4 @@
-import { statsOrganization_findMany } from "@local/shared";
+import { statsOrganization_findMany } from "../generated";
 import { StatsOrganizationEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

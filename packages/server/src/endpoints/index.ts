@@ -1,7 +1,11 @@
 /**
- * The `endpoints` directory is a collection of all the endpoints that the server
- * exposes to the client. `logic` contains the endpoints logic, `graphql` contains 
+ * The `generated` directory is selection data generated from definitions in the ui. 
+ * `logic` contains the endpoints logic, `graphql` contains 
  * the GraphQL schema and resolvers, and `rest` contains the auto-generated REST
  * endpoints.
  */
+export * from "./generated";
 export * from "./graphql";
+export * from "./logic";
+export * from "./rest";
+

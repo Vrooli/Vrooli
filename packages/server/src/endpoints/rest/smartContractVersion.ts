@@ -1,4 +1,4 @@
-import { smartContractVersion_create, smartContractVersion_findMany, smartContractVersion_findOne, smartContractVersion_update } from "@local/shared";
+import { smartContractVersion_create, smartContractVersion_findMany, smartContractVersion_findOne, smartContractVersion_update } from "../generated";
 import { SmartContractVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

@@ -1,4 +1,4 @@
-import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_update } from "@local/shared";
+import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_update } from "../generated";
 import { ChatMessageEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

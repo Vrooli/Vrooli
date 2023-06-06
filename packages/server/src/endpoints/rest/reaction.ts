@@ -1,4 +1,4 @@
-import { reaction_findMany, reaction_react } from "@local/shared";
+import { reaction_findMany, reaction_react } from "../generated";
 import { ReactionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

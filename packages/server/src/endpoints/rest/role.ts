@@ -1,4 +1,4 @@
-import { role_create, role_findMany, role_findOne, role_update } from "@local/shared";
+import { role_create, role_findMany, role_findOne, role_update } from "../generated";
 import { RoleEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

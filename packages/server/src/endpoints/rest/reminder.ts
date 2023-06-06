@@ -1,4 +1,4 @@
-import { reminder_create, reminder_findMany, reminder_findOne, reminder_update } from "@local/shared";
+import { reminder_create, reminder_findMany, reminder_findOne, reminder_update } from "../generated";
 import { ReminderEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

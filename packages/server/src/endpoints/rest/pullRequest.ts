@@ -1,4 +1,4 @@
-import { pullRequest_create, pullRequest_findMany, pullRequest_findOne, pullRequest_update } from "@local/shared";
+import { pullRequest_create, pullRequest_findMany, pullRequest_findOne, pullRequest_update } from "../generated";
 import { PullRequestEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

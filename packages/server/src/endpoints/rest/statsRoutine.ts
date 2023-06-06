@@ -1,4 +1,4 @@
-import { statsRoutine_findMany } from "@local/shared";
+import { statsRoutine_findMany } from "../generated";
 import { StatsRoutineEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

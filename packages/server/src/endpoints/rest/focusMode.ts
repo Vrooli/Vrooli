@@ -1,4 +1,4 @@
-import { focusMode_create, focusMode_findMany, focusMode_findOne, focusMode_setActive, focusMode_update } from "@local/shared";
+import { focusMode_create, focusMode_findMany, focusMode_findOne, focusMode_setActive, focusMode_update } from "../generated";
 import { FocusModeEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

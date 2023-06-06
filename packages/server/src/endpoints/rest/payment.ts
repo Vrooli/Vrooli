@@ -1,4 +1,4 @@
-// import { payment_findMany, payment_findOne } from "@local/shared";
+// import { payment_findMany, payment_findOne } from "../generated";
 // import { PaymentEndpoints } from "../logic";
 // import { setupRoutes } from "./base";
 

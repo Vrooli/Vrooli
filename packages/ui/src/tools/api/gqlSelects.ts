@@ -39,11 +39,11 @@ const deleteFile = (file: string) => {
 
 async function main() {
     // Create the output folders if they doesn't exist
-    const outputFolder = "../shared/src/api/generated";
-    const fragmentsFolder = `${outputFolder}/fragments`;
-    const endpointsFolder = `${outputFolder}/endpoints`;
-    const restFolder = `${outputFolder}/rest`;
-    createFolder(outputFolder);
+    const sharedOutputFolder = "../shared/src/api/generated";
+    const fragmentsFolder = `${sharedOutputFolder}/fragments`;
+    const endpointsFolder = `${sharedOutputFolder}/endpoints`;
+    const restFolder = "../server/src/endpoints/generated";
+    createFolder(sharedOutputFolder);
     if (["graphql", "both"].includes(target)) {
         createFolder(fragmentsFolder);
         createFolder(endpointsFolder);
@@ -95,14 +95,14 @@ async function main() {
     if (["graphql", "both"].includes(target)) {
         // Store endpoints
         for (const [name, endpoint] of Object.entries(allEndpoints)) {
-            const outputPath = `${outputFolder}/endpoints/${name}.ts`;
+            const outputPath = `${sharedOutputFolder}/endpoints/${name}.ts`;
             console.info(`generating endpoint ${name}...`);
             // Write to file
             fs.writeFileSync(outputPath, endpoint);
         }
         // Store fragments
         for (const [name, fragment] of Object.entries(allFragments)) {
-            const outputPath = `${outputFolder}/fragments/${name}.ts`;
+            const outputPath = `${sharedOutputFolder}/fragments/${name}.ts`;
             console.info(`generating fragment ${name}...`);
             // Write to file
             fs.writeFileSync(outputPath, fragment);
@@ -279,7 +279,7 @@ async function main() {
             }
 
             // Save the endpoint/method pairs to a single file
-            const pairFilePath = `${outputFolder}/pairs.ts`;
+            const pairFilePath = `${sharedOutputFolder}/pairs.ts`;
             console.info("Saving endpoint/method pairs to", pairFilePath);
 
             const fileContent = endpointMethodPairs.map(pair => {
@@ -295,13 +295,13 @@ async function main() {
     // Otherwise, delete the rest folder and pairs file
     else {
         deleteFolder(restFolder);
-        deleteFile(`${outputFolder}/pairs.ts`);
+        deleteFile(`${sharedOutputFolder}/pairs.ts`);
     }
 
     // Create index.ts for generated folder
     const indexArray = ["graphqlTypes"];
     if (["rest", "both"].includes(target)) {
-        indexArray.push("rest");
+        // indexArray.push("rest"); // Stored in the server instead, so not referenced in shared index.ts
         if (createEndpointMethodPairs) {
             indexArray.push("pairs");
         }
@@ -311,7 +311,7 @@ async function main() {
         indexArray.push("fragments");
     }
     const indexContent = indexArray.map(name => `export * from "./${name}";`).join("\n");
-    fs.writeFileSync(`${outputFolder}/index.ts`, indexContent);
+    fs.writeFileSync(`${sharedOutputFolder}/index.ts`, indexContent);
 
     console.info("Finished generating graphql-tag strings for endpoints🚀");
 }

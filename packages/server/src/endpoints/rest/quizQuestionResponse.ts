@@ -1,4 +1,4 @@
-import { quizQuestionResponse_findMany, quizQuestionResponse_findOne } from "@local/shared";
+import { quizQuestionResponse_findMany, quizQuestionResponse_findOne } from "../generated";
 import { QuizQuestionResponseEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

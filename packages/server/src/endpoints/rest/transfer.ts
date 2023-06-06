@@ -1,4 +1,4 @@
-import { transfer_accept, transfer_cancel, transfer_deny, transfer_findMany, transfer_findOne, transfer_requestReceive, transfer_requestSend, transfer_update } from "@local/shared";
+import { transfer_accept, transfer_cancel, transfer_deny, transfer_findMany, transfer_findOne, transfer_requestReceive, transfer_requestSend, transfer_update } from "../generated";
 import { TransferEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

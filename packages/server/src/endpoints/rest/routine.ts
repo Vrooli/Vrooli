@@ -1,4 +1,4 @@
-import { routine_create, routine_findMany, routine_findOne, routine_update } from "@local/shared";
+import { routine_create, routine_findMany, routine_findOne, routine_update } from "../generated";
 import { RoutineEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

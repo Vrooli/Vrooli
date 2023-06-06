@@ -1,4 +1,4 @@
-import { routineVersion_create, routineVersion_findMany, routineVersion_findOne, routineVersion_update } from "@local/shared";
+import { routineVersion_create, routineVersion_findMany, routineVersion_findOne, routineVersion_update } from "../generated";
 import { RoutineVersionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

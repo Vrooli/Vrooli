@@ -1,4 +1,4 @@
-import { runRoutineInput_findMany } from "@local/shared";
+import { runRoutineInput_findMany } from "../generated";
 import { RunRoutineInputEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

@@ -1,4 +1,4 @@
-import { apiKey_create, apiKey_deleteOne, apiKey_update, apiKey_validate } from "@local/shared";
+import { apiKey_create, apiKey_deleteOne, apiKey_update, apiKey_validate } from "../generated";
 import { ApiKeyEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

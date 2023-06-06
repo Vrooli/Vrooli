@@ -1,4 +1,4 @@
-import { meeting_create, meeting_findMany, meeting_findOne, meeting_update } from "@local/shared";
+import { meeting_create, meeting_findMany, meeting_findOne, meeting_update } from "../generated";
 import { MeetingEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

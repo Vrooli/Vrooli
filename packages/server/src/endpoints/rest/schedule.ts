@@ -1,4 +1,4 @@
-import { schedule_create, schedule_findMany, schedule_findOne, schedule_update } from "@local/shared";
+import { schedule_create, schedule_findMany, schedule_findOne, schedule_update } from "../generated";
 import { ScheduleEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

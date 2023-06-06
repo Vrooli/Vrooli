@@ -1,4 +1,4 @@
-// import { readAssets, writeAssets } from "@local/shared";
+// import { readAssets, writeAssets } from "../generated";
 // import { RootEndpoints } from "../logic";
 // import { setupRoutes } from "./base";
 

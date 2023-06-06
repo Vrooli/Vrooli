@@ -1,4 +1,4 @@
-import { copy_copy } from "@local/shared";
+import { copy_copy } from "../generated";
 import { CopyEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

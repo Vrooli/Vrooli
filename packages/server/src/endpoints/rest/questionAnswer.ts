@@ -1,4 +1,4 @@
-import { questionAnswer_accept, questionAnswer_create, questionAnswer_findMany, questionAnswer_findOne, questionAnswer_update } from "@local/shared";
+import { questionAnswer_accept, questionAnswer_create, questionAnswer_findMany, questionAnswer_findOne, questionAnswer_update } from "../generated";
 import { QuestionAnswerEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

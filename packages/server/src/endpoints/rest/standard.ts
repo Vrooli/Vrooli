@@ -1,4 +1,4 @@
-import { standard_create, standard_findMany, standard_findOne, standard_update } from "@local/shared";
+import { standard_create, standard_findMany, standard_findOne, standard_update } from "../generated";
 import { StandardEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

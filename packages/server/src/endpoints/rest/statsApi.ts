@@ -1,4 +1,4 @@
-import { statsApi_findMany } from "@local/shared";
+import { statsApi_findMany } from "../generated";
 import { StatsApiEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

@@ -1,4 +1,4 @@
-import { notificationSubscription_create, notificationSubscription_findMany, notificationSubscription_findOne, notificationSubscription_update } from "@local/shared";
+import { notificationSubscription_create, notificationSubscription_findMany, notificationSubscription_findOne, notificationSubscription_update } from "../generated";
 import { NotificationSubscriptionEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

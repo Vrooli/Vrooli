@@ -1,4 +1,4 @@
-import { resourceList_create, resourceList_findMany, resourceList_findOne, resourceList_update } from "@local/shared";
+import { resourceList_create, resourceList_findMany, resourceList_findOne, resourceList_update } from "../generated";
 import { ResourceListEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

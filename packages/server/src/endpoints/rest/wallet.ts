@@ -1,4 +1,4 @@
-import { wallet_findHandles, wallet_update } from "@local/shared";
+import { wallet_findHandles, wallet_update } from "../generated";
 import { WalletEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

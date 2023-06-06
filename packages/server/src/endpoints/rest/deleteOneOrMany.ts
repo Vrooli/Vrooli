@@ -1,4 +1,4 @@
-import { deleteOneOrMany_deleteMany, deleteOneOrMany_deleteOne } from "@local/shared";
+import { deleteOneOrMany_deleteMany, deleteOneOrMany_deleteOne } from "../generated";
 import { DeleteOneOrManyEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

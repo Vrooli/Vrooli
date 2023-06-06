@@ -1,4 +1,4 @@
-import { chatParticipant_findMany, chatParticipant_findOne, chatParticipant_update } from "@local/shared";
+import { chatParticipant_findMany, chatParticipant_findOne, chatParticipant_update } from "../generated";
 import { ChatParticipantEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

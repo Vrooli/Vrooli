@@ -1,4 +1,4 @@
-import { tag_create, tag_findMany, tag_findOne, tag_update } from "@local/shared";
+import { tag_create, tag_findMany, tag_findOne, tag_update } from "../generated";
 import { TagEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

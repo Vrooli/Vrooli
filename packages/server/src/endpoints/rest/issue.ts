@@ -1,4 +1,4 @@
-import { issue_close, issue_create, issue_findMany, issue_findOne, issue_update } from "@local/shared";
+import { issue_close, issue_create, issue_findMany, issue_findOne, issue_update } from "../generated";
 import { IssueEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

@@ -1,4 +1,4 @@
-import { bookmarkList_create, bookmarkList_findMany, bookmarkList_findOne, bookmarkList_update } from "@local/shared";
+import { bookmarkList_create, bookmarkList_findMany, bookmarkList_findOne, bookmarkList_update } from "../generated";
 import { BookmarkListEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

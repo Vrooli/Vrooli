@@ -1,4 +1,4 @@
-import { feed_home, feed_popular } from "@local/shared";
+import { feed_home, feed_popular } from "../generated";
 import { FeedEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 

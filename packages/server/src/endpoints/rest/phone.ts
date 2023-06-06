@@ -1,4 +1,4 @@
-import { phone_create } from "@local/shared";
+import { phone_create } from "../generated";
 import { PhoneEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 
