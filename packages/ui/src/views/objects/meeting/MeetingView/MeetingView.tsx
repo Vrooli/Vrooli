@@ -1,4 +1,4 @@
-import { Meeting, useLocation } from "@local/shared";
+import { endpointGetMeeting, Meeting, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
@@ -19,7 +19,7 @@ export const MeetingView = ({
     const [, setLocation] = useLocation();
 
     const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
-        endpoint: "/meeting",
+        ...endpointGetMeeting,
         partialData,
     });
 

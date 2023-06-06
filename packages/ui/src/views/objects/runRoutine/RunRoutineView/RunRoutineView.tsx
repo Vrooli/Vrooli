@@ -1,4 +1,4 @@
-import { RunRoutine, useLocation } from "@local/shared";
+import { endpointGetRunRoutine, RunRoutine, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
@@ -19,7 +19,7 @@ export const RunRoutineView = ({
     const [, setLocation] = useLocation();
 
     const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
-        endpoint: "/runRoutine",
+        ...endpointGetRunRoutine,
         partialData,
     });
 

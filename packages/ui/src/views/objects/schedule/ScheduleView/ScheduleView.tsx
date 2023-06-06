@@ -1,4 +1,4 @@
-import { EllipsisIcon, Schedule, useLocation } from "@local/shared";
+import { EllipsisIcon, endpointGetSchedule, Schedule, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -19,7 +19,7 @@ export const ScheduleView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
-        endpoint: "/schedule",
+        ...endpointGetSchedule,
         partialData,
     });
 

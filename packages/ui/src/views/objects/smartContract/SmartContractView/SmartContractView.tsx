@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetSmartContractVersion, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -27,7 +27,7 @@ export const SmartContractView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion>({
-        endpoint: "/smartContractVersion",
+        ...endpointGetSmartContractVersion,
         partialData,
     });
 

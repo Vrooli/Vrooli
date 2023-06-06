@@ -1,4 +1,4 @@
-import { NoteVersion, useLocation } from "@local/shared";
+import { endpointGetNoteVersion, NoteVersion, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -23,7 +23,7 @@ export const NoteView = ({
     const [, setLocation] = useLocation();
 
     const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
-        endpoint: "/noteVersion",
+        ...endpointGetNoteVersion,
         partialData,
     });
 
