@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef } from "react";
  * Hook for debouncing a function
  */
 export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
+    const callbackRef = useRef(callback);
     const timeoutRef = useRef<number>();
+
+    // Update the callback ref if callback changes
+    useEffect(() => {
+        callbackRef.current = callback;
+    }, [callback]);
 
     const debouncedCallback = useCallback(
         (value: T) => {
@@ -13,10 +19,10 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
             }
 
             timeoutRef.current = window.setTimeout(() => {
-                callback(value);
+                callbackRef.current(value);
             }, delay);
         },
-        [callback, delay]
+        [delay],
     );
 
     useEffect(() => {
@@ -28,4 +34,4 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
     }, []);
 
     return debouncedCallback;
-}
+};

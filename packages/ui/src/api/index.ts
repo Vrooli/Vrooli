@@ -12,7 +12,7 @@ export type ServerResponse<Output = any> = {
 };
 
 export * from "./errorParser";
-export * from "./fetchTools";
+export * from "./fetchData";
 export * from "./fetchWrapper";
 export * from "./removeTypename";
 

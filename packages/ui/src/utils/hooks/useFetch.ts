@@ -1,5 +1,5 @@
 import { fetchData, Method, ServerResponse } from "api";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDebounce } from "./useDebounce";
 
 type RequestState<TData> = {
@@ -9,11 +9,11 @@ type RequestState<TData> = {
 };
 
 type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+    debounceMs?: number;
     endpoint: string | undefined;
     inputs?: TInput;
     method?: Method;
     options?: RequestInit;
-    debounceMs?: number;
 };
 
 /**
@@ -33,51 +33,49 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
     method = "GET",
     options = {} as RequestInit,
     debounceMs = 0,
-}: UseFetchProps<TInput, TData>): RequestState<TData> & { refetch: (input?: TInput) => void } {
+}: UseFetchProps<TInput, TData>, deps: any[] = []):
+    RequestState<TData> & { refetch: (input?: TInput) => void } {
     const [state, setState] = useState<RequestState<TData>>({
         loading: false,
         data: undefined,
         errors: undefined,
     });
 
-    // Store the latest endpoint, method, options and inputs in a ref
-    const fetchParamsRef = useRef({ endpoint, method, options, inputs });
-    useEffect(() => {
-        fetchParamsRef.current = { endpoint, method, options, inputs };
-    }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
-
     const refetch = useCallback<(input?: TInput) => Promise<ServerResponse<TData>>>(async (input?: TInput) => {
-        if (!fetchParamsRef.current.endpoint) {
+        if (!endpoint) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
             return { errors: [{ message }] };
         }
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
-            fetchParamsRef.current.inputs = input;
+            inputs = input;
         }
 
         setState(s => ({ ...s, loading: true }));
 
-        const result = await fetchData(fetchParamsRef.current as any)
+        const result = await fetchData({
+            endpoint,
+            inputs,
+            method,
+            options,
+        })
             .then(({ data, errors, version }: ServerResponse) => {
-                console.log("useLazyFetch data", data, errors);
                 setState({ loading: false, data, errors });
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
-                console.log("useLazyFetch error", errors);
                 setState({ loading: false, data: undefined, errors });
                 return { errors, version };
             });
         return result;
-    }, []);
+    }, [endpoint, inputs, method, options]);
 
     const debouncedRefetch = useDebounce<TInput | undefined>((input?: TInput) => refetch(input), debounceMs);
-
     useEffect(() => {
         debouncedRefetch(undefined);
-    }, [debouncedRefetch]); // This will automatically make the request when the component mounts or the inputs change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedRefetch, ...deps]);
 
     return { ...state, refetch: debouncedRefetch };
 }

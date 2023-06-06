@@ -58,7 +58,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
         if (inputs !== undefined && Object.keys(inputs).length !== 0) {
-            url += `?${stringifySearchParams(inputs)}`;
+            url += `${stringifySearchParams(inputs)}`;
         }
     }
     // Other requests should have their inputs converted to JSON and sent in the body.

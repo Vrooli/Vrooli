@@ -50,19 +50,27 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
     const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input?: TInput) => {
-        if (!fetchParamsRef.current.endpoint) {
-            const message = "No endpoint provided to useLazyFetch";
-            console.error(message);
-            return { errors: [{ message }] };
-        }
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
             fetchParamsRef.current.inputs = input;
         }
-
+        // Get fetch params from the ref
+        const { endpoint, method, options, inputs } = fetchParamsRef.current;
+        // Cancel if no endpoint is provided
+        if (!endpoint) {
+            const message = "No endpoint provided to useLazyFetch";
+            console.error(message);
+            return { errors: [{ message }] };
+        }
+        // Update the state to loading
         setState(s => ({ ...s, loading: true }));
-
-        const result = await fetchData(fetchParamsRef.current as any)
+        // Make the request
+        const result = await fetchData({
+            endpoint,
+            inputs,
+            method,
+            options,
+        })
             .then(({ data, errors, version }: ServerResponse) => {
                 console.log("useLazyFetch data", data, errors);
                 setState({ loading: false, data, errors });

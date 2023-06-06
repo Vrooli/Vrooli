@@ -2,7 +2,7 @@ import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
 import { PubSub } from "utils/pubsub";
 import { errorToCode } from "./errorParser";
-import { fetchData } from "./fetchTools";
+import { fetchData } from "./fetchData";
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
 type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {

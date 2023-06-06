@@ -69,11 +69,10 @@ export const DashboardView = ({
         if (typeof searchParams.search === "string") setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
-    const { data, refetch, loading, errors } = useFetch<HomeInput, HomeResult>({
+    const { data, loading, errors } = useFetch<HomeInput, HomeResult>({
         ...endpointGetFeedHome,
-        inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
-    });
-    useEffect(() => { refetch(); }, [refetch, searchString, activeFocusMode]);
+        inputs: { searchString: searchString.trim() },
+    }, [searchString, activeFocusMode]);
     useDisplayServerError(errors);
 
     // Only show tabs if:

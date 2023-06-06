@@ -18,6 +18,7 @@ export type EndpointGroup = {
     delete?: EndpointTuple;
 };
 
+const version = "v2";
 export const handleEndpoint = async <TInput, TResult>(
     endpoint: EndpointFunction<TInput, TResult>,
     selection: GraphQLResolveInfo | PartialGraphQLInfo,
@@ -27,9 +28,11 @@ export const handleEndpoint = async <TInput, TResult>(
 ) => {
     try {
         const data = await endpoint(undefined, { input }, context({ req, res }), selection);
-        res.json({ data });
+        res.json({ data, version });
     } catch (error: any) {
-        res.status(500).json({ errors: [error.toString()] }); //TODO need to handle errors better (i.e. codes)
+        const code = error.extensions?.code;
+        const message = error.message ?? error.name ?? "";
+        res.status(500).json({ errors: [{ code, message }], version });
     }
 };
 

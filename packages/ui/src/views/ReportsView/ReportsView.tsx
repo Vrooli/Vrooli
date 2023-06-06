@@ -33,7 +33,7 @@ export const ReportsView = ({
     const { data } = useFetch<ReportSearchInput, ReportSearchResult>({
         ...endpointGetReports,
         inputs: { [objectTypeToIdField[objectType]]: id },
-    });
+    }, [id, objectType]);
     const reports = useMemo<Report[]>(() => {
         if (!data) return [];
         return data.edges.map(edge => edge.node);

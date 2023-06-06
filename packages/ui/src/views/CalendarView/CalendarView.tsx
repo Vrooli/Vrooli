@@ -361,7 +361,6 @@ export const CalendarView = ({
     // Find schedules
     const {
         allData: schedules,
-        hasMore,
         loading,
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
@@ -383,10 +382,10 @@ export const CalendarView = ({
     });
     // Load more schedules when date range changes
     useEffect(() => {
-        if (!loading && hasMore && dateRange.start && dateRange.end) {
+        if (!loading && dateRange.start && dateRange.end) {
             loadMore();
         }
-    }, [dateRange, loadMore, loading, hasMore]);
+    }, [dateRange, loadMore, loading]);
 
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range

@@ -102,7 +102,7 @@ export const TagSelectorBase = ({
             sortBy: TagSortBy.Top,
             take: 25,
         },
-    });
+    }, [inputValue]);
 
     /**
      * Store queried tags in the tag ref
