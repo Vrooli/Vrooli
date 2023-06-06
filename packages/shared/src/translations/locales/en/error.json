@@ -155,6 +155,7 @@
     "UnlinkedNodesDetails": "Could not calculate the complexity or simplicity of this routine. There was an error matching edges to nodes.",
     "UnsafeOriginNoApiToken": "Unsafe origin with expired/missing API token",
     "UpdateNotSupported": "Cannot update this type of object",
+    "ValidationFailed": "Validation failed.",
     "WalletAlreadyConnected": "Wallet already connected.",
     "WalletErrorUnknown": "Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet.",
     "WalletNotFound": "Wallet not found.",

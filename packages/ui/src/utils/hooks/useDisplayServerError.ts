@@ -11,7 +11,7 @@ export const useDisplayServerError = (errors: ServerResponse["errors"]) => {
     useEffect(() => {
         if (errors) {
             for (const error of errors) {
-                const message = errorToMessage({ errors: [error] });
+                const message = errorToMessage({ errors: [error] }, ["en"]);
                 PubSub.get().publishSnack({ message, severity: "Error" });
             }
         }

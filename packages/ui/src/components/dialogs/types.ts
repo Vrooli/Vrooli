@@ -233,6 +233,7 @@ export interface ShareSiteDialogProps extends DialogProps {
 export interface TranscriptDialogProps {
     handleClose: () => void;
     isListening: boolean;
+    showHint: boolean;
     transcript: string;
 }
 

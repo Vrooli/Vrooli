@@ -1,5 +1,5 @@
 import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { errorToCode, fetchWrapper } from "api";
+import { errorToMessage, fetchWrapper } from "api";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
@@ -38,6 +38,6 @@ export const setupPush = async () => {
             name: getDeviceInfo().deviceName,
         },
         successMessage: () => ({ messageKey: "PushDeviceCreated" }),
-        onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+        onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
     });
 };

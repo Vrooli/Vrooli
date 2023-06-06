@@ -1,7 +1,7 @@
 import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
 import { PubSub } from "utils/pubsub";
-import { errorToCode } from "./errorParser";
+import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
@@ -68,7 +68,11 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ messageKey: isError ? errorToCode(data as ServerResponse) : "ErrorUnknown", severity: "Error", data });
+            PubSub.get().publishSnack({
+                message: errorToMessage(data as ServerResponse, ["en"]),
+                severity: "Error",
+                data,
+            });
         }
         // If error callback is set, call it
         if (typeof onError === "function") {

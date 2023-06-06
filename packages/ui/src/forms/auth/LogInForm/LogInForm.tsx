@@ -1,6 +1,6 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
-import { errorToCode, fetchLazyWrapper, hasErrorCode } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
@@ -78,7 +78,7 @@ export const LogInForm = ({
                                     buttonClicked: () => { toSignUp(); },
                                 });
                             } else {
-                                PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: "Error", data: response });
+                                PubSub.get().publishSnack({ message: errorToMessage(response, ["en"]), severity: "Error", data: response });
                             }
                             helpers.setSubmitting(false);
                         },

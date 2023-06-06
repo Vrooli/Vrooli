@@ -1,12 +1,14 @@
 import { ErrorKey, exists } from "@local/shared";
 import { ServerResponse } from "api";
+import i18next from "i18next";
 
 /**
  * Finds the error code in an ServerResponse object
  * @param response A response from the server
  * @returns The first error code, which should be a translation key
  */
-export const errorToCode = (response: ServerResponse): ErrorKey => {
+const errorToCode = (response: ServerResponse): ErrorKey => {
+    console.log("in errorToCode", response);
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error code
@@ -23,9 +25,11 @@ export const errorToCode = (response: ServerResponse): ErrorKey => {
 /**
  * Finds the error message in an ServerResponse object
  * @param response A response from the server
+ * @param langauges User's languages
  * @returns The first error message, or code if message not found
  */
-export const errorToMessage = (response: ServerResponse): string => {
+export const errorToMessage = (response: ServerResponse, languages: string[]): string => {
+    console.log("in errorToMessage", response);
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error message
@@ -36,7 +40,9 @@ export const errorToMessage = (response: ServerResponse): string => {
         }
     }
     // If message not found, return code instead
-    return errorToCode(response);
+    const code = errorToCode(response);
+    const lng = languages.length > 0 ? languages[0] : "en";
+    return i18next.t(code, { lng, defaultValue: "Unknown error occurred." }) as unknown as string;
 };
 
 /**

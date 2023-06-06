@@ -63,7 +63,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     }
     // Other requests should have their inputs converted to JSON and sent in the body.
     else if (["POST", "PUT"].includes(method)) {
-        body = JSON.stringify({ input: inputs });
+        body = JSON.stringify(inputs);
     }
 
     const finalOptions: RequestInit = {
