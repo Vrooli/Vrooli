@@ -1,13 +1,15 @@
 import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { TranscriptDialog } from "components/dialogs/TranscriptDialog/TranscriptDialog";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSpeech } from "utils/hooks/useSpeech";
 import { PubSub } from "utils/pubsub";
 import { MicrophoneButtonProps } from "../types";
 
 type MicrophoneStatus = "On" | "Off" | "Disabled";
+
+const HINT_AFTER_MILLI = 3000;
 
 /**
  * A microphone icon that can be used to trigger speech recognition
@@ -20,12 +22,27 @@ export const MicrophoneButton = ({
     const { t } = useTranslation();
 
     const { transcript, isListening, isSpeechSupported, startListening, stopListening, resetTranscript } = useSpeech();
+    const [transcriptTimeout, setTranscriptTimeout] = useState<NodeJS.Timeout | null>(null);
+    const [showHint, setShowHint] = useState(false);
 
     const status = useMemo<MicrophoneStatus>(() => {
         if (disabled || !isSpeechSupported) return "Disabled";
         if (isListening) return "On";
         return "Off";
     }, [disabled, isListening, isSpeechSupported]);
+
+    const resetTranscriptTimeout = useCallback(() => {
+        // Clear previous timeout
+        if (transcriptTimeout) {
+            clearTimeout(transcriptTimeout);
+        }
+        // Set a new timeout
+        setTranscriptTimeout(setTimeout(() => {
+            if (!transcript) {
+                setShowHint(true);
+            }
+        }, HINT_AFTER_MILLI));
+    }, [transcriptTimeout, transcript]);
 
     useEffect(() => {
         if (!isListening) onTranscriptChange(transcript);
@@ -43,13 +60,15 @@ export const MicrophoneButton = ({
             stopListening();
             onTranscriptChange(transcript);
         } else if (status === "Off") {
+            setShowHint(false);
+            resetTranscriptTimeout();
             startListening();
             transcript && resetTranscript();
         } else {
             PubSub.get().publishSnack({ messageKey: "SpeechNotAvailable", severity: "Error" });
         }
         return true;
-    }, [status, startListening, stopListening, transcript, onTranscriptChange, resetTranscript]);
+    }, [status, stopListening, onTranscriptChange, transcript, startListening, resetTranscript, resetTranscriptTimeout]);
 
     if (!isSpeechSupported) return null;
     return (
@@ -69,6 +88,7 @@ export const MicrophoneButton = ({
             <TranscriptDialog
                 handleClose={() => stopListening()}
                 isListening={status === "On"}
+                showHint={showHint}
                 transcript={transcript}
             />
         </Box>

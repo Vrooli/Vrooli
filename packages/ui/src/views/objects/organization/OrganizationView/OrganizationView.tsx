@@ -1,6 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetOrganization, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -67,8 +66,8 @@ export const OrganizationView = ({
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
-        query: organizationFindOne,
+    const { isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization>({
+        ...endpointGetOrganization,
         partialData,
     });
 

@@ -1,6 +1,5 @@
-import { PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { pushDeviceCreate } from "api/generated/endpoints/pushDevice_create";
-import { documentNodeWrapper, errorToCode } from "api/utils";
+import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
+import { errorToMessage, fetchWrapper } from "api";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
@@ -27,9 +26,9 @@ export const setupPush = async () => {
     const authString = authArray.map((b) => String.fromCharCode(b)).join("");
     // Call pushDeviceCreate
     console.log("got subscription", subscription, subscription.getKey("p256dh")?.toString(), subscription.getKey("auth")?.toString());
-    documentNodeWrapper<PushDevice, PushDeviceCreateInput>({
-        node: pushDeviceCreate,
-        input: {
+    fetchWrapper<PushDeviceCreateInput, PushDevice>({
+        ...endpointPostPushDevice,
+        inputs: {
             endpoint: subscription.endpoint,
             expires: subscription.expirationTime ?? undefined,
             keys: {
@@ -39,6 +38,6 @@ export const setupPush = async () => {
             name: getDeviceInfo().deviceName,
         },
         successMessage: () => ({ messageKey: "PushDeviceCreated" }),
-        onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+        onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
     });
 };

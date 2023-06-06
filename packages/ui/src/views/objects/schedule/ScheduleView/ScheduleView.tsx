@@ -1,6 +1,5 @@
-import { EllipsisIcon, FindByIdInput, Schedule, useLocation } from "@local/shared";
+import { EllipsisIcon, endpointGetSchedule, Schedule, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { scheduleFindOne } from "api/generated/endpoints/schedule_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
@@ -19,8 +18,8 @@ export const ScheduleView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule, FindByIdInput>({
-        query: scheduleFindOne,
+    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
+        ...endpointGetSchedule,
         partialData,
     });
 

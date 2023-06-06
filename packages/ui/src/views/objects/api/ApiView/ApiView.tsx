@@ -1,6 +1,5 @@
-import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, ResourceList, useLocation } from "@local/shared";
+import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, endpointGetApiVersion, ResourceList, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -28,8 +27,8 @@ export const ApiView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
-        query: apiVersionFindOne,
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
+        ...endpointGetApiVersion,
         partialData,
     });
 

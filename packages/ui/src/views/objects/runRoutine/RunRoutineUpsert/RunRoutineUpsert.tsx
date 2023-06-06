@@ -1,14 +1,11 @@
-import { FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
-import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
-import { runRoutineFindOne } from "api/generated/endpoints/runRoutine_findOne";
-import { runRoutineUpdate } from "api/generated/endpoints/runRoutine_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineForm, runRoutineInitialValues, transformRunRoutineValues, validateRunRoutineValues } from "forms/RunRoutineForm/RunRoutineForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -26,15 +23,15 @@ export const RunRoutineUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RunRoutine, FindByIdInput>(runRoutineFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointGetRunRoutine);
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => runRoutineInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<RunRoutine, RunRoutineUpdateInput>(runRoutineUpdate);
-    const mutation = isCreate ? create : update;
+    const [create, { loading: isCreateLoading }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>;
 
     return (
         <>
@@ -53,9 +50,9 @@ export const RunRoutineUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<RunRoutine, RunRoutineCreateInput | RunRoutineUpdateInput>({
-                        mutation,
-                        input: transformRunRoutineValues(values, existing),
+                    fetchLazyWrapper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
+                        fetch,
+                        inputs: transformRunRoutineValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

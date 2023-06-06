@@ -1,6 +1,5 @@
-import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, UserIcon, VisibleIcon } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FindVersionInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, UserIcon, VisibleIcon } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -14,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
@@ -207,7 +207,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
 
     // Info for querying full object data
-    const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [{ advancedSearchSchema, endpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[createObjectType!];
@@ -267,7 +267,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         if (searchData) return searchData as any;
         if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
         return { searchType: "All", where: {} };
-    }, [currTab, searchData, tabs]);
+    }, [currTab, searchData]);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
@@ -302,20 +302,24 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     // If item selected from search AND find is 'Object', query for full data
-    const [getItem, { data: itemData }] = useCustomLazyQuery<ObjectType, FindByIdInput>(query);
+    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
-        if (!query || find !== "Full") return false;
+        if (!endpoint || find !== "Full") return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
             onClose(itemData);
         } else {
             queryingRef.current = true;
-            getItem({ variables: { id: item.id, versionId } }); // Pass versionId to the query
+            if (versionId) {
+                getItem({ id: versionId, idRoot: item.id });
+            } else {
+                getItem({ id: item.id });
+            }
         }
         // Return false so the list item does not navigate
         return false;
-    }, [query, find, itemData, onClose, getItem]);
+    }, [endpoint, find, itemData, onClose, getItem]);
 
     const onVersionSelect = useCallback((version: { id: string }) => {
         if (!selectedObject) return;
@@ -329,12 +333,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [onClose, selectedObject, fetchFullData, find]);
 
     useEffect(() => {
-        if (!query) return;
+        if (!endpoint) return;
         if (itemData && find === "Full" && queryingRef.current) {
             onClose(itemData);
         }
         queryingRef.current = false;
-    }, [onClose, handleCreateClose, itemData, query, find]);
+    }, [onClose, handleCreateClose, itemData, endpoint, find]);
 
     /**
      * Handles selecting an object. A few things can happen:

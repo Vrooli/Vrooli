@@ -1,17 +1,15 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
 import { List, Typography, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { reminderCreate } from "api/generated/endpoints/reminder_create";
-import { reminderUpdate } from "api/generated/endpoints/reminder_update";
+import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
@@ -60,43 +58,43 @@ export const ReminderList = ({
             handleCreated(reminder);
         }
         closeDialog();
-    }, []);
+    }, [closeDialog, editingIndex, handleCreated, handleUpdated]);
 
     // Handle add mutation (for undo)
-    const [addMutation, { error: addError }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
-    useDisplayApolloError(addError);
+    const [addMutation, { errors: addErrors }] = useLazyFetch<ReminderCreateInput, Reminder>(endpointPostReminder);
+    useDisplayServerError(addErrors);
 
     // Handle update mutation
-    const [updateMutation, { error: updateError }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
-    useDisplayApolloError(updateError);
+    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+    useDisplayServerError(updateErrors);
     const saveUpdate = useCallback((index: number, original: Reminder, updated: Reminder) => {
         // Don't wait for the mutation to call handleUpdated
         handleUpdated(index, updated);
         // Call the mutation
-        mutationWrapper<Reminder, ReminderUpdateInput>({
-            mutation: updateMutation,
-            input: shapeReminder.update(original, updated),
+        fetchLazyWrapper<ReminderUpdateInput, Reminder>({
+            fetch: updateMutation,
+            inputs: shapeReminder.update(original, updated),
             successCondition: (data) => !!data.id,
             successMessage: () => ({ messageKey: "ObjectUpdated", messageVariables: { objectName: updated.name } }),
         });
     }, [updateMutation, handleUpdated]);
 
     // Handle delete
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback((index: number) => {
         const reminder = allReminders[index];
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteMutation,
-            input: { id: reminder.id, objectType: DeleteType.Reminder },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id: reminder.id, objectType: DeleteType.Reminder },
             successCondition: (data) => data.success,
             successMessage: () => ({
                 messageKey: "ObjectDeleted",
                 messageVariables: { objectName: reminder.name },
                 buttonKey: "Undo",
                 buttonClicked: () => {
-                    mutationWrapper<Reminder, ReminderCreateInput>({
-                        mutation: addMutation,
-                        input: shapeReminder.create({
+                    fetchLazyWrapper<ReminderCreateInput, Reminder>({
+                        fetch: addMutation,
+                        inputs: shapeReminder.create({
                             ...reminder,
                             // Make sure not to set any extra fields, 
                             // so this is treated as a "Connect" instead of a "Create"

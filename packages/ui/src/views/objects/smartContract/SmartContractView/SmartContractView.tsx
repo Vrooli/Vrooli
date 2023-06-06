@@ -1,6 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetSmartContractVersion, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -27,8 +26,8 @@ export const SmartContractView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion, FindVersionInput>({
-        query: smartContractVersionFindOne,
+    const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion>({
+        ...endpointGetSmartContractVersion,
         partialData,
     });
 

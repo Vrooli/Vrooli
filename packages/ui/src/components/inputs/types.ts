@@ -174,6 +174,7 @@ export interface LanguageInputProps {
 export interface LinkInputProps {
     label?: string;
     name?: string;
+    onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => void;
     zIndex: number;
 }
 

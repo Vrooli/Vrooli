@@ -1,8 +1,8 @@
-import { LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { documentNodeWrapper, errorToCode } from "api/utils";
+import { endpointPutProfile, LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
+import { errorToMessage, fetchWrapper } from "api";
 import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
 import { HistoryPageTabOption, SearchPageTabOption } from "utils/search/objectToSearch";
@@ -231,11 +231,11 @@ export const performAction = async (option: ActionOption, session: Session | nul
         case "activate-dark-mode":
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
-                documentNodeWrapper<User, ProfileUpdateInput>({
-                    node: userProfileUpdate,
-                    input: { theme: "dark" },
+                fetchWrapper<ProfileUpdateInput, User>({
+                    ...endpointPutProfile,
+                    inputs: { theme: "dark" },
                     onSuccess: () => { PubSub.get().publishTheme("dark"); },
-                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
@@ -244,11 +244,11 @@ export const performAction = async (option: ActionOption, session: Session | nul
         case "activate-light-mode":
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
-                documentNodeWrapper<User, ProfileUpdateInput>({
-                    node: userProfileUpdate,
-                    input: { theme: "light" },
+                fetchWrapper<ProfileUpdateInput, User>({
+                    ...endpointPutProfile,
+                    inputs: { theme: "light" },
                     onSuccess: () => { PubSub.get().publishTheme("light"); },
-                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+                    onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.

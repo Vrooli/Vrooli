@@ -1,6 +1,5 @@
-import { CommentFor, EditIcon, FindVersionInput, StandardVersion, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetStandardVersion, StandardVersion, useLocation } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -46,8 +45,8 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
-        query: standardVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
+        ...endpointGetStandardVersion,
         partialData,
     });
 
@@ -143,6 +142,7 @@ export const StandardView = ({
                     title={"Resources"}
                     list={resourceList as any}
                     canUpdate={false}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
                     zIndex={zIndex}

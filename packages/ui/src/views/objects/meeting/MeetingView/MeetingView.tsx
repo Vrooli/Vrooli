@@ -1,6 +1,5 @@
-import { FindByIdInput, Meeting, useLocation } from "@local/shared";
+import { endpointGetMeeting, Meeting, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { meetingFindOne } from "api/generated/endpoints/meeting_findOne";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,8 +18,8 @@ export const MeetingView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting, FindByIdInput>({
-        query: meetingFindOne,
+    const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
+        ...endpointGetMeeting,
         partialData,
     });
 

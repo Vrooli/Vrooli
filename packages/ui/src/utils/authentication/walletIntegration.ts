@@ -2,11 +2,8 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { ApolloError } from "@apollo/client";
-import { WalletComplete } from "@local/shared";
-import { authWalletComplete } from "api/generated/endpoints/auth_walletComplete";
-import { authWalletInit } from "api/generated/endpoints/auth_walletInit";
-import { errorToCode, initializeApollo } from "api/utils";
+import { endpointPostAuthWalletComplete, endpointPostAuthWalletInit, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { fetchWrapper } from "api";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -106,17 +103,12 @@ const connectWallet = async (key: string): Promise<any> => {
  * @param stakingAddress Wallet's staking address
  * @returns Hex string of payload to be signed by wallet
  */
-const walletInit = async (stakingAddress: string): Promise<any> => {
-    PubSub.get().publishLoading(500);
-    const client = initializeApollo();
-    const data = await client.mutate({
-        mutation: authWalletInit,
-        variables: { input: { stakingAddress } },
-    }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
+const walletInit = async (stakingAddress: string): Promise<string | null> => {
+    const data = await fetchWrapper<WalletInitInput, string>({
+        ...endpointPostAuthWalletInit,
+        inputs: { stakingAddress },
     });
-    PubSub.get().publishLoading(false);
-    return data?.data?.walletInit;
+    return data?.data ?? null;
 };
 
 /**
@@ -126,16 +118,11 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
  * @returns Session object if successful, null if not
  */
 const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> => {
-    PubSub.get().publishLoading(500);
-    const client = initializeApollo();
-    const data = await client.mutate({
-        mutation: authWalletComplete,
-        variables: { input: { stakingAddress, signedPayload } },
-    }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
+    const data = await fetchWrapper<WalletCompleteInput, WalletComplete>({
+        ...endpointPostAuthWalletComplete,
+        inputs: { stakingAddress, signedPayload },
     });
-    PubSub.get().publishLoading(false);
-    return data?.data?.walletComplete;
+    return data?.data ?? null;
 };
 
 /**
@@ -186,7 +173,6 @@ export const validateWallet = async (key: string): Promise<WalletComplete | null
             messageKey: "WalletErrorUnknown",
             buttons: [{ labelKey: "Ok" }],
         });
-    } finally {
-        return result;
     }
+    return result;
 };

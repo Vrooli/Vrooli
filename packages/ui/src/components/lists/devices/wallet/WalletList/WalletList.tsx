@@ -1,18 +1,16 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { AddIcon, DeleteOneInput, Success, Wallet, WalletUpdateInput } from "@local/shared";
+import { AddIcon, DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { walletUpdate } from "api/generated/endpoints/wallet_update";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
 import { WalletListProps } from "../types";
@@ -25,12 +23,12 @@ export const WalletList = ({
 }: WalletListProps) => {
     const { t } = useTranslation();
 
-    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Wallet, WalletUpdateInput>(walletUpdate);
+    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<WalletUpdateInput, Wallet>(endpointPutWallet);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
-        mutationWrapper<Wallet, WalletUpdateInput>({
-            mutation: updateMutation,
-            input: {
+        fetchLazyWrapper<WalletUpdateInput, Wallet>({
+            fetch: updateMutation,
+            inputs: {
                 id: updatedWallet.id,
                 name: updatedWallet.name,
             },
@@ -40,7 +38,7 @@ export const WalletList = ({
         });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -57,16 +55,16 @@ export const WalletList = ({
                 {
                     labelKey: "Yes",
                     onClick: () => {
-                        mutationWrapper<Success, DeleteOneInput>({
-                            mutation: deleteMutation,
-                            input: { id: wallet.id, objectType: "Wallet" as any },
+                        fetchLazyWrapper<DeleteOneInput, Success>({
+                            fetch: deleteMutation,
+                            inputs: { id: wallet.id, objectType: "Wallet" as any },
                             onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== wallet.id)]);
                             },
                         });
                     },
                 },
-                { labelKey: "Cancel", onClick: () => { } },
+                { labelKey: "Cancel" },
             ],
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);

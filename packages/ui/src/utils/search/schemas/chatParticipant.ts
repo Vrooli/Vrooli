@@ -1,5 +1,4 @@
-import { ChatParticipantSortBy } from "@local/shared";
-import { chatParticipantFindMany } from "api/generated/endpoints/chatParticipant_findMany";
+import { ChatParticipantSortBy, endpointGetChatParticipants } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const chatParticipantSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), chatParticipantFindMany, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);
+export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), endpointGetChatParticipants, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);

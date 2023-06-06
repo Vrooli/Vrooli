@@ -1,8 +1,6 @@
-import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, DeleteType, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
+import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -15,6 +13,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
 import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -46,7 +45,7 @@ export function CommentThreadItem({
         return { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -55,9 +54,9 @@ export function CommentThreadItem({
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {
-                        mutationWrapper<Success, DeleteOneInput>({
-                            mutation: deleteMutation,
-                            input: { id: data.id, objectType: DeleteType.Comment },
+                        fetchLazyWrapper<DeleteOneInput, Success>({
+                            fetch: deleteMutation,
+                            inputs: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
                             successMessage: () => ({ messageKey: "CommentDeleted" }),
                             onSuccess: () => {

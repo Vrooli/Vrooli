@@ -1,6 +1,4 @@
-import { ApolloProvider } from "@apollo/client";
 import { Router } from "@local/shared";
-import { initializeApollo } from "api/utils/initialize";
 import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
 import ReactDOM from "react-dom/client";
 import ReactGA from "react-ga";
@@ -11,16 +9,12 @@ import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { getDeviceInfo } from "./utils/display/device";
 import { PubSub } from "./utils/pubsub";
 
-const client = initializeApollo();
-
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <Router>
-        <ApolloProvider client={client}>
-            <ErrorBoundary>
-                <App />
-            </ErrorBoundary>
-        </ApolloProvider>
+        <ErrorBoundary>
+            <App />
+        </ErrorBoundary>
     </Router>,
 );
 

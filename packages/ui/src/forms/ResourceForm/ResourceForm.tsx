@@ -5,9 +5,10 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
-import { forwardRef, useContext } from "react";
+import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
@@ -81,6 +82,17 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
         validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
+    const [field, , helpers] = useField("translations");
+
+    const foundLinkData = useCallback(({ title, subtitle }: { title: string, subtitle: string }) => {
+        // If the user has not entered a name or description, set them to the found values
+        if (title.length === 0 || subtitle.length === 0) return;
+        const currName = field.value.find((t) => t.language === language)?.name;
+        const currDescription = field.value.find((t) => t.language === language)?.description;
+        if (currName.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, name: title } : t));
+        if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
+    }, [field, helpers, language]);
+
     return (
         <>
             <BaseForm
@@ -107,7 +119,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         zIndex={zIndex + 1}
                     />
                     {/* Enter link or search for object */}
-                    <LinkInput zIndex={zIndex} />
+                    <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
                     {/* Select resource type */}
                     <Selector
                         name="usedFor"

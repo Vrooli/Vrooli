@@ -1,6 +1,6 @@
 import { SubscribableObject } from "@local/shared";
 import { getLogic } from "../getters";
-import { subscribableMapper } from "../models";
+import { subscribableMapper } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 import { CustomError } from "./error";
 

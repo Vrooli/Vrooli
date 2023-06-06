@@ -1,5 +1,4 @@
-import { StatsSiteSortBy } from "@local/shared";
-import { statsSiteFindMany } from "api/generated/endpoints/statsSite_findMany";
+import { endpointGetStatsSite, StatsSiteSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const statsSiteSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsSiteSearchParams = () => toParams(statsSiteSearchSchema(), statsSiteFindMany, StatsSiteSortBy, StatsSiteSortBy.PeriodStartAsc);
+export const statsSiteSearchParams = () => toParams(statsSiteSearchSchema(), endpointGetStatsSite, StatsSiteSortBy, StatsSiteSortBy.PeriodStartAsc);

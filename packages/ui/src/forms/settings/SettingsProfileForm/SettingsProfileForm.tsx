@@ -1,7 +1,5 @@
-import { FindHandlesInput, userTranslationValidation } from "@local/shared";
+import { endpointPostWalletHandles, FindHandlesInput, userTranslationValidation } from "@local/shared";
 import { Grid, TextField, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
-import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
@@ -10,6 +8,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -45,11 +44,11 @@ export const SettingsProfileForm = ({
 
     // Handle handles
     const [handlesField, , handlesHelpers] = useField("handle");
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useCustomLazyQuery<string[], FindHandlesInput>(walletFindHandles);
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyFetch<FindHandlesInput, string[]>(endpointPostWalletHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         if (numVerifiedWallets > 0) {
-            findHandles({ variables: {} }); // Intentionally empty
+            findHandles({}); // Intentionally empty
         } else {
             PubSub.get().publishSnack({ messageKey: "NoVerifiedWallets", severity: "Error" });
         }

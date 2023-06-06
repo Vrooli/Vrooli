@@ -1,5 +1,4 @@
 // Defines common props
-import { FetchResult } from "@apollo/client";
 import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 
@@ -241,9 +240,6 @@ declare module "@mui/material/styles" {
         isLeftHanded?: boolean;
     }
 }
-
-// Apollo GraphQL
-export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
 
 /**
  * Makes a value nullable. Mimics the Maybe type in GraphQL.

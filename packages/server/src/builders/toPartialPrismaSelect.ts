@@ -1,4 +1,4 @@
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
 import { deconstructUnions } from "./deconstructUnions";

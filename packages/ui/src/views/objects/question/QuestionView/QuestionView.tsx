@@ -1,6 +1,5 @@
-import { CommentFor, EditIcon, exists, FindByIdInput, Question, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag, useLocation } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
-import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
@@ -34,8 +33,8 @@ export const QuestionView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
-        query: questionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
+        ...endpointGetQuestion,
         partialData,
     });
 

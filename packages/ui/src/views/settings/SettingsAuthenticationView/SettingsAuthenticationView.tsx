@@ -1,9 +1,6 @@
-import { DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
+import { DeleteIcon, Email, EmailIcon, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { authLogOut } from "api/generated/endpoints/auth_logOut";
-import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
@@ -14,6 +11,7 @@ import { SettingsAuthenticationForm } from "forms/settings";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -31,12 +29,12 @@ export const SettingsAuthenticationView = ({
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
-    const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
+    const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
-        mutationWrapper<Session, LogOutInput>({
-            mutation: logOut,
-            input: { id },
+        fetchLazyWrapper<LogOutInput, Session>({
+            fetch: logOut,
+            inputs: { id },
             onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },
@@ -64,7 +62,7 @@ export const SettingsAuthenticationView = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileEmailUpdateInput>(userProfileEmailUpdate);
+    const [update, { loading: isUpdating }] = useLazyFetch<ProfileEmailUpdateInput, User>(endpointPutProfileEmail);
 
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
@@ -121,9 +119,9 @@ export const SettingsAuthenticationView = ({
                                 PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
-                            mutationWrapper<User, ProfileEmailUpdateInput>({
-                                mutation,
-                                input: {
+                            fetchLazyWrapper<ProfileEmailUpdateInput, User>({
+                                fetch: update,
+                                inputs: {
                                     currentPassword: values.currentPassword,
                                     newPassword: values.newPassword,
                                 },

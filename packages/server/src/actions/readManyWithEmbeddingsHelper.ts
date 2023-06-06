@@ -3,7 +3,7 @@ import { getUser } from "../auth";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { findTags } from "../utils";
 import { ReadManyHelperProps } from "./types";
 

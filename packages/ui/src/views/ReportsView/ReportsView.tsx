@@ -1,11 +1,9 @@
-import { useQuery } from "@apollo/client";
-import { getLastUrlPart, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
+import { endpointGetReports, getLastUrlPart, Report, ReportSearchInput, ReportSearchResult } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Wrap } from "types";
+import { useFetch } from "utils/hooks/useFetch";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
@@ -32,13 +30,13 @@ export const ReportsView = ({
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
-    const { data } = useQuery<Wrap<ReportSearchResult, "reports">, Wrap<ReportSearchInput, "input">>(
-        reportFindMany,
-        { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
-    );
+    const { data } = useFetch<ReportSearchInput, ReportSearchResult>({
+        ...endpointGetReports,
+        inputs: { [objectTypeToIdField[objectType]]: id },
+    }, [id, objectType]);
     const reports = useMemo<Report[]>(() => {
         if (!data) return [];
-        return data.reports.edges.map(edge => edge.node);
+        return data.edges.map(edge => edge.node);
     }, [data]);
 
     return (

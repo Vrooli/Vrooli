@@ -34,17 +34,18 @@ export type ModelLogic<
     __typename: `${GqlModelType}`;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
+    format: Formatter<Model>;
     duplicate?: Duplicator<any, any>;
     idField?: keyof Model["GqlModel"];
-    format: Formatter<Model, SuppFields>;
     search?: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
     Model["PrismaWhere"] extends undefined ? undefined :
     Searcher<{
+        GqlModel: Model["GqlModel"],
         GqlSearch: Exclude<Model["GqlSearch"], undefined>,
         GqlSort: Exclude<Model["GqlSort"], undefined>,
         PrismaWhere: Exclude<Model["PrismaWhere"], undefined>,
-    }>;
+    }, SuppFields>;
     mutate?: Mutater<{
         GqlCreate: Model["GqlCreate"],
         GqlUpdate: Model["GqlUpdate"],
@@ -124,14 +125,18 @@ type StringArrayMap<T extends readonly string[]> = {
 export interface Formatter<
     Model extends {
         GqlModel: ModelLogicType["GqlModel"],
-        PrismaModel: ModelLogicType["PrismaModel"],
-    },
-    SuppFields extends readonly DotNotation<Model["GqlModel"]>[]
+        PrismaModel?: ModelLogicType["PrismaModel"],
+    }
 > {
     /**
      * Maps GraphQL types to GqlModelType, with special handling for unions
      */
-    gqlRelMap: GqlRelMap<Model["GqlModel"], Model["PrismaModel"]>;
+    // gqlRelMap: GqlRelMap<Model["GqlModel"], Model["PrismaModel"]>;
+    gqlRelMap: Model extends { PrismaModel: infer P }
+    ? P extends undefined
+    ? GqlRelMap<Model["GqlModel"], any>
+    : GqlRelMap<Model["GqlModel"], NonNullable<P>>
+    : GqlRelMap<Model["GqlModel"], any>;
     /**
      * Maps Prisma types to GqlModelType
      */
@@ -168,10 +173,6 @@ export interface Formatter<
      * Remove _count fields
      */
     removeCountFields?: (data: { [x: string]: any }) => any;
-    /**
-     * Data for adding supplemental fields to the GraphQL object
-     */
-    supplemental?: SupplementalConverter<SuppFields>;
 }
 
 type CommonSearchFields = "after" | "take" | "ids" | "searchString" | "visibility";
@@ -199,10 +200,12 @@ export type SearchStringQuery<Where extends { [x: string]: any }> = {
  */
 export type Searcher<
     Model extends {
+        GqlModel: Exclude<ModelLogicType["GqlModel"], undefined>,
         GqlSearch: Exclude<ModelLogicType["GqlSearch"], undefined>,
         GqlSort: Exclude<ModelLogicType["GqlSort"], undefined>,
         PrismaWhere: Exclude<ModelLogicType["PrismaWhere"], undefined>,
-    }
+    },
+    SuppFields extends readonly DotNotation<Model["GqlModel"]>[]
 > = {
     defaultSort: Model["GqlSort"];
     /**
@@ -239,6 +242,10 @@ export type Searcher<
      * Any additional data to add to the Prisma query. Not usually needed
      */
     customQueryData?: (input: Model["GqlSearch"], userData: SessionUserToken | null) => Model["PrismaWhere"];
+    /**
+     * Data for adding supplemental fields to the GraphQL object
+     */
+    supplemental?: SupplementalConverter<SuppFields>;
 }
 
 /**

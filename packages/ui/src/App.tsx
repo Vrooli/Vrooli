@@ -1,10 +1,7 @@
-import { ActiveFocusMode, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
-import { authValidateSession } from "api/generated/endpoints/auth_validateSession";
-import { focusModeSetActive } from "api/generated/endpoints/focusMode_setActive";
-import { useCustomMutation } from "api/hooks";
-import { hasErrorCode, mutationWrapper } from "api/utils";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -23,6 +20,7 @@ import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authenticat
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { getDeviceInfo } from "utils/display/device";
 import { themes } from "utils/display/theme";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -120,8 +118,8 @@ export function App() {
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
-    const [setActiveFocusMode] = useCustomMutation<ActiveFocusMode, SetActiveFocusModeInput>(focusModeSetActive);
+    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
+    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
 
     // Applies language change
@@ -275,9 +273,9 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        mutationWrapper<Session, ValidateSessionInput>({
-            mutation: validateSession,
-            input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        fetchLazyWrapper<ValidateSessionInput, Session>({
+            fetch: validateSession,
+            inputs: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             onSuccess: (data) => {
                 //TODO store in local storage. validateSession will only return full data for the current user.
                 //Other logged in users will not have their full data returned (will be in shape SessionUserToken
@@ -285,7 +283,7 @@ export function App() {
                 setSession(data);
             },
             showDefaultErrorSnack: false,
-            onError: (error: any) => {
+            onError: (error) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
                 if (hasErrorCode(error, "SessionExpired")) {
@@ -376,9 +374,9 @@ export function App() {
             if (!isSettingActiveFocusMode.current) {
                 isSettingActiveFocusMode.current = true;
                 const { mode, ...rest } = data;
-                mutationWrapper<ActiveFocusMode, SetActiveFocusModeInput>({
-                    mutation: setActiveFocusMode,
-                    input: { ...rest, id: data.mode.id },
+                fetchLazyWrapper<SetActiveFocusModeInput, ActiveFocusMode>({
+                    fetch: setActiveFocusMode,
+                    inputs: { ...rest, id: data.mode.id },
                     successCondition: (data) => data !== null,
                     onSuccess: () => { isSettingActiveFocusMode.current = false; },
                     onError: (error) => {

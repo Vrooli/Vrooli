@@ -1,5 +1,4 @@
-import { QuizAttemptSortBy } from "@local/shared";
-import { quizAttemptFindMany } from "api/generated/endpoints/quizAttempt_findMany";
+import { endpointGetQuizAttempts, QuizAttemptSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const quizAttemptSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const quizAttemptSearchParams = () => toParams(quizAttemptSearchSchema(), quizAttemptFindMany, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc);
+export const quizAttemptSearchParams = () => toParams(quizAttemptSearchSchema(), endpointGetQuizAttempts, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc);

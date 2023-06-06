@@ -1,9 +1,7 @@
-import { Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
+import { endpointPostReport, Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
 import { DialogContent, Link, Typography } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { reportCreate } from "api/generated/endpoints/report_create";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportForm, reportInitialValues } from "forms/ReportForm/ReportForm";
@@ -12,6 +10,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -36,7 +35,7 @@ export const ReportDialog = ({
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
     const { handleCancel } = useUpsertActions<Report>("dialog", true, onClose, onClose);
-    const [mutation, { loading: isLoading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
+    const [fetch, { loading: isLoading }] = useLazyFetch<ReportCreateInput, Report>(endpointPostReport);
 
     /**
      * Opens existing reports in a new tab
@@ -74,9 +73,9 @@ export const ReportDialog = ({
                     enableReinitialize={true}
                     initialValues={initialValues}
                     onSubmit={(values, helpers) => {
-                        mutationWrapper<Report, ReportCreateInput>({
-                            mutation,
-                            input: {
+                        fetchLazyWrapper<ReportCreateInput, Report>({
+                            fetch,
+                            inputs: {
                                 id: uuid(),
                                 createdFor: reportFor,
                                 createdForConnect: forId,

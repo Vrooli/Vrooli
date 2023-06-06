@@ -1,14 +1,11 @@
-import { FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
-import { mutationWrapper } from "api";
-import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
-import { smartContractCreate } from "api/generated/endpoints/smartContract_create";
-import { smartContractUpdate } from "api/generated/endpoints/smartContract_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractForm, smartContractInitialValues, transformSmartContractValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -26,15 +23,15 @@ export const SmartContractUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<SmartContractVersion, FindVersionInput>(smartContractVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, SmartContractVersion>(endpointGetSmartContractVersion);
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => smartContractInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionUpdateInput>(smartContractUpdate);
-    const mutation = isCreate ? create : update;
+    const [create, { loading: isCreateLoading }] = useLazyFetch<SmartContractVersionCreateInput, SmartContractVersion>(endpointPostSmartContractVersion);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<SmartContractVersionUpdateInput, SmartContractVersion>(endpointPutSmartContractVersion);
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>;
 
     return (
         <>
@@ -53,9 +50,9 @@ export const SmartContractUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<SmartContractVersion, SmartContractVersionUpdateInput>({
-                        mutation,
-                        input: transformSmartContractValues(values, existing),
+                    fetchLazyWrapper<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>({
+                        fetch,
+                        inputs: transformSmartContractValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

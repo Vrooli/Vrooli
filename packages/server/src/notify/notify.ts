@@ -5,7 +5,7 @@ import { selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
-import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models";
+import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models/base";
 import { initializeRedis } from "../redisConn";
 import { PrismaType, SessionUserToken } from "../types";
 import { batch } from "../utils/batch";

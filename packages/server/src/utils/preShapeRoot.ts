@@ -1,7 +1,7 @@
 import { exists, GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { transfer } from "../models";
+import { transfer } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
 type HasCompleteVersionData = {

@@ -1,6 +1,5 @@
-import { FindVersionInput, NoteVersion, useLocation } from "@local/shared";
+import { endpointGetNoteVersion, NoteVersion, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
@@ -23,8 +22,8 @@ export const NoteView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion, FindVersionInput>({
-        query: noteVersionFindOne,
+    const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
+        ...endpointGetNoteVersion,
         partialData,
     });
 

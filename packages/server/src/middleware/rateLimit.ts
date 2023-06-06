@@ -1,5 +1,4 @@
 import { Request } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import { getUser } from "../auth";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -28,7 +27,6 @@ export async function checkRateLimit(client: any, key: string, max: number, wind
 }
 
 export interface RateLimitProps {
-    info: GraphQLResolveInfo;
     /**
      * Maximum number of requests allowed per window, tied to API key (if not made from a safe origin)
      */
@@ -51,14 +49,22 @@ export interface RateLimitProps {
  * Throws error if rate limit is exceeded.
  */
 export async function rateLimit({
-    info,
     maxApi,
     maxIp,
     maxUser = 250,
     req,
     window = 60 * 60 * 24,
 }: RateLimitProps): Promise<void> {
-    const keyBase = `rate-limit:${info.path.key}`;
+    // Create key that uniquely identifies the endpoint
+    let keyBase = "rate-limit:";
+    // For GraphQL requests, use the operation name
+    if (req.body?.operationName) {
+        keyBase += `${req.body.operationName}:`;
+    }
+    // For REST requests, use the route path and method
+    else {
+        keyBase += `${req.route.path}:${req.method}:`;
+    }
     // If maxApi not supplied, use maxUser * 1000
     maxApi = maxApi ?? (maxUser * 1000);
     // If maxIp not supplied, use maxUser

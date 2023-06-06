@@ -1,5 +1,4 @@
-import { CommentSortBy } from "@local/shared";
-import { commentFindMany } from "api/generated/endpoints/comment_findMany";
+import { CommentSortBy, endpointGetComments } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common";
@@ -18,4 +17,4 @@ export const commentSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const commentSearchParams = () => toParams(commentSearchSchema(), commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc);
+export const commentSearchParams = () => toParams(commentSearchSchema(), endpointGetComments, CommentSortBy, CommentSortBy.ScoreDesc);

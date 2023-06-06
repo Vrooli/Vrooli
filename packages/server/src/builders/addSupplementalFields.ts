@@ -1,14 +1,11 @@
 import { GqlModelType } from "@local/shared";
-import pkg from "lodash";
 import { getLogic } from "../getters";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { PrismaType, SessionUserToken, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
 import { PartialGraphQLInfo } from "./types";
-
-const { merge } = pkg;
 
 /**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
@@ -35,8 +32,8 @@ export const addSupplementalFields = async (
     for (const [type, ids] of Object.entries(objectTypesIdsDict)) {
         // Find the supplemental data for each object id in ids
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
-        const { format } = getLogic(["format"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields");
-        const valuesWithSupplements = format?.supplemental ?
+        const { search } = getLogic(["search"], type as keyof typeof ObjectMap, userData?.languages ?? ["en"], "addSupplementalFields", false);
+        const valuesWithSupplements = search?.supplemental ?
             await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 

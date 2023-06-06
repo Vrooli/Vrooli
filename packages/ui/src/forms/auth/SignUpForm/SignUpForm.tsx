@@ -1,9 +1,7 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, LINKS, Session, useLocation } from "@local/shared";
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, useLocation } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Link, TextField, Typography, useTheme } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { authEmailSignUp } from "api/generated/endpoints/auth_emailSignUp";
-import { useCustomMutation } from "api/hooks";
-import { hasErrorCode, mutationWrapper } from "api/utils";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
@@ -11,6 +9,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
@@ -23,7 +22,7 @@ export const SignUpForm = ({
     const theme = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailSignUp, { loading }] = useCustomMutation<Session, EmailSignUpInput>(authEmailSignUp);
+    const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointPostAuthEmailSignup);
 
     const toLogIn = () => onFormChange(Forms.LogIn);
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
@@ -46,9 +45,9 @@ export const SignUpForm = ({
                     confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
-                    mutationWrapper<Session, EmailSignUpInput>({
-                        mutation: emailSignUp,
-                        input: {
+                    fetchLazyWrapper<EmailSignUpInput, Session>({
+                        fetch: emailSignUp,
+                        inputs: {
                             ...values,
                             marketingEmails: Boolean(values.marketingEmails),
                             theme: theme.palette.mode ?? "light",

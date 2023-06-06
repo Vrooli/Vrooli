@@ -9,8 +9,21 @@ import { isSafeOrigin } from "../utils";
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
-const privateKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_priv.pem`, "utf8");
-const publicKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_pub.pem`, "utf8");
+let privateKey = "";
+const privateKeyFile = `${process.env.PROJECT_DIR}/jwt_priv.pem`;
+if (fs.existsSync(privateKeyFile)) {
+    privateKey = fs.readFileSync(privateKeyFile, "utf8");
+} else {
+    logger.error(`Could not find private key at ${privateKeyFile}`);
+}
+
+let publicKey = "";
+const publicKeyFile = `${process.env.PROJECT_DIR}/jwt_pub.pem`;
+if (fs.existsSync(publicKeyFile)) {
+    publicKey = fs.readFileSync(publicKeyFile, "utf8");
+} else {
+    logger.error(`Could not find public key at ${publicKeyFile}`);
+}
 
 /**
  * Parses a request's accept-language header

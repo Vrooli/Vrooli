@@ -1,9 +1,6 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, DeleteOneInput, DeleteType, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
+import { AddIcon, Chat, CommentIcon, CommonKey, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
 import { Button, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { notificationMarkAllAsRead } from "api/generated/endpoints/notification_markAllAsRead";
-import { notificationMarkAsRead } from "api/generated/endpoints/notification_markAsRead";
+import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -13,8 +10,9 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { listToListItems } from "utils/display/listTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTabs } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
@@ -60,10 +58,10 @@ export const InboxView = ({
         where,
     });
 
-    const [deleteMutation, { error: deleteError }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
-    const [markAsReadMutation, { error: markError }] = useCustomMutation<Success, FindByIdInput>(notificationMarkAsRead);
-    const [markAllAsReadMutation, { error: markAllError }] = useCustomMutation<Success, undefined>(notificationMarkAllAsRead);
-    useDisplayApolloError(deleteError ?? markError ?? markAllError);
+    const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
+    const [markAllAsReadMutation, { errors: markAllErrors }] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
+    useDisplayServerError(deleteErrors ?? markErrors ?? markAllErrors);
 
     const openNotification = useCallback((notification: Notification) => {
         if (notification.link) {
@@ -76,9 +74,9 @@ export const InboxView = ({
     }, [setLocation]);
 
     const onDelete = useCallback((id: string, objectType: InboxType) => {
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteMutation,
-            input: { id, objectType: objectType as DeleteType },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteMutation,
+            inputs: { id, objectType: objectType as DeleteType },
             successCondition: (data) => data.success,
             onSuccess: () => {
                 setAllData(n => n.filter(n => n.id !== id));
@@ -89,9 +87,9 @@ export const InboxView = ({
     const onMarkAsRead = useCallback((id: string, objectType: InboxType) => {
         // TODO handle chats
         if (objectType === "Chat") return;
-        mutationWrapper<Success, FindByIdInput>({
-            mutation: markAsReadMutation,
-            input: { id },
+        fetchLazyWrapper<FindByIdInput, Success>({
+            fetch: markAsReadMutation,
+            inputs: { id },
             successCondition: (data) => data.success,
             onSuccess: () => {
                 setAllData(n => n.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -101,8 +99,8 @@ export const InboxView = ({
 
     const onMarkAllAsRead = useCallback(() => {
         // TODO handle chats
-        mutationWrapper<Success, any>({
-            mutation: markAllAsReadMutation,
+        fetchLazyWrapper<any, Success>({
+            fetch: markAllAsReadMutation,
             successCondition: (data) => data.success,
             onSuccess: () => {
                 setAllData(n => n.map(n => ({ ...n, isRead: true })));

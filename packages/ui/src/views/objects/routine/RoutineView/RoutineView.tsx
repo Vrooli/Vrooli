@@ -1,9 +1,6 @@
-import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -30,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { PubSub } from "utils/pubsub";
@@ -57,8 +55,8 @@ export const RoutineView = ({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
-        query: routineVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
+        ...endpointGetRoutineVersion,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
@@ -143,12 +141,12 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
+    const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     const markAsComplete = useCallback(() => {
         if (!existing) return;
-        mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-            mutation: runComplete,
-            input: {
+        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+            fetch: runComplete,
+            inputs: {
                 id: existing.id,
                 exists: false,
                 name: name ?? "Unnamed Routine",

@@ -1,5 +1,4 @@
-import { StatsRoutineSortBy } from "@local/shared";
-import { statsRoutineFindMany } from "api/generated/endpoints/statsRoutine_findMany";
+import { endpointGetStatsRoutine, StatsRoutineSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const statsRoutineSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsRoutineSearchParams = () => toParams(statsRoutineSearchSchema(), statsRoutineFindMany, StatsRoutineSortBy, StatsRoutineSortBy.PeriodStartAsc);
+export const statsRoutineSearchParams = () => toParams(statsRoutineSearchSchema(), endpointGetStatsRoutine, StatsRoutineSortBy, StatsRoutineSortBy.PeriodStartAsc);

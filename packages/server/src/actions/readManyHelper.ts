@@ -4,7 +4,7 @@ import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPart
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { Searcher } from "../models/types";
 import { SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
@@ -36,7 +36,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    const searcher: Searcher<any> | undefined = model.search;
+    const searcher: Searcher<any, any> | undefined = model.search;
     // Check take limit
     if (Number.isInteger(input.take) && input.take > MAX_TAKE) {
         throw new CustomError("0389", "InternalError", req.languages, { objectType, take: input.take });

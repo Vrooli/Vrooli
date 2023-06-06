@@ -1,14 +1,11 @@
-import { FindByIdInput, RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
-import { runProjectCreate } from "api/generated/endpoints/runProject_create";
-import { runProjectFindOne } from "api/generated/endpoints/runProject_findOne";
-import { runProjectUpdate } from "api/generated/endpoints/runProject_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, FindByIdInput, RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -26,15 +23,15 @@ export const RunProjectUpsert = ({
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RunProject, FindByIdInput>(runProjectFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, RunProject>(endpointGetRunProject);
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => runProjectInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<RunProject>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<RunProject, RunProjectCreateInput>(runProjectCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<RunProject, RunProjectUpdateInput>(runProjectUpdate);
-    const mutation = isCreate ? create : update;
+    const [create, { loading: isCreateLoading }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunProjectCreateInput | RunProjectUpdateInput, RunProject>;
 
     return (
         <>
@@ -53,9 +50,9 @@ export const RunProjectUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<RunProject, RunProjectCreateInput | RunProjectUpdateInput>({
-                        mutation,
-                        input: transformRunProjectValues(values, existing),
+                    fetchLazyWrapper<RunProjectCreateInput | RunProjectUpdateInput, RunProject>({
+                        fetch,
+                        inputs: transformRunProjectValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

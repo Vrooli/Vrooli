@@ -1,11 +1,10 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, endpointGetTranslate, LanguageIcon, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { translateTranslate } from "api/generated/endpoints/translate_translate";
-import { useCustomLazyQuery } from "api/hooks";
-import { queryWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { ListMenu } from "../ListMenu/ListMenu";
@@ -68,7 +67,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useCustomLazyQuery<Translate, TranslateInput>(translateTranslate);
+    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointGetTranslate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
@@ -76,9 +75,9 @@ export const SelectLanguageMenu = ({
             PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
-        queryWrapper<Translate, TranslateInput>({
-            query: getAutoTranslation,
-            input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
+        fetchLazyWrapper<TranslateInput, Translate>({
+            fetch: getAutoTranslation,
+            inputs: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
                 // Try parse
                 if (data) {

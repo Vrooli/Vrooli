@@ -1,5 +1,4 @@
-import { PullRequestSortBy } from "@local/shared";
-import { pullRequestFindMany } from "api/generated/endpoints/pullRequest_findMany";
+import { endpointGetPullRequests, PullRequestSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const pullRequestSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), pullRequestFindMany, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);
+export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), endpointGetPullRequests, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);
