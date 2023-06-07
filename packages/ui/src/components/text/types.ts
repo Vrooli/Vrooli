@@ -9,6 +9,12 @@ export interface DateDisplayProps extends BoxProps {
     timestamp?: number;
 }
 
+export interface MarkdownDisplayProps {
+    content: string | undefined;
+    sx?: { [x: string]: any; };
+    variant?: TypographyProps["variant"];
+}
+
 export interface ObjectTitleProps extends BoxProps {
     language: string;
     languages: string[];
@@ -23,7 +29,7 @@ export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string
     objectType: ObjectType;
-    owner: Routine['owner'] | null | undefined
+    owner: Routine["owner"] | null | undefined
     sxs?: {
         label?: { [x: string]: any };
     }

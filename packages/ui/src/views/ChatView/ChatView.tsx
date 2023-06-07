@@ -1,7 +1,8 @@
 import { AddIcon, BotIcon, Chat, ChatMessage, DUMMY_ID, EditIcon, useLocation, UserIcon } from "@local/shared";
-import { Avatar, Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -189,11 +190,13 @@ export const ChatView = ({
                                                 wordBreak: "break-word",
                                             }}
                                         >
-                                            <Typography sx={{
-                                                // Make room for the edit button
-                                                ...(isOwn ? { pr: 6 } : {}),
-                                            }}
-                                            >{getTranslation(message, getUserLanguages(session), true)?.text ?? ""}</Typography>
+                                            <MarkdownDisplay
+                                                content={getTranslation(message, getUserLanguages(session), true)?.text}
+                                                sx={{
+                                                    // Make room for the edit button
+                                                    ...(isOwn ? { pr: 6 } : {}),
+                                                }}
+                                            />
                                             {isOwn && (
                                                 <IconButton onClick={() => {
                                                     const message = messages.find((m) => m.id === message.id);

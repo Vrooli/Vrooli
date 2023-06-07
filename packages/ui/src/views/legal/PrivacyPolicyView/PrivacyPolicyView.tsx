@@ -4,11 +4,11 @@ import privacyMarkdown from "assets/policy/privacy.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdown } from "utils/hooks/useMarkdown";
 import { convertToDot, valueFromDot } from "utils/shape/general";
+import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
 
 const BUSINESS_DATA = {
@@ -74,7 +74,7 @@ export const PrivacyPolicyView = ({
             />}
         />
         <Box m={2}>
-            <Markdown>{privacy}</Markdown>
+            <MarkdownDisplay content={privacy} />
         </Box>
     </>;
 };

@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
 import { List, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
@@ -145,6 +145,10 @@ export const ReminderList = ({
                 Icon={ReminderIcon}
                 titleKey="ToDo"
                 options={[{
+                    Icon: OpenInNewIcon,
+                    key: "SeeAll",
+                    onClick: () => { console.log("TODO"); },
+                }, {
                     Icon: AddIcon,
                     key: "Create",
                     onClick: openDialog,

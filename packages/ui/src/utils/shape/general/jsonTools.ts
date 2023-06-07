@@ -247,7 +247,7 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
 /**
  * Converts a JSON string to a pretty-printed JSON markdown string.
  * @param value The JSON string to convert.
- * @returns The pretty-printed JSON string, to be rendered in <Markdown />.
+ * @returns The pretty-printed JSON string, to be rendered in <MarkdownDisplay />.
  */
 export const jsonToMarkdown = (value: { [x: string]: any } | string | null): string | null => {
     try {

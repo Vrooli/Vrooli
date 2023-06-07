@@ -86,6 +86,7 @@ export function TitleContainer({
                                 >
                                     {options.map(({ key, onClick, variables }, index) => (
                                         <Link key={index} onClick={onClick} sx={{
+                                            cursor: "pointer",
                                             marginTop: "auto",
                                             marginBottom: "auto",
                                             marginRight: 2,

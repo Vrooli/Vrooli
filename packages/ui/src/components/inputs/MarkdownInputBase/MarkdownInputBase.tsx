@@ -7,7 +7,7 @@ import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconBut
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
-import Markdown from "markdown-to-jsx";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { linkColors } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
@@ -708,7 +708,7 @@ export const MarkdownInputBase = ({
                                     ...linkColors(palette),
                                     ...sxs?.textArea,
                                 }}>
-                                <Markdown>{internalValue}</Markdown>
+                                <MarkdownDisplay content={internalValue} />
                             </Box>
                         ) :
                         (
@@ -766,7 +766,7 @@ export const MarkdownInputBase = ({
                     <Stack direction="row" ml="auto" spacing={1}>
                         {/* Characters remaining indicator */}
                         {
-                            maxChars !== undefined &&
+                            !disabled && maxChars !== undefined &&
                             <CharLimitIndicator
                                 chars={internalValue.length}
                                 maxChars={maxChars}

@@ -5,7 +5,7 @@ import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import Markdown from "markdown-to-jsx";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
@@ -287,9 +287,10 @@ export function ObjectListItemBase<T extends ListObjectType>({
                         )
                     }
                     {/* Subtitle */}
-                    {loading ? <TextLoading /> : <Markdown
-                        style={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                    >{subtitle}</Markdown>}
+                    {loading ? <TextLoading /> : <MarkdownDisplay
+                        content={subtitle}
+                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                    />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: "none" }}>

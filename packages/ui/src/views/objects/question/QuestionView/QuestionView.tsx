@@ -9,10 +9,10 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
@@ -128,7 +128,7 @@ export const QuestionView = ({
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                     </Stack>
-                    <Markdown>{subtitle}</Markdown>
+                    <MarkdownDisplay content={subtitle} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}

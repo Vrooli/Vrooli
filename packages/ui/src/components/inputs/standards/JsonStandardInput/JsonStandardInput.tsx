@@ -4,10 +4,10 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { useField } from "formik";
 import { JsonProps } from "forms/types";
-import Markdown from "markdown-to-jsx";
 import { useEffect, useMemo, useState } from "react";
 import { Status } from "utils/consts";
 import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString } from "utils/shape/general";
+import { MarkdownDisplay } from "../../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { JsonStandardInputProps } from "../types";
 
 export const JsonStandardInput = ({
@@ -92,7 +92,7 @@ export const JsonStandardInput = ({
                     }}>
                         {
                             previewMarkdown ?
-                                <Markdown>{previewMarkdown}</Markdown> :
+                                <MarkdownDisplay content={previewMarkdown} /> :
                                 <p>{`Error: Invalid JSON - ${internalValue}`}</p>
                         }
                     </Box> :

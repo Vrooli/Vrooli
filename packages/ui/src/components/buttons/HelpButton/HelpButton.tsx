@@ -1,9 +1,9 @@
 import { HelpIcon } from "@local/shared";
 import { Box, IconButton, Menu, Tooltip, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useState } from "react";
 import { linkColors, noSelect } from "styles";
+import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { HelpButtonProps } from "../types";
 
 export const HelpButton = ({
@@ -68,7 +68,7 @@ export const HelpButton = ({
                     >
                         <MenuTitle onClose={closeMenu} />
                         <Box sx={{ padding: 2, ...linkColors(palette), ...noSelect }}>
-                            <Markdown>{markdown}</Markdown>
+                            <MarkdownDisplay content={markdown} />
                         </Box>
                     </Menu>
                 </IconButton>

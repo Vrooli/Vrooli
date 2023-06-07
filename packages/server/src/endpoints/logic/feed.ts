@@ -27,7 +27,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 resources: "Resource",
                 schedules: "Schedule",
             }, req.languages, true);
-            const take = 5;
+            const take = 10;
             const commonReadParams = { prisma, req };
             // Query notes
             const { nodes: notes } = await readManyAsFeedHelper({
