@@ -126,6 +126,7 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                             language={language}
                             name="description"
                             placeholder={t("Description")}
+                            maxChars={16384}
                             minRows={3}
                             sxs={{
                                 bar: {

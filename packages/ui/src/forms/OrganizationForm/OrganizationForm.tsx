@@ -127,8 +127,10 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         />
                         <TranslatedMarkdownInput
                             language={language}
+                            maxChars={2048}
                             minRows={4}
                             name="bio"
+                            placeholder={t("Bio")}
                             zIndex={zIndex}
                         />
                         <br />

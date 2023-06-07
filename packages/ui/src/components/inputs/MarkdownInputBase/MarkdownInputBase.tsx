@@ -3,6 +3,8 @@
  */
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
 import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
 import Markdown from "markdown-to-jsx";
@@ -111,11 +113,14 @@ const getSelection = (id: string): { selectionStart: number, selectionEnd: numbe
 };
 
 export const MarkdownInputBase = ({
+    actionButtons,
     autoFocus = false,
     disabled = false,
     disableAssistant = false,
     error = false,
     helperText,
+    maxChars,
+    maxRows,
     minRows = 4,
     name,
     onBlur,
@@ -442,6 +447,26 @@ export const MarkdownInputBase = ({
         };
     }, [bold, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, startDebounce, strikethrough, togglePreview, togglePreviewDebounce, undo]);
 
+    // Resize textarea to fit content
+    const MIN_HEIGHT = 50;
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        if (!textAreaRef.current) return;
+        textAreaRef.current.style.height = "inherit";
+        if (maxRows) {
+            textAreaRef.current.style.height = `${Math.min(Math.max(
+                MIN_HEIGHT,
+                textAreaRef.current.scrollHeight),
+                Number.parseInt(maxRows + "") * 20,
+            )}px`;
+        } else {
+            textAreaRef.current.style.height = `${Math.max(
+                MIN_HEIGHT,
+                textAreaRef.current.scrollHeight,
+            )}px`;
+        }
+    }, [maxRows, value]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -677,6 +702,9 @@ export const MarkdownInputBase = ({
                                     borderTop: "none",
                                     padding: "12px",
                                     wordBreak: "break-word",
+                                    overflow: "auto",
+                                    backgroundColor: palette.background.paper,
+                                    color: palette.text.primary,
                                     ...linkColors(palette),
                                     ...sxs?.textArea,
                                 }}>
@@ -684,8 +712,12 @@ export const MarkdownInputBase = ({
                             </Box>
                         ) :
                         (
+                            // TODO for morning: Add option to set action buttons in bottom right of textarea. This will be used 
+                            // first for the ChatView component. Should also add prop for max character length, which can 
+                            // display a CircularProgress and label (to the left of the actions) for how many characters are left.
                             <textarea
                                 id={`markdown-input-${name}`}
+                                ref={textAreaRef}
                                 autoFocus={autoFocus}
                                 disabled={disabled}
                                 name={name}
@@ -699,28 +731,64 @@ export const MarkdownInputBase = ({
                                     padding: "16.5px 14px",
                                     minWidth: "-webkit-fill-available",
                                     maxWidth: "-webkit-fill-available",
-                                    minHeight: "50px",
-                                    maxHeight: "800px",
-                                    background: "transparent",
+                                    outline: "none",
+                                    resize: "none",
                                     borderColor: error ? "red" : "unset",
                                     borderRadius: "0 0 0.5rem 0.5rem",
                                     borderTop: "none",
                                     fontFamily: "inherit",
                                     fontSize: "inherit",
                                     lineHeight: "inherit",
+                                    backgroundColor: palette.background.paper,
                                     color: palette.text.primary,
                                     ...sxs?.textArea,
                                 }}
                             />
                         )
                 }
-                {/* Helper text label */}
-                {
-                    helperText &&
-                    <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
-                        {helperText}
-                    </Typography>
-                }
+                {/* Help text, characters remaining indicator, and action buttons */}
+                <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{
+                        padding: 1,
+                    }}
+                >
+                    {/* Helper text label */}
+                    {
+                        helperText &&
+                        <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
+                            {helperText}
+                        </Typography>
+                    }
+                    <Stack direction="row" ml="auto" spacing={1}>
+                        {/* Characters remaining indicator */}
+                        {
+                            maxChars !== undefined &&
+                            <CharLimitIndicator
+                                chars={internalValue.length}
+                                maxChars={maxChars}
+                            />
+                        }
+                        {/* Action buttons */}
+                        {
+                            actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
+                                <Tooltip key={index} title={tooltip} placement="top">
+                                    <ColorIconButton
+                                        background={palette.secondary.main}
+                                        disabled={disabled || buttonDisabled}
+                                        size="small"
+                                        onClick={onClick}
+                                    >
+                                        <Icon fill={palette.primary.contrastText} />
+                                    </ColorIconButton>
+                                </Tooltip>
+                            ))
+                        }
+                    </Stack>
+                </Stack>
             </Stack>
         </>
     );

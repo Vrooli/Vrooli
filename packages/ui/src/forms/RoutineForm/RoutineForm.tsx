@@ -234,7 +234,9 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         <TranslatedMarkdownInput
                             language={language}
                             name="instructions"
+                            maxChars={8192}
                             minRows={4}
+                            placeholder={t("Instructions")}
                             zIndex={zIndex}
                         />
                         <br />

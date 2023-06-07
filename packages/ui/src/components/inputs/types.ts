@@ -3,6 +3,12 @@ import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
 
+export interface CharLimitIndicatorProps {
+    chars: number;
+    maxChars: number;
+    size?: number;
+}
+
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
     language: string;
@@ -179,10 +185,17 @@ export interface LinkInputProps {
 }
 
 export interface MarkdownInputProps {
+    actionButtons?: Array<{
+        disabled?: boolean;
+        Icon: SvgComponent;
+        onClick: () => void;
+        tooltip?: string;
+    }>;
     autoFocus?: boolean;
     disabled?: boolean;
     disableAssistant?: boolean;
     fullWidth?: boolean;
+    maxChars?: number;
     maxRows?: number;
     minRows?: number;
     name: string;
@@ -193,11 +206,18 @@ export interface MarkdownInputProps {
 }
 
 export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
+    actionButtons?: Array<{
+        disabled?: boolean;
+        Icon: SvgComponent;
+        onClick: () => void;
+        tooltip?: string;
+    }>;
     autoFocus?: boolean;
     disabled?: boolean;
     disableAssistant?: boolean;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
+    maxChars?: number;
     minRows?: number;
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
@@ -317,8 +337,16 @@ export interface ToggleSwitchProps {
 }
 
 export interface TranslatedMarkdownInputProps {
+    actionButtons?: Array<{
+        disabled?: boolean;
+        Icon: SvgComponent;
+        onClick: () => void;
+        tooltip?: string;
+    }>;
     disabled?: boolean;
     language: string;
+    maxChars?: number;
+    maxRows?: number;
     minRows?: number;
     name: string;
     placeholder?: string;

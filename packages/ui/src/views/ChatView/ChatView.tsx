@@ -1,6 +1,5 @@
 import { AddIcon, BotIcon, Chat, ChatMessage, DUMMY_ID, EditIcon, useLocation, UserIcon } from "@local/shared";
 import { Avatar, Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -212,8 +211,13 @@ export const ChatView = ({
                     </Box>
                     <Box>
                         <MarkdownInput
+                            actionButtons={[{
+                                Icon: AddIcon,
+                                onClick: () => { formik.handleSubmit(); },
+                            }]}
                             disableAssistant={true}
                             fullWidth
+                            maxChars={1500}
                             minRows={1}
                             maxRows={15}
                             name="newMessage"
@@ -223,20 +227,6 @@ export const ChatView = ({
                             }}
                             zIndex={zIndex}
                         />
-                        <ColorIconButton
-                            aria-label='fetch-handles'
-                            background={palette.secondary.main}
-                            onClick={() => { formik.handleSubmit(); }}
-                            sx={{
-                                borderRadius: "100%",
-                                position: "absolute",
-                                right: 0,
-                                bottom: 0,
-                                margin: 1,
-                            }}
-                        >
-                            <AddIcon />
-                        </ColorIconButton>
                     </Box>
                 </Stack>
             </>}

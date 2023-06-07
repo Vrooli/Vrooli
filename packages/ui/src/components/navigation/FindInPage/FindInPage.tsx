@@ -74,6 +74,7 @@ const highlightText = (
 };
 
 const FindInPage = () => {
+    console.log("rendering findinpage...");
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -100,7 +101,7 @@ const FindInPage = () => {
         // Remove highlights from every span
         results.forEach(span => span.classList.remove("search-highlight-current"));
         // If there are results, highlight the current result and scroll to it
-        if (results.length > resultIndex) {
+        if (results.length > resultIndex && resultIndex >= 0) {
             results[resultIndex].classList.add("search-highlight-current");
             results[resultIndex].scrollIntoView({ behavior: "smooth", block: "center" });
         }
