@@ -1,8 +1,8 @@
 import { CompleteIcon, LINKS, parseSearchParams, stringifySearchParams, useLocation } from "@local/shared";
-import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
+import { Box, Button, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { loadStripe } from "@stripe/stripe-js";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
@@ -75,10 +75,13 @@ export const PremiumView = ({
         }
     }, [setLocation]);
 
+    const [loading, setLoading] = useState(false);
+
     /**
      * Creates stripe checkout session and redirects to checkout page
      */
     const startCheckout = async (variant: "yearly" | "monthly" | "donation") => {
+        setLoading(true);
         // Initialize Stripe
         const stripe = await stripePromise;
         if (!stripe) {
@@ -120,6 +123,8 @@ export const PremiumView = ({
             }
         } catch (error) {
             PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -185,11 +190,20 @@ export const PremiumView = ({
                         disabled={hasPremium}
                         fullWidth
                         onClick={() => { startCheckout("yearly"); }}
-                    >$149.99/year</Button>
+                        startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
+                    >
+                        <Box display="flex" justifyContent="center" alignItems="center" width="100%">
+                            $149.99/year
+                            <Box component="span" fontStyle="italic" color="green" pl={1}>
+                                Best Deal!
+                            </Box>
+                        </Box>
+                    </Button>
                     <Button
                         disabled={hasPremium}
                         fullWidth
                         onClick={() => { startCheckout("monthly"); }}
+                        startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
                     >$14.99/month</Button>
                     {hasPremium && (
                         // TODO need way to change from monthly to yearly and vice versa
@@ -200,6 +214,7 @@ export const PremiumView = ({
                     <Button
                         fullWidth
                         onClick={() => { startCheckout("donation"); }}
+                        startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
                     >One-time donation (no premium)</Button>
                 </Stack>}
                 {/* If not logged in, button to log in first */}

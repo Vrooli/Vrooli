@@ -77,18 +77,10 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
     Object.entries(restEndpoints).forEach(([route, methods]) => {
         // Create route
         const routerChain = router.route(route);
-        const testn1 = route;
-        const test0 = methods;
         // Loop through each method
         Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
             routerChain[method]((req: Request, res: Response) => {
                 // Find input from request
-                const test1 = req.params;
-                const test2 = req.query;
-                const test3 = req.body;
-                const test4 = typeof req.body === "object" ? req.body : {};
-                const test5 = { ...req.params, ...parseInput(req.query) };
-                const test6 = { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
                 const input: Record<string, string> = method === "get" ?
                     { ...req.params, ...parseInput(req.query) } :
                     { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };

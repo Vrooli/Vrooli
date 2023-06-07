@@ -10,9 +10,10 @@ import { withPrisma } from "../utils/withPrisma";
 const canUseStripe = Boolean(process.env.STRIPE_SECRET_KEY) && Boolean(process.env.STRIPE_WEBHOOK_SECRET);
 
 // Declare price IDs
-// NOTE: Make sure to update these are production keys before deploying
+// NOTE 1: Make sure to update these are production keys before deploying
+// NOTE 2: Make sure these are PRICE IDs, not PRODUCT IDs
 const prices = {
-    donation: "price_1MrTMlJq1sLW02CVK3ILOa6w",
+    donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
     premium: {
         monthly: "price_1MrTMEJq1sLW02CVHdm1U247",
         yearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",

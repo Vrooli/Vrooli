@@ -866,6 +866,7 @@ export type ChatUpdateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  participantsDelete?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;

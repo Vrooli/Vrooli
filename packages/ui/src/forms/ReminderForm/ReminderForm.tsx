@@ -145,6 +145,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 as={TextField}
                             />
                             <MarkdownInput
+                                maxRows={10}
                                 minRows={4}
                                 name="description"
                                 placeholder="Description (optional)"

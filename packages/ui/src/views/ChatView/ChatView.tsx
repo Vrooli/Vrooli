@@ -15,31 +15,6 @@ import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { ChatViewProps } from "views/types";
 
-interface ChatBubbleProps {
-    isOwnMessage: boolean;
-    children: React.ReactNode;
-}
-
-export const ChatBubble = ({ isOwnMessage, children }: ChatBubbleProps) => (
-    <Box
-        sx={{
-            display: "inline-flex",
-            flexDirection: "column",
-            alignItems: isOwnMessage ? "flex-end" : "flex-start",
-            p: 1,
-            pl: isOwnMessage ? 2 : 1,
-            pr: isOwnMessage ? 1 : 2,
-            backgroundColor: isOwnMessage ? "#dcf8c6" : "#fff",
-            borderRadius: "8px",
-            boxShadow: 1,
-            maxWidth: "70%",
-            position: "relative",
-        }}
-    >
-        {children}
-    </Box>
-);
-
 export const ChatView = ({
     botSettings,
     chatId,
@@ -161,54 +136,79 @@ export const ChatView = ({
                 />
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
-                        {messages.map((message: ChatMessage, index) => (
-                            <Box
-                                key={index}
-                                sx={{ display: "flex", justifyContent: message.you.canUpdate ? "flex-end" : "flex-start", p: 2 }}
-                            >
-                                {!message.you.canUpdate && (
-                                    <Avatar
-                                        // src={message.user.avatar} TODO
-                                        alt={message.user.name ?? message.user.handle}
-                                        onClick={() => {
-                                            const url = getObjectUrl(message.user);
-                                            if (formik.values.editingMessage.trim().length > 0) {
-                                                PubSub.get().publishAlertDialog({
-                                                    messageKey: "UnsavedChangesBeforeContinue",
-                                                    buttons: [
-                                                        { labelKey: "Yes", onClick: () => { setLocation(url); } },
-                                                        { labelKey: "No" },
-                                                    ],
-                                                });
-                                            } else {
-                                                setLocation(url);
-                                            }
-                                        }}
-                                        sx={{
-                                            bgcolor: message.user.isBot ? "grey" : undefined,
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
-                                    </Avatar>
-                                )}
-                                <Box sx={{ ml: !message.you.canUpdate ? 2 : 0, mr: message.you.canUpdate ? 2 : 0 }}>
-                                    <ChatBubble isOwnMessage={message.you.canUpdate}>
-                                        <Typography>{getTranslation(message, getUserLanguages(session), true)?.text ?? ""}</Typography>
-                                        {message.you.canUpdate && (
-                                            <IconButton onClick={() => {
-                                                const message = messages.find((m) => m.id === message.id);
-                                                if (!message) return;
-                                                formik.setFieldValue("editingMessage", getTranslation(message as ChatMessage, getUserLanguages(session), true)?.text ?? "");
-                                            }} sx={{ position: "absolute", top: 0, right: 0 }}>
-                                                <EditIcon />
-                                            </IconButton>
-                                        )}
-                                        {/* <ReactionButtons reactions={message.reactions} messageId={message.id} /> */}
-                                    </ChatBubble>
+                        {messages.map((message: ChatMessage, index) => {
+                            const isOwn = message.you.canUpdate;
+                            return (
+                                // Box with message, avatar, and reactions
+                                <Box
+                                    key={index}
+                                    sx={{ display: "flex", justifyContent: isOwn ? "flex-end" : "flex-start", p: 2 }}
+                                >
+                                    {/* Avatar only display if it's not your message */}
+                                    {!isOwn && (
+                                        <Avatar
+                                            // src={message.user.avatar} TODO
+                                            alt={message.user.name ?? message.user.handle}
+                                            onClick={() => {
+                                                const url = getObjectUrl(message.user);
+                                                if (formik.values.editingMessage.trim().length > 0) {
+                                                    PubSub.get().publishAlertDialog({
+                                                        messageKey: "UnsavedChangesBeforeContinue",
+                                                        buttons: [
+                                                            { labelKey: "Yes", onClick: () => { setLocation(url); } },
+                                                            { labelKey: "No" },
+                                                        ],
+                                                    });
+                                                } else {
+                                                    setLocation(url);
+                                                }
+                                            }}
+                                            sx={{
+                                                bgcolor: message.user.isBot ? "grey" : undefined,
+                                                boxShadow: 2,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                                        </Avatar>
+                                    )}
+                                    {/* Message bubble with reaction */}
+                                    <Box sx={{ ml: !isOwn ? 2 : 0, mr: isOwn ? 2 : 0 }}>
+                                        <Box
+                                            sx={{
+                                                display: "block",
+                                                p: 1,
+                                                pl: 2,
+                                                pr: 2,
+                                                ml: isOwn ? "auto" : 0,
+                                                mr: isOwn ? 0 : "auto",
+                                                backgroundColor: isOwn ? "#88d17e" : "#fff",
+                                                borderRadius: "8px",
+                                                boxShadow: 2,
+                                                maxWidth: "80%",
+                                                position: "relative",
+                                                wordBreak: "break-word",
+                                            }}
+                                        >
+                                            <Typography sx={{
+                                                // Make room for the edit button
+                                                ...(isOwn ? { pr: 6 } : {}),
+                                            }}
+                                            >{getTranslation(message, getUserLanguages(session), true)?.text ?? ""}</Typography>
+                                            {isOwn && (
+                                                <IconButton onClick={() => {
+                                                    const message = messages.find((m) => m.id === message.id);
+                                                    if (!message) return;
+                                                    formik.setFieldValue("editingMessage", getTranslation(message as ChatMessage, getUserLanguages(session), true)?.text ?? "");
+                                                }} sx={{ position: "absolute", top: 0, right: 0 }}>
+                                                    <EditIcon />
+                                                </IconButton>
+                                            )}
+                                        </Box>
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ))}
+                            );
+                        })}
                     </Box>
                     <Box>
                         <MarkdownInput

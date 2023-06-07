@@ -37,6 +37,7 @@ export const typeDef = gql`
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        participantsDelete: [ID!]
         translationsCreate: [ChatTranslationCreateInput!]
         translationsUpdate: [ChatTranslationUpdateInput!]
         translationsDelete: [ID!]

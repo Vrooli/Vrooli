@@ -30,6 +30,7 @@ export * from "./CaseSensitiveIcon";
 export * from "./CelebrateIcon";
 export * from "./CloseIcon";
 export * from "./CommentIcon";
+export * from "./CompleteAllIcon";
 export * from "./CompleteIcon";
 export * from "./CompressIcon";
 export * from "./CopyIcon";

@@ -4,6 +4,7 @@ import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
+import { ChatShape } from "utils/shape/models/chat";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
 import { MeetingShape } from "utils/shape/models/meeting";
@@ -83,6 +84,7 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
+export type ChatFormProps = BaseObjectFormProps<ChatShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };

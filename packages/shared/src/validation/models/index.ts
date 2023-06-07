@@ -3,6 +3,8 @@ export * from "./apiKey";
 export * from "./apiVersion";
 export * from "./bookmark";
 export * from "./bookmarkList";
+export * from "./chat";
+export * from "./chatInvite";
 export * from "./comment";
 export * from "./email";
 export * from "./focusMode";

@@ -206,7 +206,7 @@ export const DashboardView = ({
         const { root, ...rest } = note;
         const asRoot = { ...root, versions: [note] };
         setNotes(n => [asRoot, ...n]);
-    }, []);
+    }, [closeCreateNote]);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -261,6 +261,7 @@ export const DashboardView = ({
                     zIndex={zIndex + 1}
                 />
             </LargeDialog>
+            {/* Main content */}
             <TopBar
                 display={display}
                 onClose={onClose}
