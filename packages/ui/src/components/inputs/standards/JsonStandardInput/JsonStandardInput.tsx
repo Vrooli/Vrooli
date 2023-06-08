@@ -1,6 +1,6 @@
-import { StreamLanguage } from "@codemirror/language";
+import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
-import { LangsKey } from "@local/shared";
+import { ErrorIcon, LangsKey, WarningIcon } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import CodeMirror from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -13,9 +13,12 @@ import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
 import { jsonToString } from "utils/shape/general";
 // import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+import { Extension } from "@codemirror/state";
+import { BlockInfo, EditorView, gutter, GutterMarker } from "@codemirror/view";
+import ReactDOMServer from "react-dom/server";
 import { JsonStandardInputProps } from "../types";
 
-enum LanguageType {
+export enum StandardLanguage {
     Angular = "angular",
     Cpp = "cpp",
     Css = "css",
@@ -59,203 +62,221 @@ enum LanguageType {
 /**
  * Dynamically imports language packages.
  */
-const languageMap: { [x in LanguageType]: (() => Promise<{ main: any, linter?: any }>) } = {
-    [LanguageType.Angular]: async () => {
+const languageMap: { [x in StandardLanguage]: (() => Promise<{
+    main: LanguageSupport | StreamLanguage<any> | Extension,
+    linter?: ((view: EditorView) => Diagnostic[]) | Extension,
+}>) } = {
+    [StandardLanguage.Angular]: async () => {
         const { angular } = await import("@codemirror/lang-angular");
         return { main: angular() };
     },
-    [LanguageType.Cpp]: async () => {
+    [StandardLanguage.Cpp]: async () => {
         const { cpp } = await import("@codemirror/lang-cpp");
         return { main: cpp() };
     },
-    [LanguageType.Css]: async () => {
+    [StandardLanguage.Css]: async () => {
         const { css } = await import("@codemirror/lang-css");
         return { main: css() };
     },
-    [LanguageType.Dockerfile]: async () => {
+    [StandardLanguage.Dockerfile]: async () => {
         const { dockerFile } = await import("@codemirror/legacy-modes/mode/dockerfile");
         return { main: StreamLanguage.define(dockerFile) };
     },
-    [LanguageType.Go]: async () => {
+    [StandardLanguage.Go]: async () => {
         const { go } = await import("@codemirror/legacy-modes/mode/go");
         return { main: StreamLanguage.define(go) };
     },
-    [LanguageType.Graphql]: async () => {
+    [StandardLanguage.Graphql]: async () => {
         const { graphql } = await import("cm6-graphql");
         return { main: graphql() };
     },
-    [LanguageType.Groovy]: async () => {
+    [StandardLanguage.Groovy]: async () => {
         const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
         return { main: StreamLanguage.define(groovy) };
     },
-    [LanguageType.Haskell]: async () => {
+    [StandardLanguage.Haskell]: async () => {
         const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
         return { main: StreamLanguage.define(haskell) };
     },
-    [LanguageType.Html]: async () => {
+    [StandardLanguage.Html]: async () => {
         const { html } = await import("@codemirror/lang-html");
         return { main: html() };
     },
-    [LanguageType.Java]: async () => {
+    [StandardLanguage.Java]: async () => {
         const { java } = await import("@codemirror/lang-java");
         return { main: java() };
     },
-    [LanguageType.Javascript]: async () => {
+    [StandardLanguage.Javascript]: async () => {
         const { javascript } = await import("@codemirror/lang-javascript");
         return { main: javascript({ jsx: true }) };
     },
-    [LanguageType.Json]: async () => {
+    [StandardLanguage.Json]: async () => {
         const { json, jsonParseLinter } = await import("@codemirror/lang-json");
         return { main: json(), linter: jsonParseLinter() };
     },
-    [LanguageType.Nginx]: async () => {
+    [StandardLanguage.Nginx]: async () => {
         const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
         return { main: StreamLanguage.define(nginx) };
     },
-    [LanguageType.Nix]: async () => {
+    [StandardLanguage.Nix]: async () => {
         const { nix } = await import("@replit/codemirror-lang-nix");
         return { main: nix() };
     },
-    [LanguageType.Php]: async () => {
+    [StandardLanguage.Php]: async () => {
         const { php } = await import("@codemirror/lang-php");
         return { main: php() };
     },
-    [LanguageType.Powershell]: async () => {
+    [StandardLanguage.Powershell]: async () => {
         const { powerShell } = await import("@codemirror/legacy-modes/mode/powershell");
         return { main: StreamLanguage.define(powerShell) };
     },
-    [LanguageType.Protobuf]: async () => {
+    [StandardLanguage.Protobuf]: async () => {
         const { protobuf } = await import("@codemirror/legacy-modes/mode/protobuf");
         return { main: StreamLanguage.define(protobuf) };
     },
-    [LanguageType.Puppet]: async () => {
+    [StandardLanguage.Puppet]: async () => {
         const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
         return { main: StreamLanguage.define(puppet) };
     },
-    [LanguageType.Python]: async () => {
+    [StandardLanguage.Python]: async () => {
         const { python } = await import("@codemirror/lang-python");
         return { main: python() };
     },
-    [LanguageType.R]: async () => {
+    [StandardLanguage.R]: async () => {
         const { r } = await import("codemirror-lang-r");
         return { main: r() };
     },
-    [LanguageType.Ruby]: async () => {
+    [StandardLanguage.Ruby]: async () => {
         const { ruby } = await import("@codemirror/legacy-modes/mode/ruby");
         return { main: StreamLanguage.define(ruby) };
     },
-    [LanguageType.Rust]: async () => {
+    [StandardLanguage.Rust]: async () => {
         const { rust } = await import("@codemirror/lang-rust");
         return { main: rust() };
     },
-    [LanguageType.Sass]: async () => {
+    [StandardLanguage.Sass]: async () => {
         const { sass } = await import("@codemirror/lang-sass");
         return { main: sass() };
     },
-    [LanguageType.Shell]: async () => {
+    [StandardLanguage.Shell]: async () => {
         const { shell } = await import("@codemirror/legacy-modes/mode/shell");
         return { main: StreamLanguage.define(shell) };
     },
-    [LanguageType.Solidity]: async () => {
+    [StandardLanguage.Solidity]: async () => {
         const { solidity } = await import("@replit/codemirror-lang-solidity");
         return { main: solidity };
     },
-    [LanguageType.Spreadsheet]: async () => {
+    [StandardLanguage.Spreadsheet]: async () => {
         const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
         return { main: StreamLanguage.define(spreadsheet) };
     },
-    [LanguageType.Sql]: async () => {
+    [StandardLanguage.Sql]: async () => {
         const { standardSQL } = await import("@codemirror/legacy-modes/mode/sql");
         return { main: StreamLanguage.define(standardSQL) };
     },
-    [LanguageType.Svelte]: async () => {
+    [StandardLanguage.Svelte]: async () => {
         const { svelte } = await import("@replit/codemirror-lang-svelte");
         return { main: svelte() };
     },
-    [LanguageType.Swift]: async () => {
+    [StandardLanguage.Swift]: async () => {
         const { swift } = await import("@codemirror/legacy-modes/mode/swift");
         return { main: StreamLanguage.define(swift) };
     },
-    [LanguageType.Typescript]: async () => {
+    [StandardLanguage.Typescript]: async () => {
         const { javascript } = await import("@codemirror/lang-javascript");
         return { main: javascript({ jsx: true, typescript: true }) };
     },
-    [LanguageType.Vb]: async () => {
+    [StandardLanguage.Vb]: async () => {
         const { vb } = await import("@codemirror/legacy-modes/mode/vb");
         return { main: StreamLanguage.define(vb) };
     },
-    [LanguageType.Vbscript]: async () => {
+    [StandardLanguage.Vbscript]: async () => {
         const { vbScript } = await import("@codemirror/legacy-modes/mode/vbscript");
         return { main: StreamLanguage.define(vbScript) };
     },
-    [LanguageType.Verilog]: async () => {
+    [StandardLanguage.Verilog]: async () => {
         const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
         return { main: StreamLanguage.define(verilog) };
     },
-    [LanguageType.Vhdl]: async () => {
+    [StandardLanguage.Vhdl]: async () => {
         const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
         return { main: StreamLanguage.define(vhdl) };
     },
-    [LanguageType.Vue]: async () => {
+    [StandardLanguage.Vue]: async () => {
         const { vue } = await import("@codemirror/lang-vue");
         return { main: vue() };
     },
-    [LanguageType.Xml]: async () => {
+    [StandardLanguage.Xml]: async () => {
         const { xml } = await import("@codemirror/lang-xml");
         return { main: xml() };
     },
-    [LanguageType.Yacas]: async () => {
+    [StandardLanguage.Yacas]: async () => {
         const { yacas } = await import("@codemirror/legacy-modes/mode/yacas");
         return { main: StreamLanguage.define(yacas) };
     },
-    [LanguageType.Yaml]: async () => {
+    [StandardLanguage.Yaml]: async () => {
         const { yaml } = await import("@codemirror/legacy-modes/mode/yaml");
         return { main: StreamLanguage.define(yaml) };
     },
 };
 
+class ErrorMarker extends GutterMarker {
+    toDOM() {
+        const marker = document.createElement("div");
+        marker.innerHTML = ReactDOMServer.renderToString(<ErrorIcon fill="red" />);
+        return marker;
+    }
+}
+
+class WarnMarker extends GutterMarker {
+    toDOM() {
+        const marker = document.createElement("div");
+        marker.innerHTML = ReactDOMServer.renderToString(<WarningIcon fill="yellow" />);
+        return marker;
+    }
+}
 /**
  * Maps languages to their labels and help texts.
  */
-const languageDisplayMap: { [x in LanguageType]: [LangsKey, LangsKey] } = {
-    [LanguageType.Angular]: ["Angular", "AngularHelp"],
-    [LanguageType.Cpp]: ["Cpp", "CppHelp"],
-    [LanguageType.Css]: ["Css", "CssHelp"],
-    [LanguageType.Dockerfile]: ["Dockerfile", "DockerfileHelp"],
-    [LanguageType.Go]: ["Go", "GoHelp"],
-    [LanguageType.Graphql]: ["Graphql", "GraphqlHelp"],
-    [LanguageType.Groovy]: ["Groovy", "GroovyHelp"],
-    [LanguageType.Haskell]: ["Haskell", "HaskellHelp"],
-    [LanguageType.Html]: ["Html", "HtmlHelp"],
-    [LanguageType.Java]: ["Java", "JavaHelp"],
-    [LanguageType.Javascript]: ["Javascript", "JavascriptHelp"],
-    [LanguageType.Json]: ["Json", "JsonHelp"],
-    [LanguageType.Nginx]: ["Nginx", "NginxHelp"],
-    [LanguageType.Nix]: ["Nix", "NixHelp"],
-    [LanguageType.Php]: ["Php", "PhpHelp"],
-    [LanguageType.Powershell]: ["Powershell", "PowershellHelp"],
-    [LanguageType.Protobuf]: ["Protobuf", "ProtobufHelp"],
-    [LanguageType.Puppet]: ["Puppet", "PuppetHelp"],
-    [LanguageType.Python]: ["Python", "PythonHelp"],
-    [LanguageType.R]: ["R", "RHelp"],
-    [LanguageType.Ruby]: ["Ruby", "RubyHelp"],
-    [LanguageType.Rust]: ["Rust", "RustHelp"],
-    [LanguageType.Sass]: ["Sass", "SassHelp"],
-    [LanguageType.Shell]: ["Shell", "ShellHelp"],
-    [LanguageType.Solidity]: ["Solidity", "SolidityHelp"],
-    [LanguageType.Spreadsheet]: ["Spreadsheet", "SpreadsheetHelp"],
-    [LanguageType.Sql]: ["Sql", "SqlHelp"],
-    [LanguageType.Svelte]: ["Svelte", "SvelteHelp"],
-    [LanguageType.Swift]: ["Swift", "SwiftHelp"],
-    [LanguageType.Typescript]: ["Typescript", "TypescriptHelp"],
-    [LanguageType.Vb]: ["Vb", "VbHelp"],
-    [LanguageType.Vbscript]: ["Vbscript", "VbscriptHelp"],
-    [LanguageType.Verilog]: ["Verilog", "VerilogHelp"],
-    [LanguageType.Vhdl]: ["Vhdl", "VhdlHelp"],
-    [LanguageType.Vue]: ["Vue", "VueHelp"],
-    [LanguageType.Xml]: ["Xml", "XmlHelp"],
-    [LanguageType.Yacas]: ["Yacas", "YacasHelp"],
-    [LanguageType.Yaml]: ["Yaml", "YamlHelp"],
+const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
+    [StandardLanguage.Angular]: ["Angular", "AngularHelp"],
+    [StandardLanguage.Cpp]: ["Cpp", "CppHelp"],
+    [StandardLanguage.Css]: ["Css", "CssHelp"],
+    [StandardLanguage.Dockerfile]: ["Dockerfile", "DockerfileHelp"],
+    [StandardLanguage.Go]: ["Go", "GoHelp"],
+    [StandardLanguage.Graphql]: ["Graphql", "GraphqlHelp"],
+    [StandardLanguage.Groovy]: ["Groovy", "GroovyHelp"],
+    [StandardLanguage.Haskell]: ["Haskell", "HaskellHelp"],
+    [StandardLanguage.Html]: ["Html", "HtmlHelp"],
+    [StandardLanguage.Java]: ["Java", "JavaHelp"],
+    [StandardLanguage.Javascript]: ["Javascript", "JavascriptHelp"],
+    [StandardLanguage.Json]: ["Json", "JsonHelp"],
+    [StandardLanguage.Nginx]: ["Nginx", "NginxHelp"],
+    [StandardLanguage.Nix]: ["Nix", "NixHelp"],
+    [StandardLanguage.Php]: ["Php", "PhpHelp"],
+    [StandardLanguage.Powershell]: ["Powershell", "PowershellHelp"],
+    [StandardLanguage.Protobuf]: ["Protobuf", "ProtobufHelp"],
+    [StandardLanguage.Puppet]: ["Puppet", "PuppetHelp"],
+    [StandardLanguage.Python]: ["Python", "PythonHelp"],
+    [StandardLanguage.R]: ["R", "RHelp"],
+    [StandardLanguage.Ruby]: ["Ruby", "RubyHelp"],
+    [StandardLanguage.Rust]: ["Rust", "RustHelp"],
+    [StandardLanguage.Sass]: ["Sass", "SassHelp"],
+    [StandardLanguage.Shell]: ["Shell", "ShellHelp"],
+    [StandardLanguage.Solidity]: ["Solidity", "SolidityHelp"],
+    [StandardLanguage.Spreadsheet]: ["Spreadsheet", "SpreadsheetHelp"],
+    [StandardLanguage.Sql]: ["Sql", "SqlHelp"],
+    [StandardLanguage.Svelte]: ["Svelte", "SvelteHelp"],
+    [StandardLanguage.Swift]: ["Swift", "SwiftHelp"],
+    [StandardLanguage.Typescript]: ["Typescript", "TypescriptHelp"],
+    [StandardLanguage.Vb]: ["Vb", "VbHelp"],
+    [StandardLanguage.Vbscript]: ["Vbscript", "VbscriptHelp"],
+    [StandardLanguage.Verilog]: ["Verilog", "VerilogHelp"],
+    [StandardLanguage.Vhdl]: ["Vhdl", "VhdlHelp"],
+    [StandardLanguage.Vue]: ["Vue", "VueHelp"],
+    [StandardLanguage.Xml]: ["Xml", "XmlHelp"],
+    [StandardLanguage.Yacas]: ["Yacas", "YacasHelp"],
+    [StandardLanguage.Yaml]: ["Yaml", "YamlHelp"],
 };
 
 // TODO for morning: this component is supposed to be for creating a standard for inputting JSON in JSONInput. 
@@ -268,6 +289,7 @@ const languageDisplayMap: { [x in LanguageType]: [LangsKey, LangsKey] } = {
 // TODO 2: After this stuff is done, update TopBar to support icon and action buttons, like the Header and Subheader components
 export const JsonStandardInput = ({
     isEditing,
+    limitTo,
 }: JsonStandardInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -282,6 +304,15 @@ export const JsonStandardInput = ({
         if (!isEditing) return;
         setInternalValue(value);
     }, [isEditing]);
+
+    // Limit language options
+    const availableLanguages = useMemo(() => {
+        if (limitTo) {
+            return limitTo;
+        } else {
+            return Object.values(StandardLanguage);
+        }
+    }, [limitTo]);
 
     // Track errors
     const [errors, setErrors] = useState<Diagnostic[]>([]);
@@ -298,9 +329,33 @@ export const JsonStandardInput = ({
             return diagnostics;
         });
     };
+    // Locate errors
+    const getSeverityForLine = (line: BlockInfo, errors: Diagnostic[], view: EditorView) => {
+        const linePosStart = line.from;
+        const linePosEnd = line.to;
+        for (const error of errors) {
+            if (error.from >= linePosStart && error.to <= linePosEnd) {
+                return error.severity;
+            }
+        }
+        return null;
+    };
+    // Display errors in gutter
+    const errorGutter = gutter({
+        lineMarker: (view, line) => {
+            const severity = getSeverityForLine(line, errors, view);
+            if (severity === "error") {
+                return new ErrorMarker();
+            } else if (severity === "warning") {
+                return new WarnMarker();
+            }
+            return null;
+        },
+        class: "cm-errorGutter",
+    });
 
     // Handle language selection
-    const [mode, setMode] = useState<LanguageType>(LanguageType.Json);
+    const [mode, setMode] = useState<StandardLanguage>(StandardLanguage.Json);
     const [extensions, setExtensions] = useState<any[]>([]);
     const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
     useEffect(() => {
@@ -338,16 +393,21 @@ export const JsonStandardInput = ({
                 alignItems: "center",
             }}>
                 {/* Select language */}
-                <SelectorBase
+                {availableLanguages.length > 0 && <SelectorBase
                     name="mode"
                     value={mode}
                     onChange={setMode}
                     disabled={!isEditing}
-                    options={Object.keys(languageMap) as LanguageType[]}
-                    getOptionLabel={(r) => t(languageDisplayMap[r as LanguageType][0], { ns: "langs" })}
+                    options={availableLanguages}
+                    getOptionLabel={(r) => t(languageDisplayMap[r as StandardLanguage][0], { ns: "langs" })}
                     fullWidth
                     inputAriaLabel="select language"
                     label={"Language"}
+                />}
+                {/* Help button */}
+                <HelpButton
+                    markdown={t(help, { ns: "langs" })}
+                    sxRoot={{ marginRight: 1, fill: palette.secondary.light }}
                 />
                 {/* Status */}
                 {supportsValidation && <StatusButton
@@ -359,16 +419,11 @@ export const JsonStandardInput = ({
                         height: "fit-content",
                     }}
                 />}
-                {/* Help button */}
-                <HelpButton
-                    markdown={t(help, { ns: "langs" })}
-                    sxRoot={{ marginRight: 1, fill: palette.secondary.light }}
-                />
             </Box>
             <CodeMirror
                 value={internalValue}
                 theme={palette.mode === "dark" ? "dark" : "light"}
-                extensions={extensions}
+                extensions={[...extensions, errorGutter]}
                 onChange={updateInternalValue}
                 height={"400px"}
                 style={{

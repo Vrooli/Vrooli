@@ -1,5 +1,6 @@
 import { InputType } from "@local/shared";
 import { FieldData, FieldDataBase } from "forms/types";
+import { StandardLanguage } from "./JsonStandardInput/JsonStandardInput";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation
@@ -23,7 +24,9 @@ export type CheckboxStandardInputProps = StandardInputCommonProps;
 
 export type DropzoneStandardInputProps = StandardInputCommonProps;
 
-export type JsonStandardInputProps = StandardInputCommonProps;
+export type JsonStandardInputProps = StandardInputCommonProps & {
+    limitTo?: StandardLanguage[];
+};
 
 export type MarkdownStandardInputProps = StandardInputCommonProps;
 
