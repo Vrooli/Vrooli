@@ -40,7 +40,7 @@ export const StatusButton = ({
      * If one message, no bullet points. If multiple, bullet points.
      */
     const statusMarkdown = useMemo(() => {
-        if (messages.length === 0) return "Routine is valid.";
+        if (messages.length === 0) return "No errors detected.";
         if (messages.length === 1) {
             return messages[0];
         }

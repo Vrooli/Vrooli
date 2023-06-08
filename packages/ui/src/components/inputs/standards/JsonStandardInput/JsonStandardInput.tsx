@@ -1,4 +1,5 @@
 import { StreamLanguage } from "@codemirror/language";
+import { Diagnostic, linter } from "@codemirror/lint";
 import { LangsKey } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import CodeMirror from "@uiw/react-codemirror";
@@ -10,7 +11,8 @@ import { JsonProps } from "forms/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
-import { isJson, jsonToString } from "utils/shape/general";
+import { jsonToString } from "utils/shape/general";
+// import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import { JsonStandardInputProps } from "../types";
 
 enum LanguageType {
@@ -57,158 +59,158 @@ enum LanguageType {
 /**
  * Dynamically imports language packages.
  */
-const languageMap: { [x in LanguageType]: (() => Promise<any>) } = {
+const languageMap: { [x in LanguageType]: (() => Promise<{ main: any, linter?: any }>) } = {
     [LanguageType.Angular]: async () => {
         const { angular } = await import("@codemirror/lang-angular");
-        return angular();
+        return { main: angular() };
     },
     [LanguageType.Cpp]: async () => {
         const { cpp } = await import("@codemirror/lang-cpp");
-        return cpp();
+        return { main: cpp() };
     },
     [LanguageType.Css]: async () => {
         const { css } = await import("@codemirror/lang-css");
-        return css();
+        return { main: css() };
     },
     [LanguageType.Dockerfile]: async () => {
         const { dockerFile } = await import("@codemirror/legacy-modes/mode/dockerfile");
-        return StreamLanguage.define(dockerFile);
+        return { main: StreamLanguage.define(dockerFile) };
     },
     [LanguageType.Go]: async () => {
         const { go } = await import("@codemirror/legacy-modes/mode/go");
-        return StreamLanguage.define(go);
+        return { main: StreamLanguage.define(go) };
     },
     [LanguageType.Graphql]: async () => {
         const { graphql } = await import("cm6-graphql");
-        return graphql();
+        return { main: graphql() };
     },
     [LanguageType.Groovy]: async () => {
         const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
-        return StreamLanguage.define(groovy);
+        return { main: StreamLanguage.define(groovy) };
     },
     [LanguageType.Haskell]: async () => {
         const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
-        return StreamLanguage.define(haskell);
+        return { main: StreamLanguage.define(haskell) };
     },
     [LanguageType.Html]: async () => {
         const { html } = await import("@codemirror/lang-html");
-        return html();
+        return { main: html() };
     },
     [LanguageType.Java]: async () => {
         const { java } = await import("@codemirror/lang-java");
-        return java();
+        return { main: java() };
     },
     [LanguageType.Javascript]: async () => {
         const { javascript } = await import("@codemirror/lang-javascript");
-        return javascript({ jsx: true });
+        return { main: javascript({ jsx: true }) };
     },
     [LanguageType.Json]: async () => {
-        const { json } = await import("@codemirror/lang-json");
-        return json();
+        const { json, jsonParseLinter } = await import("@codemirror/lang-json");
+        return { main: json(), linter: jsonParseLinter() };
     },
     [LanguageType.Nginx]: async () => {
         const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
-        return StreamLanguage.define(nginx);
+        return { main: StreamLanguage.define(nginx) };
     },
     [LanguageType.Nix]: async () => {
         const { nix } = await import("@replit/codemirror-lang-nix");
-        return nix();
+        return { main: nix() };
     },
     [LanguageType.Php]: async () => {
         const { php } = await import("@codemirror/lang-php");
-        return php();
+        return { main: php() };
     },
     [LanguageType.Powershell]: async () => {
         const { powerShell } = await import("@codemirror/legacy-modes/mode/powershell");
-        return StreamLanguage.define(powerShell);
+        return { main: StreamLanguage.define(powerShell) };
     },
     [LanguageType.Protobuf]: async () => {
         const { protobuf } = await import("@codemirror/legacy-modes/mode/protobuf");
-        return StreamLanguage.define(protobuf);
+        return { main: StreamLanguage.define(protobuf) };
     },
     [LanguageType.Puppet]: async () => {
         const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
-        return StreamLanguage.define(puppet);
+        return { main: StreamLanguage.define(puppet) };
     },
     [LanguageType.Python]: async () => {
         const { python } = await import("@codemirror/lang-python");
-        return python();
+        return { main: python() };
     },
     [LanguageType.R]: async () => {
         const { r } = await import("codemirror-lang-r");
-        return r();
+        return { main: r() };
     },
     [LanguageType.Ruby]: async () => {
         const { ruby } = await import("@codemirror/legacy-modes/mode/ruby");
-        return StreamLanguage.define(ruby);
+        return { main: StreamLanguage.define(ruby) };
     },
     [LanguageType.Rust]: async () => {
         const { rust } = await import("@codemirror/lang-rust");
-        return rust();
+        return { main: rust() };
     },
     [LanguageType.Sass]: async () => {
         const { sass } = await import("@codemirror/lang-sass");
-        return sass();
+        return { main: sass() };
     },
     [LanguageType.Shell]: async () => {
         const { shell } = await import("@codemirror/legacy-modes/mode/shell");
-        return StreamLanguage.define(shell);
+        return { main: StreamLanguage.define(shell) };
     },
     [LanguageType.Solidity]: async () => {
         const { solidity } = await import("@replit/codemirror-lang-solidity");
-        return solidity;
+        return { main: solidity };
     },
     [LanguageType.Spreadsheet]: async () => {
         const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
-        return StreamLanguage.define(spreadsheet);
+        return { main: StreamLanguage.define(spreadsheet) };
     },
     [LanguageType.Sql]: async () => {
         const { standardSQL } = await import("@codemirror/legacy-modes/mode/sql");
-        return StreamLanguage.define(standardSQL);
+        return { main: StreamLanguage.define(standardSQL) };
     },
     [LanguageType.Svelte]: async () => {
         const { svelte } = await import("@replit/codemirror-lang-svelte");
-        return svelte();
+        return { main: svelte() };
     },
     [LanguageType.Swift]: async () => {
         const { swift } = await import("@codemirror/legacy-modes/mode/swift");
-        return StreamLanguage.define(swift);
+        return { main: StreamLanguage.define(swift) };
     },
     [LanguageType.Typescript]: async () => {
         const { javascript } = await import("@codemirror/lang-javascript");
-        return javascript({ jsx: true, typescript: true });
+        return { main: javascript({ jsx: true, typescript: true }) };
     },
     [LanguageType.Vb]: async () => {
         const { vb } = await import("@codemirror/legacy-modes/mode/vb");
-        return StreamLanguage.define(vb);
+        return { main: StreamLanguage.define(vb) };
     },
     [LanguageType.Vbscript]: async () => {
         const { vbScript } = await import("@codemirror/legacy-modes/mode/vbscript");
-        return StreamLanguage.define(vbScript);
+        return { main: StreamLanguage.define(vbScript) };
     },
     [LanguageType.Verilog]: async () => {
         const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
-        return StreamLanguage.define(verilog);
+        return { main: StreamLanguage.define(verilog) };
     },
     [LanguageType.Vhdl]: async () => {
         const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
-        return StreamLanguage.define(vhdl);
+        return { main: StreamLanguage.define(vhdl) };
     },
     [LanguageType.Vue]: async () => {
         const { vue } = await import("@codemirror/lang-vue");
-        return vue();
+        return { main: vue() };
     },
     [LanguageType.Xml]: async () => {
         const { xml } = await import("@codemirror/lang-xml");
-        return xml();
+        return { main: xml() };
     },
     [LanguageType.Yacas]: async () => {
         const { yacas } = await import("@codemirror/legacy-modes/mode/yacas");
-        return StreamLanguage.define(yacas);
+        return { main: StreamLanguage.define(yacas) };
     },
     [LanguageType.Yaml]: async () => {
         const { yaml } = await import("@codemirror/legacy-modes/mode/yaml");
-        return StreamLanguage.define(yaml);
+        return { main: StreamLanguage.define(yaml) };
     },
 };
 
@@ -256,13 +258,6 @@ const languageDisplayMap: { [x in LanguageType]: [LangsKey, LangsKey] } = {
     [LanguageType.Yaml]: ["Yaml", "YamlHelp"],
 };
 
-/**
- * Maps languages to validators, if any.
- */
-const validatorMap: { [x in LanguageType]?: (input: string) => boolean } = {
-    [LanguageType.Json]: (input) => isJson(input),
-};
-
 // TODO for morning: this component is supposed to be for creating a standard for inputting JSON in JSONInput. 
 // I think all of this multi-language stuff should be in JsonInput instead, and then rename that component to CodeInput 
 // or something, with a prop to limit the language.
@@ -288,28 +283,46 @@ export const JsonStandardInput = ({
         setInternalValue(value);
     }, [isEditing]);
 
+    // Track errors
+    const [errors, setErrors] = useState<Diagnostic[]>([]);
+    const wrappedLinter = (nextLinter) => {
+        return linter(view => {
+            // Run the existing linter and get its diagnostics.
+            const diagnostics = nextLinter(view);
+            // Count the number of errors.
+            const errors = diagnostics.filter(d => d.severity === "error");
+            // Update state
+            console.log("setting errors", errors);
+            setErrors(errors);
+            // Return the diagnostics so they still get displayed.
+            return diagnostics;
+        });
+    };
+
     // Handle language selection
     const [mode, setMode] = useState<LanguageType>(LanguageType.Json);
-    const [languageExtension, setLanguageExtension] = useState(null);
+    const [extensions, setExtensions] = useState<any[]>([]);
+    const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
     useEffect(() => {
         if (mode in languageMap) {
-            languageMap[mode]().then((language) => {
-                console.log("imported language", language);
-                setLanguageExtension(language);
+            languageMap[mode]().then(({ main, linter }) => {
+                console.log("imported extensions", main, linter);
+                const updatedExtensions = [main];
+                if (linter) {
+                    updatedExtensions.push(wrappedLinter(linter));
+                    setSupportsValidation(true);
+                }
+                else {
+                    setErrors([]);
+                    setSupportsValidation(false);
+                }
+                setExtensions(updatedExtensions);
             });
         }
     }, [mode]);
 
     // Find language label and help text
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);
-
-    // Handle valid indicator for supported languages
-    const [isValid, supportsValidation] = useMemo<[boolean, boolean]>(() => {
-        if (mode in validatorMap) {
-            return [validatorMap[mode]!(internalValue), true];
-        }
-        return [true, false];
-    }, [mode, internalValue]);
 
     return (
         <Stack direction="column" spacing={0}>
@@ -322,6 +335,7 @@ export const JsonStandardInput = ({
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
                 borderRadius: "0.5rem 0.5rem 0 0",
+                alignItems: "center",
             }}>
                 {/* Select language */}
                 <SelectorBase
@@ -337,23 +351,24 @@ export const JsonStandardInput = ({
                 />
                 {/* Status */}
                 {supportsValidation && <StatusButton
-                    status={isValid ? Status.Valid : Status.Invalid}
-                    messages={isValid ? ["JSON is valid"] : ["JSON is empty or could not be parsed"]}
+                    status={errors.length === 0 ? Status.Valid : Status.Invalid}
+                    messages={errors.map(e => e.message)}
                     sx={{
                         marginLeft: 1,
                         marginRight: "auto",
+                        height: "fit-content",
                     }}
                 />}
                 {/* Help button */}
                 <HelpButton
                     markdown={t(help, { ns: "langs" })}
-                    sxRoot={{ marginRight: 1 }}
+                    sxRoot={{ marginRight: 1, fill: palette.secondary.light }}
                 />
             </Box>
             <CodeMirror
                 value={internalValue}
                 theme={palette.mode === "dark" ? "dark" : "light"}
-                extensions={languageExtension ? [languageExtension] : []}
+                extensions={extensions}
                 onChange={updateInternalValue}
                 height={"400px"}
                 style={{
