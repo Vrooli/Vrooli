@@ -1,3 +1,4 @@
+import { StreamLanguage } from "@codemirror/language";
 import { LangsKey } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import CodeMirror from "@uiw/react-codemirror";
@@ -16,17 +17,41 @@ enum LanguageType {
     Angular = "angular",
     Cpp = "cpp",
     Css = "css",
+    Dockerfile = "dockerfile",
+    Go = "go",
+    Graphql = "graphql",
+    Groovy = "groovy",
+    Haskell = "haskell",
     Html = "html",
     Java = "java",
     Javascript = "javascript",
     Json = "json",
+    Nginx = "nginx",
+    Nix = "nix",
     Php = "php",
+    Powershell = "powershell",
+    Protobuf = "protobuf",
+    Puppet = "puppet",
     Python = "python",
+    R = "r",
+    Ruby = "ruby",
     Rust = "rust",
     Sass = "sass",
+    Shell = "shell",
+    Solidity = "solidity",
+    Spreadsheet = "spreadsheet",
+    Sql = "sql",
+    Svelte = "svelte",
+    Swift = "swift",
     Typescript = "typescript",
+    Vb = "vb",
+    Vbscript = "vbscript",
+    Verilog = "verilog",
+    Vhdl = "vhdl",
     Vue = "vue",
     Xml = "xml",
+    Yacas = "yacas",
+    Yaml = "yaml",
 }
 
 /**
@@ -45,6 +70,26 @@ const languageMap: { [x in LanguageType]: (() => Promise<any>) } = {
         const { css } = await import("@codemirror/lang-css");
         return css();
     },
+    [LanguageType.Dockerfile]: async () => {
+        const { dockerFile } = await import("@codemirror/legacy-modes/mode/dockerfile");
+        return StreamLanguage.define(dockerFile);
+    },
+    [LanguageType.Go]: async () => {
+        const { go } = await import("@codemirror/legacy-modes/mode/go");
+        return StreamLanguage.define(go);
+    },
+    [LanguageType.Graphql]: async () => {
+        const { graphql } = await import("cm6-graphql");
+        return graphql();
+    },
+    [LanguageType.Groovy]: async () => {
+        const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
+        return StreamLanguage.define(groovy);
+    },
+    [LanguageType.Haskell]: async () => {
+        const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
+        return StreamLanguage.define(haskell);
+    },
     [LanguageType.Html]: async () => {
         const { html } = await import("@codemirror/lang-html");
         return html();
@@ -61,13 +106,41 @@ const languageMap: { [x in LanguageType]: (() => Promise<any>) } = {
         const { json } = await import("@codemirror/lang-json");
         return json();
     },
+    [LanguageType.Nginx]: async () => {
+        const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
+        return StreamLanguage.define(nginx);
+    },
+    [LanguageType.Nix]: async () => {
+        const { nix } = await import("@replit/codemirror-lang-nix");
+        return nix();
+    },
     [LanguageType.Php]: async () => {
         const { php } = await import("@codemirror/lang-php");
         return php();
     },
+    [LanguageType.Powershell]: async () => {
+        const { powerShell } = await import("@codemirror/legacy-modes/mode/powershell");
+        return StreamLanguage.define(powerShell);
+    },
+    [LanguageType.Protobuf]: async () => {
+        const { protobuf } = await import("@codemirror/legacy-modes/mode/protobuf");
+        return StreamLanguage.define(protobuf);
+    },
+    [LanguageType.Puppet]: async () => {
+        const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
+        return StreamLanguage.define(puppet);
+    },
     [LanguageType.Python]: async () => {
         const { python } = await import("@codemirror/lang-python");
         return python();
+    },
+    [LanguageType.R]: async () => {
+        const { r } = await import("codemirror-lang-r");
+        return r();
+    },
+    [LanguageType.Ruby]: async () => {
+        const { ruby } = await import("@codemirror/legacy-modes/mode/ruby");
+        return StreamLanguage.define(ruby);
     },
     [LanguageType.Rust]: async () => {
         const { rust } = await import("@codemirror/lang-rust");
@@ -77,9 +150,49 @@ const languageMap: { [x in LanguageType]: (() => Promise<any>) } = {
         const { sass } = await import("@codemirror/lang-sass");
         return sass();
     },
+    [LanguageType.Shell]: async () => {
+        const { shell } = await import("@codemirror/legacy-modes/mode/shell");
+        return StreamLanguage.define(shell);
+    },
+    [LanguageType.Solidity]: async () => {
+        const { solidity } = await import("@replit/codemirror-lang-solidity");
+        return solidity;
+    },
+    [LanguageType.Spreadsheet]: async () => {
+        const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
+        return StreamLanguage.define(spreadsheet);
+    },
+    [LanguageType.Sql]: async () => {
+        const { standardSQL } = await import("@codemirror/legacy-modes/mode/sql");
+        return StreamLanguage.define(standardSQL);
+    },
+    [LanguageType.Svelte]: async () => {
+        const { svelte } = await import("@replit/codemirror-lang-svelte");
+        return svelte();
+    },
+    [LanguageType.Swift]: async () => {
+        const { swift } = await import("@codemirror/legacy-modes/mode/swift");
+        return StreamLanguage.define(swift);
+    },
     [LanguageType.Typescript]: async () => {
         const { javascript } = await import("@codemirror/lang-javascript");
         return javascript({ jsx: true, typescript: true });
+    },
+    [LanguageType.Vb]: async () => {
+        const { vb } = await import("@codemirror/legacy-modes/mode/vb");
+        return StreamLanguage.define(vb);
+    },
+    [LanguageType.Vbscript]: async () => {
+        const { vbScript } = await import("@codemirror/legacy-modes/mode/vbscript");
+        return StreamLanguage.define(vbScript);
+    },
+    [LanguageType.Verilog]: async () => {
+        const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
+        return StreamLanguage.define(verilog);
+    },
+    [LanguageType.Vhdl]: async () => {
+        const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
+        return StreamLanguage.define(vhdl);
     },
     [LanguageType.Vue]: async () => {
         const { vue } = await import("@codemirror/lang-vue");
@@ -88,6 +201,14 @@ const languageMap: { [x in LanguageType]: (() => Promise<any>) } = {
     [LanguageType.Xml]: async () => {
         const { xml } = await import("@codemirror/lang-xml");
         return xml();
+    },
+    [LanguageType.Yacas]: async () => {
+        const { yacas } = await import("@codemirror/legacy-modes/mode/yacas");
+        return StreamLanguage.define(yacas);
+    },
+    [LanguageType.Yaml]: async () => {
+        const { yaml } = await import("@codemirror/legacy-modes/mode/yaml");
+        return StreamLanguage.define(yaml);
     },
 };
 
@@ -98,17 +219,41 @@ const languageDisplayMap: { [x in LanguageType]: [LangsKey, LangsKey] } = {
     [LanguageType.Angular]: ["Angular", "AngularHelp"],
     [LanguageType.Cpp]: ["Cpp", "CppHelp"],
     [LanguageType.Css]: ["Css", "CssHelp"],
+    [LanguageType.Dockerfile]: ["Dockerfile", "DockerfileHelp"],
+    [LanguageType.Go]: ["Go", "GoHelp"],
+    [LanguageType.Graphql]: ["Graphql", "GraphqlHelp"],
+    [LanguageType.Groovy]: ["Groovy", "GroovyHelp"],
+    [LanguageType.Haskell]: ["Haskell", "HaskellHelp"],
     [LanguageType.Html]: ["Html", "HtmlHelp"],
     [LanguageType.Java]: ["Java", "JavaHelp"],
     [LanguageType.Javascript]: ["Javascript", "JavascriptHelp"],
     [LanguageType.Json]: ["Json", "JsonHelp"],
+    [LanguageType.Nginx]: ["Nginx", "NginxHelp"],
+    [LanguageType.Nix]: ["Nix", "NixHelp"],
     [LanguageType.Php]: ["Php", "PhpHelp"],
+    [LanguageType.Powershell]: ["Powershell", "PowershellHelp"],
+    [LanguageType.Protobuf]: ["Protobuf", "ProtobufHelp"],
+    [LanguageType.Puppet]: ["Puppet", "PuppetHelp"],
     [LanguageType.Python]: ["Python", "PythonHelp"],
+    [LanguageType.R]: ["R", "RHelp"],
+    [LanguageType.Ruby]: ["Ruby", "RubyHelp"],
     [LanguageType.Rust]: ["Rust", "RustHelp"],
     [LanguageType.Sass]: ["Sass", "SassHelp"],
+    [LanguageType.Shell]: ["Shell", "ShellHelp"],
+    [LanguageType.Solidity]: ["Solidity", "SolidityHelp"],
+    [LanguageType.Spreadsheet]: ["Spreadsheet", "SpreadsheetHelp"],
+    [LanguageType.Sql]: ["Sql", "SqlHelp"],
+    [LanguageType.Svelte]: ["Svelte", "SvelteHelp"],
+    [LanguageType.Swift]: ["Swift", "SwiftHelp"],
     [LanguageType.Typescript]: ["Typescript", "TypescriptHelp"],
+    [LanguageType.Vb]: ["Vb", "VbHelp"],
+    [LanguageType.Vbscript]: ["Vbscript", "VbscriptHelp"],
+    [LanguageType.Verilog]: ["Verilog", "VerilogHelp"],
+    [LanguageType.Vhdl]: ["Vhdl", "VhdlHelp"],
     [LanguageType.Vue]: ["Vue", "VueHelp"],
     [LanguageType.Xml]: ["Xml", "XmlHelp"],
+    [LanguageType.Yacas]: ["Yacas", "YacasHelp"],
+    [LanguageType.Yaml]: ["Yaml", "YamlHelp"],
 };
 
 /**
