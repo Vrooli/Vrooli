@@ -676,8 +676,8 @@ export const getTranslationData = <
  * Handles onBlurs for translation fields in a formik object
  */
 export const handleTranslationBlur = (
-    field: FieldInputProps<{}>,
-    meta: FieldMetaProps<{}>,
+    field: FieldInputProps<object>,
+    meta: FieldMetaProps<object>,
     event: { target: { name: string } },
     language: string,
 ) => {
@@ -777,7 +777,7 @@ export const combineErrorsWithTranslations = (
 export const addEmptyTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    helpers: FieldHelperProps<{}>,
+    helpers: FieldHelperProps<object>,
     language: string,
 ) => {
     // Get copy of current translations
@@ -808,7 +808,7 @@ export const addEmptyTranslation = (
 export const removeTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    helpers: FieldHelperProps<{}>,
+    helpers: FieldHelperProps<object>,
     language: string,
 ) => {
     // Get copy of current translations

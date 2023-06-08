@@ -7,8 +7,9 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { useField } from "formik";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
-import { isJson, jsonHelpText, jsonToMarkdown } from "utils/shape/general";
+import { isJson, jsonToMarkdown } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { JsonInputProps } from "../types";
 
@@ -22,6 +23,7 @@ export const JsonInput = ({
     variables,
 }: JsonInputProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [field, meta, helpers] = useField<string | null>(name);
 
@@ -94,7 +96,7 @@ export const JsonInput = ({
                     </IconButton>
                 </Tooltip>
                 <HelpButton
-                    markdown={jsonHelpText}
+                    markdown={t("JsonHelp")}
                     sxRoot={{ marginRight: 1 }}
                 />
             </Box>

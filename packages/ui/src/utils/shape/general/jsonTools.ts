@@ -20,22 +20,6 @@ export interface JSONValidationResult {
 }
 
 /**
- * Markdown text that explains how to enter JSON data
- */
-export const jsonHelpText =
-    `JSON is a widely used format for storing data objects.  
-
-If you are unfamiliar with JSON, you may [read this guide](https://www.tutorialspoint.com/json/json_quick_guide.htm) to learn how to use it.  
-
-On top of the JSON format, we also support the following:  
-- **Variables**: Any key or value can be substituted with a variable. These are used to make it easy for users to fill in their own data, as well as 
-provide details about those parts of the JSON. Variables follow the format of &lt;variable_name&gt;.  
-- **Optional fields**: Fields that are not required can be marked as optional. Optional fields must start with a question mark (e.g. ?field_name).  
-- **Additional fields**: If an object contains arbitrary fields, add a field with brackets (e.g. [variable]).  
-- **Data types**: Data types are specified by reserved words (e.g. &lt;string&gt;, &lt;number | boolean&gt;, &lt;any&gt;, etc.), variable names (e.g. &lt;variable_name&gt;), standard IDs (e.g. &lt;decdf6c8-4230-4777-b8e3-799df2503c42&gt;), or simply entered as normal JSON.
-`;
-
-/**
  * Determines if input is an object, and not a Date or Array
  * @param obj - object to check
  * @returns true if object, false otherwise
