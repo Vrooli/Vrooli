@@ -1,12 +1,13 @@
-import { AddIcon, CloseIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
-import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
+import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DateTimeInput } from "components/inputs/DateTimeInput/DateTimeInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
-import { Field, useField } from "formik";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
 import { forwardRef } from "react";
@@ -64,14 +65,6 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
     const [exceptionsField, exceptionsMeta, exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
     const [recurrencesField, recurrencesMeta, recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
 
-    const clearStartTime = () => {
-        props.setFieldValue("startTime", "");
-    };
-
-    const clearEndTime = () => {
-        props.setFieldValue("endTime", "");
-    };
-
     const addNewRecurrence = () => {
         recurrencesHelpers.setValue([...recurrencesField.value, {
             __typename: "ScheduleRecurrence" as const,
@@ -123,45 +116,15 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         variant="subheader"
                     />
                     <Stack direction="column" spacing={2}>
-                        <Field
-                            fullWidth
+                        <DateTimeInput
                             name="startTime"
-                            label={"Start time (optional)"}
+                            label="Start time (optional)"
                             type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={clearStartTime}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            as={TextField}
                         />
-                        <Field
-                            fullWidth
-                            name="endTime"
-                            label={"End time (optional)"}
+                        <DateTimeInput
+                            name="emdTime"
+                            label="End time (optional)"
                             type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={clearEndTime}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            as={TextField}
                         />
                         <TimezoneSelector name="timezone" label="Timezone" />
                     </Stack>
@@ -175,15 +138,15 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         {recurrencesField.value.map((recurrence, index) => (
                             <Box sx={{
                                 borderRadius: 2,
-                                border: `2px solid ${palette.divider}`,
                                 marginBottom: 2,
-                                padding: 1,
+                                padding: 2,
+                                boxShadow: 4,
+                                background: palette.background.default,
                             }}>
                                 <Stack
                                     direction="row"
                                     alignItems="flex-start"
                                     spacing={2}
-                                    sx={{ boxShadow: 6 }}
                                 >
                                     <Stack spacing={1} sx={{ width: "100%" }}>
                                         <FormControl fullWidth>
@@ -252,13 +215,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                                 getOptionLabel={(option) => option.label}
                                             />
                                         )}
-                                        <TextField
-                                            fullWidth
-                                            label={"End date"}
+                                        <DateTimeInput
+                                            name={`recurrences[${index}].endDate`}
+                                            label="End date"
                                             type="date"
-                                            value={recurrence.endDate ?? ""}
-                                            onChange={(e) => handleRecurrenceChange(index, "endDate", e.target.value)}
-                                            InputLabelProps={{ shrink: true }}
                                         />
                                     </Stack>
                                     <Stack spacing={1} width={32}>

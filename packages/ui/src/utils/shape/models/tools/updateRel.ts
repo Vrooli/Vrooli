@@ -39,8 +39,8 @@ const findConnectedItems = <
 const findCreatedItems = <
     Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
     FieldName extends string,
-    Shape extends ShapeModel<any, {}, any>,
-    Output extends {}
+    Shape extends ShapeModel<any, object, any>,
+    Output extends object
 >(
     original: Item,
     updated: Item,
@@ -75,8 +75,8 @@ const findCreatedItems = <
 const findUpdatedItems = <
     Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
     FieldName extends string,
-    Shape extends ShapeModel<any, null, {}>,
-    Output extends {}
+    Shape extends ShapeModel<any, null, object>,
+    Output extends object
 >(
     original: Item,
     updated: Item,
@@ -188,17 +188,17 @@ type UpdateRelOutput<
  */
 export const updateRel = <
     Item extends (IsOneToOne extends "one" ?
-        { [x in FieldName]?: {} | null | undefined } :
-        { [x in FieldName]?: {}[] | null | undefined }),
+        { [x in FieldName]?: object | null | undefined } :
+        { [x in FieldName]?: object[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
     // Shape object only required when RelTypes includes 'Create' or 'Update'
     Shape extends ("Create" extends RelTypes[number] ?
         "Update" extends RelTypes[number] ?
-        ShapeModel<any, {}, {}> :
-        ShapeModel<any, {}, null> :
+        ShapeModel<any, object, object> :
+        ShapeModel<any, object, null> :
         "Update" extends RelTypes[number] ?
-        ShapeModel<any, null, {}> :
+        ShapeModel<any, null, object> :
         never),
     IsOneToOne extends "one" | "many",
 >(
@@ -252,7 +252,7 @@ export const updateRel = <
                 original as any,
                 updated as any,
                 relation,
-                shape as ShapeModel<any, {}, null>,
+                shape as ShapeModel<any, object, null>,
                 preShape as any);
             result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }
@@ -275,7 +275,7 @@ export const updateRel = <
                 original as any,
                 updated as any,
                 relation,
-                shape as ShapeModel<any, null, {}>,
+                shape as ShapeModel<any, null, object>,
                 preShape as any);
             result[`${relation}${t}`] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
         }

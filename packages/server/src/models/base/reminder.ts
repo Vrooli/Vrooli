@@ -37,7 +37,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                embeddingNeedsUpdate: typeof data.name === "string" || typeof data.description === "string",
+                embeddingNeedsUpdate: (typeof data.name === "string" || typeof data.description === "string") ? true : undefined,
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),

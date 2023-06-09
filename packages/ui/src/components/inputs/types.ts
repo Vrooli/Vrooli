@@ -20,6 +20,13 @@ export interface CommentUpsertInputProps {
     zIndex: number;
 }
 
+export interface DateTimeInputProps {
+    fullWidth?: boolean;
+    label: string;
+    name: string;
+    type?: "date" | "datetime-local";
+}
+
 export interface DropzoneProps {
     acceptedFileTypes?: string[];
     cancelText?: string;

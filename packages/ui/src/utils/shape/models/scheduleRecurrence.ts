@@ -1,7 +1,7 @@
 import { ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
 import { ScheduleShape, shapeSchedule } from "./schedule";
-import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
+import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims } from "./tools";
 
 export type ScheduleRecurrenceShape = Pick<ScheduleRecurrence, "id" | "recurrenceType" | "interval" | "dayOfMonth" | "dayOfWeek" | "month" | "endDate"> & {
     __typename?: "ScheduleRecurrence";
@@ -10,10 +10,10 @@ export type ScheduleRecurrenceShape = Pick<ScheduleRecurrence, "id" | "recurrenc
 
 export const shapeScheduleRecurrence: ShapeModel<ScheduleRecurrenceShape, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "recurrenceType", "interval", "dayOfMonth", "dayOfWeek", "month", "endDate"),
+        ...createPrims(d, "id", "recurrenceType", "interval", "dayOfMonth", "dayOfWeek", "month", ["endDate", shapeDate]),
         ...createRel(d, "schedule", ["Connect", "Create"], "one", shapeSchedule),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "recurrenceType", "interval", "dayOfMonth", "dayOfWeek", "month", "endDate"),
+        ...updatePrims(o, u, "id", "recurrenceType", "interval", "dayOfMonth", "dayOfWeek", "month", ["endDate", shapeDate]),
     }, a),
 };

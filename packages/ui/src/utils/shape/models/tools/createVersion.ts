@@ -9,7 +9,7 @@ import { ShapeModel } from "types";
  */
 export const createVersion = <
     Root extends { versionInfo?: { versionLabel: string | null | undefined } | null | undefined },
-    VersionCreateInput extends {},
+    VersionCreateInput extends object,
 >(
     root: Root,
     shape: ShapeModel<any, VersionCreateInput, null>,

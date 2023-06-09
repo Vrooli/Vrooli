@@ -286,8 +286,6 @@ const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
 // new language option. Also need to add support for format (which is JSON Standard) which, if provided, limits the language to JSON 
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
 // "standard input" components, but the duplicate code prevention may be worth it.
-// TODO 2: After this stuff is done, update TopBar to support icon and action buttons, like the Header and Subheader components
-// TODO 3: Update look of SelectorBase component
 export const JsonStandardInput = ({
     isEditing,
     limitTo,
@@ -406,6 +404,10 @@ export const JsonStandardInput = ({
                     fullWidth
                     inputAriaLabel="select language"
                     label={"Language"}
+                    sx={{
+                        width: "fit-content",
+                        minWidth: "200px",
+                    }}
                 />}
                 {/* Help button */}
                 <HelpButton

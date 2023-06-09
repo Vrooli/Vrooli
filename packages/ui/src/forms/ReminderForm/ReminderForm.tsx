@@ -1,12 +1,13 @@
-import { AddIcon, CloseIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
-import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
+import { Box, Button, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DateTimeInput } from "components/inputs/DateTimeInput/DateTimeInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
-import { forwardRef, useCallback } from "react";
+import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
@@ -104,19 +105,6 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         reminderItemsHelpers.setValue(newReminderItems);
     };
 
-    const clearDueDate = useCallback((index?: number) => {
-        // If no index is provided, clear the due date for the reminder
-        if (index === undefined) {
-            dueDateHelpers.setValue(null);
-        }
-        // Otherwise, we're clearing the due date for a specific reminder item (step)
-        else {
-            const newReminderItems = [...reminderItemsField.value];
-            newReminderItems[index].dueDate = null;
-            reminderItemsHelpers.setValue(newReminderItems);
-        }
-    }, [dueDateHelpers, reminderItemsField.value, reminderItemsHelpers]);
-
     return (
         <>
             <DragDropContext onDragEnd={onDragEnd}>
@@ -153,25 +141,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 zIndex={zIndex}
                             />
                         </Stack>
-                        <Field
-                            fullWidth
+                        <DateTimeInput
                             name="dueDate"
-                            label={"Due date (optional)"}
+                            label="Due date (optional)"
                             type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={() => { clearDueDate(); }}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            as={TextField}
                         />
                         {/* Steps to complete reminder */}
                         <Title
@@ -216,25 +189,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     placeholder={t("Description")}
                                                                     zIndex={zIndex}
                                                                 />
-                                                                <Field
-                                                                    fullWidth
+                                                                <DateTimeInput
                                                                     name={`reminderItems[${i}].dueDate`}
-                                                                    label={"Due date (optional)"}
+                                                                    label="Due date (optional)"
                                                                     type="datetime-local"
-                                                                    InputProps={{
-                                                                        endAdornment: (
-                                                                            <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                                                                <input type="hidden" />
-                                                                                <IconButton edge="end" size="small" onClick={() => { clearDueDate(i); }}>
-                                                                                    <CloseIcon fill={palette.background.textPrimary} />
-                                                                                </IconButton>
-                                                                            </InputAdornment>
-                                                                        ),
-                                                                    }}
-                                                                    InputLabelProps={{
-                                                                        shrink: true,
-                                                                    }}
-                                                                    as={TextField}
                                                                 />
                                                             </Stack>
                                                             <Stack spacing={1} width={32}>
