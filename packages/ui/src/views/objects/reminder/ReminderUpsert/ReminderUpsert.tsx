@@ -1,5 +1,4 @@
 import { DeleteIcon, endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
-import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -46,16 +45,11 @@ export const ReminderUpsert = ({
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateReminder" : "UpdateReminder")}
                 // Show delete button only when updating
-                below={
-                    !isCreate ? (
-                        <Box pb={2} sx={{ display: "flex", justifyContent: "center" }}>
-                            <Button
-                                onClick={handleDelete}
-                                startIcon={<DeleteIcon />}
-                            >{t("Delete")}</Button>
-                        </Box>
-                    ) : undefined
-                }
+                options={!isCreate ? [{
+                    Icon: DeleteIcon,
+                    label: t("Delete"),
+                    onClick: handleDelete,
+                }] : []}
             />
             <Formik
                 enableReinitialize={true}

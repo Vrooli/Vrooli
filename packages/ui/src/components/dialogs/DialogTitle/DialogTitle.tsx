@@ -1,16 +1,15 @@
 import { CloseIcon } from "@local/shared";
 import { Box, DialogTitle as MuiDialogTitle, IconButton, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { Title } from "components/text/Title/Title";
 import { forwardRef } from "react";
 import { noSelect } from "styles";
 import { DialogTitleProps } from "../types";
 
 export const DialogTitle = forwardRef(({
     below,
-    helpText,
     id,
     onClose,
-    title,
+    ...titleData
 }: DialogTitleProps, ref) => {
     const { palette } = useTheme();
 
@@ -30,18 +29,11 @@ export const DialogTitle = forwardRef(({
                     fontSize: { xs: "1.5rem", sm: "2rem" },
                 }}
             >
-                <Box sx={{ marginLeft: "auto" }} >{title}</Box>
-                {helpText && <HelpButton
-                    markdown={helpText}
-                    sx={{
-                        fill: palette.secondary.light,
-                    }}
-                    sxRoot={{
-                        display: "flex",
-                        marginTop: "auto",
-                        marginBottom: "auto",
-                    }}
-                />}
+                <Title
+                    {...titleData}
+                    sxs={{ stack: { marginLeft: "auto" } }}
+                    variant="header"
+                />
                 <IconButton
                     aria-label="close"
                     edge="end"

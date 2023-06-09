@@ -68,12 +68,6 @@ export const AdvancedSearchDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <TopBar
-                display="dialog"
-                onClose={handleClose}
-                title={t("AdvancedSearch")}
-                titleId={titleId}
-            />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
@@ -87,17 +81,17 @@ export const AdvancedSearchDialog = ({
                 validationSchema={validationSchema}
             >
                 {(formik) => <>
-                    {/* Reset search button */}
-                    <Button
-                        onClick={() => { formik.resetForm(); }}
-                        startIcon={<RefreshIcon />}
-                        sx={{
-                            display: "flex",
-                            margin: "auto",
-                            marginTop: 2,
-                            marginBottom: 2,
-                        }}
-                    >{t("Reset")}</Button>
+                    <TopBar
+                        display="dialog"
+                        onClose={handleClose}
+                        title={t("AdvancedSearch")}
+                        titleId={titleId}
+                        options={[{
+                            Icon: RefreshIcon,
+                            label: t("Reset"),
+                            onClick: () => { formik.resetForm(); },
+                        }]}
+                    />
                     <Box sx={{
                         margin: "auto",
                         display: "flex",
