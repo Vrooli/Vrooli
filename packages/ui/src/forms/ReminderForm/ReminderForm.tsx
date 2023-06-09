@@ -190,10 +190,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                         {...provided.draggableProps}
                                                         sx={{
                                                             borderRadius: 2,
-                                                            border: `2px solid ${palette.divider}`,
-                                                            boxShadow: 6,
+                                                            boxShadow: 4,
                                                             marginBottom: 2,
                                                             padding: 2,
+                                                            background: palette.background.default,
                                                         }}>
                                                         <Stack
                                                             direction="row"
@@ -207,11 +207,13 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     label={t("Name")}
                                                                     as={TextField}
                                                                 />
-                                                                <Field
-                                                                    fullWidth
+                                                                <MarkdownInput
+                                                                    maxChars={2048}
+                                                                    maxRows={6}
+                                                                    minRows={2}
                                                                     name={`reminderItems[${i}].description`}
-                                                                    label={t("Description")}
-                                                                    as={TextField}
+                                                                    placeholder={t("Description")}
+                                                                    zIndex={zIndex}
                                                                 />
                                                                 <Field
                                                                     fullWidth

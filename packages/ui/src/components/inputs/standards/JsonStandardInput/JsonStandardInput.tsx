@@ -287,6 +287,7 @@ const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
 // "standard input" components, but the duplicate code prevention may be worth it.
 // TODO 2: After this stuff is done, update TopBar to support icon and action buttons, like the Header and Subheader components
+// TODO 3: Update look of SelectorBase component
 export const JsonStandardInput = ({
     isEditing,
     limitTo,
@@ -380,7 +381,10 @@ export const JsonStandardInput = ({
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);
 
     return (
-        <Stack direction="column" spacing={0}>
+        <Stack direction="column" spacing={0} sx={{
+            borderRadius: 1.5,
+            overflow: "hidden",
+        }}>
             {/* Bar above TextField, for status and HelpButton */}
             <Box sx={{
                 display: "flex",
@@ -389,7 +393,6 @@ export const JsonStandardInput = ({
                 borderBottom: "1px solid #e0e0e0",
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
-                borderRadius: "0.5rem 0.5rem 0 0",
                 alignItems: "center",
             }}>
                 {/* Select language */}
@@ -426,9 +429,6 @@ export const JsonStandardInput = ({
                 extensions={[...extensions, errorGutter]}
                 onChange={updateInternalValue}
                 height={"400px"}
-                style={{
-                    borderRadius: "0 0 0.5rem 0.5rem",
-                }}
             />
             {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}

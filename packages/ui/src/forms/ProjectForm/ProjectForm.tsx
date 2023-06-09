@@ -2,6 +2,7 @@ import { DUMMY_ID, orDefault, ProjectVersion, projectVersionTranslationValidatio
 import { Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryListHorizontal } from "components/lists/directory";
@@ -151,14 +152,14 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={4}
                             name="description"
+                            maxChars={2048}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     <DirectoryListHorizontal
@@ -174,16 +175,16 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                         versions={versions}
                     />
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     );
 });

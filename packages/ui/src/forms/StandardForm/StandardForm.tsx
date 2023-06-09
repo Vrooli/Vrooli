@@ -5,6 +5,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -146,14 +147,14 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
+                            name="description"
+                            maxChars={2048}
                             minRows={4}
                             maxRows={8}
-                            name="description"
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     <StandardInput
