@@ -34,6 +34,7 @@ export const LargeDialog = ({
                         top: { xs: "auto", sm: undefined },
                         position: { xs: "absolute", sm: "relative" },
                         display: { xs: "block", sm: "inline-block" },
+                        borderRadius: 2,
                         background: palette.background.default,
                         color: palette.background.textPrimary,
                         "& > .MuiDialogContent-root": {

@@ -72,7 +72,7 @@ export const AboutView = ({
     const [, setLocation] = useLocation();
 
     return (
-        <Box ml={2} mr={2}>
+        <Box pl={2} pr={2}>
             <TopBar
                 display={display}
                 hideTitleOnDesktop={true}

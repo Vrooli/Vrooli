@@ -1,5 +1,5 @@
 import { LINKS, Route, RouteProps, Switch } from "@local/shared";
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
@@ -101,6 +101,7 @@ const viewProps = ({
 });
 
 export const Routes = (props: { sessionChecked: boolean }) => {
+    const { palette } = useTheme();
 
     return (
         <>
@@ -111,6 +112,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <AboutView {...viewProps} />
@@ -212,6 +214,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <PrivacyPolicyView {...viewProps} />
@@ -337,6 +340,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <TermsView {...viewProps} />

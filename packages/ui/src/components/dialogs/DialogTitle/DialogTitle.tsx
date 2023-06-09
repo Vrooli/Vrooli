@@ -31,7 +31,9 @@ export const DialogTitle = forwardRef(({
             >
                 <Title
                     {...titleData}
-                    sxs={{ stack: { marginLeft: "auto" } }}
+                    sxs={{
+                        stack: { marginLeft: "auto", padding: 0 },
+                    }}
                     variant="header"
                 />
                 <IconButton

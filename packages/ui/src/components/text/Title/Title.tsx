@@ -17,8 +17,10 @@ export const Title = ({
             direction="row"
             justifyContent="center"
             alignItems="center"
-            p={2}
-            sx={sxs?.stack}
+            sx={{
+                padding: 2,
+                ...sxs?.stack,
+            }}
         >
             {/* Icon */}
             {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}

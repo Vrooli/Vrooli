@@ -84,6 +84,8 @@ export const ChatView = ({
                     //TODO
                 } else {
                     //TODO
+                    const text = values.newMessage.trim();
+                    if (text.length === 0) return;
                     // for now, just add the message to the list
                     const newMessage: ChatMessage = {
                         __typename: "ChatMessage" as const,
@@ -93,7 +95,7 @@ export const ChatView = ({
                             __typename: "ChatMessageTranslation" as const,
                             id: DUMMY_ID,
                             language: lng,
-                            text: values.newMessage,
+                            text,
                         }],
                         user: {
                             __typename: "User" as const,
@@ -173,10 +175,17 @@ export const ChatView = ({
                                         </Avatar>
                                     )}
                                     {/* Message bubble with reaction */}
-                                    <Box sx={{ ml: !isOwn ? 2 : 0, mr: isOwn ? 2 : 0 }}>
+                                    <Box sx={{
+                                        ml: !isOwn ? 2 : 2,
+                                        mr: isOwn ? 2 : 2,
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        position: "relative",
+                                        overflowWrap: "break-word",
+                                        wordWrap: "break-word",
+                                    }}>
                                         <Box
                                             sx={{
-                                                display: "block",
                                                 p: 1,
                                                 pl: 2,
                                                 pr: 2,
@@ -185,16 +194,15 @@ export const ChatView = ({
                                                 backgroundColor: isOwn ? "#88d17e" : "#fff",
                                                 borderRadius: "8px",
                                                 boxShadow: 2,
-                                                maxWidth: "80%",
-                                                position: "relative",
-                                                wordBreak: "break-word",
                                             }}
                                         >
                                             <MarkdownDisplay
                                                 content={getTranslation(message, getUserLanguages(session), true)?.text}
                                                 sx={{
                                                     // Make room for the edit button
-                                                    ...(isOwn ? { pr: 6 } : {}),
+                                                    ...(isOwn ? { paddingRight: "48px" } : {}),
+                                                    whiteSpace: "pre-wrap",
+                                                    wordWrap: "break-word",
                                                 }}
                                             />
                                             {isOwn && (
@@ -212,7 +220,10 @@ export const ChatView = ({
                             );
                         })}
                     </Box>
-                    <Box>
+                    <Box sx={{
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                    }}>
                         <MarkdownInput
                             actionButtons={[{
                                 Icon: AddIcon,
@@ -221,7 +232,7 @@ export const ChatView = ({
                             disableAssistant={true}
                             fullWidth
                             maxChars={1500}
-                            minRows={1}
+                            minRows={4}
                             maxRows={15}
                             name="newMessage"
                             sxs={{
@@ -233,6 +244,6 @@ export const ChatView = ({
                     </Box>
                 </Stack>
             </>}
-        </Formik>
+        </Formik >
     );
 };

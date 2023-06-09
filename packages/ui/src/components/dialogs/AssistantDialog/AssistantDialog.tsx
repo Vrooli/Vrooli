@@ -20,6 +20,11 @@ export const AssistantDialog = ({
             onClose={handleClose}
             titleId={titleId}
             zIndex={zIndex}
+            sxs={{
+                paper: {
+                    width: "min(100%, 1000px)",
+                },
+            }}
         >
             <ChatView
                 chatId="Valyxa"
