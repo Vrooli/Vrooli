@@ -2,7 +2,7 @@ import { AddIcon, CloseIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Rem
 import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
@@ -174,9 +174,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                             as={TextField}
                         />
                         {/* Steps to complete reminder */}
-                        <Subheader
+                        <Title
                             Icon={ListNumberIcon}
                             title="Steps"
+                            variant="subheader"
                         />
                         <Droppable droppableId="reminderItems">
                             {(provided) => (

@@ -6,6 +6,7 @@ import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownI
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -20,6 +21,7 @@ export const NoteView = ({
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
@@ -59,9 +61,7 @@ export const NoteView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Note",
-                }}
+                title={t("Note")}
             />
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>

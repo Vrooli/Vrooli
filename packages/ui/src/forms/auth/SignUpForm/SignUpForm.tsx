@@ -32,9 +32,7 @@ export const SignUpForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "SignUp",
-                }}
+                title={t("SignUp")}
             />
             <Formik
                 initialValues={{

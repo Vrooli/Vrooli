@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,6 +20,7 @@ export const OrganizationUpsert = ({
     onCompleted,
     zIndex = 200,
 }: OrganizationUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
@@ -38,9 +40,7 @@ export const OrganizationUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateOrganization" : "UpdateOrganization",
-                }}
+                title={t(isCreate ? "CreateOrganization" : "UpdateOrganization")}
             />
             <Formik
                 enableReinitialize={true}

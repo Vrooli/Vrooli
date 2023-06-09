@@ -41,10 +41,7 @@ export const MeetingView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Meeting",
-                    titleVariables: { count: 1 },
-                }}
+                title={t("Meeting", { count: 1 })}
             />
             <>
                 {/* TODO */}

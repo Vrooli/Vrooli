@@ -182,9 +182,7 @@ export const ProjectView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Project",
-                }}
+                title={t("Project")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

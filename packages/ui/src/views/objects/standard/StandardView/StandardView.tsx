@@ -15,6 +15,7 @@ import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -43,6 +44,7 @@ export const StandardView = ({
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
@@ -87,9 +89,7 @@ export const StandardView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Standard",
-                }}
+                title={t("Standard")}
             />
             <Box sx={{
                 marginLeft: "auto",

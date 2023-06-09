@@ -56,9 +56,7 @@ export const DeleteDialog = ({
             <TopBar
                 display="dialog"
                 onClose={() => { close(); }}
-                titleData={{
-                    titleKey: "Delete",
-                }}
+                title={t("Delete")}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>

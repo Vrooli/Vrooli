@@ -277,9 +277,7 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "User",
-                }}
+                title={t("User")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

@@ -10,7 +10,7 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
@@ -276,9 +276,10 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         {/* Selector for single-step or multi-step routine */}
                         <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                             {/* Title with help text */}
-                            <Subheader
+                            <Title
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
+                                variant="subheader"
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >

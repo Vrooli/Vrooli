@@ -35,15 +35,6 @@ export interface OwnerLabelProps {
     }
 }
 
-export interface HeaderProps {
-    help?: string | undefined;
-    sxs?: {
-        stack?: { [x: string]: any; };
-        text?: { [x: string]: any; };
-    }
-    title: string | undefined;
-}
-
 export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
 export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
@@ -56,14 +47,23 @@ export interface TextShrinkProps extends TypographyProps {
     minFontSize?: string | number;
 }
 
-export interface SubheaderProps {
-    help?: string | undefined;
+export interface TitleProps {
+    help?: string;
+    /**
+     * Icon displayed to the left of the title
+     */
     Icon?: SvgComponent;
+    options?: {
+        Icon: SvgComponent;
+        label: string;
+        onClick: (e?: any) => void;
+    }[];
     sxs?: {
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
-    title: string | undefined;
+    title?: string;
+    variant: "header" | "subheader";
 }
 
 export interface VersionDisplayProps extends BoxProps {

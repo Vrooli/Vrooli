@@ -44,9 +44,7 @@ export const ReminderUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateReminder" : "UpdateReminder",
-                }}
+                title={t(isCreate ? "CreateReminder" : "UpdateReminder")}
                 // Show delete button only when updating
                 below={
                     !isCreate ? (

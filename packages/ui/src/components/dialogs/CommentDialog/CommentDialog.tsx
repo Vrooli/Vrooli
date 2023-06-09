@@ -58,7 +58,8 @@ export const CommentDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: isCreate ? "AddComment" : "EditComment" }}
+                title={t(isCreate ? "AddComment" : "EditComment")}
+                titleId={titleId}
             />
             <BaseForm
                 dirty={dirty}

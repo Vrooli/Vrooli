@@ -194,9 +194,7 @@ export const InboxView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    title,
-                }}
+                title={title}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
                     currTab={currTab}

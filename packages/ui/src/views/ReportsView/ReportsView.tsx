@@ -43,11 +43,9 @@ export const ReportsView = ({
         <>
             <TopBar
                 display={display}
+                help={t("ReportsHelp")}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Reports",
-                    helpKey: "ReportsHelp",
-                }}
+                title={t("Reports")}
             />
             {reports.map((report, i) => {
                 return <Box

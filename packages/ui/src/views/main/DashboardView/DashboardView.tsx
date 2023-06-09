@@ -308,10 +308,10 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={MonthIcon}
                     isEmpty={upcomingEvents.length === 0}
-                    titleKey="Schedule"
+                    title={t("Schedule")}
                     options={[{
                         Icon: OpenInNewIcon,
-                        key: "Open",
+                        label: t("Open"),
                         onClick: openSchedule,
                     }]}
                 >
@@ -329,15 +329,14 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={NoteIcon}
                     isEmpty={noteItems.length === 0}
-                    titleKey="Note"
-                    titleVariables={{ count: 2 }}
+                    title={t("Note", { count: 2 })}
                     options={[{
                         Icon: OpenInNewIcon,
-                        key: "SeeAll",
+                        label: t("SeeAll"),
                         onClick: () => { setLocation(`${LINKS.MyStuff}?type=${SearchPageTabOption.Notes}`); },
                     }, {
                         Icon: AddIcon,
-                        key: "Create",
+                        label: t("Create"),
                         onClick: openCreateNote,
                     }]}
                 >

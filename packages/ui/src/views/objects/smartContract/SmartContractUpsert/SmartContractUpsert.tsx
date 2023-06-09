@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractForm, smartContractInitialValues, transformSmartContractValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,6 +20,7 @@ export const SmartContractUpsert = ({
     onCompleted,
     zIndex = 200,
 }: SmartContractUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
@@ -38,9 +40,7 @@ export const SmartContractUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateSmartContract" : "UpdateSmartContract",
-                }}
+                title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
             />
             <Formik
                 enableReinitialize={true}

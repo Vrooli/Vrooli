@@ -182,11 +182,9 @@ export const SearchView = ({
         <>
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
-                titleData={{
-                    hideOnDesktop: true,
-                    titleKey: "Search",
-                }}
+                title={t("Search")}
                 below={<PageTabs
                     ariaLabel="search-tabs"
                     currTab={currTab}

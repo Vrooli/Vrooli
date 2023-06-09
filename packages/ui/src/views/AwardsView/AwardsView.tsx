@@ -56,10 +56,7 @@ export const AwardsView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Award",
-                    titleVariables: { count: 2 },
-                }}
+                title={t("Award", { count: 2 })}
             />
             <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
                 {/* Display earned awards as a list of tags. Press or hover to see description */}

@@ -291,9 +291,7 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Organization",
-                }}
+                title={t("Organization")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

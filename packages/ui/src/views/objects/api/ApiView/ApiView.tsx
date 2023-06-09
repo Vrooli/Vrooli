@@ -9,6 +9,7 @@ import { ResourceListVertical } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -24,6 +25,7 @@ export const ApiView = ({
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
@@ -200,9 +202,7 @@ export const ApiView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Api",
-                }}
+                title={t("Api")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

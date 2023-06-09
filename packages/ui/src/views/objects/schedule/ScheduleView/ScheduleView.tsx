@@ -3,7 +3,7 @@ import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
-import { placeholderColor } from "utils/display/listTools";
+import { useTranslation } from "react-i18next";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { ScheduleViewProps } from "../types";
@@ -15,8 +15,8 @@ export const ScheduleView = ({
     zIndex = 200,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const profileColors = useMemo(() => placeholderColor(), []);
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
         ...endpointGetSchedule,
@@ -80,9 +80,7 @@ export const ScheduleView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Schedule",
-                }}
+                title={t("Schedule")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

@@ -5,8 +5,8 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -20,6 +20,7 @@ export const SettingsFocusModesView = ({
     onClose,
     zIndex,
 }: SettingsFocusModesViewProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -170,10 +171,7 @@ export const SettingsFocusModesView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "FocusMode",
-                    titleVariables: { count: 2 },
-                }}
+                title={t("FocusMode", { count: 2 })}
             />
             <Stack direction="row">
                 <SettingsList />

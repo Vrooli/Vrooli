@@ -132,7 +132,7 @@ export const ChatView = ({
                             onClose();
                         }
                     }}
-                    titleData={{ title: firstString(title, botSettings ? "AI Chat" : "Chat") }}
+                    title={firstString(title, botSettings ? "AI Chat" : "Chat")}
                 />
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>

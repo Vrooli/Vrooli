@@ -5,6 +5,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
+import { useTranslation } from "react-i18next";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFetch } from "utils/hooks/useFetch";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -15,6 +16,7 @@ export const SettingsNotificationsView = ({
     onClose,
     zIndex,
 }: SettingsNotificationsViewProps) => {
+    const { t } = useTranslation();
 
     const { data, refetch, loading: isLoading, errors } = useFetch<undefined, NotificationSettings>({
         ...endpointGetNotificationSettings,
@@ -27,10 +29,7 @@ export const SettingsNotificationsView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Notification",
-                    titleVariables: { count: 2 },
-                }}
+                title={t("Notification", { count: 2 })}
             />
             <Stack direction="row">
                 <SettingsList />

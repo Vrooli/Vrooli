@@ -14,6 +14,7 @@ import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
@@ -31,6 +32,7 @@ export const QuestionView = ({
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
@@ -84,9 +86,7 @@ export const QuestionView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Question",
-                }}
+                title={t("Question")}
             />
             <Formik
                 enableReinitialize={true}

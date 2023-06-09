@@ -48,9 +48,7 @@ export const WelcomeView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "WelcomeToVrooli",
-                }}
+                title={t("WelcomeToVrooli")}
             />
             <Box sx={{
                 display: "flex",

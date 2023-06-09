@@ -62,9 +62,7 @@ export const PrivacyPolicyView = ({
         <TopBar
             display={display}
             onClose={onClose}
-            titleData={{
-                titleKey: "Privacy",
-            }}
+            title={t("Privacy")}
             below={<PageTabs
                 ariaLabel="privacy policy and terms tabs"
                 currTab={currTab}

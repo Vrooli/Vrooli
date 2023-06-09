@@ -2,7 +2,7 @@
  * Displays a list of emails for the user to manage
  */
 import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
-import { List, Typography, useTheme } from "@mui/material";
+import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -22,7 +22,6 @@ export const ReminderList = ({
     reminders,
     zIndex,
 }: ReminderListProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Internal state
@@ -143,14 +142,14 @@ export const ReminderList = ({
             {/* List */}
             <TitleContainer
                 Icon={ReminderIcon}
-                titleKey="ToDo"
+                title={t("ToDo")}
                 options={[{
                     Icon: OpenInNewIcon,
-                    key: "SeeAll",
+                    label: t("SeeAll"),
                     onClick: () => { console.log("TODO"); },
                 }, {
                     Icon: AddIcon,
-                    key: "Create",
+                    label: t("Create"),
                     onClick: openDialog,
                 }]}
             >

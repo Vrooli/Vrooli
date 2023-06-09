@@ -16,7 +16,7 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -196,9 +196,7 @@ export const RoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Routine",
-                }}
+                title={t("Routine")}
             />
             <Formik
                 enableReinitialize={true}
@@ -303,9 +301,10 @@ export const RoutineView = ({
                     {/* "View Graph" button if this is a multi-step routine */}
                     {
                         existing?.nodes?.length ? <Box>
-                            <Subheader
+                            <Title
                                 title={"This is a multi-step routine."}
                                 help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                                variant="subheader"
                             />
                             <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                         </Box> : null

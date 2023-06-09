@@ -4,6 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListForm, nodeRoutineListInitialValues, validateNodeRoutineListValues } from "forms/NodeRoutineListForm/NodeRoutineListForm";
 import { useContext, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { SessionContext } from "utils/SessionContext";
 import { NodeRoutineListDialogProps } from "../types";
 
@@ -17,6 +18,7 @@ export const NodeRoutineListDialog = ({
     language,
     zIndex,
 }: NodeRoutineListDialogProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
@@ -33,7 +35,8 @@ export const NodeRoutineListDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo" }}
+                title={t(isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo")}
+                titleId={titleId}
             />
             <Formik
                 enableReinitialize={true}

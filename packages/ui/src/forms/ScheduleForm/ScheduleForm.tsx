@@ -5,7 +5,7 @@ import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
@@ -117,9 +117,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />}
-                    <Subheader
+                    <Title
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
+                        variant="subheader"
                     />
                     <Stack direction="column" spacing={2}>
                         <Field
@@ -165,9 +166,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         <TimezoneSelector name="timezone" label="Timezone" />
                     </Stack>
                     {/* Set up recurring events */}
-                    <Subheader
+                    <Title
                         title="Recurring events"
                         help="Recurring events are used to set up repeated occurrences of the event in the schedule, such as daily, weekly, monthly, or yearly. *Recurrence type* determines the frequency of the repetition. *Interval* is the number of units between repetitions (e.g., every 2 weeks). Depending on the recurrence type, you may need to specify additional information such as *Day of week*, *Day of month*, or *Month of year*. Optionally, you can set an *End date* for the recurrence."
+                        variant="subheader"
                     />
                     {recurrencesField.value.length ? <Box>
                         {recurrencesField.value.map((recurrence, index) => (

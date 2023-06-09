@@ -39,9 +39,7 @@ export const TermsView = ({
         <TopBar
             display={display}
             onClose={onClose}
-            titleData={{
-                titleKey: "Terms",
-            }}
+            title={t("Terms")}
             below={<PageTabs
                 ariaLabel="privacy policy and terms tabs"
                 currTab={currTab}

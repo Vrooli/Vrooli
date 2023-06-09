@@ -6,6 +6,7 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Formik } from "formik";
 import { SettingsProfileForm } from "forms/settings";
 import { useContext } from "react";
+import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
@@ -19,6 +20,7 @@ export const SettingsProfileView = ({
     onClose,
     zIndex,
 }: SettingsProfileViewProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
@@ -29,9 +31,7 @@ export const SettingsProfileView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Profile",
-                }}
+                title={t("Profile")}
             />
             <Stack direction="row">
                 <SettingsList />

@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "forms/StandardForm/StandardForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,6 +20,7 @@ export const StandardUpsert = ({
     onCompleted,
     zIndex = 200,
 }: StandardUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
@@ -38,9 +40,7 @@ export const StandardUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateStandard" : "UpdateStandard",
-                }}
+                title={t(isCreate ? "CreateStandard" : "UpdateStandard")}
             />
             <Formik
                 enableReinitialize={true}

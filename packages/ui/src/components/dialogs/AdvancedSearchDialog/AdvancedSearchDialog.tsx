@@ -71,7 +71,8 @@ export const AdvancedSearchDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: "AdvancedSearch" }}
+                title={t("AdvancedSearch")}
+                titleId={titleId}
             />
             <Formik
                 enableReinitialize={true}

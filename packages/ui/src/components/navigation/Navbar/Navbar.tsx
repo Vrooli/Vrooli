@@ -1,6 +1,6 @@
 import { BUSINESS_NAME, LINKS, useLocation } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
-import { Header } from "components/text/Header/Header";
+import { Title } from "components/text/Title/Title";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { noSelect } from "styles";
 import { useDimensions } from "utils/hooks/useDimensions";
@@ -103,7 +103,11 @@ export const Navbar = forwardRef(({
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
-                        {isMobile && title && <Header help={help} title={title} />}
+                        {isMobile && title && <Title
+                            help={help}
+                            title={title}
+                            variant="header"
+                        />}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
                             marginLeft: "auto",
                             maxHeight: "100%",
@@ -117,9 +121,10 @@ export const Navbar = forwardRef(({
                 </AppBar>
             </HideOnScroll>
             {/* Title displayed here on desktop */}
-            {!isMobile && title && !shouldHideTitle && <Header
+            {!isMobile && title && !shouldHideTitle && <Title
                 help={help}
                 title={title}
+                variant="header"
             />}
             {/* "below" and title displayered here on desktop */}
             {!isMobile && below}

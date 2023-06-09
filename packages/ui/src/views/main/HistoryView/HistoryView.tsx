@@ -46,11 +46,9 @@ export const HistoryView = ({
         <>
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
-                titleData={{
-                    hideOnDesktop: true,
-                    title,
-                }}
+                title={title}
                 below={<PageTabs
                     ariaLabel="history-tabs"
                     currTab={currTab}

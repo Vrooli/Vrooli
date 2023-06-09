@@ -59,10 +59,7 @@ export const BookmarkListView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "BookmarkList",
-                    titleVariables: { count: 1 },
-                }}
+                title={t("BookmarkList", { count: 1 })}
                 below={<Box sx={{
                     width: "min(100%, 700px)",
                     margin: "auto",

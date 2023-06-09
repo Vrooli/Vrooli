@@ -134,9 +134,7 @@ export const PremiumView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Premium",
-                }}
+                title={t("Premium")}
             />
             <Stack direction="column" spacing={4} mt={2} mb={2} justifyContent="center" alignItems="center">
                 {/* Introduction to premium */}

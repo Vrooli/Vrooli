@@ -39,9 +39,7 @@ export const LogInForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "LogIn",
-                }}
+                title={t("LogIn")}
             />
             <Formik
                 initialValues={{

@@ -33,9 +33,7 @@ export const ResetPasswordForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "ResetPassword",
-                }}
+                title={t("ResetPassword")}
             />
             <Formik
                 initialValues={{

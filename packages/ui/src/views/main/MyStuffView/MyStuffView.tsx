@@ -194,11 +194,9 @@ export const MyStuffView = ({
         <>
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
-                titleData={{
-                    hideOnDesktop: true,
-                    titleKey: "MyStuff",
-                }}
+                title={t("MyStuff")}
                 below={<PageTabs
                     ariaLabel="search-tabs"
                     currTab={currTab}

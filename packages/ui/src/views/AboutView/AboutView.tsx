@@ -2,6 +2,7 @@ import { GitHubIcon, openLink, OrganizationIcon, TwitterIcon, useLocation, Websi
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useTranslation } from "react-i18next";
 import { slideTitle, textPop } from "styles";
 import { AboutViewProps } from "views/types";
 
@@ -67,17 +68,16 @@ export const AboutView = ({
     onClose,
 }: AboutViewProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     return (
         <Box ml={2} mr={2}>
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "AboutUs",
-                    hideOnDesktop: true,
-                }}
+                title={t("AboutUs")}
             />
             <Stack mt={4} spacing={4}>
                 <Box>

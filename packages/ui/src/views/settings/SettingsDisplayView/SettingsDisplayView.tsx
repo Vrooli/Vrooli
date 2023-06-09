@@ -31,11 +31,9 @@ export const SettingsDisplayView = ({
         <>
             <SettingsTopBar
                 display={display}
+                help={t("DisplaySettingsDescription")}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Display",
-                    helpKey: "DisplaySettingsDescription",
-                }}
+                title={t("Display")}
             />
             <Stack direction="row">
                 <SettingsList />

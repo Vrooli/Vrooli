@@ -10,8 +10,9 @@ import { TopBarProps } from "../types";
 export const TopBar = forwardRef(({
     below,
     display,
+    hideTitleOnDesktop,
     onClose,
-    titleData,
+    ...titleData
 }: TopBarProps, ref) => {
     const title = getTranslatedTitleAndHelp(titleData)?.title;
     const help = getTranslatedTitleAndHelp(titleData)?.help;
@@ -30,7 +31,7 @@ export const TopBar = forwardRef(({
             ref={ref}
             below={below}
             help={help}
-            shouldHideTitle={titleData?.hideOnDesktop}
+            shouldHideTitle={hideTitleOnDesktop}
             title={title}
         />
     );

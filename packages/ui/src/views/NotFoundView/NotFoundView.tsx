@@ -11,9 +11,7 @@ export const NotFoundView = () => {
             <TopBar
                 display="page"
                 onClose={() => { }}
-                titleData={{
-                    title: t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" }),
-                }}
+                title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
             />
             <Box
                 sx={{

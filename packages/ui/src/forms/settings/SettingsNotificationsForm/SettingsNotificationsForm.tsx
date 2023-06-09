@@ -5,7 +5,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { PushList } from "components/lists/devices";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsNotificationFormProps } from "../types";
@@ -57,9 +57,11 @@ export const SettingsNotificationForm = ({
                     />
                 </ListContainer>
                 {/* Push Device list */}
-                <Subheader
+                <Title
                     Icon={PhoneIcon}
-                    title={t("Device", { count: 2 })} />
+                    title={t("Device", { count: 2 })}
+                    variant="subheader"
+                />
                 <PushList
                     handleUpdate={() => { }}
                     list={[]}
@@ -74,9 +76,11 @@ export const SettingsNotificationForm = ({
                     />
                 </ListContainer>
                 {/* Email list */}
-                <Subheader
+                <Title
                     Icon={EmailIcon}
-                    title={t("Email", { count: 2 })} />
+                    title={t("Email", { count: 2 })}
+                    variant="subheader"
+                />
                 {/* <EmailList
                 handleUpdate={updateEmails}
                 list={profile?.emails ?? []}

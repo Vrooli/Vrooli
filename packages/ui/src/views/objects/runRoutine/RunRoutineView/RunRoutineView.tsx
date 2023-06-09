@@ -41,10 +41,7 @@ export const RunRoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Run",
-                    titleVariables: { count: 1 },
-                }}
+                title={t("Run", { count: 1 })}
             />
             <>
                 {/* TODO */}

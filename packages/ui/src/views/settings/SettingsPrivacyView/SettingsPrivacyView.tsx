@@ -5,6 +5,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsPrivacyForm } from "forms/settings";
+import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +16,7 @@ export const SettingsPrivacyView = ({
     onClose,
     zIndex,
 }: SettingsPrivacyViewProps) => {
+    const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -24,9 +26,7 @@ export const SettingsPrivacyView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Authentication",
-                }}
+                title={t("Authentication")}
             />
             <Stack direction="row">
                 <SettingsList />

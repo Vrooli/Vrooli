@@ -3,6 +3,7 @@ import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { placeholderColor } from "utils/display/listTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -15,6 +16,7 @@ export const ReminderView = ({
     zIndex = 200,
 }: ReminderViewProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
@@ -80,9 +82,7 @@ export const ReminderView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Reminder",
-                }}
+                title={t("Reminder")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

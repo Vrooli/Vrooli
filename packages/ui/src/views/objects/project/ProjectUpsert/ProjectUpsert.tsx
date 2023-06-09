@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,6 +20,7 @@ export const ProjectUpsert = ({
     onCompleted,
     zIndex = 200,
 }: ProjectUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
@@ -38,9 +40,7 @@ export const ProjectUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateProject" : "UpdateProject",
-                }}
+                title={t(isCreate ? "CreateProject" : "UpdateProject")}
             />
             <Formik
                 enableReinitialize={true}

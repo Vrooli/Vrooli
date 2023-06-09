@@ -62,7 +62,8 @@ export const CookieSettingsDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: "CookieSettings" }}
+                title={t("CookieSettings")}
+                titleId={titleId}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: "16px" }}>
                 {/* Strictly necessary */}

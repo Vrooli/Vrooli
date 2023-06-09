@@ -185,9 +185,7 @@ export const StartView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Start",
-                }}
+                title={t("Start")}
             />
             {/* Main content */}
             <Box sx={{

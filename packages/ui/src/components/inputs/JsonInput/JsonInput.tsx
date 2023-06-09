@@ -96,7 +96,7 @@ export const JsonInput = ({
                     </IconButton>
                 </Tooltip>
                 <HelpButton
-                    markdown={t("JsonHelp")}
+                    markdown={t("JsonHelp", { ns: "langs" })}
                     sxRoot={{ marginRight: 1 }}
                 />
             </Box>

@@ -160,9 +160,7 @@ export const StatsView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "StatisticsShort",
-                }}
+                title={t("StatisticsShort")}
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}
