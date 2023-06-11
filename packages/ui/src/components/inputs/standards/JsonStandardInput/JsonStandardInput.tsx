@@ -1,21 +1,27 @@
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
-import { ErrorIcon, LangsKey, WarningIcon } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
-import CodeMirror from "@uiw/react-codemirror";
+import { ErrorIcon, LangsKey, MagicIcon, OpenThreadIcon, RedoIcon, SvgComponent, UndoIcon, WarningIcon } from "@local/shared";
+import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { useField } from "formik";
 import { JsonProps } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
 import { jsonToString } from "utils/shape/general";
 // import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+import { redo, undo } from "@codemirror/commands";
 import { Extension, StateField } from "@codemirror/state";
 import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
+import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
+import { AssistantDialogProps } from "components/dialogs/types";
 import ReactDOMServer from "react-dom/server";
+import { getCurrentUser } from "utils/authentication/session";
+import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { JsonStandardInputProps } from "../types";
 
 export enum StandardLanguage {
@@ -30,7 +36,8 @@ export enum StandardLanguage {
     Html = "html",
     Java = "java",
     Javascript = "javascript",
-    Json = "json",
+    Json = "json", // JSON which may or may not conform to a standard
+    JsonStandard = "jsonStandard", // JSON which defines a standard for some data (could be JSON, a file, etc.)
     Nginx = "nginx",
     Nix = "nix",
     Php = "php",
@@ -63,14 +70,14 @@ const underlineMark = Decoration.mark({ class: "variable-decoration" });
 const getCursorTooltips = (state) => {
     const tooltips: any[] = [];
     const docText = state.doc.sliceString(0, state.doc.length);
-    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+")|("\[[a-zA-Z0-9_]+\]")/g;
+    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
 
     for (const r of state.selection.ranges) {
         if (!r.empty) continue;
 
         let match;
         while (match = regex.exec(docText)) {
-            const variableText = match[0].slice(1, -1); // Remove the quotes
+            const variableText = match[0].slice(1, match[0].includes("?") ? -2 : -1); // Remove the quotes
             const start = match.index + 1; // Ignore the first quote
             const end = start + variableText.length; // We already ignored the quotes
 
@@ -137,7 +144,7 @@ function underlineVariables(doc) {
     // "<variable>" - variable
     // "?optional" - optional
     // "[wildcard]" - wildcard
-    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+")|("\[[a-zA-Z0-9_]+\]")/g;
+    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
     let match;
 
     // Join the lines together to form a single string
@@ -145,7 +152,7 @@ function underlineVariables(doc) {
 
     while (match = regex.exec(docText)) {
         const start = match.index + 1; // Ignore the first quote
-        const end = start + match[0].length - 2; // Ignore the last quote
+        const end = start + match[0].length - (match[0].includes("?") ? 3 : 2); // Ignore the last quote (and colon if it's optional)
         decorations.push(underlineMark.range(start, end));
     }
     return Decoration.set(decorations);
@@ -205,6 +212,10 @@ const languageMap: { [x in StandardLanguage]: (() => Promise<{
         return { main: javascript({ jsx: true }) };
     },
     [StandardLanguage.Json]: async () => {
+        const { json, jsonParseLinter } = await import("@codemirror/lang-json");
+        return { main: json(), linter: jsonParseLinter() };
+    },
+    [StandardLanguage.JsonStandard]: async () => {
         const { json, jsonParseLinter } = await import("@codemirror/lang-json");
         return { main: json(), linter: jsonParseLinter() };
     },
@@ -345,6 +356,7 @@ const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
     [StandardLanguage.Java]: ["Java", "JavaHelp"],
     [StandardLanguage.Javascript]: ["Javascript", "JavascriptHelp"],
     [StandardLanguage.Json]: ["Json", "JsonHelp"],
+    [StandardLanguage.JsonStandard]: ["JsonStandard", "JsonStandardHelp"],
     [StandardLanguage.Nginx]: ["Nginx", "NginxHelp"],
     [StandardLanguage.Nix]: ["Nix", "NixHelp"],
     [StandardLanguage.Php]: ["Php", "PhpHelp"],
@@ -383,13 +395,18 @@ const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
 export const JsonStandardInput = ({
     isEditing,
     limitTo,
+    zIndex,
 }: JsonStandardInputProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const session = useContext(SessionContext);
+    const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
     const [defaultValueField, , defaultValueHelpers] = useField<JsonProps["defaultValue"]>("defaultValue");
     const [formatField, formatMeta, formatHelpers] = useField<JsonProps["format"]>("format");
     const [variablesField, , variablesHelpers] = useField<JsonProps["variables"]>("variables");
+
+    const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
 
     // Last valid schema format
     const [internalValue, setInternalValue] = useState<string>(jsonToString(formatField.value ?? {}) ?? "");
@@ -464,95 +481,203 @@ export const JsonStandardInput = ({
                     setErrors([]);
                     setSupportsValidation(false);
                 }
+                // If mode is JSON standard, add additional extensions for variables
+                if (mode === StandardLanguage.JsonStandard) {
+                    updatedExtensions.push(
+                        cursorTooltipField, // Handle tooltips for JSON variables
+                        underlineDecorationField, // Underline JSON variables
+                    );
+                }
                 setExtensions(updatedExtensions);
             });
         }
     }, [mode]);
 
-    // // If type is JSON standard, display tooltips for variables
-    // const hoverExtension = useCallback((view: EditorView, pos: number, side: -1 | 1) => {
-    //     if (mode !== StandardLanguage.Json) return null;
-    //     return jsonStandardHover;
-    // }, [mode]);
+    // Handle assistant dialog
+    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+        context: undefined,
+        isOpen: false,
+        task: "standard",
+        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        zIndex: zIndex + 1,
+    });
+    const openAssistantDialog = useCallback(() => {
+        if (!isEditing) return;
+        // We want to provide the assistant with the most relevant context
+        let context: string | undefined = undefined;
+        const maxContextLength = 1500;
+        // Get highlighted text
+        let highlightedText = "";
+        const selection = codeMirrorRef.current?.view?.state?.selection;
+        if (selection) {
+            const { from, to } = selection.ranges[0];
+            highlightedText = codeMirrorRef.current?.view?.state?.doc?.sliceString(from, to) ?? "";
+            console.log("got selection", from, to, highlightedText);
+        }
+        if (highlightedText.length > maxContextLength) highlightedText = highlightedText.substring(0, maxContextLength);
+        if (highlightedText.length > 0) context = highlightedText;
+        // If there's not highlighted text, provide the full text if it's not too long or short
+        else if (internalValue.length <= maxContextLength && internalValue.length > 2) context = internalValue;
+        // Otherwise, provide the last 1500 characters
+        else if (internalValue.length > 2) context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
+        // Open the assistant dialog
+        setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
+    }, [internalValue, isEditing]);
+
+    // Handle action buttons
+    type Action = {
+        label: string,
+        Icon: SvgComponent,
+        onClick: () => void,
+    }
+    const actions = useMemo(() => {
+        const actions: Action[] = [];
+        // If user has premium, add button for AI assistant
+        if (hasPremium) {
+            actions.push({
+                label: "AI assistant",
+                Icon: MagicIcon,
+                onClick: () => { openAssistantDialog(); },
+            });
+        }
+        // Always add undo and redo buttons
+        actions.push({
+            label: t("Undo"),
+            Icon: UndoIcon,
+            onClick: () => {
+                codeMirrorRef.current?.view !== undefined && undo(codeMirrorRef.current.view);
+            },
+        }, {
+            label: t("Redo"),
+            Icon: RedoIcon,
+            onClick: () => {
+                codeMirrorRef.current?.view !== undefined && redo(codeMirrorRef.current.view);
+            },
+        });
+        // For json and jsonStandard, add "pretty print" button to format JSON
+        if (mode === StandardLanguage.Json || mode === StandardLanguage.JsonStandard) {
+            actions.push({
+                label: t("Format"),
+                Icon: OpenThreadIcon,
+                onClick: () => {
+                    try {
+                        const parsed = JSON.parse(internalValue);
+                        updateInternalValue(JSON.stringify(parsed, null, 4));
+                    } catch (error) {
+                        PubSub.get().publishSnack({ message: "Invalid JSON", severity: "Error", data: { error } });
+                    }
+                },
+            });
+        }
+        return actions;
+    }, [hasPremium, internalValue, mode, t, updateInternalValue]);
 
     // Find language label and help text
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);
 
     return (
-        <Stack direction="column" spacing={0} sx={{
-            borderRadius: 1.5,
-            overflow: "hidden",
-        }}>
-            {/* Bar above TextField, for status and HelpButton */}
-            <Box sx={{
-                display: "flex",
-                width: "100%",
-                padding: "0.5rem",
-                borderBottom: "1px solid #e0e0e0",
-                background: palette.primary.light,
-                color: palette.primary.contrastText,
-                alignItems: "center",
+        <>
+            {/* Assistant dialog for generating text */}
+            <AssistantDialog {...assistantDialogProps} />
+            <Stack direction="column" spacing={0} sx={{
+                borderRadius: 1.5,
+                overflow: "hidden",
             }}>
-                {/* Select language */}
-                {availableLanguages.length > 0 && <SelectorBase
-                    name="mode"
-                    value={mode}
-                    onChange={setMode}
-                    disabled={!isEditing}
-                    options={availableLanguages}
-                    getOptionLabel={(r) => t(languageDisplayMap[r as StandardLanguage][0], { ns: "langs" })}
-                    fullWidth
-                    inputAriaLabel="select language"
-                    label={"Language"}
-                    sx={{
-                        width: "fit-content",
-                        minWidth: "200px",
-                    }}
-                />}
-                {/* Help button */}
-                <HelpButton
-                    markdown={t(help, { ns: "langs" })}
-                    sxRoot={{ marginRight: 1, fill: palette.secondary.light }}
+                {/* Bar above main input */}
+                <Box sx={{
+                    display: "flex",
+                    width: "100%",
+                    padding: "0.5rem",
+                    borderBottom: "1px solid #e0e0e0",
+                    background: palette.primary.light,
+                    color: palette.primary.contrastText,
+                    alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" }, // switch to column on xs screens, row on sm and larger
+                }}>
+                    {/* Select language */}
+                    {availableLanguages.length > 0 &&
+                        <Grid item xs={12} sm={6}>
+                            <SelectorBase
+                                name="mode"
+                                value={mode}
+                                onChange={setMode}
+                                disabled={!isEditing}
+                                options={availableLanguages}
+                                getOptionLabel={(r) => t(languageDisplayMap[r as StandardLanguage][0], { ns: "langs" })}
+                                fullWidth
+                                inputAriaLabel="select language"
+                                label={"Language"}
+                                sx={{
+                                    width: "fit-content",
+                                    minWidth: "200px",
+                                }}
+                            />
+                        </Grid>
+                    }
+                    {/* Actions, Help button, Status */}
+                    <Grid item xs={12} sm={6} sx={{
+                        marginLeft: { xs: 0, sm: "auto" },
+                    }}>
+                        <Box sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                            justifyContent: "flex-start",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                        }}>
+                            {actions.map(({ label, Icon, onClick }, i) => <Tooltip key={i} title={label}>
+                                <IconButton
+                                    onClick={onClick}
+                                    disabled={!isEditing}
+                                    sx={{ fill: palette.secondary.light }}
+                                >
+                                    <Icon />
+                                </IconButton>
+                            </Tooltip>)}
+                            <HelpButton
+                                markdown={t(help, { ns: "langs" })}
+                                sxRoot={{ fill: palette.secondary.light }}
+                            />
+                            {supportsValidation && <StatusButton
+                                status={errors.length === 0 ? Status.Valid : Status.Invalid}
+                                messages={errors.map(e => e.message)}
+                                sx={{
+                                    marginRight: "auto",
+                                    height: "fit-content",
+                                }}
+                            />}
+                        </Box>
+                    </Grid>
+                </Box>
+                <CodeMirror
+                    ref={codeMirrorRef}
+                    value={internalValue}
+                    theme={palette.mode === "dark" ? "dark" : "light"}
+                    extensions={[
+                        ...extensions, // Language-specific extensions
+                        errorGutter, // Display warnings and errors in gutter
+                        EditorView.baseTheme({ // Custom theme
+                            ".variable-decoration": {
+                                textDecoration: "underline",
+                                textDecorationStyle: "wavy",
+                                textDecorationColor: "red",
+                            },
+                        })]}
+                    onChange={updateInternalValue}
+                    height={"400px"}
                 />
-                {/* Status */}
-                {supportsValidation && <StatusButton
-                    status={errors.length === 0 ? Status.Valid : Status.Invalid}
-                    messages={errors.map(e => e.message)}
-                    sx={{
-                        marginLeft: 1,
-                        marginRight: "auto",
-                        height: "fit-content",
-                    }}
-                />}
-            </Box>
-            <CodeMirror
-                value={internalValue}
-                theme={palette.mode === "dark" ? "dark" : "light"}
-                extensions={[
-                    ...extensions, // Language-specific extensions
-                    errorGutter, // Display warnings and errors in gutter
-                    cursorTooltipField, // Handle tooltips for JSON variables
-                    underlineDecorationField, // Underline JSON variables
-                    EditorView.baseTheme({ // Custom theme
-                        ".variable-decoration": {
-                            textDecoration: "underline",
-                            textDecorationStyle: "wavy",
-                            textDecorationColor: "red",
-                        },
-                    })]}
-                onChange={updateInternalValue}
-                height={"400px"}
-            />
-            {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
+                {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
-            {/* TODO */}
-            {/* Helper text label */}
-            {
-                formatMeta.error &&
-                <Typography variant="body1" sx={{ color: "red" }}>
-                    {formatMeta.error}
-                </Typography>
-            }
-        </Stack>
+                {/* TODO */}
+                {/* Helper text label */}
+                {
+                    formatMeta.error &&
+                    <Typography variant="body1" sx={{ color: "red" }}>
+                        {formatMeta.error}
+                    </Typography>
+                }
+            </Stack >
+        </>
     );
 };
