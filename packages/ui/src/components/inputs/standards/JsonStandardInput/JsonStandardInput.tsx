@@ -13,8 +13,8 @@ import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
 import { jsonToString } from "utils/shape/general";
 // import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { Extension } from "@codemirror/state";
-import { BlockInfo, EditorView, gutter, GutterMarker } from "@codemirror/view";
+import { Extension, StateField } from "@codemirror/state";
+import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
 import ReactDOMServer from "react-dom/server";
 import { JsonStandardInputProps } from "../types";
 
@@ -58,6 +58,100 @@ export enum StandardLanguage {
     Yacas = "yacas",
     Yaml = "yaml",
 }
+
+const underlineMark = Decoration.mark({ class: "variable-decoration" });
+const getCursorTooltips = (state) => {
+    const tooltips: any[] = [];
+    const docText = state.doc.sliceString(0, state.doc.length);
+    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+")|("\[[a-zA-Z0-9_]+\]")/g;
+
+    for (const r of state.selection.ranges) {
+        if (!r.empty) continue;
+
+        let match;
+        while (match = regex.exec(docText)) {
+            const variableText = match[0].slice(1, -1); // Remove the quotes
+            const start = match.index + 1; // Ignore the first quote
+            const end = start + variableText.length; // We already ignored the quotes
+
+            // If the cursor isn't within this match, skip it
+            if (r.from < start || r.from > end) continue;
+
+            let tooltipText = "";
+
+            if (variableText.startsWith("<") && variableText.endsWith(">")) {
+                tooltipText = "Variable: This key represents a variable which will be compared against the value at this key in the data JSON object.";
+            } else if (variableText.startsWith("?")) {
+                tooltipText = "Optional: This key is optional. If it is present in the data JSON object, its value will be compared against the value at this key in the data JSON object.";
+            } else if (variableText.startsWith("[") && variableText.endsWith("]")) {
+                tooltipText = "Wildcard: This key allows additional keys to be added to the object, and its value type specifies the type of the added values.";
+            }
+
+            if (tooltipText) {
+                tooltips.push({
+                    pos: start,
+                    end,
+                    above: true,
+                    create() {
+                        const dom = document.createElement("div");
+                        dom.textContent = tooltipText;
+                        return { dom };
+                    },
+                });
+            }
+        }
+    }
+
+    return tooltips;
+};
+
+const cursorTooltipField = StateField.define({
+    create: getCursorTooltips,
+
+    update(value, tr) {
+        if (!tr.docChanged && !tr.selection) return value;
+        return getCursorTooltips(tr.state);
+    },
+
+    provide: f => showTooltip.computeN([f], state => state.field(f)),
+});
+
+const underlineDecorationField = StateField.define({
+    create(state) {
+        return underlineVariables(state.doc);
+    },
+
+    update(decorations, tr) {
+        if (tr.docChanged) {
+            return underlineVariables(tr.newDoc);
+        }
+        return decorations;
+    },
+
+    provide: f => EditorView.decorations.from(f),
+});
+
+function underlineVariables(doc) {
+    const decorations: any[] = [];
+    // Match the following:
+    // "<variable>" - variable
+    // "?optional" - optional
+    // "[wildcard]" - wildcard
+    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+")|("\[[a-zA-Z0-9_]+\]")/g;
+    let match;
+
+    // Join the lines together to form a single string
+    const docText = doc.sliceString(0, doc.length);
+
+    while (match = regex.exec(docText)) {
+        const start = match.index + 1; // Ignore the first quote
+        const end = start + match[0].length - 2; // Ignore the last quote
+        decorations.push(underlineMark.range(start, end));
+    }
+    return Decoration.set(decorations);
+}
+
+
 
 /**
  * Dynamically imports language packages.
@@ -375,6 +469,12 @@ export const JsonStandardInput = ({
         }
     }, [mode]);
 
+    // // If type is JSON standard, display tooltips for variables
+    // const hoverExtension = useCallback((view: EditorView, pos: number, side: -1 | 1) => {
+    //     if (mode !== StandardLanguage.Json) return null;
+    //     return jsonStandardHover;
+    // }, [mode]);
+
     // Find language label and help text
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);
 
@@ -428,7 +528,18 @@ export const JsonStandardInput = ({
             <CodeMirror
                 value={internalValue}
                 theme={palette.mode === "dark" ? "dark" : "light"}
-                extensions={[...extensions, errorGutter]}
+                extensions={[
+                    ...extensions, // Language-specific extensions
+                    errorGutter, // Display warnings and errors in gutter
+                    cursorTooltipField, // Handle tooltips for JSON variables
+                    underlineDecorationField, // Underline JSON variables
+                    EditorView.baseTheme({ // Custom theme
+                        ".variable-decoration": {
+                            textDecoration: "underline",
+                            textDecorationStyle: "wavy",
+                            textDecorationColor: "red",
+                        },
+                    })]}
                 onChange={updateInternalValue}
                 height={"400px"}
             />
