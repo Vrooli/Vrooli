@@ -1,7 +1,7 @@
 import { AddIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { DateTimeInput } from "components/inputs/DateTimeInput/DateTimeInput";
+import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
@@ -92,16 +92,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     {canSetScheduleFor && <RelationshipList
@@ -116,12 +110,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         variant="subheader"
                     />
                     <Stack direction="column" spacing={2}>
-                        <DateTimeInput
+                        <DateInput
                             name="startTime"
                             label="Start time (optional)"
                             type="datetime-local"
                         />
-                        <DateTimeInput
+                        <DateInput
                             name="emdTime"
                             label="End time (optional)"
                             type="datetime-local"
@@ -215,7 +209,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                                 getOptionLabel={(option) => option.label}
                                             />
                                         )}
-                                        <DateTimeInput
+                                        <DateInput
                                             name={`recurrences[${index}].endDate`}
                                             label="End date"
                                             type="date"

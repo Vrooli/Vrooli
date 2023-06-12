@@ -2,7 +2,6 @@ import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from 
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { firstString } from "utils/display/stringTools";
 import { translateSnackMessage } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -25,52 +24,56 @@ const defaultState = (): AlertDialogState => ({
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
 
-const AlertDialog = () => {
+export const AlertDialog = () => {
     const { t } = useTranslation();
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
-    const open = Boolean(state.title) || Boolean(state.message);
+    const [open, setOpen] = useState(false);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
-            title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
-            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
-            buttons: o.buttons.map((b) => ({
-                label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
-                onClick: b.onClick,
-            })),
-        }));
+        const dialogSub = PubSub.get().subscribeAlertDialog((o) => {
+            setState({
+                title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
+                message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
+                buttons: o.buttons.map((b) => ({
+                    label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
+                    onClick: b.onClick,
+                })),
+            });
+            setOpen(true);
+        });
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, [t]);
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
         if (action) action(event);
-        setState(defaultState());
+        setOpen(false);
     }, []);
 
-    const resetState = useCallback(() => setState(defaultState()), []);
+    const resetState = useCallback(() => setOpen(false), []);
 
     return (
         <Dialog
             open={open}
             disableScrollLock={true}
             onClose={resetState}
-            aria-labelledby={titleId}
+            aria-labelledby={state.title ? titleId : undefined}
             aria-describedby={descriptionAria}
             sx={{
                 zIndex: 30000,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
                         zIndex: 30000,
+                        borderRadius: 4,
                     },
                 },
             }}
         >
-            <DialogTitle
+            {state.title && <DialogTitle
                 id={titleId}
-                title={firstString(state.title)}
+                title={state.title}
                 onClose={resetState}
-            />
+            />}
             <DialogContent>
                 <DialogContentText id={descriptionAria} sx={{
                     whiteSpace: "pre-wrap",
@@ -93,5 +96,3 @@ const AlertDialog = () => {
         </Dialog >
     );
 };
-
-export { AlertDialog };

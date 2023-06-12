@@ -52,16 +52,10 @@ export const BookmarkListForm = forwardRef<any, BookmarkListFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(100vw - 16px, 700px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
                 <Box mb={2} mt={2}>
                     <Field

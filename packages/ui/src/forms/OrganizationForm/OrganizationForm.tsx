@@ -82,21 +82,12 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <Stack direction="column" spacing={4} m={2}>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Organization"}

@@ -35,7 +35,7 @@ export const LargeDialog = ({
                         position: { xs: "absolute", sm: "relative" },
                         display: { xs: "block", sm: "inline-block" },
                         borderRadius: 2,
-                        background: palette.background.default,
+                        background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
                         color: palette.background.textPrimary,
                         "& > .MuiDialogContent-root": {
                             position: "relative",

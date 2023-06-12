@@ -160,18 +160,12 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
             </Box>
             <BaseForm
                 dirty={dirty}
+                display="dialog"
                 isLoading={false}
+                maxWidth={1000}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Grid container spacing={2}>
+                <Grid container spacing={2} p={2}>
                     {/* owner, project, isPrivate, etc. */}
                     <Grid item xs={12}>
                         <RelationshipList
@@ -225,7 +219,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         </Grid>
                     }
                     {/* Description */}
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} md={6}>
                         <EditableTextCollapse
                             component='TranslatedTextField'
                             isEditing={isEditing}
@@ -240,7 +234,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         />
                     </Grid>
                     {/* Instructions */}
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} md={6}>
                         <EditableTextCollapse
                             component='TranslatedMarkdown'
                             isEditing={canUpdateRoutineVersion}
@@ -264,7 +258,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         </Grid>
                     }
                     {/* Inputs */}
-                    {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
                         <InputOutputContainer
                             isEditing={canUpdateRoutineVersion}
                             handleUpdate={inputsHelpers.setValue as any}
@@ -275,7 +269,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         />
                     </Grid>}
                     {/* Outputs */}
-                    {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
                         <InputOutputContainer
                             isEditing={canUpdateRoutineVersion}
                             handleUpdate={outputsHelpers.setValue as any}
@@ -304,16 +298,16 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         }
                     </Grid>
                 </Grid>
-                {canUpdateRoutineVersion && <GridSubmitButtons
-                    display="dialog"
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />}
             </BaseForm>
+            {canUpdateRoutineVersion && <GridSubmitButtons
+                display="dialog"
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />}
         </>
     );
 });

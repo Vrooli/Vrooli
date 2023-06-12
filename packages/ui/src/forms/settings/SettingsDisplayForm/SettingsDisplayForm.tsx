@@ -23,12 +23,8 @@ export const SettingsDisplayForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
             <Title
                 help={t("DisplayAccountHelp")}

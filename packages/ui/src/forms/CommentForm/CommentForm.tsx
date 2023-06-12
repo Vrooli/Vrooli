@@ -72,19 +72,12 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100% - 16px)",
-                    margin: "auto",
-                    marginBottom: "64px",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <Stack direction="column" spacing={4} m={2}>
                     <TranslatedMarkdownInput
                         language={language}
                         name="text"

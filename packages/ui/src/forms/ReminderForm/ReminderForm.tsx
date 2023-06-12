@@ -1,7 +1,7 @@
 import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
 import { Box, Button, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { DateTimeInput } from "components/inputs/DateTimeInput/DateTimeInput";
+import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
@@ -110,21 +110,12 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
             <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
                     dirty={dirty}
+                    display={display}
                     isLoading={isLoading}
+                    maxWidth={600}
                     ref={ref}
-                    style={{
-                        display: "block",
-                        width: "min(500px, 100vw - 16px)",
-                        margin: "auto",
-                        paddingLeft: "env(safe-area-inset-left)",
-                        paddingRight: "env(safe-area-inset-right)",
-                        paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                    }}
                 >
-                    <Stack direction="column" spacing={4} sx={{
-                        margin: 2,
-                        marginBottom: 4,
-                    }}>
+                    <Stack direction="column" spacing={4} m={2}>
                         <Stack direction="column" spacing={2}>
                             <Field
                                 fullWidth
@@ -141,7 +132,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 zIndex={zIndex}
                             />
                         </Stack>
-                        <DateTimeInput
+                        <DateInput
                             name="dueDate"
                             label="Due date (optional)"
                             type="datetime-local"
@@ -189,7 +180,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     placeholder={t("Description")}
                                                                     zIndex={zIndex}
                                                                 />
-                                                                <DateTimeInput
+                                                                <DateInput
                                                                     name={`reminderItems[${i}].dueDate`}
                                                                     label="Due date (optional)"
                                                                     type="datetime-local"

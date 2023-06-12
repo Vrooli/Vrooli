@@ -88,19 +88,12 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={"dialog"}
                 isLoading={isLoading}
                 ref={ref}
-                style={{
-                    display: "block",
-                    minWidth: "400px",
-                    maxWidth: "700px",
-                    marginBottom: "64px",
-                }}
+                maxWidth={500}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <Stack direction="column" spacing={4} m={2}>
                     <EditableTextCollapse
                         component='TranslatedTextField'
                         isEditing={isEditing}

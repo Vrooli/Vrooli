@@ -23,12 +23,8 @@ export const SettingsNotificationForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
             <Stack direction="column" spacing={4}>
                 {/* Overall notifications toggle */}

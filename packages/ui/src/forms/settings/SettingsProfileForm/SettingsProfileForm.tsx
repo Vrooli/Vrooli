@@ -62,12 +62,8 @@ export const SettingsProfileForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
             <Grid container spacing={2} sx={{
                 paddingBottom: 4,

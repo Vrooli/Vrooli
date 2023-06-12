@@ -35,8 +35,10 @@ import { ViewDisplayType } from "views/types";
 export interface BaseFormProps {
     children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
     dirty?: boolean;
+    display: ViewDisplayType;
     enableReinitialize?: boolean;
     isLoading?: boolean;
+    maxWidth?: number;
     onClose?: () => any;
     promptBeforeUnload?: boolean;
     ref?: any;

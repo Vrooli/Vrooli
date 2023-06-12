@@ -94,15 +94,11 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
             </SideActionButtons>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: "block",
-                    width: "min(100vw - 16px, 700px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+                    width: "min(800px, 100vw)",
                 }}
             >
                 <TranslatedMarkdownInput

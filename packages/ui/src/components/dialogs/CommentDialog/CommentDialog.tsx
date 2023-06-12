@@ -63,12 +63,10 @@ export const CommentDialog = ({
             />
             <BaseForm
                 dirty={dirty}
+                display="dialog"
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    paddingBottom: "64px",
-                }}
             >
                 <TranslatedMarkdownInput
                     language={language}

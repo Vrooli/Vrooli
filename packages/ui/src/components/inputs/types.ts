@@ -20,7 +20,7 @@ export interface CommentUpsertInputProps {
     zIndex: number;
 }
 
-export interface DateTimeInputProps {
+export interface DateInputProps {
     fullWidth?: boolean;
     label: string;
     name: string;

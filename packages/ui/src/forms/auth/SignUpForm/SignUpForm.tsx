@@ -82,10 +82,12 @@ export const SignUpForm = ({
             >
                 {(formik) => <BaseForm
                     dirty={formik.dirty}
+                    display={"dialog"}
                     isLoading={loading}
+                    maxWidth={500}
                     style={{
-                        display: "block",
                         ...formPaper,
+                        paddingBottom: "unset",
                     }}
                 >
                     <Grid container spacing={2}>

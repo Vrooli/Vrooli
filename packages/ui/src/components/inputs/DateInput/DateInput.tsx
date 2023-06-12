@@ -2,7 +2,7 @@ import { CloseIcon } from "@local/shared";
 import { IconButton, InputAdornment, TextField, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback } from "react";
-import { DateTimeInputProps } from "../types";
+import { DateInputProps } from "../types";
 
 function formatForDateTimeLocal(dateStr, type) {
     // Return empty string if no dateStr is provided
@@ -37,12 +37,12 @@ function formatForDateTimeLocal(dateStr, type) {
     }
 }
 
-export const DateTimeInput = ({
+export const DateInput = ({
     fullWidth = true,
     label,
     name,
     type = "datetime-local",
-}: DateTimeInputProps) => {
+}: DateInputProps) => {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(name);
@@ -60,9 +60,9 @@ export const DateTimeInput = ({
                 endAdornment: (
                     <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                         <input type="hidden" />
-                        <IconButton edge="end" size="small" onClick={clearDate}>
-                            <CloseIcon fill={palette.background.textPrimary} />
-                        </IconButton>
+                        {typeof field.value === "string" && field.value.length > 0 && <IconButton edge="end" size="small" onClick={clearDate}>
+                            <CloseIcon fill={palette.background.textPrimary} width="20px" height="20px" />
+                        </IconButton>}
                     </InputAdornment>
                 ),
             }}
@@ -71,6 +71,11 @@ export const DateTimeInput = ({
             }}
             {...field}
             value={formatForDateTimeLocal(field.value, type)}
+            variant="outlined"
+            sx={{
+                background: palette.background.paper,
+                borderRadius: 1,
+            }}
         />
     );
 };

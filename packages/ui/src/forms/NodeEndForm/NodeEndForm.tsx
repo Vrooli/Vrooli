@@ -86,19 +86,12 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={500}
                 ref={ref}
-                style={{
-                    display: "block",
-                    minWidth: "400px",
-                    maxWidth: "700px",
-                    marginBottom: "64px",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <Stack direction="column" spacing={4} m={2}>
                     <EditableTextCollapse
                         component='TranslatedTextField'
                         isEditing={isEditing}
