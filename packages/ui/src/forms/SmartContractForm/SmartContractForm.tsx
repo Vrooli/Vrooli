@@ -2,7 +2,13 @@ import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersio
 import { Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { JsonStandardInput, StandardLanguage } from "components/inputs/standards";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { SmartContractFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -107,26 +113,63 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                     paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
-                <Stack direction="column" spacing={2} sx={{
-                    borderRadius: 2,
-                    background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                    padding: 2,
+                <Stack direction="column" spacing={4} sx={{
+                    margin: 2,
+                    marginBottom: 4,
                 }}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"SmartContract"}
+                        zIndex={zIndex}
+                    />
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedMarkdownInput
+                            language={language}
+                            name="description"
+                            maxChars={2048}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
+                        />
+                    </Stack>
+                    <JsonStandardInput
+                        fieldName="content"
+                        isEditing={true}
+                        limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
+                        zIndex={zIndex}
+                    />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
+                    <VersionInput
+                        fullWidth
+                        versions={versions}
                     />
                 </Stack>
-                {/* TODO */}
-                <VersionInput
-                    fullWidth
-                    versions={versions}
-                />
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

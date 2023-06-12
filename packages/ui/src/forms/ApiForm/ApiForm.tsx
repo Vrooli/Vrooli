@@ -1,16 +1,19 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Stack, TextField, useTheme } from "@mui/material";
+import { Button, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { JsonStandardInput, StandardLanguage } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { Title } from "components/text/Title/Title";
 import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
-import { forwardRef, useContext } from "react";
+import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
@@ -101,6 +104,8 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
         validationSchema: apiVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
+    const [hasDocUrl, setHasDocUrl] = useState(false);
+
     return (
         <>
             <BaseForm
@@ -125,13 +130,6 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         objectType={"Api"}
                         zIndex={zIndex}
                     />
-                    <Field
-                        fullWidth
-                        name="callLink"
-                        label={"Endpoint URL"}
-                        helperText={"The full URL to the endpoint."}
-                        as={TextField}
-                    />
                     <Stack direction="column" spacing={2} sx={{
                         borderRadius: 2,
                         background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
@@ -151,24 +149,72 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={"Summary"}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={2}
                             name="summary"
-                        />
-                        <TranslatedTextField
-                            fullWidth
-                            label={"Details"}
-                            language={language}
-                            multiline
+                            maxChars={1024}
                             minRows={4}
                             maxRows={8}
-                            name="details"
+                            placeholder={t("Summary")}
+                            zIndex={zIndex}
                         />
+                        <TranslatedMarkdownInput
+                            language={language}
+                            name="details"
+                            maxChars={8192}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Details")}
+                            zIndex={zIndex}
+                        />
+                    </Stack>
+                    <Stack direction="column" spacing={2} sx={{
+                        borderRadius: 2,
+                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
+                        padding: 2,
+                    }}>
+                        <Field
+                            fullWidth
+                            name="callLink"
+                            label={"Endpoint URL"}
+                            helperText={"The full URL to the endpoint"}
+                            as={TextField}
+                        />
+                        {/* Selector for documentation URL or text */}
+                        <Grid item xs={12} pb={2}>
+                            {/* Title with help text */}
+                            <Title
+                                title="Use URL for schema?"
+                                help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
+                                variant="subheader"
+                            />
+                            {/* Yes/No buttons */}
+                            <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
+                                <Button fullWidth color="secondary" onClick={() => setHasDocUrl(true)} variant={hasDocUrl === true ? "outlined" : "contained"}>{t("Yes")}</Button>
+                                <Button fullWidth color="secondary" onClick={() => setHasDocUrl(false)} variant={hasDocUrl === false ? "outlined" : "contained"}>{t("No")}</Button>
+                            </Stack >
+                        </Grid >
+                        {
+                            hasDocUrl === true && (
+                                <Field
+                                    fullWidth
+                                    name="documentationLink"
+                                    label={"Schema URL (Optional)"}
+                                    helperText={"The full URL to the schema"}
+                                    as={TextField}
+                                />
+                            )
+                        }
+                        {
+                            hasDocUrl === false && (
+                                <JsonStandardInput
+                                    fieldName="schemaText"
+                                    isEditing={true}
+                                    limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
+                                    zIndex={zIndex}
+                                />
+                            )
+                        }
                     </Stack>
                     <ResourceListHorizontalInput
                         isCreate={true}

@@ -2,50 +2,50 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="24"
-   height="24"
-   viewBox="0 0 24 24"
-   version="1.1"
-   id="svg5"
-   inkscape:export-filename="ProfileIcon.svg"
-   inkscape:export-xdpi="96"
-   inkscape:export-ydpi="96"
-   sodipodi:docname="ProfileIcon.svg"
-   inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
-     id="namedview7"
-     pagecolor="#505050"
-     bordercolor="#eeeeee"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#505050"
-     inkscape:document-units="mm"
-     showgrid="false"
-     showguides="true"
-     inkscape:zoom="17.270833"
-     inkscape:cx="20.844391"
-     inkscape:cy="10.595899"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs2" />
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1">
-    <path
-       id="path948"
-       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:0.398329"
-       d="M 11.992188 4.6035156 C 10.496709 4.5897355 9.0665309 5.5426493 8.5097656 6.9316406 C 7.6183341 8.9127553 8.8436809 11.456795 10.947266 11.996094 C 13.022245 12.665431 15.417185 11.150081 15.712891 8.9941406 C 16.151144 6.7902654 14.240607 4.5291817 11.992188 4.6035156 z M 11.921875 13.492188 C 9.2930587 13.491801 6.649339 14.527436 4.8203125 16.435547 C 5.915734 18.226269 7.7028905 19.577012 9.7265625 20.136719 C 13.20841 21.178291 17.230947 19.613938 19.125 16.519531 C 17.289202 14.555182 14.595494 13.485688 11.921875 13.492188 z " />
-  </g>
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    version="1.1"
+    id="svg5"
+    inkscape:export-filename="ProfileIcon.svg"
+    inkscape:export-xdpi="96"
+    inkscape:export-ydpi="96"
+    sodipodi:docname="ProfileIcon.svg"
+    inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:svg="http://www.w3.org/2000/svg">
+    <sodipodi:namedview
+        id="namedview7"
+        pagecolor="#505050"
+        bordercolor="#eeeeee"
+        borderopacity="1"
+        inkscape:showpageshadow="0"
+        inkscape:pageopacity="0"
+        inkscape:pagecheckerboard="0"
+        inkscape:deskcolor="#505050"
+        inkscape:document-units="mm"
+        showgrid="false"
+        showguides="true"
+        inkscape:zoom="17.270833"
+        inkscape:cx="20.844391"
+        inkscape:cy="10.595899"
+        inkscape:window-width="1920"
+        inkscape:window-height="1009"
+        inkscape:window-x="-8"
+        inkscape:window-y="-8"
+        inkscape:window-maximized="1"
+        inkscape:current-layer="layer1" />
+    <defs
+        id="defs2" />
+    <g
+        inkscape:label="Layer 1"
+        inkscape:groupmode="layer"
+        id="layer1">
+        <path
+            id="path948"
+            style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+            d="M 11.992188 4.6035156 C 10.496709 4.5897355 9.0665309 5.5426493 8.5097656 6.9316406 C 7.6183341 8.9127553 8.8436809 11.456795 10.947266 11.996094 C 13.022245 12.665431 15.417185 11.150081 15.712891 8.9941406 C 16.151144 6.7902654 14.240607 4.5291817 11.992188 4.6035156 z M 11.921875 13.492188 C 9.2930587 13.491801 6.649339 14.527436 4.8203125 16.435547 C 5.915734 18.226269 7.7028905 19.577012 9.7265625 20.136719 C 13.20841 21.178291 17.230947 19.613938 19.125 16.519531 C 17.289202 14.555182 14.595494 13.485688 11.921875 13.492188 z " />
+    </g>
 </svg>

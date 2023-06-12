@@ -283,8 +283,8 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>Yes</Button>
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>No</Button>
+                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>{t("Yes")}</Button>
+                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>{t("No")}</Button>
                             </Stack >
                         </Grid >
                         {/* Data displayed only by multi-step routines */}

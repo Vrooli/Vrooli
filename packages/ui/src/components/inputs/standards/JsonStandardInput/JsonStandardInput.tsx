@@ -1,5 +1,6 @@
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
+import { Range } from "@codemirror/state";
 import { ErrorIcon, LangsKey, MagicIcon, OpenThreadIcon, RedoIcon, SvgComponent, UndoIcon, WarningIcon } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
@@ -66,7 +67,10 @@ export enum StandardLanguage {
     Yaml = "yaml",
 }
 
-const underlineMark = Decoration.mark({ class: "variable-decoration" });
+const underlineMarkVariable = Decoration.mark({ class: "variable-decoration" });
+const underlineMarkOptional = Decoration.mark({ class: "optional-decoration" });
+const underlineMarkWildcard = Decoration.mark({ class: "wildcard-decoration" });
+const underlineMarkError = Decoration.mark({ class: "error-decoration" });
 const getCursorTooltips = (state) => {
     const tooltips: any[] = [];
     const docText = state.doc.sliceString(0, state.doc.length);
@@ -139,26 +143,43 @@ const underlineDecorationField = StateField.define({
 });
 
 function underlineVariables(doc) {
-    const decorations: any[] = [];
-    // Match the following:
-    // "<variable>" - variable
-    // "?optional" - optional
-    // "[wildcard]" - wildcard
-    const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
-    let match;
-
-    // Join the lines together to form a single string
+    const decorations: Range<Decoration>[] = [];
+    // Regexes for each type of variable
+    const variableRegex = /"<[a-zA-Z0-9_]+>"/g;
+    const optionalRegex = /"\?[a-zA-Z0-9_]+":/g;
+    const wildcardRegex = /"\[[a-zA-Z0-9_]+\]"/g;
+    // Get the document text
     const docText = doc.sliceString(0, doc.length);
-
-    while (match = regex.exec(docText)) {
-        const start = match.index + 1; // Ignore the first quote
-        const end = start + match[0].length - (match[0].includes("?") ? 3 : 2); // Ignore the last quote (and colon if it's optional)
-        decorations.push(underlineMark.range(start, end));
+    // Match and decorate variables
+    let match = variableRegex.exec(docText);
+    while (match) {
+        const start = match.index + 1;
+        const end = start + match[0].length - 2;
+        decorations.push(underlineMarkVariable.range(start, end));
+        match = variableRegex.exec(docText);
     }
+    // Match and decorate optionals
+    match = optionalRegex.exec(docText);
+    while (match) {
+        const start = match.index + 1;
+        const end = start + match[0].length - 3;
+        decorations.push(underlineMarkOptional.range(start, end));
+        match = optionalRegex.exec(docText);
+    }
+    // Match and decorate wildcards
+    match = wildcardRegex.exec(docText);
+    while (match) {
+        const start = match.index + 1;
+        const end = start + match[0].length - 2;
+        decorations.push(underlineMarkWildcard.range(start, end));
+        match = wildcardRegex.exec(docText);
+    }
+    // Sort the decorations by their start position. Decoration.set 
+    // requires this for some reason.
+    decorations.sort((a, b) => a.from - b.from);
+    // Return the decorations as a set
     return Decoration.set(decorations);
 }
-
-
 
 /**
  * Dynamically imports language packages.
@@ -409,7 +430,7 @@ export const JsonStandardInput = ({
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
 
     // Last valid schema format
-    const [internalValue, setInternalValue] = useState<string>(jsonToString(formatField.value ?? {}) ?? "");
+    const [internalValue, setInternalValue] = useState<string>(jsonToString(formatField.value) ?? "");
     const updateInternalValue = useCallback((value: string) => {
         if (!isEditing) return;
         setInternalValue(value);
@@ -465,7 +486,7 @@ export const JsonStandardInput = ({
     });
 
     // Handle language selection
-    const [mode, setMode] = useState<StandardLanguage>(StandardLanguage.Json);
+    const [mode, setMode] = useState<StandardLanguage>(limitTo && limitTo.length > 0 ? limitTo[0] : StandardLanguage.Json);
     const [extensions, setExtensions] = useState<any[]>([]);
     const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
     useEffect(() => {
@@ -658,10 +679,25 @@ export const JsonStandardInput = ({
                         ...extensions, // Language-specific extensions
                         errorGutter, // Display warnings and errors in gutter
                         EditorView.baseTheme({ // Custom theme
-                            ".variable-decoration": {
+                            ".error-decoration": {
                                 textDecoration: "underline",
                                 textDecorationStyle: "wavy",
-                                textDecorationColor: "red",
+                                textDecorationColor: palette.error.main,
+                            },
+                            ".variable-decoration": {
+                                textDecoration: "underline",
+                                textDecorationStyle: "double",
+                                textDecorationColor: "blue",
+                            },
+                            ".optional-decoration": {
+                                textDecoration: "underline",
+                                textDecorationStyle: "double",
+                                textDecorationColor: "magenta",
+                            },
+                            ".wildcard-decoration": {
+                                textDecoration: "underline",
+                                textDecorationStyle: "double",
+                                textDecorationColor: "lightseagreen",
                             },
                         })]}
                     onChange={updateInternalValue}

@@ -118,6 +118,9 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
                         name="description"
                         props={{
                             language,
+                            maxChars: 2048,
+                            minRows: 4,
+                            maxRows: 8,
                             zIndex,
                         }}
                         title={t("Description")}
