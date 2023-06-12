@@ -97,7 +97,7 @@ export const ScheduleUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                title={t(isCreate ? "ScheduleCreate" : "ScheduleUpdate")}
+                title={t(`${isCreate ? "Create" : "Update"}${currTab.value.substring(0, currTab.value.length - 1)}` as const)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
                     ariaLabel="schedule-link-tabs"

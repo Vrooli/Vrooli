@@ -99,22 +99,30 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 ref={ref}
                 style={{
                     width: "min(800px, 100vw)",
+                    paddingBottom: 0,
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}
-                    minRows={3}
+                    minRows={10}
                     sxs={{
                         bar: {
                             borderRadius: 0,
                             background: palette.primary.main,
+                            position: "sticky",
+                            top: 0,
+                        },
+                        root: {
+                            height: "100%",
+                            position: "relative",
                         },
                         textArea: {
                             borderRadius: 0,
                             resize: "none",
-                            minHeight: "100vh",
+                            height: "100%",
+                            overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
                         },
                     }}

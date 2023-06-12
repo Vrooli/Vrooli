@@ -1,4 +1,4 @@
-import { createTheme } from "@mui/material";
+import { createTheme, lighten } from "@mui/material";
 
 // Define custom theme properties
 declare module "@mui/material/styles/createPalette" {
@@ -31,11 +31,13 @@ const lightPalette = {
         light: "#4372a3",
         main: "#344eb5",
         dark: "#072c6a",
+        contrastText: "#ffffff",
     },
     secondary: {
         light: "#4ae59d", //'#96d175'
         main: "#16a361", //'#42bd3a'
         dark: "#009b53", //'#367032'
+        contrastText: "#ffffff",
     },
     background: {
         default: "#e9ebf1",
@@ -59,6 +61,33 @@ const lightTheme = createTheme({
                 },
             },
         },
+        MuiButton: {
+            variants: [
+                {
+                    props: { variant: "text" },
+                    style: {
+                        color: lightPalette.secondary.main,
+                    },
+                },
+                {
+                    props: { variant: "outlined" },
+                    style: {
+                        color: lightPalette.secondary.main,
+                        borderColor: lightPalette.secondary.main,
+                    },
+                },
+                {
+                    props: { variant: "contained" },
+                    style: {
+                        backgroundColor: lightPalette.secondary.main,
+                        color: lightPalette.secondary.contrastText,
+                        "&:hover": {
+                            backgroundColor: lighten(lightPalette.secondary.main, 0.1),
+                        },
+                    },
+                },
+            ],
+        },
     },
 });
 
@@ -69,11 +98,13 @@ const darkPalette = {
         light: "#5f6a89",
         main: "#515774",
         dark: "#242930",
+        contrastText: "#ffffff",
     },
     secondary: {
         light: "#5b99da",
         main: "#4372a3",
         dark: "#344eb5",
+        contrastText: "#ffffff",
     },
     background: {
         default: "#181818",
@@ -96,6 +127,33 @@ const darkTheme = createTheme({
                     },
                 },
             },
+        },
+        MuiButton: {
+            variants: [
+                {
+                    props: { variant: "text" },
+                    style: {
+                        color: darkPalette.secondary.main,
+                    },
+                },
+                {
+                    props: { variant: "outlined" },
+                    style: {
+                        color: darkPalette.secondary.main,
+                        border: `1px solid ${darkPalette.secondary.main}`,
+                    },
+                },
+                {
+                    props: { variant: "contained" },
+                    style: {
+                        backgroundColor: darkPalette.secondary.main,
+                        color: darkPalette.secondary.contrastText,
+                        "&:hover": {
+                            backgroundColor: lighten(darkPalette.secondary.main, 0.1),
+                        },
+                    },
+                },
+            ],
         },
     },
 });

@@ -214,6 +214,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                         <Button
                             startIcon={<AddIcon />}
                             onClick={handleAddStep}
+                            variant="outlined"
                             sx={{ alignSelf: "center", mt: 1 }}
                         >
                             Add Step

@@ -151,12 +151,14 @@ export const CookieSettingsDialog = ({
                         <Button
                             fullWidth
                             type="submit"
+                            variant="contained"
                         >{t("Confirm")}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             onClick={handleAcceptAllCookies}
+                            variant="contained"
                         >{t("AcceptAll")}</Button>
                     </Grid>
                     <Grid item xs={4}>
@@ -164,6 +166,7 @@ export const CookieSettingsDialog = ({
                             fullWidth
                             variant="text"
                             onClick={onCancel}
+                            variant="outlined"
                         >{t("Cancel")}</Button>
                     </Grid>
                 </Grid>

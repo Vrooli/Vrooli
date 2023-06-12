@@ -8,6 +8,7 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { ResourceListVertical } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { placeholderColor } from "utils/display/listTools";
@@ -144,22 +145,15 @@ export const ApiView = ({
                         <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit apiVersion">
-                                <IconButton
-                                    aria-label="Edit apiVersion"
-                                    size="small"
-                                    onClick={() => actionData.onActionStart("Edit")}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
+                    ) : <Title
+                        title={name}
+                        variant="header"
+                        options={permissions.canUpdate ? [{
+                            label: t("Edit"),
+                            Icon: EditIcon,
+                            onClick: () => { actionData.onActionStart("Edit"); },
+                        }] : []}
+                    />
                 }
                 {/* Joined date */}
                 <DateDisplay
@@ -195,14 +189,13 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, name, apiVersion, summary, zIndex, canBookmark, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("Api")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

@@ -113,6 +113,7 @@ export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
                         <Button
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
+                            variant="outlined"
                             sx={{
                                 display: "flex",
                                 margin: "auto",

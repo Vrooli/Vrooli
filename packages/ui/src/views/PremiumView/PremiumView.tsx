@@ -189,6 +189,7 @@ export const PremiumView = ({
                         fullWidth
                         onClick={() => { startCheckout("yearly"); }}
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
+                        variant="contained"
                     >
                         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
                             $149.99/year
@@ -202,6 +203,7 @@ export const PremiumView = ({
                         fullWidth
                         onClick={() => { startCheckout("monthly"); }}
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
+                        variant="outlined"
                     >$14.99/month</Button>
                     {hasPremium && (
                         // TODO need way to change from monthly to yearly and vice versa
@@ -213,12 +215,14 @@ export const PremiumView = ({
                         fullWidth
                         onClick={() => { startCheckout("donation"); }}
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
+                        variant="outlined"
                     >One-time donation (no premium)</Button>
                 </Stack>}
                 {/* If not logged in, button to log in first */}
                 {!userId && <Button
                     fullWidth
                     onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
+                    variant="contained"
                 >Log in to upgrade</Button>}
             </Stack>
         </>

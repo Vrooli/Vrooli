@@ -1,8 +1,9 @@
 import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag, useLocation } from "@local/shared";
-import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
+import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -11,7 +12,6 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
@@ -199,6 +199,24 @@ export const SubroutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
+    // Display title or loading bar
+    const titleComponent = loading ? <LinearProgress color="inherit" sx={{
+        borderRadius: 1,
+        width: "50vw",
+        height: 8,
+        marginTop: "12px !important",
+        marginBottom: "12px !important",
+        maxWidth: "300px",
+    }} /> : <Typography
+        component="h1"
+        variant="h3"
+        sx={{
+            textAlign: "center",
+            sx: { marginTop: 2, marginBottom: 2 },
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+        }}
+    >{name}</Typography>;
+
     return (
         <>
             <TopBar
@@ -211,15 +229,27 @@ export const SubroutineView = ({
                 width: "min(100%, 700px)",
                 padding: 2,
             }}>
-                <ObjectTitle
-                    language={language}
-                    languages={availableLanguages}
-                    loading={loading}
-                    title={name}
-                    setLanguage={setLanguage}
-                    translations={internalRoutineVersion?.translations ?? []}
-                    zIndex={zIndex}
-                />
+                <Stack
+                    direction="row"
+                    justifyContent="center"
+                    alignItems="center"
+                    spacing={2}
+                    sx={{
+                        marginTop: 2,
+                        marginBottom: 2,
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        maxWidth: "700px",
+                    }}
+                >
+                    {titleComponent}
+                    {availableLanguages.length > 1 && <SelectLanguageMenu
+                        currentLanguage={language}
+                        handleCurrent={setLanguage}
+                        languages={availableLanguages}
+                        zIndex={zIndex}
+                    />}
+                </Stack>
                 {/* Resources */}
                 {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                     title={"Resources"}
@@ -239,7 +269,13 @@ export const SubroutineView = ({
                 <Box sx={containerProps(palette)}>
                     <ContentCollapse title="Inputs">
                         {inputComponents}
-                        <Button startIcon={<SuccessIcon />} fullWidth onClick={() => { }} color="secondary" sx={{ marginTop: 2 }}>Submit</Button>
+                        <Button
+                            startIcon={<SuccessIcon />}
+                            fullWidth onClick={() => { }}
+                            color="secondary"
+                            sx={{ marginTop: 2 }}
+                            variant="contained"
+                        >Submit</Button>
                     </ContentCollapse>
                 </Box>
                 {/* Action buttons */}

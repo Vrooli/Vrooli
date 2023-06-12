@@ -63,7 +63,6 @@ export const ResetPasswordForm = ({
                     dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
-                    maxWidth={500}
                     style={{
                         ...formPaper,
                         paddingBottom: "unset",
@@ -93,6 +92,7 @@ export const ResetPasswordForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("Submit")}

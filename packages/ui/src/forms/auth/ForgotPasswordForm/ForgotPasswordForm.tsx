@@ -50,7 +50,6 @@ export const ForgotPasswordForm = ({
                     dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
-                    maxWidth={500}
                     style={{
                         ...formPaper,
                         paddingBottom: "unset",
@@ -72,6 +71,7 @@ export const ForgotPasswordForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("Submit")}

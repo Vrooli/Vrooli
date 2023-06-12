@@ -191,6 +191,7 @@ export const BaseStandardInput = ({
                                 disabled={!formik.isValid || !formik.dirty}
                                 fullWidth
                                 startIcon={<CompleteIcon />}
+                                variant="contained"
                             >{t("Confirm")}</Button>
                         </Box>
                     </Grid>
@@ -204,6 +205,7 @@ export const BaseStandardInput = ({
                                 localStorage.removeItem(`${storageKey}-${inputType}`);
                             }}
                             startIcon={<RefreshIcon />}
+                            variant="outlined"
                         >{t("Reset")}</Button>
                     </Grid>
                 </Grid>

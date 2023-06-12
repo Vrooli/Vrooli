@@ -137,6 +137,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                 display: "flex",
                                 margin: "auto",
                             }}
+                            variant="outlined"
                         >{"Add schedule"}</Button>
                     )}
                     {scheduleField.value && <ListContainer

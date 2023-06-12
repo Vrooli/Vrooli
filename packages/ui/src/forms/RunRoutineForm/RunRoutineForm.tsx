@@ -113,6 +113,7 @@ export const RunRoutineForm = forwardRef<any, RunRoutineFormProps>(({
                         <Button
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
+                            variant="outlined"
                             sx={{
                                 display: "flex",
                                 margin: "auto",

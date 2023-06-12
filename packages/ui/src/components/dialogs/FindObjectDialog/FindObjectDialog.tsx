@@ -500,6 +500,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                                 fullWidth
                                 color="secondary"
                                 onClick={() => setSelectedObject(null)}
+                                variant="outlined"
                             >
                                 Select a different object
                             </Button>

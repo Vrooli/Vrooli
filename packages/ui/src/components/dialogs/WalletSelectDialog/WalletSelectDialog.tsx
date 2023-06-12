@@ -68,6 +68,7 @@ export const WalletSelectDialog = ({
                         type="button"
                         fullWidth
                         onClick={handleOpenInstall}
+                        variant="contained"
                     >
                         {t("InstallWallet")}
                     </Button>

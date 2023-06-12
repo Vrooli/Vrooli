@@ -7,6 +7,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
+import { firstString } from "utils/display/stringTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { getObjectUrlBase } from "utils/navigation/openObject";
@@ -59,7 +60,7 @@ export const BookmarkListView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("BookmarkList", { count: 1 })}
+                title={firstString(label, t("BookmarkList", { count: 1 }))}
                 below={<Box sx={{
                     width: "min(100%, 700px)",
                     margin: "auto",

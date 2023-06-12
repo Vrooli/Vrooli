@@ -15,16 +15,6 @@ export interface MarkdownDisplayProps {
     variant?: TypographyProps["variant"];
 }
 
-export interface ObjectTitleProps extends BoxProps {
-    language: string;
-    languages: string[];
-    loading: boolean;
-    setLanguage: (language: string) => void;
-    translations: { language: string }[];
-    title: string | undefined;
-    zIndex: number;
-}
-
 export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string

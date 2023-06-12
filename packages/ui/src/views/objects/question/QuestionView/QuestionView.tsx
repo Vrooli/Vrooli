@@ -3,6 +3,7 @@ import { Box, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { smallHorizontalScrollbar } from "components/lists/styles";
@@ -10,13 +11,13 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -86,7 +87,13 @@ export const QuestionView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("Question")}
+                title={firstString(title, t("Question"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <Formik
                 enableReinitialize={true}
@@ -102,15 +109,6 @@ export const QuestionView = ({
                     <RelationshipList
                         isEditing={false}
                         objectType={"Question"}
-                        zIndex={zIndex}
-                    />
-                    <ObjectTitle
-                        language={language}
-                        languages={availableLanguages}
-                        loading={isLoading}
-                        title={title}
-                        setLanguage={setLanguage}
-                        translations={existing?.translations ?? []}
                         zIndex={zIndex}
                     />
                     {/* Date and tags */}

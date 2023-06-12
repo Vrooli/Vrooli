@@ -207,7 +207,11 @@ export interface MarkdownInputProps {
     minRows?: number;
     name: string;
     placeholder?: string;
-    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    sxs?: {
+        bar?: { [x: string]: any };
+        root?: { [x: string]: any };
+        textArea?: { [x: string]: any };
+    };
     tabIndex?: number;
     zIndex: number;
 }
@@ -357,7 +361,11 @@ export interface TranslatedMarkdownInputProps {
     minRows?: number;
     name: string;
     placeholder?: string;
-    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    sxs?: {
+        bar?: { [x: string]: any };
+        root?: { [x: string]: any };
+        textArea?: { [x: string]: any };
+    };
     zIndex: number;
 }
 

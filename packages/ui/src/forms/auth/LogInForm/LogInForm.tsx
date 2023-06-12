@@ -88,7 +88,6 @@ export const LogInForm = ({
                     dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
-                    maxWidth={500}
                     style={{
                         ...formPaper,
                         paddingBottom: "unset",
@@ -117,6 +116,7 @@ export const LogInForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant='contained'
                         sx={{ ...formSubmit }}
                     >
                         {t("LogIn")}

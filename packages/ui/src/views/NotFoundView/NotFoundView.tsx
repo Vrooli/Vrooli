@@ -26,7 +26,7 @@ export const NotFoundView = () => {
                 <h3>{t("PageNotFoundDetails", { ns: "error", defaultValue: "PageNotFoundDetails" })}</h3>
                 <br />
                 <Link to={LINKS.Home}>
-                    <Button>{t("GoToHome")}</Button>
+                    <Button variant="contained">{t("GoToHome")}</Button>
                 </Link>
             </Box>
         </>

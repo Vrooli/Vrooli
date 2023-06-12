@@ -121,6 +121,7 @@ export const MeetingForm = forwardRef<any, MeetingFormProps>(({
                         <Button
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
+                            variant="outlined"
                             sx={{
                                 display: "flex",
                                 margin: "auto",

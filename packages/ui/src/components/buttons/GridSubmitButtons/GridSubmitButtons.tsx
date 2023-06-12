@@ -45,6 +45,7 @@ export const GridSubmitButtons = ({
                         disabled={isSubmitDisabled}
                         fullWidth
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : (isCreate ? <CreateIcon /> : <SaveIcon />)}
+                        variant="contained"
                     >{t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
             </Grid>
@@ -55,6 +56,7 @@ export const GridSubmitButtons = ({
                     fullWidth
                     onClick={onCancel}
                     startIcon={<CancelIcon />}
+                    variant="outlined"
                 >{t("Cancel")}</Button>
             </Grid>
         </GridActionButtons>

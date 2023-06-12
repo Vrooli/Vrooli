@@ -74,6 +74,7 @@ export const CookiesSnack = ({
                             fullWidth
                             color="secondary"
                             onClick={handleAcceptAllCookies}
+                            variant="contained"
                         >
                             Accept all cookies
                         </Button>

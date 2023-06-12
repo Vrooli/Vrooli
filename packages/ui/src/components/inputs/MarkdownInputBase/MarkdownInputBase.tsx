@@ -747,7 +747,7 @@ export const MarkdownInputBase = ({
                         )
                 }
                 {/* Help text, characters remaining indicator, and action buttons */}
-                <Stack
+                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Stack
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
@@ -788,7 +788,7 @@ export const MarkdownInputBase = ({
                             ))
                         }
                     </Stack>
-                </Stack>
+                </Stack>}
             </Stack>
         </>
     );

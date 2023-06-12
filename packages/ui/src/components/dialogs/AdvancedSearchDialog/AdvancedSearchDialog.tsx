@@ -117,6 +117,7 @@ export const AdvancedSearchDialog = ({
                                 startIcon={<SearchIcon />}
                                 type="submit"
                                 onClick={formik.handleSubmit as any}
+                                variant="contained"
                             >{t("Search")}</Button>
                         </Grid>
                         <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
@@ -124,6 +125,7 @@ export const AdvancedSearchDialog = ({
                                 fullWidth
                                 startIcon={<CancelIcon />}
                                 onClick={handleClose}
+                                variant="outlined"
                             >{t("Cancel")}</Button>
                         </Grid>
                     </GridActionButtons>

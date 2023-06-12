@@ -147,6 +147,7 @@ export const SettingsAuthenticationView = ({
                         color="secondary"
                         onClick={onLogOut}
                         startIcon={<LogOutIcon />}
+                        variant="outlined"
                         sx={{
                             display: "flex",
                             width: "min(100%, 400px)",
@@ -160,6 +161,7 @@ export const SettingsAuthenticationView = ({
                     <Button
                         onClick={openDelete}
                         startIcon={<DeleteIcon />}
+                        variant="text"
                         sx={{
                             background: palette.error.main,
                             color: palette.error.contrastText,

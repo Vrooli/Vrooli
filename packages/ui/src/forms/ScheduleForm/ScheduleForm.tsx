@@ -232,6 +232,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                     <Button
                         onClick={addNewRecurrence}
                         startIcon={<AddIcon />}
+                        variant="outlined"
                         sx={{
                             display: "flex",
                             margin: "auto",

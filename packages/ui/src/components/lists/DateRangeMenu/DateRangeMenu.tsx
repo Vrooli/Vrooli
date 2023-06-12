@@ -110,6 +110,7 @@ export const DateRangeMenu = ({
                     type="submit"
                     fullWidth
                     onClick={() => { onSubmit(after, before); onClose(); }}
+                    variant="contained"
                 >{t("Ok")}</Button>
             </Stack>
         </Popover>

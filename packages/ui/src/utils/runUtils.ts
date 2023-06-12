@@ -42,6 +42,7 @@ export const locationArraysMatch = (locationA: number[], locationB: number[]): b
  * @return True if the routine version has subroutines, false otherwise
  */
 export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVersion>): boolean => {
+    if (!routineVersion) return false;
     // If routineVersion has nodes or links, we know it has subroutines
     if (routineVersion.nodes && routineVersion.nodes.length > 0) return true;
     if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;

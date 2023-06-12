@@ -203,6 +203,7 @@ export const AboutView = ({
                             e.preventDefault();
                             openLink(setLocation, joinTeamLink);
                         }}
+                        variant="outlined"
                         startIcon={<OrganizationIcon />}
                     >Join the Team</Button>
                 </Stack>

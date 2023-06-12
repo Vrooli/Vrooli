@@ -84,7 +84,6 @@ export const SignUpForm = ({
                     dirty={formik.dirty}
                     display={"dialog"}
                     isLoading={loading}
-                    maxWidth={500}
                     style={{
                         ...formPaper,
                         paddingBottom: "unset",
@@ -146,6 +145,7 @@ export const SignUpForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("SignUp")}

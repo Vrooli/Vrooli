@@ -72,10 +72,16 @@ export const SettingsDisplayView = ({
                         />}
                     </Formik>
                     <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session); }} sx={{
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                        }}>{t("ClearSearchHistory")}</Button>
+                        <Button
+                            id="clear-search-history-button"
+                            color="secondary"
+                            startIcon={<SearchIcon />}
+                            onClick={() => { session && clearSearchHistory(session); }}
+                            variant="outlined"
+                            sx={{
+                                marginLeft: "auto",
+                                marginRight: "auto",
+                            }}>{t("ClearSearchHistory")}</Button>
                     </Box>
                 </Stack>
             </Stack>

@@ -181,8 +181,18 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                <Button fullWidth color="secondary" onClick={() => setHasDocUrl(true)} variant={hasDocUrl === true ? "outlined" : "contained"}>{t("Yes")}</Button>
-                                <Button fullWidth color="secondary" onClick={() => setHasDocUrl(false)} variant={hasDocUrl === false ? "outlined" : "contained"}>{t("No")}</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => setHasDocUrl(true)}
+                                    variant={hasDocUrl === true ? "outlined" : "contained"}
+                                >{t("Yes")}</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => setHasDocUrl(false)}
+                                    variant={hasDocUrl === false ? "outlined" : "contained"}
+                                >{t("No")}</Button>
                             </Stack >
                         </Grid >
                         {

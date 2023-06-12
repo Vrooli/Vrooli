@@ -274,8 +274,18 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>{t("Yes")}</Button>
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>{t("No")}</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => handleMultiStepChange(true)}
+                                    variant={isMultiStep === true ? "outlined" : "contained"}
+                                >{t("Yes")}</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => handleMultiStepChange(false)}
+                                    variant={isMultiStep === false ? "outlined" : "contained"}
+                                >{t("No")}</Button>
                             </Stack >
                         </Grid >
                         {/* Data displayed only by multi-step routines */}
@@ -314,7 +324,12 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     </LargeDialog>
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
-                                        <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
+                                        <Button
+                                            startIcon={<RoutineIcon />}
+                                            fullWidth color="secondary"
+                                            onClick={handleGraphOpen}
+                                            variant="contained"
+                                        >View Graph</Button>
                                     </Grid>
                                     {/* # nodes, # links, Simplicity, complexity & other graph stats */}
                                     {/* TODO */}

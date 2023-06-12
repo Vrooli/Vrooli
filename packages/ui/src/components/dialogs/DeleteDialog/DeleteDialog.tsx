@@ -77,6 +77,7 @@ export const DeleteDialog = ({
                         color="secondary"
                         onClick={handleDelete}
                         disabled={nameInput.trim() !== objectName.trim()}
+                        variant="contained"
                     >{t("Delete")}</Button>
                 </Stack>
             </DialogContent>

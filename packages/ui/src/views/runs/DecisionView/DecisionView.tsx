@@ -27,9 +27,9 @@ export const DecisionView = ({
     const decisions = useMemo<Decision[]>(() => {
         const decisions: Decision[] = [];
         // Find corresponding step for each link
-        for (const link of data.links) {
+        for (const link of (data?.links ?? [])) {
             // If link points to step in "steps", it's not the end of the routine
-            const step = routineList.steps.find(s =>
+            const step = routineList?.steps?.find(s =>
                 (s.type === RoutineStepType.Subroutine ||
                     s.type === RoutineStepType.RoutineList) &&
                 s.nodeId === link.to.id);

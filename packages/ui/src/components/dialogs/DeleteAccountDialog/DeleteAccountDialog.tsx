@@ -104,6 +104,7 @@ export const DeleteAccountDialog = ({
                             startIcon={<DeleteIcon />}
                             color="secondary"
                             onClick={() => { formik.submitForm(); }}
+                            variant="contained"
                         >{t("Delete")}</Button>
                     </Stack>
                 </DialogContent>}
