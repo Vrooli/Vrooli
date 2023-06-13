@@ -164,7 +164,6 @@ export const CookieSettingsDialog = ({
                     <Grid item xs={4}>
                         <Button
                             fullWidth
-                            variant="text"
                             onClick={onCancel}
                             variant="outlined"
                         >{t("Cancel")}</Button>

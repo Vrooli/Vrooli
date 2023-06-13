@@ -2,7 +2,6 @@ import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionVal
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -83,15 +82,6 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
 
     return (
         <>
-            <SideActionButtons display={display} hasGridActions={true} zIndex={zIndex + 1}>
-                <EllipsisActionButton>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"Note"}
-                        zIndex={zIndex}
-                    />
-                </EllipsisActionButton>
-            </SideActionButtons>
             <BaseForm
                 dirty={dirty}
                 display={display}
@@ -128,16 +118,29 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                     }}
                     zIndex={zIndex}
                 />
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                sideActionButtons={{
+                    display,
+                    zIndex: zIndex + 1,
+                    children: (
+                        <EllipsisActionButton>
+                            <RelationshipList
+                                isEditing={true}
+                                objectType={"Note"}
+                                zIndex={zIndex}
+                            />
+                        </EllipsisActionButton>
+                    ),
+                }}
+            />
         </>
     );
 });

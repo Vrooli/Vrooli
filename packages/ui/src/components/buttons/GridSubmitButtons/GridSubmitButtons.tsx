@@ -7,6 +7,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "utils/hooks/useErrorPopover";
 import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
+import { SideActionButtons } from "../SideActionButtons/SideActionButtons";
 import { GridSubmitButtonsProps } from "../types";
 
 export const GridSubmitButtons = ({
@@ -19,6 +20,7 @@ export const GridSubmitButtons = ({
     onCancel,
     onSetSubmitting,
     onSubmit,
+    sideActionButtons,
 }: GridSubmitButtonsProps) => {
     const { t } = useTranslation();
 
@@ -37,6 +39,8 @@ export const GridSubmitButtons = ({
 
     return (
         <GridActionButtons display={display}>
+            {/* We display side actions in this component because positioning is easier */}
+            {sideActionButtons ? <SideActionButtons hasGridActions={true} {...sideActionButtons} /> : null}
             <Popover />
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             <Grid item xs={6}>
