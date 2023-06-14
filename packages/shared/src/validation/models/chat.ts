@@ -17,9 +17,9 @@ export const chatValidation: YupModel = {
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
     }, [
-        ["invites", ["Create"], "many", "opt", chatInviteValidation],
+        ["invites", ["Create"], "many", "opt", chatInviteValidation, ["chat"]],
         ["labels", ["Connect"], "many", "opt"],
-        ["organization", ["Connect"], "one", "req"],
+        ["organization", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", chatTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({

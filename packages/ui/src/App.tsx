@@ -427,21 +427,23 @@ export function App() {
                     <Box id="App" component="main" sx={{
                         background: theme.palette.background.default,
                         color: theme.palette.background.textPrimary,
-                        // Style visited, active, and hovered links differently
-                        // a: {
-                        //     color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
-                        //     '&:visited': {
-                        //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                        //     },
-                        //     '&:active': {
-                        //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                        //     },
-                        //     '&:hover': {
-                        //         color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
-                        //     },
-                        //     // Remove underline on links
-                        //     textDecoration: 'none',
-                        // },
+                        // Style visited, active, and hovered links
+                        "& span, p": {
+                            "& a": {
+                                color: theme.palette.mode === "light" ? "#001cd3" : "#dd86db",
+                                "&:visited": {
+                                    color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+                                },
+                                "&:active": {
+                                    color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+                                },
+                                "&:hover": {
+                                    color: theme.palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
+                                },
+                                // Remove underline on links
+                                textDecoration: "none",
+                            },
+                        },
                     }}>
                         {/* Pull-to-refresh for PWAs */}
                         <PullToRefresh />

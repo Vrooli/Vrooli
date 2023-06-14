@@ -17,7 +17,7 @@ export const useDimensions = (): UseDimensionsReturn => {
     // Set up state to store the element's dimensions
     const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
     // Set up a ref to the element whose dimensions we want to calculate
-    const ref = useRef<HTMLDivElement>(null);
+    const ref = useRef<HTMLElement>(null);
 
     // Define a function that calculates the element's dimensions
     const calculateDimensions = useCallback(() => {

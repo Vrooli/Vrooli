@@ -1,8 +1,10 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, BotIcon, CommentIcon, EditIcon, EllipsisIcon, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -172,7 +174,15 @@ export const UserView = ({
                     position: "absolute",
                     fontSize: "min(50px, 10vw)",
                 }}
-            />
+            >
+                {user?.isBot ? <BotIcon
+                    width="75%"
+                    height="75%"
+                /> : <UserIcon
+                    width="75%"
+                    height="75%"
+                />}
+            </Avatar>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -271,7 +281,6 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("User")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -327,6 +336,18 @@ export const UserView = ({
                     />
                 </Box>
             </Box>
+            <SideActionButtons
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                {/* Message button */}
+                {user?.isBot ? (
+                    <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={() => { }} >
+                        <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

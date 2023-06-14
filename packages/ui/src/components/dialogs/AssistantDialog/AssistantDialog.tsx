@@ -1,3 +1,4 @@
+import { uuid, VALYXA_ID } from "@local/shared";
 import { ChatView } from "views/ChatView/ChatView";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { AssistantDialogProps } from "../types";
@@ -27,7 +28,17 @@ export const AssistantDialog = ({
             }}
         >
             <ChatView
-                chatId="Valyxa"
+                chatInfo={{
+                    invites: [{
+                        __typename: "ChatInvite" as const,
+                        id: uuid(),
+                        user: {
+                            __typename: "User" as const,
+                            id: VALYXA_ID,
+                            name: "Valyxa",
+                        },
+                    } as any],
+                }}
                 context={context}
                 display="dialog"
                 onClose={handleClose}

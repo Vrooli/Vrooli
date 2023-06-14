@@ -21,7 +21,7 @@ export const preShapeEmbeddableTranslatable = ({
     const idField = ObjectMap[objectType]!.idField ?? "id";
     // For createList, every language needs to be updated
     for (const create of createList) {
-        embeddingNeedsUpdateMap[create[idField as any]] = create.translationsCreate.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>);
+        embeddingNeedsUpdateMap[create[idField as any]] = create.translationsCreate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>) ?? {};
     }
     // Same for updateList
     for (const update of updateList) {

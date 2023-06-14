@@ -1,23 +1,27 @@
-import { AddIcon, BotIcon, Chat, ChatMessage, DUMMY_ID, EditIcon, useLocation, UserIcon } from "@local/shared";
-import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
+import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { Box, Stack, useTheme } from "@mui/material";
+import { fetchLazyWrapper } from "api";
+import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { updateArray } from "utils/shape/general";
+import { shapeChat } from "utils/shape/models/chat";
 import { ChatViewProps } from "views/types";
 
 export const ChatView = ({
     botSettings,
-    chatId,
+    chatInfo,
     context,
     display = "page",
     onClose,
@@ -30,12 +34,47 @@ export const ChatView = ({
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
-    const chat: Chat = {} as any; //TODO
-    const [messages, setMessages] = useState<ChatMessage[]>([]); //TODO
+    const [getData, { loading: isFindLoading, errors: findErrors }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
+    const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
+    const [chat, setChat] = useState<Chat>();
+    useDisplayServerError(findErrors ?? createErrors);
+    useEffect(() => {
+        if (chat) return;
+        // Check if the chat already exists
+        const alreadyExists = chatInfo?.id && uuidValidate(chatInfo.id);
+        // If so, find chat by id
+        if (alreadyExists) {
+            fetchLazyWrapper<ChatCreateInput, Chat>({
+                fetch: getData,
+                inputs: { id: chatInfo.id! },
+                onSuccess: (data) => { setChat(data); },
+            });
+        }
+        // Otherwise, start a new chat
+        else {
+            fetchLazyWrapper<ChatCreateInput, Chat>({
+                fetch: createChat,
+                inputs: shapeChat.create({
+                    ...chatInfo,
+                    id: uuid(),
+                    openToAnyoneWithInvite: chatInfo?.openToAnyoneWithInvite ?? false,
+                }),
+                onSuccess: (data) => { setChat(data); },
+            });
+        }
+    }, [chatInfo, getData]);
+    const { title, subtitle } = useMemo(() => getDisplay(chat, getUserLanguages(session)), [chat, session]);
+
+    const [messages, setMessages] = useState<(ChatMessage & { isUnsent?: boolean })[]>([]);
+    useEffect(() => {
+        if (chat) {
+            setMessages(chat.messages);
+        }
+    }, [chat]);
     useEffect(() => {
         // If chatting with default AI assistant, add start message so that we don't need 
         // to query the server for it.
-        if (chatId === "Valyxa") {
+        if (chatInfo.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
             const startText = t(task ?? "start", { lng, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
             setMessages([{
                 __typename: "ChatMessage" as const,
@@ -62,10 +101,9 @@ export const ChatView = ({
                 },
             }] as any[]);
         }
-    }, [chatId, lng, t, task]);
+    }, [chatInfo, lng, t, task]);
 
-    const { title, subtitle } = useMemo(() => getDisplay(chat, getUserLanguages(session)), [chat, session]);
-
+    const [createMessage, { loading: isCreateMessageLoading }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const handleSendButtonClick = () => {
         // Implement this to send a new message.
     };
@@ -87,10 +125,11 @@ export const ChatView = ({
                     const text = values.newMessage.trim();
                     if (text.length === 0) return;
                     // for now, just add the message to the list
-                    const newMessage: ChatMessage = {
+                    const newMessage: ChatMessage & { isUnsent?: boolean } = {
                         __typename: "ChatMessage" as const,
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
+                        isUnsent: true,
                         translations: [{
                             __typename: "ChatMessageTranslation" as const,
                             id: DUMMY_ID,
@@ -140,84 +179,19 @@ export const ChatView = ({
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
                         {messages.map((message: ChatMessage, index) => {
                             const isOwn = message.you.canUpdate;
-                            return (
-                                // Box with message, avatar, and reactions
-                                <Box
-                                    key={index}
-                                    sx={{ display: "flex", justifyContent: isOwn ? "flex-end" : "flex-start", p: 2 }}
-                                >
-                                    {/* Avatar only display if it's not your message */}
-                                    {!isOwn && (
-                                        <Avatar
-                                            // src={message.user.avatar} TODO
-                                            alt={message.user.name ?? message.user.handle}
-                                            onClick={() => {
-                                                const url = getObjectUrl(message.user);
-                                                if (formik.values.editingMessage.trim().length > 0) {
-                                                    PubSub.get().publishAlertDialog({
-                                                        messageKey: "UnsavedChangesBeforeContinue",
-                                                        buttons: [
-                                                            { labelKey: "Yes", onClick: () => { setLocation(url); } },
-                                                            { labelKey: "No" },
-                                                        ],
-                                                    });
-                                                } else {
-                                                    setLocation(url);
-                                                }
-                                            }}
-                                            sx={{
-                                                bgcolor: message.user.isBot ? "grey" : undefined,
-                                                boxShadow: 2,
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
-                                        </Avatar>
-                                    )}
-                                    {/* Message bubble with reaction */}
-                                    <Box sx={{
-                                        ml: !isOwn ? 2 : 2,
-                                        mr: isOwn ? 2 : 2,
-                                        display: "block",
-                                        maxWidth: "100%",
-                                        position: "relative",
-                                        overflowWrap: "break-word",
-                                        wordWrap: "break-word",
-                                    }}>
-                                        <Box
-                                            sx={{
-                                                p: 1,
-                                                pl: 2,
-                                                pr: 2,
-                                                ml: isOwn ? "auto" : 0,
-                                                mr: isOwn ? 0 : "auto",
-                                                backgroundColor: isOwn ? "#88d17e" : "#fff",
-                                                borderRadius: "8px",
-                                                boxShadow: 2,
-                                            }}
-                                        >
-                                            <MarkdownDisplay
-                                                content={getTranslation(message, getUserLanguages(session), true)?.text}
-                                                sx={{
-                                                    // Make room for the edit button
-                                                    ...(isOwn ? { paddingRight: "48px" } : {}),
-                                                    whiteSpace: "pre-wrap",
-                                                    wordWrap: "break-word",
-                                                }}
-                                            />
-                                            {isOwn && (
-                                                <IconButton onClick={() => {
-                                                    const message = messages.find((m) => m.id === message.id);
-                                                    if (!message) return;
-                                                    formik.setFieldValue("editingMessage", getTranslation(message as ChatMessage, getUserLanguages(session), true)?.text ?? "");
-                                                }} sx={{ position: "absolute", top: 0, right: 0 }}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                        </Box>
-                                    </Box>
-                                </Box>
-                            );
+                            return <ChatBubble
+                                key={index}
+                                message={message}
+                                index={index}
+                                isOwn={isOwn}
+                                onUpdated={(updatedMessage) => {
+                                    setMessages(updateArray(messages,
+                                        messages.findIndex(m => m.id === updatedMessage.id),
+                                        updatedMessage,
+                                    ));
+                                }}
+                                zIndex={zIndex}
+                            />;
                         })}
                     </Box>
                     <Box sx={{
@@ -237,7 +211,7 @@ export const ChatView = ({
                             name="newMessage"
                             sxs={{
                                 bar: { borderRadius: 0 },
-                                textArea: { paddingRight: 4, borderRadius: 0 },
+                                textArea: { paddingRight: 4, border: "none" },
                             }}
                             zIndex={zIndex}
                         />

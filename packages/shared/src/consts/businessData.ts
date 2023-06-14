@@ -1,4 +1,5 @@
 export const BUSINESS_NAME = "Vrooli";
+export const VALYXA_ID = "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f";
 export const EMAIL = {
     Label: "info@vrooli.com",
     Link: "mailto:info@vrooli.com",

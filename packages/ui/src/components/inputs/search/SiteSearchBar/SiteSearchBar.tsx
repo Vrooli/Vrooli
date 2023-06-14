@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { AutocompleteOption } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { useDebounce } from "utils/hooks/useDebounce";
+import { useDimensions } from "utils/hooks/useDimensions";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
 import { SessionContext } from "utils/SessionContext";
@@ -115,8 +116,9 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
 };
 
 const FullWidthPopper = function (props) {
-    return <Popper {...props} style={{
-        width: "fit-content",
+    return <Popper {...props} sx={{
+        left: "-12px!important",
+        minWidth: props.dimensions.width ?? "fit-content",
         maxWidth: "100%",
     }} placement="bottom-start" />;
 };
@@ -291,6 +293,9 @@ export function SiteSearchBar({
         }
     }, [highlightedOption, onChangeDebounced]);
 
+    const { dimensions, ref, refreshDimensions } = useDimensions();
+    useEffect(() => { refreshDimensions(); }, [internalValue, refreshDimensions]);
+
     return (
         <Autocomplete
             disablePortal
@@ -307,7 +312,7 @@ export function SiteSearchBar({
             }}
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
-            PopperComponent={FullWidthPopper}
+            PopperComponent={(params) => (<FullWidthPopper {...params} dimensions={dimensions} />)}
             renderOption={(props, option) => {
                 return (
                     <MenuItem
@@ -369,6 +374,7 @@ export function SiteSearchBar({
             renderInput={(params) => (
                 <Paper
                     component="form"
+                    ref={ref}
                     sx={{
                         ...(sxs?.paper ?? {}),
                         p: "2px 4px",
@@ -431,6 +437,10 @@ export function SiteSearchBar({
                 ...(sxs?.root ?? {}),
                 "& .MuiAutocomplete-inputRoot": {
                     paddingRight: "0 !important",
+                },
+                // Make sure menu is at least as wide as the search bar
+                "& .MuiAutocomplete-popper": {
+                    minWidth: "100vw",
                 },
             }}
         />

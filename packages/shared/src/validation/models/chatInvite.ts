@@ -6,7 +6,7 @@ export const chatInviteValidation: YupModel = {
         message: opt(message),
     }, [
         ["chat", ["Connect"], "one", "req"],
-        ["user", ["Connect"], "many", "opt"],
+        ["user", ["Connect"], "one", "req"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),

@@ -22,7 +22,7 @@ export const ChatFormat: Formatter<ChatModelLogic> = {
         invites: "ChatInvite",
         labels: "Label",
     },
-    joinMap: { labels: "label", restrictedToRoles: "role" },
+    joinMap: { labels: "label", participants: "user", restrictedToRoles: "role" },
     countFields: {
         participantsCount: true,
         invitesCount: true,
