@@ -57,6 +57,7 @@
         "react-tsparticles": "^1.39.1",
         "react-window": "^1.8.6",
         "schema-to-yup": "^1.11.11",
+        "socket.io-client": "^4.6.2",
         "typescript": "4.9.5",
         "web-vitals": "^3.3.1",
         "workbox-background-sync": "^6.3.0",

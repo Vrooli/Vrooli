@@ -50,6 +50,7 @@
         "nodemailer": "^6.6.0",
         "nodemon": "^2.0.7",
         "redis": "4.4.0",
+        "socket.io": "^4.6.2",
         "stopword": "^2.0.8",
         "stripe": "^11.17.0",
         "twilio": "^3.61.0",

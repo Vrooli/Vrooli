@@ -10,6 +10,11 @@ export const urlBase: string = isLocalhost ?
     serverUrlProvided ?
         `${import.meta.env.VITE_SERVER_URL}/v2` :
         `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api/v2/rest`;
+export const webSocketUrlBase: string = isLocalhost ?
+    `http://${window.location.hostname}:${portServer}` :
+    serverUrlProvided ?
+        `${import.meta.env.VITE_SERVER_URL}` :
+        `http://${import.meta.env.VITE_SITE_IP}:${portServer}`;
 
 type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;

@@ -5,7 +5,9 @@ import cors from "cors";
 import express from "express";
 import fs from "fs";
 import { graphqlUploadExpress } from "graphql-upload";
+import http from "http";
 import i18next from "i18next";
+import { Server } from "socket.io";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
@@ -14,6 +16,7 @@ import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
 import { setupStripe, setupValyxa } from "./services";
+import { safeOrigins } from "./utils";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -93,7 +96,7 @@ const main = async () => {
         }
     });
 
-    // Set up external services
+    // Set up external services (including webhooks)
     setupStripe(app);
     setupValyxa(app);
 
@@ -142,8 +145,42 @@ const main = async () => {
     //     cors: false
     // });
 
+    // Set up websocket server
+    // Create the HTTP server and attach the Express app to it
+    const server = http.createServer(app);
+    // Create the WebSocket server and attach it to the HTTP server
+    const io = new Server(server, {
+        // Requires its own cors settings
+        cors: {
+            origin: safeOrigins(),
+            methods: ["GET", "POST"],
+            credentials: true,
+        },
+    });
+
+    // Listen for new WebSocket connections
+    io.on("connection", (socket) => {
+        console.log("a user connected");
+
+        // Listen for chat message events
+        socket.on("message", (message) => {
+            // When a chat message is received, emit it to all connected clients
+            io.emit("message", message);
+        });
+
+        // Listen for notification events
+        socket.on("notification", (notification) => {
+            // When a notification is received, emit it to all connected clients
+            io.emit("notification", notification);
+        });
+
+        socket.on("disconnect", () => {
+            console.log("user disconnected");
+        });
+    });
+
     // Start Express server
-    app.listen(5329);
+    server.listen(5329);
 
     // Start cron jobs
     initStatsCronJobs();

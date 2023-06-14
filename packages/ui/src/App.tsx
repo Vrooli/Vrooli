@@ -1,7 +1,7 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
-import { fetchLazyWrapper, hasErrorCode } from "api";
+import { fetchLazyWrapper, hasErrorCode, webSocketUrlBase } from "api";
 import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -16,6 +16,7 @@ import { SnackStack } from "components/snacks";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
+import io from "socket.io-client";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { getDeviceInfo } from "utils/display/device";
@@ -104,6 +105,8 @@ const useStyles = makeStyles(() => ({
         },
     },
 }));
+
+const socket = io(webSocketUrlBase);
 
 export function App() {
     useStyles();
@@ -418,6 +421,27 @@ export function App() {
             PubSub.get().unsubscribe(welcomeSub);
         });
     }, [checkSession, setActiveFocusMode, setThemeAndMeta]);
+
+    // Handle websocket connection
+    useEffect(() => {
+        socket.on("connect", () => {
+            console.log("connected to server");
+        });
+
+        socket.on("message", (message) => {
+            // handle incoming chat message
+            console.log(message);
+        });
+
+        socket.on("notification", (notification) => {
+            // handle incoming notification
+            console.log(notification);
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
 
     return (
         <StyledEngineProvider injectFirst>
