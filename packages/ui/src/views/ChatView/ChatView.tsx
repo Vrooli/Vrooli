@@ -105,7 +105,9 @@ export const ChatView = ({
     const [messages, setMessages] = useState<(ChatMessage & { isUnsent?: boolean })[]>([]);
     useEffect(() => {
         if (chat) {
-            setMessages(chat.messages);
+            // If chatting with default AI assistant, keep start message in chat.
+            const chattingWithValyxa = chatInfo.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID);
+            setMessages(m => chattingWithValyxa && m.length === 1 ? [m[0], ...chat.messages] : chat.messages);
         }
     }, [chat]);
     useEffect(() => {
