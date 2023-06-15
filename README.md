@@ -207,5 +207,4 @@ If you'd like to work with me on this project, or create your own proposal for a
 [discord]: https://discord.com/invite/VyrDFzbmmF
 [twitter]: https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
-[linkedin]: https://www.linkedin.com/in/matthew-halloran/
 [email]: mailto:support@vrooli.com

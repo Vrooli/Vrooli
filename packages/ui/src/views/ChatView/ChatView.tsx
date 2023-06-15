@@ -1,6 +1,6 @@
 import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -44,7 +44,8 @@ export const ChatView = ({
         const alreadyExists = chatInfo?.id && uuidValidate(chatInfo.id);
         // If so, find chat by id
         if (alreadyExists) {
-            fetchLazyWrapper<ChatCreateInput, Chat>({
+            console.log("getting chat", chatInfo);
+            fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getData,
                 inputs: { id: chatInfo.id! },
                 onSuccess: (data) => { setChat(data); },
@@ -62,7 +63,43 @@ export const ChatView = ({
                 onSuccess: (data) => { setChat(data); },
             });
         }
-    }, [chatInfo, getData]);
+    }, [chat, chatInfo, createChat, getData]);
+
+    // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
+    useEffect(() => {
+        // Only connect to the websocket if the chat exists
+        if (!chat?.id) return;
+        socket.emit("joinRoom", chat.id, (response) => {
+            if (response.error) {
+                // handle error
+                console.error(response.error);
+            } else {
+                console.log("Joined chat room");
+            }
+        });
+
+        // Define chat-specific event handlers
+        socket.on("message", (message) => {
+            // handle incoming chat message
+            console.log(message);
+        });
+
+        // Leave the chat room when the component is unmounted
+        return () => {
+            socket.emit("leaveRoom", chat.id, (response) => {
+                if (response.error) {
+                    // handle error
+                    console.error(response.error);
+                } else {
+                    console.log("Left chat room");
+                }
+            });
+
+            // Remove chat-specific event handlers
+            socket.off("message");
+        };
+    }, [chat?.id]);
+
     const { title, subtitle } = useMemo(() => getDisplay(chat, getUserLanguages(session)), [chat, session]);
 
     const [messages, setMessages] = useState<(ChatMessage & { isUnsent?: boolean })[]>([]);
@@ -201,8 +238,15 @@ export const ChatView = ({
                         <MarkdownInput
                             actionButtons={[{
                                 Icon: AddIcon,
-                                onClick: () => { formik.handleSubmit(); },
+                                onClick: () => {
+                                    if (!chat) {
+                                        PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                                        return;
+                                    }
+                                    formik.handleSubmit();
+                                },
                             }]}
+                            disabled={!chat}
                             disableAssistant={true}
                             fullWidth
                             maxChars={1500}

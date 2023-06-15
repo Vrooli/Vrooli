@@ -15,4 +15,5 @@ export * from "./errorParser";
 export * from "./fetchData";
 export * from "./fetchWrapper";
 export * from "./removeTypename";
+export * from "./socket";
 

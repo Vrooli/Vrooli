@@ -54,11 +54,17 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                             message: noNull(u.message),
                         })),
                     },
-                    // Automatically accept bots
+                    // Handle participants
                     participants: {
-                        create: rest.preMap[__typename].bots.map((u: User) => ({
-                            user: { connect: { id: u.id } },
-                        })),
+                        // Automatically accept bots, and add yourself
+                        create: [
+                            ...(rest.preMap[__typename].bots.map((u: User) => ({
+                                user: { connect: { id: u.id } },
+                            }))),
+                            {
+                                user: { connect: { id: rest.userData.id } },
+                            },
+                        ],
                     },
                     ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
                     // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
@@ -86,10 +92,15 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 },
                 // Handle participants
                 participants: {
-                    // Automatically accept bots
-                    create: rest.preMap[__typename].bots.map((u) => ({
-                        user: { connect: { id: u } },
-                    })),
+                    // Automatically accept bots, and add yourself
+                    create: [
+                        ...(rest.preMap[__typename].bots.map((u: User) => ({
+                            user: { connect: { id: u.id } },
+                        }))),
+                        {
+                            user: { connect: { id: rest.userData.id } },
+                        },
+                    ],
                     delete: data.participantsDelete?.map((id) => ({ id })),
                 },
                 // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
