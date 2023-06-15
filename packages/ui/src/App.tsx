@@ -106,7 +106,7 @@ const useStyles = makeStyles(() => ({
     },
 }));
 
-const socket = io(webSocketUrlBase);
+const socket = io(webSocketUrlBase, { withCredentials: true });
 
 export function App() {
     useStyles();

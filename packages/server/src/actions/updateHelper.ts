@@ -24,7 +24,7 @@ export async function updateHelper<GraphQLModel>({
     // Get formatter
     const { format } = getLogic(["format"], objectType, userData.languages, "cudHelper");
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: { [idField]: input[idField] }, data: input };
     // Create objects. cudHelper will check permissions

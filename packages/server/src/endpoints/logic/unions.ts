@@ -22,7 +22,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 __typename: "ProjectOrRoutineSearchResult",
                 Project: "Project",
                 Routine: "Routine",
-            }, req.languages, true);
+            }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
             // Query projects
@@ -53,7 +53,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "Project",
@@ -94,7 +94,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "Routine",
@@ -107,7 +107,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, {
                 projects: { type: "Project", ...(partial as any).Project },
                 routines: { type: "Routine", ...(partial as any).Routine },
-            }, prisma, getUser(req));
+            }, prisma, getUser(req.session));
             // Combine nodes, alternating between projects and routines
             const nodes: ProjectOrRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.routines.length); i++) {
@@ -137,7 +137,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 __typename: "ProjectOrOrganizationSearchResult",
                 Project: "Project",
                 Organization: "Organization",
-            }, req.languages, true);
+            }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
             // Query projects
@@ -169,7 +169,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "Project",
@@ -201,7 +201,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "Organization",
@@ -214,7 +214,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, {
                 projects: { type: "Project", ...(partial as any).Project },
                 organizations: { type: "Organization", ...(partial as any).Organization },
-            }, prisma, getUser(req));
+            }, prisma, getUser(req.session));
             // Combine nodes, alternating between projects and organizations
             const nodes: ProjectOrOrganization[] = [];
             for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.organizations.length); i++) {
@@ -244,7 +244,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 __typename: "RunProjectOrRunRoutineSearchResult",
                 RunProject: "RunProject",
                 RunRoutine: "RunRoutine",
-            }, req.languages, true);
+            }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req };
             // Query run projects
@@ -267,7 +267,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "RunProject",
@@ -293,7 +293,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                         sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUser(req)?.id,
+                        userId: getUser(req.session)?.id,
                         visibility: input.visibility,
                     },
                     objectType: "RunRoutine",
@@ -306,7 +306,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             }, {
                 runProjects: { type: "RunProject", ...(partial as any).RunProject },
                 runRoutines: { type: "RunRoutine", ...(partial as any).RunRoutine },
-            }, prisma, getUser(req));
+            }, prisma, getUser(req.session));
             // Combine nodes, alternating between runProjects and runRoutines
             const nodes: RunProjectOrRunRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental.runProjects.length, withSupplemental.runRoutines.length); i++) {

@@ -55,7 +55,7 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
         let message = error.message ?? error.name ?? "";
         // If error is named ValidationError, it's from yup
         if (error.name === "ValidationError") {
-            const languages = getUser(req)?.languages ?? ["en"];
+            const languages = getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
             message = i18next.t("error:ValidationFailed", { lng, defaultValue: "Validation failed." });
         }

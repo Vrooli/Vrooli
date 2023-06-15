@@ -90,13 +90,13 @@ export const logIn = async (
     }
     // If account is deleted or locked, throw error
     if (user.status === AccountStatus.HardLocked)
-        throw new CustomError("0060", "HardLockout", req.languages);
+        throw new CustomError("0060", "HardLockout", req.session.languages);
     if (user.status === AccountStatus.SoftLocked)
-        throw new CustomError("0331", "SoftLockout", req.languages);
+        throw new CustomError("0331", "SoftLockout", req.session.languages);
     if (user.status === AccountStatus.Deleted)
-        throw new CustomError("0061", "AccountDeleted", req.languages);
+        throw new CustomError("0061", "AccountDeleted", req.session.languages);
     // If password is valid
-    if (validatePassword(password, user, req.languages)) {
+    if (validatePassword(password, user, req.session.languages)) {
         const userData = await prisma.user.update({
             where: { id: user.id },
             data: {

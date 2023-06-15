@@ -29,17 +29,17 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     req,
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = getUser(req);
+    const userData = getUser(req.session);
     const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0349", "InternalError", req.languages, { objectType });
+    if (!model) throw new CustomError("0349", "InternalError", req.session.languages, { objectType });
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any, any> | undefined = model.search;
     // Check take limit
     if (Number.isInteger(input.take) && input.take > MAX_TAKE) {
-        throw new CustomError("0389", "InternalError", req.languages, { objectType, take: input.take });
+        throw new CustomError("0389", "InternalError", req.session.languages, { objectType, take: input.take });
     }
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
@@ -79,7 +79,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         });
     } catch (error) {
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
-        throw new CustomError("0383", "InternalError", req.languages, { objectType });
+        throw new CustomError("0383", "InternalError", req.session.languages, { objectType });
     }
     let hasNextPage = false;
     let endCursor: string | null = null;

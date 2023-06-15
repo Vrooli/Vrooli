@@ -1,6 +1,6 @@
 import { i18nConfig } from "@local/shared";
 import { ApolloServer } from "apollo-server-express";
-import cookieParser from "cookie-parser";
+import cookie from "cookie";
 import cors from "cors";
 import express from "express";
 import fs from "fs";
@@ -18,6 +18,7 @@ import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initG
 import { setupStripe, setupValyxa } from "./services";
 import { safeOrigins } from "./utils";
 import { setupDatabase } from "./utils/setupDatabase";
+import { withPrisma } from "./utils/withPrisma";
 
 const debug = process.env.NODE_ENV === "development";
 
@@ -72,8 +73,12 @@ const main = async () => {
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
+
     // For parsing cookies
-    app.use(cookieParser());
+    app.use((req, res, next) => {
+        req.cookies = cookie.parse(req.headers.cookie || "");
+        next();
+    });
 
     // For authentication
     app.use(auth.authenticate);
@@ -157,15 +162,66 @@ const main = async () => {
             credentials: true,
         },
     });
+    // Pass the session to the socket, after it's been authenticated
+    io.use(auth.authenticateSocket);
 
     // Listen for new WebSocket connections
     io.on("connection", (socket) => {
         console.log("a user connected");
 
-        // Listen for chat message events
-        socket.on("message", (message) => {
-            // When a chat message is received, emit it to all connected clients
-            io.emit("message", message);
+        socket.on("joinRoom", async (chatId, callback) => {
+            const success = await withPrisma({
+                process: async (prisma) => {
+                    // Check if user is authenticated
+                    const { id } = auth.assertRequestFrom(socket, { isUser: true });
+                    // Find chat only if permitted
+                    const chat = await prisma.chat.findMany({
+                        where: {
+                            id: chatId,
+                            OR: [
+                                { openToAnyoneWithInvite: true },
+                                { participants: { some: { user: { id } } } },
+                            ],
+                        },
+                    });
+                    // If not found, return error
+                    if (!chat || chat.length === 0) {
+                        const message = "Chat not found or unauthorized";
+                        logger.error(message, { trace: "0490" });
+                        callback({ error: message });
+                        return;
+                    }
+                    // Otherwise, join the room
+                    socket.join(chatId);
+                    callback({ success: true });
+                },
+                trace: "0491",
+                traceObject: { chatId },
+            });
+            // If failed, return error
+            if (!success) {
+                callback({ error: "Error joining chat" });
+            }
+        });
+
+        // Leave a specific room
+        socket.on("leaveRoom", (chatId) => {
+            socket.leave(chatId);
+        });
+
+        // Listen for chat message events and emit to the right room
+        socket.on("message", (chatId, message) => {
+            io.to(chatId).emit("message", message);
+        });
+
+        // Listen for message edit events and emit to the right room
+        socket.on("editMessage", (chatId, messageId, newContent) => {
+            io.to(chatId).emit("editMessage", messageId, newContent);
+        });
+
+        // Listen for reaction events and emit to the right room
+        socket.on("addReaction", (chatId, messageId, reaction) => {
+            io.to(chatId).emit("addReaction", messageId, reaction);
         });
 
         // Listen for notification events

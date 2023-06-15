@@ -26,7 +26,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 reminders: "Reminder",
                 resources: "Resource",
                 schedules: "Schedule",
-            }, req.languages, true);
+            }, req.session.languages, true);
             const take = 10;
             const commonReadParams = { prisma, req };
             // Query notes
@@ -84,7 +84,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 reminders,
                 resources,
                 schedules,
-            }, partial as any, prisma, getUser(req));
+            }, partial as any, prisma, getUser(req.session));
             // Return results
             return {
                 __typename: "HomeResult" as const,
@@ -105,7 +105,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 smartContracts: "SmartContract",
                 standards: "Standard",
                 users: "User",
-            }, req.languages, true);
+            }, req.session.languages, true);
             const bookmarksQuery = { bookmarks: { gte: 0 } };  // Minimum bookmarks required to show up in results. Should increase in the future.
             const take = 5;
             const commonReadParams = { prisma, req };
@@ -198,7 +198,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 smartContracts,
                 standards,
                 users,
-            }, partial as any, prisma, getUser(req));
+            }, partial as any, prisma, getUser(req.session));
             // Return results
             return {
                 __typename: "PopularResult" as const,

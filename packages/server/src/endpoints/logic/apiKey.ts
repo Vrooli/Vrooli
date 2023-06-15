@@ -35,12 +35,12 @@ export const ApiKeyEndpoints: EndpointsApiKey = {
         apiKeyValidate: async (_, { input }, { req, res }) => {
             await rateLimit({ maxApi: 5000, req });
             // If session is expired
-            if (!req.apiToken || !req.validToken) {
+            if (!req.session.apiToken || !req.session.validToken) {
                 res.clearCookie(COOKIE.Jwt);
-                throw new CustomError("0318", "SessionExpired", req.languages);
+                throw new CustomError("0318", "SessionExpired", req.session.languages);
             }
             // TODO
-            throw new CustomError("0319", "NotImplemented", req.languages);
+            throw new CustomError("0319", "NotImplemented", req.session.languages);
         },
     },
 };

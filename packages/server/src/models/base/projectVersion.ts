@@ -100,7 +100,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //             resources: 'Resource',
     //             runProjectSchedules: 'RunProjectSchedule',
     //             runRoutineSchedules: 'RunRoutineSchedule',
-    //         }, req.languages, true);
+    //         }, req.session.languages, true);
     //         // Determine text search query
     //         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
     //         // Loop through search fields and add each to the search query, 
@@ -108,11 +108,11 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         const customQueries: { [x: string]: any }[] = [];
     //         for (const field of Object.keys(CommentModel.search!.searchFields)) {
     //             if (input[field as string] !== undefined) {
-    //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+    //                 customQueries.push(SearchMap[field as string](input, getUser(req.session), __typename));
     //             }
     //         }
     // Create query for visibility
-    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: input.visibility ?? VisibilityType.Public });
+    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: input.visibility ?? VisibilityType.Public });
     //         // Combine queries
     //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
@@ -144,7 +144,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         // Calculate end cursor
     //         const endCursor = searchResults[searchResults.length - 1].id;
     //         // If not as nestLimit, recurse with all result IDs
-    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req), {
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
     //             sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
@@ -161,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
     //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-    //         comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
+    //         comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
     //         const shapeThreads = (threads: CommentThread[]) => {

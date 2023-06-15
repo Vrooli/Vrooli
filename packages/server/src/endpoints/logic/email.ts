@@ -20,7 +20,7 @@ export const EmailEndpoints: EndpointsEmail = {
         },
         sendVerificationEmail: async (_, { input }, { prisma, req }) => {
             await rateLimit({ maxUser: 50, req });
-            await setupVerificationCode(input.emailAddress, prisma, req.languages);
+            await setupVerificationCode(input.emailAddress, prisma, req.session.languages);
             return { __typename: "Success" as const, success: true };
         },
     },

@@ -135,7 +135,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.languages, true);
+            const partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.session.languages, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             // Loop through search fields and add each to the search query, 
@@ -143,11 +143,11 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input[field as string], getUser(req), __typename));
+                    customQueries.push(SearchMap[field as string](input[field as string], getUser(req.session), __typename));
                 }
             }
             // Create query for visibility
-            const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: VisibilityType.Public });
+            const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: VisibilityType.Public });
             // Combine queries
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
@@ -179,7 +179,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             // Calculate end cursor
             const endCursor = searchResults[searchResults.length - 1].id;
             // If not as nestLimit, recurse with all result IDs
-            const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req), {
+            const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? 10,
                 sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
@@ -196,7 +196,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-            comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
+            comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
             const shapeThreads = (threads: CommentThread[]) => {

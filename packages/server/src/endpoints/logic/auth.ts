@@ -38,20 +38,20 @@ export const AuthEndpoints: EndpointsAuth = {
             // If email not supplied, check if session is valid. 
             // This is needed when this is called to verify an email address
             if (!input.email) {
-                const userId = getUser(req)?.id;
+                const userId = getUser(req.session)?.id;
                 if (!userId)
-                    throw new CustomError("0128", "BadCredentials", req.languages);
+                    throw new CustomError("0128", "BadCredentials", req.session.languages);
                 // Find user by id
                 user = await prisma.user.findUnique({
                     where: { id: userId },
                     select: { id: true },
                 });
                 if (!user)
-                    throw new CustomError("0129", "NoUser", req.languages);
+                    throw new CustomError("0129", "NoUser", req.session.languages);
                 // Validate verification code
                 if (input.verificationCode) {
                     if (!input.verificationCode.includes(":"))
-                        throw new CustomError("0130", "CannotVerifyEmailCode", req.languages);
+                        throw new CustomError("0130", "CannotVerifyEmailCode", req.session.languages);
                     const [, verificationCode] = input.verificationCode.split(":");
                     // Find all emails for user
                     const emails = await prisma.email.findMany({
@@ -63,10 +63,10 @@ export const AuthEndpoints: EndpointsAuth = {
                         },
                     });
                     if (emails.length === 0)
-                        throw new CustomError("0131", "EmailOrCodeInvalid", req.languages);
-                    const verified = await validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.languages);
+                        throw new CustomError("0131", "EmailOrCodeInvalid", req.session.languages);
+                    const verified = await validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.session.languages);
                     if (!verified)
-                        throw new CustomError("0132", "CannotVerifyEmailCode", req.languages);
+                        throw new CustomError("0132", "CannotVerifyEmailCode", req.session.languages);
                 }
                 return await toSession(user, prisma, req);
             }
@@ -74,24 +74,24 @@ export const AuthEndpoints: EndpointsAuth = {
             else {
                 const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
                 if (!email)
-                    throw new CustomError("0133", "EmailNotFound", req.languages);
+                    throw new CustomError("0133", "EmailNotFound", req.session.languages);
                 // Find user
                 user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
                 if (!user)
-                    throw new CustomError("0134", "NoUser", req.languages);
+                    throw new CustomError("0134", "NoUser", req.session.languages);
                 // Check for password in database, if doesn't exist, send a password reset link
                 if (!user.password) {
                     await setupPasswordReset(user, prisma);
-                    throw new CustomError("0135", "MustResetPassword", req.languages);
+                    throw new CustomError("0135", "MustResetPassword", req.session.languages);
                 }
                 // Validate verification code, if supplied
                 if (input.verificationCode) {
                     if (!input.verificationCode.includes(":"))
-                        throw new CustomError("0136", "CannotVerifyEmailCode", req.languages);
+                        throw new CustomError("0136", "CannotVerifyEmailCode", req.session.languages);
                     const [, verificationCode] = input.verificationCode.split(":");
-                    const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.languages);
+                    const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.session.languages);
                     if (!verified)
-                        throw new CustomError("0137", "CannotVerifyEmailCode", req.languages);
+                        throw new CustomError("0137", "CannotVerifyEmailCode", req.session.languages);
                 }
                 // Create new session
                 const session = await logIn(input?.password as string, user, prisma, req);
@@ -100,7 +100,7 @@ export const AuthEndpoints: EndpointsAuth = {
                     await generateSessionJwt(res, session as any);
                     return session;
                 } else {
-                    throw new CustomError("0138", "BadCredentials", req.languages);
+                    throw new CustomError("0138", "BadCredentials", req.session.languages);
                 }
             }
         },
@@ -110,10 +110,10 @@ export const AuthEndpoints: EndpointsAuth = {
             emailSignUpFormValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
-                throw new CustomError("0140", "BannedWord", req.languages);
+                throw new CustomError("0140", "BannedWord", req.session.languages);
             // Check if email exists
             const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
-            if (existingEmail) throw new CustomError("0141", "EmailInUse", req.languages);
+            if (existingEmail) throw new CustomError("0141", "EmailInUse", req.session.languages);
             // Create user object
             const user = await prisma.user.create({
                 data: {
@@ -142,15 +142,15 @@ export const AuthEndpoints: EndpointsAuth = {
                 },
             });
             if (!user)
-                throw new CustomError("0142", "FailedToCreate", req.languages);
+                throw new CustomError("0142", "FailedToCreate", req.session.languages);
             // Give user award for signing up
-            await Award(prisma, user.id, req.languages).update("AccountNew", 1);
+            await Award(prisma, user.id, req.session.languages).update("AccountNew", 1);
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
             await generateSessionJwt(res, session as any);
             // Trigger new account
-            await Trigger(prisma, req.languages).acountNew(user.id, input.email);
+            await Trigger(prisma, req.session.languages).acountNew(user.id, input.email);
             // Return user data
             return session;
         },
@@ -161,11 +161,11 @@ export const AuthEndpoints: EndpointsAuth = {
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
             if (!email)
-                throw new CustomError("0143", "EmailNotFound", req.languages);
+                throw new CustomError("0143", "EmailNotFound", req.session.languages);
             // Find user
             const user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
             if (!user)
-                throw new CustomError("0144", "NoUser", req.languages);
+                throw new CustomError("0144", "NoUser", req.session.languages);
             // Generate and send password reset code
             const success = await setupPasswordReset(user, prisma);
             return { __typename: "Success", success };
@@ -184,13 +184,13 @@ export const AuthEndpoints: EndpointsAuth = {
                 },
             });
             if (!user)
-                throw new CustomError("0145", "NoUser", req.languages);
+                throw new CustomError("0145", "NoUser", req.session.languages);
             // If code is invalid
             if (!validateCode(input.code, user.resetPasswordCode ?? "", user.lastResetPasswordReqestAttempt as Date)) {
                 // Generate and send new code
                 await setupPasswordReset(user, prisma);
                 // Return error
-                throw new CustomError("0156", "InvalidResetCode", req.languages);
+                throw new CustomError("0156", "InvalidResetCode", req.session.languages);
             }
             // Remove request data from user, and set new password
             await prisma.user.update({
@@ -221,7 +221,7 @@ export const AuthEndpoints: EndpointsAuth = {
         },
         logOut: async (_, { input }, { req, res }) => {
             // If ID not specified OR there is only one user in the session, log out all sessions
-            if (!input.id || (!Array.isArray(req.users) || req.users.length <= 1)) {
+            if (!input.id || (!Array.isArray(req.session.users) || req.session.users.length <= 1)) {
                 res.clearCookie(COOKIE.Jwt);
                 // Return guest session
                 await generateSessionJwt(res, { isLoggedIn: false });
@@ -232,7 +232,7 @@ export const AuthEndpoints: EndpointsAuth = {
                 const session = {
                     __typename: "Session" as const,
                     isLoggedIn: true,
-                    users: req.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser),
+                    users: req.session.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser),
                 };
                 await generateSessionJwt(res, session);
                 return session as any;
@@ -240,16 +240,16 @@ export const AuthEndpoints: EndpointsAuth = {
         },
         validateSession: async (_, { input }, { prisma, req, res }) => {
             await rateLimit({ maxUser: 5000, req });
-            const userId = getUser(req)?.id;
+            const userId = getUser(req.session)?.id;
             // If session is expired
-            if (!userId || !req.validToken) {
+            if (!userId || !req.session.validToken) {
                 res.clearCookie(COOKIE.Jwt);
-                throw new CustomError("0315", "SessionExpired", req.languages);
+                throw new CustomError("0315", "SessionExpired", req.session.languages);
             }
             // If time zone is updated, update session
             updateSessionTimeZone(req, res, input.timeZone);
             // If guest, return default session
-            if (req.isLoggedIn !== true) {
+            if (req.session.isLoggedIn !== true) {
                 // Make sure session is cleared
                 res.clearCookie(COOKIE.Jwt);
                 return {
@@ -264,16 +264,16 @@ export const AuthEndpoints: EndpointsAuth = {
             if (userData) return await toSession(userData, prisma, req);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
-            throw new CustomError("0148", "NotVerified", req.languages);
+            throw new CustomError("0148", "NotVerified", req.session.languages);
         },
         switchCurrentAccount: async (_, { input }, { prisma, req, res }) => {
             // Find index of user in session
-            const index = req.users?.findIndex(u => u.id === input.id) ?? -1;
+            const index = req.session.users?.findIndex(u => u.id === input.id) ?? -1;
             // If user not found, throw error
-            if (!req.users || index === -1) throw new CustomError("0272", "NoUser", req.languages);
+            if (!req.session.users || index === -1) throw new CustomError("0272", "NoUser", req.session.languages);
             // Filter out user from session, then place at front
-            const otherUsers = (req.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
-            const currentUser = await toSessionUser(req.users[index], prisma, req);
+            const otherUsers = (req.session.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
+            const currentUser = await toSessionUser(req.session.users[index], prisma, req);
             const session = { isLoggedIn: true, users: [currentUser, ...otherUsers] };
             // Set up session token
             await generateSessionJwt(res, session);
@@ -288,7 +288,7 @@ export const AuthEndpoints: EndpointsAuth = {
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
             if (!deserializedStakingAddress.startsWith("stake1"))
-                throw new CustomError("0149", "MustUseMainnet", req.languages);
+                throw new CustomError("0149", "MustUseMainnet", req.session.languages);
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
@@ -347,21 +347,21 @@ export const AuthEndpoints: EndpointsAuth = {
             });
             // If wallet doesn't exist, throw error
             if (!walletData)
-                throw new CustomError("0150", "WalletNotFound", req.languages);
+                throw new CustomError("0150", "WalletNotFound", req.session.languages);
             // If nonce expired, throw error
             if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION)
-                throw new CustomError("0314", "NonceExpired", req.languages);
+                throw new CustomError("0314", "NonceExpired", req.session.languages);
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified)
-                throw new CustomError("0151", "CannotVerifyWallet", req.languages);
+                throw new CustomError("0151", "CannotVerifyWallet", req.session.languages);
             let userId: string | undefined = walletData.user?.id;
             let firstLogIn = false;
             // If you are not signed in
-            if (!req.isLoggedIn) {
+            if (!req.session.isLoggedIn) {
                 // Wallet must be verified
                 if (!walletData.verified) {
-                    throw new CustomError("0152", "NotYourWallet", req.languages);
+                    throw new CustomError("0152", "NotYourWallet", req.session.languages);
                 }
                 firstLogIn = true;
                 // Create new user
@@ -389,14 +389,14 @@ export const AuthEndpoints: EndpointsAuth = {
                 });
                 userId = userData.id;
                 // Give user award for signing up
-                await Award(prisma, userId, req.languages).update("AccountNew", 1);
+                await Award(prisma, userId, req.session.languages).update("AccountNew", 1);
             }
             // If you are signed in
             else {
                 // If wallet is not verified, link it to your account
                 if (!walletData.verified) {
                     await prisma.user.update({
-                        where: { id: req.users?.[0].id as string },
+                        where: { id: req.session.users?.[0].id as string },
                         data: {
                             wallets: {
                                 connect: { id: walletData.id },

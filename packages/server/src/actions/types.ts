@@ -75,7 +75,7 @@ export type ReadManyHelperProps<
     input: Input;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUserToken[] };
+    req: { session: { languages: string[], users?: SessionUserToken[] } };
     visibility?: VisibilityType;
 }
 
@@ -90,7 +90,7 @@ export type ReadOneHelperProps = {
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUserToken[] };
+    req: { session: { languages: string[], users?: SessionUserToken[] } };
 }
 
 export type RelBuilderHelperProps<
