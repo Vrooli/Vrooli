@@ -293,7 +293,7 @@ export function SiteSearchBar({
         }
     }, [highlightedOption, onChangeDebounced]);
 
-    const { dimensions, ref, refreshDimensions } = useDimensions();
+    const { dimensions, ref, refreshDimensions } = useDimensions<HTMLFormElement>();
     useEffect(() => { refreshDimensions(); }, [internalValue, refreshDimensions]);
 
     return (

@@ -40,7 +40,7 @@ export const FocusModeUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                title={t(isCreate ? "FocusModeAdd" : "FocusModeUpdate")}
+                title={t(isCreate ? "CreateFocusMode" : "UpdateFocusMode")}
             />
             <Formik
                 enableReinitialize={true}

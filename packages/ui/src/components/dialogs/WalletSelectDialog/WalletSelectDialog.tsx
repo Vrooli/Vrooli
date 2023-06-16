@@ -34,7 +34,7 @@ export const WalletSelectDialog = ({
         >
             <DialogTitle
                 id={titleId}
-                helpText={helpText}
+                help={helpText}
                 title={"Installed Wallets"}
                 onClose={handleClose}
             />

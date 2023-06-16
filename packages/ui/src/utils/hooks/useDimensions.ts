@@ -1,9 +1,9 @@
 import { Dimensions } from "components/graphs/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type UseDimensionsReturn = {
+type UseDimensionsReturn<T extends HTMLElement> = {
     dimensions: Dimensions;
-    ref: React.RefObject<HTMLDivElement>;
+    ref: React.RefObject<T>;
     refreshDimensions: () => void;
 }
 
@@ -13,11 +13,11 @@ type UseDimensionsReturn = {
  * @returns an object containing the element's dimensions, a reference to the element,
  * and a function to manually refresh the dimensions.
  */
-export const useDimensions = (): UseDimensionsReturn => {
+export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> => {
     // Set up state to store the element's dimensions
     const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
     // Set up a ref to the element whose dimensions we want to calculate
-    const ref = useRef<HTMLElement>(null);
+    const ref = useRef<T>(null);
 
     // Define a function that calculates the element's dimensions
     const calculateDimensions = useCallback(() => {

@@ -55,7 +55,7 @@ export const ReportDialog = ({
             <DialogTitle
                 id={titleId}
                 title={title}
-                helpText={t("ReportsHelp")}
+                help={t("ReportsHelp")}
                 onClose={handleCancel}
             />
             <DialogContent>
