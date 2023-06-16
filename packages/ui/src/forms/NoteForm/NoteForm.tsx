@@ -114,6 +114,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                             height: "100%",
                             overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
+                            border: "none",
                         },
                     }}
                     zIndex={zIndex}

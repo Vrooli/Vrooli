@@ -193,6 +193,7 @@ export async function cudHelper<
             await mutate.shape.post({
                 created,
                 deletedIds: deleteMany ?? [],
+                preMap,
                 prisma,
                 updated,
                 userData,

@@ -31,6 +31,8 @@ export const ChatBubble = ({
     useEffect(() => {
         console.log("checking here", message, message.isUnsent, shouldRetry);
         if (message.isUnsent && shouldRetry) {
+            console.log("creating message 1", message);
+            console.log("creating message 2", shapeChatMessage.create({ ...message, isFork: false }));
             fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
                 fetch: createMessage,
                 inputs: shapeChatMessage.create({ ...message, isFork: false }),
@@ -85,7 +87,7 @@ export const ChatBubble = ({
             {!isOwn && (
                 <Avatar
                     // src={message.user.avatar} TODO
-                    alt={message.user.name ?? message.user.handle}
+                    alt={message.user?.name ?? message.user?.handle}
                     // onClick handlers...
                     sx={{
                         bgcolor: message.user.isBot ? "grey" : undefined,

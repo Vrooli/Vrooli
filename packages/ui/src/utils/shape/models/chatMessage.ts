@@ -14,6 +14,7 @@ export type ChatMessageShape = Pick<ChatMessage, "id"> & {
     isFork: boolean;
     fork?: { id: string } | ChatMessageShape;
     translations?: ChatMessageTranslationShape[] | null;
+    user?: { id: string };
 }
 
 export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput> = {
@@ -27,6 +28,7 @@ export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInp
         ...createRel(d, "chat", ["Connect"], "one"),
         ...createRel(d, "fork", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeChatMessageTranslation),
+        ...createRel(d, "user", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),

@@ -1,4 +1,4 @@
-import { exists, getReactionScore, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
+import { exists, getReactionScore, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers } from "@local/shared";
 import { reaction_summary } from "@prisma/client";
 import { ApiModel, ChatMessageModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { onlyValidIds, selPad } from "../../builders";
@@ -82,7 +82,7 @@ export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = 
             if (!userId) return result;
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
-            const fieldName = `${reactionFor.toLowerCase()}Id`;
+            const fieldName = `${lowercaseFirstLetter(reactionFor)}Id`;
             const reactionsArray = await prisma.reaction.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {

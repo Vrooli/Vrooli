@@ -41,37 +41,35 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
                 const embeddingMaps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
                 return { ...embeddingMaps, bots };
             },
-            create: async ({ data, ...rest }) => {
-                return {
-                    id: data.id,
-                    openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                    // Create invite for non-bots
-                    invites: {
-                        create: data.invitesCreate?.map((u) => ({
-                            id: u.id,
-                            user: { connect: { id: u.userConnect } },
-                            status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
-                            message: noNull(u.message),
-                        })),
-                    },
-                    // Handle participants
-                    participants: {
-                        // Automatically accept bots, and add yourself
-                        create: [
-                            ...(rest.preMap[__typename].bots.map((u: User) => ({
-                                user: { connect: { id: u.id } },
-                            }))),
-                            {
-                                user: { connect: { id: rest.userData.id } },
-                            },
-                        ],
-                    },
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
-                    // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
-                    ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
-                    ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-                };
-            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                // Create invite for non-bots
+                invites: {
+                    create: data.invitesCreate?.map((u) => ({
+                        id: u.id,
+                        user: { connect: { id: u.userConnect } },
+                        status: rest.preMap[__typename].bots.some((b: User) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
+                        message: noNull(u.message),
+                    })),
+                },
+                // Handle participants
+                participants: {
+                    // Automatically accept bots, and add yourself
+                    create: [
+                        ...(rest.preMap[__typename].bots.map((u: User) => ({
+                            user: { connect: { id: u.id } },
+                        }))),
+                        {
+                            user: { connect: { id: rest.userData.id } },
+                        },
+                    ],
+                },
+                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "chats", data, ...rest })),
+                // ...(await shapeHelper({ relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, isRequired: false, objectType: "Role", parentRelationshipName: "chats", data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", relation: "labels", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
+            }),
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 // Handle invites

@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
@@ -206,8 +206,8 @@ export const shapeHelper = async<
         // Shape the data
         const currShaped = shapeRelationshipData(curr);
         // Add to result
-        result[t.toLowerCase()] = Array.isArray(result[t.toLowerCase()]) ?
-            [...result[t.toLowerCase()] as any, ...currShaped] :
+        result[lowercaseFirstLetter(t)] = Array.isArray(result[lowercaseFirstLetter(t)]) ?
+            [...result[lowercaseFirstLetter(t)] as any, ...currShaped] :
             currShaped;
     }
     // Now we can further shape the result

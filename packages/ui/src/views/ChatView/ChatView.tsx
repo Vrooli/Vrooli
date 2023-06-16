@@ -117,6 +117,11 @@ export const ChatView = ({
             const startText = t(task ?? "start", { lng, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
             setMessages([{
                 __typename: "ChatMessage" as const,
+                id: uuid(),
+                chat: {
+                    __typename: "Chat" as const,
+                    id: chatInfo.id!,
+                } as any,
                 translations: [{
                     id: DUMMY_ID,
                     created_at: new Date().toISOString(),
@@ -129,8 +134,9 @@ export const ChatView = ({
                     id: "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f",
                     isBot: true,
                     name: "Valyxa",
-                },
+                } as any,
                 you: {
+                    __typename: "ChatMessageYou" as const,
                     canDelete: false,
                     canUpdate: false,
                     canReply: true,
@@ -138,7 +144,7 @@ export const ChatView = ({
                     canReact: false,
                     reaction: null,
                 },
-            }] as any[]);
+            }]);
         }
     }, [chatInfo, lng, t, task]);
 
@@ -166,9 +172,14 @@ export const ChatView = ({
                     // for now, just add the message to the list
                     const newMessage: ChatMessage & { isUnsent?: boolean } = {
                         __typename: "ChatMessage" as const,
+                        id: uuid(),
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                         isUnsent: true,
+                        chat: {
+                            __typename: "Chat" as const,
+                            id: chat?.id!,
+                        } as any,
                         translations: [{
                             __typename: "ChatMessageTranslation" as const,
                             id: DUMMY_ID,
@@ -190,6 +201,7 @@ export const ChatView = ({
                             reaction: null,
                         },
                     } as any;
+                    console.log("creating message 0", newMessage);
                     setMessages([...messages, newMessage]);
                     helpers.setFieldValue("newMessage", "");
                 }

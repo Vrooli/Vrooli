@@ -5,6 +5,7 @@ export * from "./bookmark";
 export * from "./bookmarkList";
 export * from "./chat";
 export * from "./chatInvite";
+export * from "./chatParticpant";
 export * from "./comment";
 export * from "./email";
 export * from "./focusMode";

@@ -434,10 +434,11 @@ export type Mutater<Model extends {
          * might need their version indexes updated. Since these versions don't appear in the 
          * create/update/delete lists, they can't be updated in the pre function.
          */
-        post?: ({ created, deletedIds, updated, prisma, userData }: {
+        post?: ({ created, deletedIds, updated, preMap, prisma, userData }: {
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             deletedIds: string[],
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,

@@ -1,4 +1,4 @@
-import { ChatParticipantSortBy, MaxObjects } from "@local/shared";
+import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
 import { defaultPermissions } from "../../utils";
 import { ChatParticipantFormat } from "../format/chatParticipant";
 import { ModelLogic } from "../types";
@@ -19,7 +19,12 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         },
     },
     format: ChatParticipantFormat,
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            update: async () => ({}),
+        },
+        yup: chatParticipantValidation,
+    },
     search: {
         defaultSort: ChatParticipantSortBy.UserNameDesc,
         searchFields: {
