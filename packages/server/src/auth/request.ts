@@ -119,6 +119,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
  */
 export const authenticateSocket = async (socket, next) => {
     try {
+        // Add IP address to socket object, so we can use it later
+        socket.req = { ip: socket.handshake.address };
         const cookies = cookie.parse(socket.handshake.headers.cookie);
         const token = cookies[COOKIE.Jwt];
         socket.session = {};

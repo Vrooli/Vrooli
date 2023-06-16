@@ -97,5 +97,6 @@ export async function rateLimit({
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
         logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
+        throw error;
     }
 }

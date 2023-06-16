@@ -1,13 +1,23 @@
-import { ChatMessageCreateInput } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput } from "@local/shared";
 import { Server, Socket } from "socket.io";
+import { createHelper } from "../actions";
 import { assertRequestFrom } from "../auth";
+import { chatMessage_create } from "../endpoints";
 import { logger } from "../events";
+import { rateLimitSocket } from "../middleware";
+import { CreateOneResult } from "../types";
 import { withPrisma } from "../utils/withPrisma";
 
-type SocketCallback = (data: { success?: boolean; error?: string }) => void;
+type SocketCallbackSuccess = (data: { success?: boolean; error?: string }) => void;
+type SocketCallbackResponse<T> = (data: { response?: T; error?: string }) => void;
 
 export const chatSocketHandlers = (io: Server, socket: Socket) => {
-    socket.on("joinRoom", async (chatId: string, callback: SocketCallback) => {
+    socket.on("joinRoom", async (chatId: string, callback: SocketCallbackSuccess) => {
+        const rateLimitError = await rateLimitSocket({ maxUser: 250, socket });
+        if (rateLimitError) {
+            callback({ error: rateLimitError });
+            return;
+        }
         const success = await withPrisma({
             process: async (prisma) => {
                 // Check if user is authenticated
@@ -43,14 +53,41 @@ export const chatSocketHandlers = (io: Server, socket: Socket) => {
     });
 
     // Leave a specific room
-    socket.on("leaveRoom", (chatId: string, callback: SocketCallback) => {
+    socket.on("leaveRoom", (chatId: string, callback: SocketCallbackSuccess) => {
         socket.leave(chatId);
         callback({ success: true });
     });
 
     // Listen for chat message events and emit to the right room
-    socket.on("message", (message: ChatMessageCreateInput) => {
-        // io.to(chatId).emit("message", message);
+    socket.on("message", async (message: ChatMessageCreateInput, callback: SocketCallbackResponse<CreateOneResult<ChatMessage>>) => {
+        const rateLimitError = await rateLimitSocket({ maxUser: 1000, socket });
+        if (rateLimitError) {
+            callback({ error: rateLimitError });
+            return;
+        }
+        const success = await withPrisma({
+            process: async (prisma) => {
+                // Check if user is authenticated
+                const { id } = assertRequestFrom(socket, { isUser: true });
+                // Create message. This will trigger the socket event automatically, 
+                // so we don't need to emit it here.
+                const response = await createHelper({
+                    info: chatMessage_create,
+                    input: message,
+                    objectType: "ChatMessage",
+                    prisma,
+                    req: socket,
+                });
+                callback({ response });
+            },
+            trace: "0493",
+            traceObject: { message },
+        });
+        // If failed, return error
+        if (!success) {
+            callback({ error: "Error sending message" });
+        }
+        // io.to(chatId).emit("message", message); TODO add trigger to handle this, and also notifications
     });
 
     // Listen for message edit events and emit to the right room

@@ -51,6 +51,9 @@ export type SessionData = {
 // Add session to socket
 declare module "socket.io" {
     export interface Socket {
+        req: {
+            ip: string;
+        };
         session: SessionData;
     }
 }
