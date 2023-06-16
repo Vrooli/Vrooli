@@ -5,19 +5,19 @@ import cors from "cors";
 import express from "express";
 import fs from "fs";
 import { graphqlUploadExpress } from "graphql-upload";
-import http from "http";
 import i18next from "i18next";
-import { Server } from "socket.io";
+import { app } from "./app";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
+import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
+import { server } from "./server";
 import { setupStripe, setupValyxa } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
-import { safeOrigins } from "./utils";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -68,8 +68,6 @@ const main = async () => {
     } catch (error) {
         logger.error("🚨 Failed to connect to Redis", { trace: "0207", error });
     }
-
-    const app = express();
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
@@ -151,20 +149,8 @@ const main = async () => {
     // });
 
     // Set up websocket server
-    // Create the HTTP server and attach the Express app to it
-    const server = http.createServer(app);
-    // Create the WebSocket server and attach it to the HTTP server
-    const io = new Server(server, {
-        // Requires its own cors settings
-        cors: {
-            origin: safeOrigins(),
-            methods: ["GET", "POST"],
-            credentials: true,
-        },
-    });
     // Pass the session to the socket, after it's been authenticated
     io.use(auth.authenticateSocket);
-
     // Listen for new WebSocket connections
     io.on("connection", (socket) => {
         console.log("a user connected");

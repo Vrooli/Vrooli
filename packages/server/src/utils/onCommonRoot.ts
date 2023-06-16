@@ -33,7 +33,7 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             hasCompleteAndPublic,
             hasParent,
             owner,
-            objectId,
+            object: created[i],
             objectType,
             // Projects are attached to versions, not root objects
             projectId: undefined,
@@ -66,7 +66,7 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             hasCompleteAndPublic,
             hasParent,
             owner,
-            objectId,
+            object: updated[i],
             objectType,
             // Projects are attached to versions, not root objects
             originalProjectId: undefined,
@@ -99,7 +99,7 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
             deletedById: userData.id,
             hasBeenTransferred,
             hasParent,
-            objectId,
+            object: { id: objectId },
             objectType,
             wasCompleteAndPublic,
         });

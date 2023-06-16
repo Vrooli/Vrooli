@@ -87,12 +87,16 @@ export const chatSocketHandlers = (io: Server, socket: Socket) => {
         if (!success) {
             callback({ error: "Error sending message" });
         }
-        // io.to(chatId).emit("message", message); TODO add trigger to handle this, and also notifications
     });
 
     // Listen for message edit events and emit to the right room
     socket.on("editMessage", (chatId, messageId, newContent) => {
         io.to(chatId).emit("editMessage", messageId, newContent);
+    });
+
+    // Listen for message delete events and emit to the right room
+    socket.on("deleteMessage", (chatId, messageId) => {
+        io.to(chatId).emit("deleteMessage", messageId);
     });
 
     // Listen for reaction events and emit to the right room

@@ -28,7 +28,7 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
     },
     Mutation: {
         chatMessageCreate: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await rateLimit({ maxUser: 1000, req });
             return createHelper({ info, input, objectType, prisma, req });
         },
         chatMessageUpdate: async (_, { input }, { prisma, req }, info) => {
