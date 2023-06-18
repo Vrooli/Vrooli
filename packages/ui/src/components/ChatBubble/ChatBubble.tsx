@@ -6,7 +6,7 @@ import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { SessionContext } from "utils/SessionContext";
@@ -27,10 +27,10 @@ export const ChatBubble = ({
     const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
     const hasError = useMemo(() => (Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0), [createErrors, updateErrors]);
 
-    const [shouldRetry, setShouldRetry] = useState(true);
+    const shouldRetry = useRef(true);
     useEffect(() => {
-        console.log("checking here", message, message.isUnsent, shouldRetry);
-        if (message.isUnsent && shouldRetry) {
+        console.log("checking here", message, message.isUnsent, shouldRetry.current);
+        if (message.isUnsent && shouldRetry.current) {
             console.log("creating message 1", message);
             console.log("creating message 2", shapeChatMessage.create({ ...message, isFork: false }));
             fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
@@ -38,12 +38,12 @@ export const ChatBubble = ({
                 inputs: shapeChatMessage.create({ ...message, isFork: false }),
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => {
+                    shouldRetry.current = false;
                     setEditingText(undefined);
                     onUpdated({ ...data, isUnsent: false });
-                    setShouldRetry(false);
                 },
                 onError: () => {
-                    setShouldRetry(false);
+                    shouldRetry.current = false;
                 },
             });
         }
@@ -56,6 +56,9 @@ export const ChatBubble = ({
     };
     const finishEditing = () => {
         if (message.isUnsent || editingText === undefined || editingText.trim() === "") return;
+        // TODO when talking to a bot, should create new fork. When talking to a user,
+        // should update the message instead. Need to figure out what to do in chat groups, 
+        // with mixed bots and users.
         fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
             fetch: createMessage,
             inputs: shapeChatMessage.create({
@@ -169,7 +172,8 @@ export const ChatBubble = ({
                             startEditing();
                         }}
                         onRetry={() => {
-                            setShouldRetry(true);
+                            shouldRetry.current = true;
+                            onUpdated({ ...message, isUnsent: true });
                         }}
                     />
                 </Box>

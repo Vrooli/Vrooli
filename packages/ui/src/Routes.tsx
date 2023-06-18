@@ -34,6 +34,7 @@ const { WelcomeView } = lazily(() => import("./views/WelcomeView/WelcomeView"));
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
+const { ChatView } = lazily(() => import("./views/ChatView/ChatView"));
 const { FormView } = lazily(() => import("./views/wrapper/FormView"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
@@ -41,7 +42,7 @@ const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { StartView } = lazily(() => import("./views/StartView/StartView"));
 const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
-const { BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
+const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
 const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
@@ -129,6 +130,12 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView {...viewProps} />
                 </NavRoute>
+                <NavRoute path={`${LINKS.BookmarkList}/add`} mustBeLoggedIn={true} {...props}>
+                    <BookmarkListUpsert {...viewProps} isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.BookmarkList}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <BookmarkListUpsert {...viewProps} isCreate={false} />
+                </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/:id`} {...props}>
                     <BookmarkListView {...viewProps} />
                 </NavRoute>
@@ -144,6 +151,9 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <CreateView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={LINKS.Chat} {...props}>
+                    <ChatView {...viewProps} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}

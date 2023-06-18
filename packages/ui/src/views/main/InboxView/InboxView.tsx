@@ -47,7 +47,6 @@ export const InboxView = ({
     const { palette } = useTheme();
 
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<InboxPageTabOption>(tabParams, 0);
-    console.log("usetabs data", tabParams, currTab, handleTabChange, searchType, tabs, title, where);
 
     const {
         allData,
@@ -59,6 +58,7 @@ export const InboxView = ({
         searchType,
         where,
     });
+    console.log("usetabs data", allData, currTab, searchType, where);
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
@@ -123,7 +123,7 @@ export const InboxView = ({
             return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
         }
         return [openCreateChat, AddIcon, "CreateChat"] as const;
-    }, [currTab, onMarkAllAsRead]);
+    }, [currTab.value, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof (ChatListItemActions | NotificationListItemActions), id: string) => {
         switch (action) {

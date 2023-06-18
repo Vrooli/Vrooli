@@ -555,6 +555,7 @@ export type BookmarkUpdateInput = {
 
 export type Chat = {
   __typename: 'Chat';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   invites: Array<ChatInvite>;
   invitesCount: Scalars['Int'];
@@ -568,6 +569,7 @@ export type Chat = {
   restrictedToRoles: Array<Role>;
   translations: Array<ChatTranslation>;
   translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
   you: ChatYou;
 };
 
@@ -11312,6 +11314,7 @@ export type BookmarkToResolvers<ContextType = any, ParentType extends ResolversP
 };
 
 export type ChatResolvers<ContextType = any, ParentType extends ResolversParentTypes['Chat'] = ResolversParentTypes['Chat']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invites?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType>;
   invitesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11325,6 +11328,7 @@ export type ChatResolvers<ContextType = any, ParentType extends ResolversParentT
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ChatYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

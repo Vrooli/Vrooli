@@ -5,14 +5,14 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type BookmarkShape = Pick<Bookmark, "id"> & {
     __typename?: "Bookmark";
-    to: { __typename: BookmarkFor, id: string };
+    to: { __typename: Bookmark["to"]["__typename"], id: string };
     list: { id: string } | BookmarkListShape;
 }
 
 export const shapeBookmark: ShapeModel<BookmarkShape, BookmarkCreateInput, BookmarkUpdateInput> = {
     create: (d) => ({
         forConnect: d.to.id,
-        bookmarkFor: d.to.__typename,
+        bookmarkFor: d.to.__typename as BookmarkFor,
         ...createPrims(d, "id"),
         ...createRel(d, "list", ["Create", "Connect"], "one", shapeBookmarkList),
     }),

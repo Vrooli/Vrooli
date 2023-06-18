@@ -1,10 +1,11 @@
-import { BotIcon, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, useLocation, User, UserIcon, uuid } from "@local/shared";
+import { BotIcon, Chat, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, useLocation, User, UserIcon, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,6 +43,8 @@ export function ObjectListItemBase<T extends ListObjectType>({
     data,
     objectType,
     onClick,
+    subtitleOverride,
+    titleOverride,
     toTheRight,
     zIndex,
 }: ObjectListItemProps<T>) {
@@ -119,7 +122,9 @@ export function ObjectListItemBase<T extends ListObjectType>({
             let Icon: SvgComponent;
             if (object.__typename === "Organization") {
                 Icon = OrganizationIcon;
-            } else if ((object as unknown as User).isBot || (object as unknown as Member).user?.isBot) {
+            } else if ((object as unknown as User).isBot ||
+                (object as unknown as Member).user?.isBot ||
+                (object as unknown as Chat).participants?.[0].user?.isBot) {
                 Icon = BotIcon;
             } else {
                 Icon = UserIcon;
@@ -137,6 +142,10 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     <Icon fill={profileColors[1]} width="75%" height="75%" />
                 </Avatar>
             );
+        }
+        // Show multiple icons for chats
+        if (isOfType(object, "Chat")) {
+            return <ProfileGroup users={(object as unknown as Chat).participants?.map(p => p.user)} />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -276,7 +285,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                                 ...smallHorizontalScrollbar(palette),
                             }}>
                                 <ListItemText
-                                    primary={title}
+                                    primary={titleOverride ?? title}
                                     sx={{
                                         ...multiLineEllipsis(1),
                                         lineBreak: "anywhere",
@@ -288,7 +297,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     }
                     {/* Subtitle */}
                     {loading ? <TextLoading /> : <MarkdownDisplay
-                        content={subtitle}
+                        content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
                     />}
                     {/* Any custom components to display below the subtitle */}

@@ -44,6 +44,8 @@ export const typeDef = gql`
     }
     type Chat {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         openToAnyoneWithInvite: Boolean!
         organization: Organization
         restrictedToRoles: [Role!]!

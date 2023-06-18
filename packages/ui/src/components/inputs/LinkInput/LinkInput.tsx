@@ -21,7 +21,7 @@ export const LinkInput = ({
     const textFieldRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
-    // Search dialog to find objects. to link to
+    // Search dialog to find objects to link to
     const hasSelectedObject = useRef(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true); }, []);

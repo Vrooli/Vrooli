@@ -1,11 +1,11 @@
-import { ChatMessage, SvgComponent } from "@local/shared";
+import { ChatMessage, SvgComponent, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 
 export interface ChatBubbleProps {
     message: ChatMessage & { isUnsent?: boolean }
     index: number;
     isOwn: boolean;
-    onUpdated: (message: ChatMessage & { isUnsent: false }) => void;
+    onUpdated: (message: ChatMessage & { isUnsent: boolean }) => void;
     zIndex: number;
 }
 
@@ -50,6 +50,11 @@ export interface PageTabsProps<T> {
     fullWidth?: boolean,
     onChange: (event: React.ChangeEvent<unknown>, value: any) => void,
     tabs: PageTab<T>[],
+}
+
+export interface ProfileGroupProps {
+    sx?: { [key: string]: any };
+    users: User[];
 }
 
 export interface TwinklingStarsProps {

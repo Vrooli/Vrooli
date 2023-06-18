@@ -1,10 +1,16 @@
 export const chatInvite_decline = {
   "chat": {
     "participants": {
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true,
+        "__typename": "User"
+      },
       "id": true,
-      "isBot": true,
-      "name": true,
-      "handle": true,
+      "created_at": true,
+      "updated_at": true,
       "__typename": "ChatParticipant"
     },
     "messages": {
@@ -95,6 +101,8 @@ export const chatInvite_decline = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "organization": {
       "id": true,

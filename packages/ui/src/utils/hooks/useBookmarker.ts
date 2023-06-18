@@ -43,7 +43,7 @@ export const useBookmarker = ({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
                 id: uuid(),
-                bookmarkFor: {
+                to: {
                     __typename: BookmarkFor[objectType],
                     id: objectId!,
                 },

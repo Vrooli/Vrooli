@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
+import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, MonthIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -13,7 +13,7 @@ import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { MyStuffPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { MyStuffViewProps } from "../types";
 
@@ -21,7 +21,7 @@ import { MyStuffViewProps } from "../types";
 type BaseParams = {
     Icon: SvgComponent;
     searchType: SearchType;
-    tabType: SearchPageTabOption;
+    tabType: MyStuffPageTabOption;
     where: (userId: string) => { [x: string]: any };
 }
 
@@ -29,42 +29,52 @@ type BaseParams = {
 const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
     searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routines,
+    tabType: MyStuffPageTabOption.Routines,
     where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
     Icon: ProjectIcon,
     searchType: SearchType.Project,
-    tabType: SearchPageTabOption.Projects,
+    tabType: MyStuffPageTabOption.Projects,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: HelpIcon,
-    searchType: SearchType.Question,
-    tabType: SearchPageTabOption.Questions,
+    Icon: MonthIcon,
+    searchType: SearchType.Schedule,
+    tabType: MyStuffPageTabOption.Schedules,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: ReminderIcon,
+    searchType: SearchType.Reminder,
+    tabType: MyStuffPageTabOption.Reminders,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: NoteIcon,
     searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Notes,
+    tabType: MyStuffPageTabOption.Notes,
+    where: () => ({ visibility: VisibilityType.Own }),
+}, {
+    Icon: HelpIcon,
+    searchType: SearchType.Question,
+    tabType: MyStuffPageTabOption.Questions,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: OrganizationIcon,
     searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organizations,
+    tabType: MyStuffPageTabOption.Organizations,
     where: (userId) => ({ memberUserIds: [userId] }),
 }, {
     Icon: StandardIcon,
     searchType: SearchType.Standard,
-    tabType: SearchPageTabOption.Standards,
+    tabType: MyStuffPageTabOption.Standards,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: ApiIcon,
     searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Apis,
+    tabType: MyStuffPageTabOption.Apis,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     Icon: SmartContractIcon,
     searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContracts,
+    tabType: MyStuffPageTabOption.SmartContracts,
     where: () => ({ visibility: VisibilityType.Own }),
 }];
 
@@ -90,21 +100,21 @@ export const MyStuffView = ({
     const [popupButton, setPopupButton] = useState<boolean>(false);
 
     // Handle tabs
-    const tabs = useMemo<(PageTab<SearchPageTabOption> & { where: any, searchType: any, tabType: any })[]>(() => {
+    const tabs = useMemo<(PageTab<MyStuffPageTabOption> & { where: any, searchType: any, tabType: any })[]>(() => {
         // Filter out certain tabs that we don't have any data for, 
         // so user isn't overwhelmed with tabs for objects they never worked with. 
         // Always keeps routines, projects, and notes
         const filteredTabParams = tabParams.filter(tab => {
             switch (tab.tabType) {
-                case SearchPageTabOption.Apis:
+                case MyStuffPageTabOption.Apis:
                     return Boolean(apisCount);
-                case SearchPageTabOption.Organizations:
+                case MyStuffPageTabOption.Organizations:
                     return Boolean(membershipsCount);
-                case SearchPageTabOption.Questions:
+                case MyStuffPageTabOption.Questions:
                     return Boolean(questionsAskedCount);
-                case SearchPageTabOption.SmartContracts:
+                case MyStuffPageTabOption.SmartContracts:
                     return Boolean(smartContractsCount);
-                case SearchPageTabOption.Standards:
+                case MyStuffPageTabOption.Standards:
                     return Boolean(standardsCount);
             }
             return true;
@@ -119,7 +129,7 @@ export const MyStuffView = ({
             where: tab.where,
         }));
     }, [apisCount, membershipsCount, questionsAskedCount, smartContractsCount, standardsCount, t]);
-    const [currTab, setCurrTab] = useState<PageTab<SearchPageTabOption>>(() => {
+    const [currTab, setCurrTab] = useState<PageTab<MyStuffPageTabOption>>(() => {
         const searchParams = parseSearchParams();
         const index = tabs.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
@@ -127,7 +137,7 @@ export const MyStuffView = ({
         // Return tab
         return tabs[index];
     });
-    const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<MyStuffPageTabOption>) => {
         e.preventDefault();
         // Update search params
         addSearchParams(setLocation, { type: tab.value });

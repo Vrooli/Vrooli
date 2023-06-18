@@ -23,7 +23,7 @@ import { useReactSearch } from "utils/hooks/useReactSearch";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
+import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
@@ -333,7 +333,7 @@ export const DashboardView = ({
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${SearchPageTabOption.Notes}`); },
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Notes}`); },
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),

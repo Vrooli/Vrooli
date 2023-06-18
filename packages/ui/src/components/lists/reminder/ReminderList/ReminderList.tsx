@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success, useLocation } from "@local/shared";
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
@@ -23,6 +24,7 @@ export const ReminderList = ({
     zIndex,
 }: ReminderListProps) => {
     const { t } = useTranslation();
+    const [, setLocation] = useLocation();
 
     // Internal state
     const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -146,7 +148,7 @@ export const ReminderList = ({
                 options={[{
                     Icon: OpenInNewIcon,
                     label: t("SeeAll"),
-                    onClick: () => { console.log("TODO"); },
+                    onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminders}`); },
                 }, {
                     Icon: AddIcon,
                     label: t("Create"),

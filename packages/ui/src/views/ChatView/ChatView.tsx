@@ -1,4 +1,4 @@
-import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
@@ -38,6 +38,7 @@ export const ChatView = ({
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
     const [chat, setChat] = useState<Chat>();
     useDisplayServerError(findErrors ?? createErrors);
+
     useEffect(() => {
         if (chat) return;
         // Check if the chat already exists
@@ -59,11 +60,17 @@ export const ChatView = ({
                     ...chatInfo,
                     id: uuid(),
                     openToAnyoneWithInvite: chatInfo?.openToAnyoneWithInvite ?? false,
+                    translations: orDefault(chatInfo?.translations, [{
+                        __typename: "ChatTranslation" as const,
+                        id: uuid(),
+                        language: lng,
+                        name: chatInfo?.participants?.length === 1 ? firstString(chatInfo.participants[0].user?.name) : "New Chat",
+                    }]),
                 }),
                 onSuccess: (data) => { setChat(data); },
             });
         }
-    }, [chat, chatInfo, createChat, getData]);
+    }, [chat, chatInfo, createChat, getData, lng]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {
@@ -118,14 +125,15 @@ export const ChatView = ({
             setMessages([{
                 __typename: "ChatMessage" as const,
                 id: uuid(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
                 chat: {
                     __typename: "Chat" as const,
                     id: chatInfo.id!,
                 } as any,
                 translations: [{
+                    __typename: "ChatMessageTranslation" as const,
                     id: DUMMY_ID,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
                     language: lng,
                     text: startText,
                 }],
@@ -144,7 +152,7 @@ export const ChatView = ({
                     canReact: false,
                     reaction: null,
                 },
-            }]);
+            }] as any);
         }
     }, [chatInfo, lng, t, task]);
 
