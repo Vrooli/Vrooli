@@ -710,9 +710,6 @@ export const MarkdownInputBase = ({
                             </Box>
                         ) :
                         (
-                            // TODO for morning: Add option to set action buttons in bottom right of textarea. This will be used 
-                            // first for the ChatView component. Should also add prop for max character length, which can 
-                            // display a CircularProgress and label (to the left of the actions) for how many characters are left.
                             <textarea
                                 id={`markdown-input-${name}`}
                                 ref={textAreaRef}

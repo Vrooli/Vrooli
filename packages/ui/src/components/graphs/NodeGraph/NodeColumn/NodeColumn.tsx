@@ -119,8 +119,8 @@ export const NodeColumn = ({
                 gap: `${padding * 4}px`,
                 // Fill available if column is empty
                 width: nodes.length === 0 ? "-webkit-fill-available" : "auto",
-                paddingLeft: columnIndex === 0 ? "50vw" : "0px",
-                paddingRight: columnIndex === columnsLength - 1 ? "50vw" : "0px",
+                paddingLeft: columnIndex === 0 ? "25vw" : "0px",
+                paddingRight: columnIndex === columnsLength - 1 ? "25vw" : "0px",
                 marginLeft: "16px",
                 marginRight: "16px",
             }}

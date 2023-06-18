@@ -57,6 +57,7 @@ export interface ContentCollapseProps {
     sxs?: {
         titleContainer?: { [x: string]: any };
         root?: { [x: string]: any };
+        helpButton?: { [x: string]: any };
     }
     title?: string | null;
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";

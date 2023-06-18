@@ -37,6 +37,7 @@ export const SubroutineInfoDialog = ({
 
     const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
 
+    console.log("subroutineform dialog", subroutine, data);
     return (
         <LargeDialog
             id="subroutine-dialog"

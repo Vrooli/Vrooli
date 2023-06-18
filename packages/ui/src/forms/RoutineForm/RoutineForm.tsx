@@ -1,4 +1,4 @@
-import { DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
+import { CompleteIcon, DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -43,10 +43,6 @@ export const routineInitialValues = (
     nodeLinks: [],
     nodes: [],
     outputs: [],
-    resourceList: {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-    },
     root: {
         __typename: "Routine" as const,
         id: DUMMY_ID,
@@ -58,6 +54,10 @@ export const routineInitialValues = (
     },
     versionLabel: "1.0.0",
     ...existing,
+    resourceList: orDefault(existing?.resourceList, {
+        __typename: "ResourceList" as const,
+        id: DUMMY_ID,
+    }),
     translations: orDefault(existing?.translations, [{
         __typename: "RoutineVersionTranslation" as const,
         id: DUMMY_ID,
@@ -97,6 +97,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     zIndex,
     ...props
 }, ref) => {
+    console.log("ROUTINE FORM", values);
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -278,13 +279,15 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     fullWidth
                                     color="secondary"
                                     onClick={() => handleMultiStepChange(true)}
-                                    variant={isMultiStep === true ? "outlined" : "contained"}
+                                    variant="outlined"
+                                    startIcon={isMultiStep === true ? <CompleteIcon /> : undefined}
                                 >{t("Yes")}</Button>
                                 <Button
                                     fullWidth
                                     color="secondary"
                                     onClick={() => handleMultiStepChange(false)}
-                                    variant={isMultiStep === false ? "outlined" : "contained"}
+                                    variant="outlined"
+                                    startIcon={isMultiStep === false ? <CompleteIcon /> : undefined}
                                 >{t("No")}</Button>
                             </Stack >
                         </Grid >

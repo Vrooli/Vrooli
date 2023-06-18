@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, useTheme } from "@mui/material";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,7 @@ const descriptionAria = "alert-dialog-description";
 
 export const AlertDialog = () => {
     const { t } = useTranslation();
+    const { palette } = useTheme();
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
@@ -65,6 +66,7 @@ export const AlertDialog = () => {
                     "& > .MuiPaper-root": {
                         zIndex: 30000,
                         borderRadius: 4,
+                        background: palette.background.paper,
                     },
                 },
             }}

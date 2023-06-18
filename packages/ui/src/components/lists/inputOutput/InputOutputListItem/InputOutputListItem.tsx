@@ -7,6 +7,7 @@ import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { linkColors } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
@@ -32,6 +33,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
 }, ref) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [standardVersion, setStandardVersion] = useState<StandardVersionShape>(item.standardVersion ?? standardInitialValues(session, item.standardVersion as any));
     useEffect(() => {
@@ -81,7 +83,8 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         else handleOpen(index);
                     }}
                     sx={{
-                        background: palette.primary.main,
+                        background: palette.primary.light,
+                        borderBottom: `1px solid ${palette.divider}`,
                         color: "white",
                         display: "flex",
                         alignItems: "center",
@@ -152,6 +155,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                 <Collapse in={isOpen} sx={{
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
+                    borderBottom: isOpen ? `1px solid ${palette.divider}` : "unset",
                 }}>
                     <Grid container spacing={2} sx={{ padding: 1, ...linkColors(palette) }}>
                         <Grid item xs={12}>
@@ -159,7 +163,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TextField'
                                 isEditing={isEditing}
                                 name='name'
-                                props={{ label: "Identifier" }}
+                                props={{ label: t("Identifier"), fullWidth: true }}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -167,7 +171,12 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedTextField'
                                 isEditing={isEditing}
                                 name='description'
-                                props={{ placeholder: "Short description (optional)", language }}
+                                props={{
+                                    label: t("Description"),
+                                    placeholder: t("DescriptionOptional"),
+                                    language,
+                                    fullWidth: true,
+                                }}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -175,7 +184,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedMarkdown'
                                 isEditing={isEditing}
                                 name='helpText'
-                                props={{ placeholder: "Detailed information (optional)", language, zIndex }}
+                                props={{ placeholder: t("DetailsOptional"), language, zIndex }}
                             />
                         </Grid>
                         {/* Select standard */}

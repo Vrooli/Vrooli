@@ -18,9 +18,9 @@ import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
-import { forwardRef, useCallback, useContext } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -103,6 +103,30 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     const [tagsField] = useField<TagShape[]>("routineVersion.root.tags");
     const [versionlabelField] = useField<string>("routineVersion.versionLabel");
     const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
+
+    console.log("subroutineform", indexField, isInternalField, listField, inputsField, outputsField, resourceListField, tagsField, versionlabelField, versionsField);
+
+    // If name or description doesn't exist, add them using the routine version
+    const [, , nameHelpers] = useField<string>("translations.0.name");
+    const [, , descriptionHelpers] = useField<string>("translations.0.description");
+    const nameDescriptionAttempted = useRef(false);
+    useEffect(() => {
+        if (nameDescriptionAttempted.current) return;
+        const nodeTranslations = getTranslation(values, [language], true);
+        const routineVersionTranslations = getTranslation(values.routineVersion, [language], true);
+        const hasName = nodeTranslations.name !== undefined && nodeTranslations.name !== "";
+        const hasDescription = nodeTranslations.description !== undefined && nodeTranslations.description !== "";
+        const hasRoutineVersionName = routineVersionTranslations.name !== undefined && routineVersionTranslations.name !== "";
+        const hasRoutineVersionDescription = routineVersionTranslations.description !== undefined && routineVersionTranslations.description !== "";
+        console.log("subroutineform beep", nodeTranslations, routineVersionTranslations, hasName, hasDescription, hasRoutineVersionName, hasRoutineVersionDescription);
+        if (!hasName && hasRoutineVersionName) {
+            nameHelpers.setValue(routineVersionTranslations.name ?? "");
+        }
+        if (!hasDescription && hasRoutineVersionDescription) {
+            descriptionHelpers.setValue(routineVersionTranslations.description ?? "");
+        }
+        nameDescriptionAttempted.current = true;
+    }, [descriptionHelpers, language, nameHelpers, values, values.routineVersion]);
 
     /**
      * Navigate to the subroutine's build page

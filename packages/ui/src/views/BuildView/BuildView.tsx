@@ -691,7 +691,7 @@ export const BuildView = ({
         });
         // Close dialog
         closeAddSubroutineDialog();
-    }, [addToChangeStack, changedRoutineVersion]);
+    }, [addToChangeStack, changedRoutineVersion, closeAddSubroutineDialog]);
 
     /**
      * Reoders a subroutine in a routine list item
@@ -910,7 +910,7 @@ export const BuildView = ({
                 if (node) setMoveNode(node);
                 break;
         }
-    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleRoutineListOpen, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.

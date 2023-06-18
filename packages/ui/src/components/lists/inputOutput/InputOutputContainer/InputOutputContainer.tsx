@@ -1,6 +1,5 @@
 import { AddIcon } from "@local/shared";
-import { Stack, Tooltip, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Button, Stack, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { routineVersionIOInitialValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -12,38 +11,6 @@ import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { InputOutputListItem } from "../InputOutputListItem/InputOutputListItem";
 import { InputOutputContainerProps } from "../types";
-
-interface AddButtonProps {
-    index: number;
-    isInput: boolean;
-    handleAdd: (index: number, newItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
-}
-/**
- * Add button for adding new inputs/outputs
- */
-const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
-    <Tooltip placement="top" title="Add">
-        <ColorIconButton
-            id={`add-${isInput ? "input" : "output"}-item-${index}`}
-            color="inherit"
-            onClick={() => handleAdd(index, {} as any)}
-            aria-label="add item"
-            background="#6daf72"
-            sx={{
-                zIndex: 1,
-                width: "fit-content",
-                margin: "5px auto !important",
-                padding: "0",
-                marginBottom: "16px !important",
-                display: "flex",
-                alignItems: "center",
-                borderRadius: "100%",
-            }}
-        >
-            <AddIcon fill='white' />
-        </ColorIconButton>
-    </Tooltip>
-);
 
 export const InputOutputContainer = ({
     handleUpdate,
@@ -134,14 +101,19 @@ export const InputOutputContainer = ({
                         titleContainer: {
                             display: "flex",
                             justifyContent: "center",
+                            background: palette.primary.light,
+                            padding: 0.5,
+                            borderBottom: `1px solid ${palette.divider}`,
                         },
                         root: {
-                            background: palette.primary.dark,
                             color: palette.primary.contrastText,
-                            boxShadow: 2,
+                            border: `1px solid ${palette.divider}`,
                             borderRadius: 2,
                             padding: 0,
                             overflow: "overlay",
+                        },
+                        helpButton: {
+                            fill: palette.mode === "light" ? palette.secondary.light : palette.secondary.dark,
                         },
                     }}
                 >
@@ -152,7 +124,7 @@ export const InputOutputContainer = ({
                                 {...provided.droppableProps}
                                 direction="column"
                                 sx={{
-                                    background: palette.background.default,
+                                    background: palette.background.paper,
                                 }}>
                                 {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
                                 {sortedList.map((item, index) => (
@@ -183,12 +155,16 @@ export const InputOutputContainer = ({
                                     </Draggable>
                                 ))}
                                 {/* Show add button at bottom of sortedList */}
-                                {isEditing && <AddButton
+                                {isEditing && <Button
                                     key={`add-${type}-item-${sortedList.length}`}
-                                    index={sortedList.length}
-                                    isInput={isInput}
-                                    handleAdd={onItemAdd}
-                                />}
+                                    color="secondary"
+                                    onClick={() => { onItemAdd(sortedList.length, {} as any); }}
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    sx={{
+                                        margin: 1,
+                                    }}
+                                >{t("Add")}</Button>}
                                 {provided.placeholder}
                             </Stack>
                         )}

@@ -17,7 +17,7 @@ export const largeButtonProps = (isEditing: boolean, canPressWhenNotEditing: boo
 export const commonIconProps = () => ({
     width: "69px",
     height: "69px",
-    color: "white",
+    fill: "white",
 }) as const;
 
 export const commonLabelProps = () => ({
