@@ -3,7 +3,9 @@ import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -38,7 +40,7 @@ export const noteInitialValues = (
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: "",
-        name: "",
+        name: "New Note",
         text: "",
     }]),
 });
@@ -82,6 +84,16 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                title=""
+                titleComponent={<TranslatedTextField
+                    language={language}
+                    name="name"
+                    placeholder={t("Name")}
+                />}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}
@@ -107,6 +119,12 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                         root: {
                             height: "100%",
                             position: "relative",
+                            maxWidth: "800px",
+                            ...(display === "page" ? {
+                                marginBottom: 4,
+                                borderRadius: { xs: 0, md: 1 },
+                                overflow: "overlay",
+                            } : {}),
                         },
                         textArea: {
                             borderRadius: 0,
@@ -115,6 +133,9 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                             overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
                             border: "none",
+                            ...(display === "page" ? {
+                                minHeight: "100vh",
+                            } : {}),
                         },
                     }}
                     zIndex={zIndex}

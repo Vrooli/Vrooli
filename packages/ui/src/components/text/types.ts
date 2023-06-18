@@ -39,9 +39,7 @@ export interface TextShrinkProps extends TypographyProps {
 
 export interface TitleProps {
     help?: string;
-    /**
-     * Icon displayed to the left of the title
-     */
+    /** Icon displayed to the left of the title */
     Icon?: SvgComponent;
     options?: {
         Icon: SvgComponent;
@@ -53,6 +51,9 @@ export interface TitleProps {
         text?: { [x: string]: any; };
     }
     title?: string;
+    /** Replaces title if provided */
+    titleComponent?: JSX.Element;
+    /** Determines size */
     variant: "header" | "subheader";
 }
 

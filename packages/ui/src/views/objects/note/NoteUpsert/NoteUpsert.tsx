@@ -1,6 +1,5 @@
 import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
@@ -36,30 +35,25 @@ export const NoteUpsert = ({
     const fetch = (isCreate ? create : update) as MakeLazyRequest<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>;
 
     return (
-        <>
-            <TopBar
-                display={display}
-                onClose={handleCancel}
-                title={t(isCreate ? "CreateNote" : "UpdateNote")}
-            />
-            <Formik
-                enableReinitialize={true}
-                initialValues={initialValues}
-                onSubmit={(values, helpers) => {
-                    if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
-                        fetch,
-                        inputs: transformNoteValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
-                    });
-                }}
-                validate={async (values) => await validateNoteValues(values, existing)}
-            >
-                {(formik) => <NoteForm
+        <Formik
+            enableReinitialize={true}
+            initialValues={initialValues}
+            onSubmit={(values, helpers) => {
+                if (!isCreate && !existing) {
+                    PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+                    return;
+                }
+                fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+                    fetch,
+                    inputs: transformNoteValues(values, existing),
+                    onSuccess: (data) => { handleCompleted(data); },
+                    onError: () => { helpers.setSubmitting(false); },
+                });
+            }}
+            validate={async (values) => await validateNoteValues(values, existing)}
+        >
+            {(formik) =>
+                <NoteForm
                     display={display}
                     isCreate={isCreate}
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
@@ -69,8 +63,8 @@ export const NoteUpsert = ({
                     versions={[]}
                     zIndex={zIndex}
                     {...formik}
-                />}
-            </Formik>
-        </>
+                />
+            }
+        </Formik>
     );
 };

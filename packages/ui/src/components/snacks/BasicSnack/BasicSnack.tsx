@@ -126,7 +126,7 @@ export const BasicSnack = ({
             )}
             {/* Close icon */}
             <IconButton onClick={handleClose}>
-                <CloseIcon />
+                <CloseIcon fill={palette.error.contrastText} />
             </IconButton>
         </Box>
     );

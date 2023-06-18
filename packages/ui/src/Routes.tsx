@@ -182,13 +182,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
                     <MyStuffView {...viewProps} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Note}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <NoteUpsert {...viewProps} isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <NoteUpsert {...viewProps} isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} {...props}>
+                <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} excludePageContainer {...props}>
                     <NoteView {...viewProps} />
                 </NavRoute>
                 <NavRoute
@@ -307,7 +307,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <SettingsPrivacyView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
-                    <SettingsFocusModesView{...viewProps} />
+                    <SettingsFocusModesView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
                     <SmartContractUpsert {...viewProps} isCreate={true} />

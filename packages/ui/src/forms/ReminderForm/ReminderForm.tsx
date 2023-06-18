@@ -1,5 +1,5 @@
-import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
-import { Box, Button, IconButton, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session, uuid } from "@local/shared";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
@@ -81,7 +81,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         reminderItemsHelpers.setValue([
             ...reminderItemsField.value,
             {
-                id: Date.now(),
+                id: uuid(),
                 index: reminderItemsField.value.length,
                 name: "",
                 description: "",
@@ -184,6 +184,16 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     name={`reminderItems[${i}].dueDate`}
                                                                     label="Due date (optional)"
                                                                     type="datetime-local"
+                                                                />
+                                                                <FormControlLabel
+                                                                    control={<Field
+                                                                        name={`reminderItems[${i}].isComplete`}
+                                                                        type="checkbox"
+                                                                        as={Checkbox}
+                                                                        size="small"
+                                                                        color="secondary"
+                                                                    />}
+                                                                    label="Complete?"
                                                                 />
                                                             </Stack>
                                                             <Stack spacing={1} width={32}>

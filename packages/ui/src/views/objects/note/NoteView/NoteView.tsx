@@ -91,13 +91,30 @@ export const NoteView = ({
                         bar: {
                             borderRadius: 0,
                             background: palette.primary.main,
+                            position: "sticky",
+                            top: 0,
+                        },
+                        root: {
+                            height: "100%",
+                            position: "relative",
+                            maxWidth: "800px",
+                            margin: "auto",
+                            ...(display === "page" ? {
+                                marginBottom: 4,
+                                borderRadius: { xs: 0, md: 1 },
+                                overflow: "overlay",
+                            } : {}),
                         },
                         textArea: {
                             borderRadius: 0,
                             resize: "none",
-                            minHeight: "100vh",
+                            height: "100%",
+                            overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
                             border: "none",
+                            ...(display === "page" ? {
+                                minHeight: "100vh",
+                            } : {}),
                         },
                     }}
                     zIndex={zIndex}

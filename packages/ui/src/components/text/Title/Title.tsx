@@ -8,6 +8,7 @@ export const Title = ({
     options,
     sxs,
     title,
+    titleComponent,
     variant,
 }: TitleProps) => {
     const { palette } = useTheme();
@@ -25,7 +26,7 @@ export const Title = ({
             {/* Icon */}
             {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
             {/* Title */}
-            <Typography
+            {titleComponent ?? <Typography
                 component={variant === "header" ? "h1" : "h2"}
                 variant={variant === "header" ? "h3" : "h4"}
                 textAlign="center"
@@ -37,7 +38,7 @@ export const Title = ({
                     },
                     ...sxs?.text,
                 }}
-            >{title}</Typography>
+            >{title}</Typography>}
             {/* Help button */}
             {help && help.length > 0 ? <HelpButton
                 markdown={help}

@@ -7,6 +7,8 @@ export interface ContactInfoProps {
 
 export type NavbarProps = {
     title?: string | undefined;
+    /** Replaces title if provided */
+    titleComponent?: JSX.Element;
     help?: string | undefined;
     below?: JSX.Element | boolean | undefined;
     shouldHideTitle?: boolean;
