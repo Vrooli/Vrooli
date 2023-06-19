@@ -592,7 +592,7 @@ export const JsonStandardInput = ({
             });
         }
         return actions;
-    }, [hasPremium, internalValue, mode, t, updateInternalValue]);
+    }, [hasPremium, internalValue, mode, openAssistantDialog, t, updateInternalValue]);
 
     // Find language label and help text
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);
@@ -651,9 +651,8 @@ export const JsonStandardInput = ({
                                 <IconButton
                                     onClick={onClick}
                                     disabled={!isEditing}
-                                    sx={{ fill: palette.secondary.light }}
                                 >
-                                    <Icon />
+                                    <Icon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>)}
                             <HelpButton

@@ -1,7 +1,6 @@
 import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon, StandardVersion } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableText } from "components/containers/EditableText/EditableText";
-import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
@@ -187,30 +186,11 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 props={{ placeholder: t("DetailsOptional"), language, zIndex }}
                             />
                         </Grid>
-                        {/* Select standard */}
-                        <Grid item xs={12}>
-                            <StandardVersionSelectSwitch
-                                disabled={!isEditing}
-                                selected={!canUpdateStandardVersion ? {
-                                    translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
-                                } as any : null}
-                                onChange={onSwitchChange}
-                                zIndex={zIndex}
-                            />
-                        </Grid>
-                        {/* Standard build/preview */}
-                        <Grid item xs={12}>
-                            <StandardInput
-                                disabled={!canUpdateStandardVersion}
-                                fieldName="preview"
-                                zIndex={zIndex}
-                            />
-                        </Grid>
                         {isInput && <Grid item xs={12}>
                             <Tooltip placement={"right"} title='Is this input mandatory?'>
                                 <FormControlLabel
                                     disabled={!isEditing}
-                                    label='Required'
+                                    label='This input is required'
                                     control={
                                         <Checkbox
                                             id='routine-info-dialog-is-internal'
@@ -225,6 +205,18 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 />
                             </Tooltip>
                         </Grid>}
+                        {/* Select standard */}
+                        <Grid item xs={12}>
+                            <StandardVersionSelectSwitch
+                                canUpdateStandardVersion={canUpdateStandardVersion}
+                                disabled={!isEditing}
+                                selected={!canUpdateStandardVersion ? {
+                                    translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
+                                } as any : null}
+                                onChange={onSwitchChange}
+                                zIndex={zIndex}
+                            />
+                        </Grid>
                     </Grid>
                 </Collapse>
             </Box>}

@@ -11,6 +11,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -95,18 +96,7 @@ export const ApiView = ({
      * Displays name, avatar, summary, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Avatar
                 src="/broken-image.jpg" //TODO
                 sx={{
@@ -188,7 +178,7 @@ export const ApiView = ({
                     />
                 </Stack>
             </Stack>
-        </Box >
+        </OverviewContainer>
     ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
 
     return (

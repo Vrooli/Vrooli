@@ -1,4 +1,4 @@
-import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
+import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, CompleteIcon, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Button, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -178,13 +178,15 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                                     fullWidth
                                     color="secondary"
                                     onClick={() => setHasDocUrl(true)}
-                                    variant={hasDocUrl === true ? "outlined" : "contained"}
+                                    variant="outlined"
+                                    startIcon={hasDocUrl === true ? <CompleteIcon /> : undefined}
                                 >{t("Yes")}</Button>
                                 <Button
                                     fullWidth
                                     color="secondary"
                                     onClick={() => setHasDocUrl(false)}
-                                    variant={hasDocUrl === false ? "outlined" : "contained"}
+                                    variant="outlined"
+                                    startIcon={hasDocUrl === false ? <CompleteIcon /> : undefined}
                                 >{t("No")}</Button>
                             </Stack >
                         </Grid >

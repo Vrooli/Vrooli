@@ -116,7 +116,7 @@ export const ChatView = ({
             const chattingWithValyxa = chatInfo.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID);
             setMessages(m => chattingWithValyxa && m.length === 1 ? [m[0], ...chat.messages] : chat.messages);
         }
-    }, [chat]);
+    }, [chat, chatInfo.invites]);
     useEffect(() => {
         // If chatting with default AI assistant, add start message so that we don't need 
         // to query the server for it.
@@ -237,7 +237,7 @@ export const ChatView = ({
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
                         {messages.map((message: ChatMessage, index) => {
-                            const isOwn = message.you.canUpdate;
+                            const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
                             return <ChatBubble
                                 key={index}
                                 message={message}

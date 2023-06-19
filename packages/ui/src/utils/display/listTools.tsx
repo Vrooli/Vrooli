@@ -295,8 +295,8 @@ export const getDisplay = (
             subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
         };
     }
-    // If a member, use the user's display
-    if (isOfType(object, "Member")) return getDisplay(object.user as ListObjectType);
+    // If a member or chat participant, use the user's display
+    if (isOfType(object, "Member", "ChatParticipant")) return getDisplay(object.user as ListObjectType);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty

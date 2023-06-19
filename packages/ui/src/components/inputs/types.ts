@@ -1,5 +1,5 @@
 import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/shared";
-import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
+import { BoxProps, TextFieldProps } from "@mui/material";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
 
@@ -309,7 +309,9 @@ export interface SelectorBaseProps<T extends string | number | { [x: string]: an
     value: T | null;
 }
 
-export type StandardVersionSelectSwitchProps = Omit<SwitchProps, "onChange"> & {
+export type StandardVersionSelectSwitchProps = {
+    /** Indicates if the standard is allowed to be updated */
+    canUpdateStandardVersion: boolean;
     selected: {
         translations: StandardVersion["translations"];
     } | null;

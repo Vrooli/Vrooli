@@ -17,6 +17,7 @@ import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -148,18 +149,7 @@ export const UserView = ({
      * Displays name, handle, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Avatar
                 src="/broken-image.jpg" //TODO
                 sx={{
@@ -266,8 +256,8 @@ export const UserView = ({
                     <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>
             </Stack>
-        </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, handle, user, bio, zIndex, actionData]);
+        </OverviewContainer>
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, handle, user, bio, zIndex, actionData]);
 
     /**
      * Opens add new page

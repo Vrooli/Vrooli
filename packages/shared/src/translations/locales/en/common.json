@@ -86,6 +86,7 @@
     "ComplexityDesc": "Complexity ↓",
     "ComplexityHelp": "Complexity is a mathematical measure of the longest path to complete a routine.\n\nFor the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete.",
     "Confirm": "Confirm",
+    "Connect": "Connect",
     "Contact": "Contact",
     "ContactHelpTwitter": "Find us on Twitter",
     "ContactHelpDiscord": "Join our Discord server",

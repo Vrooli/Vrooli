@@ -21,16 +21,16 @@ import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 const tabParams = [{
-    Icon: NotificationsAllIcon,
-    titleKey: "Notification" as CommonKey,
-    searchType: SearchType.Notification,
-    tabType: InboxPageTabOption.Notifications,
-    where: {},
-}, {
     Icon: CommentIcon,
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Messages,
+    where: {},
+}, {
+    Icon: NotificationsAllIcon,
+    titleKey: "Notification" as CommonKey,
+    searchType: SearchType.Notification,
+    tabType: InboxPageTabOption.Notifications,
     where: {},
 }];
 

@@ -4,6 +4,7 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { ScheduleViewProps } from "../types";
@@ -46,18 +47,7 @@ export const ScheduleView = ({
      * Displays name, avatar, description, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -72,7 +62,7 @@ export const ScheduleView = ({
                     <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
-        </Box >
+        </OverviewContainer>
     ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
 
     return (

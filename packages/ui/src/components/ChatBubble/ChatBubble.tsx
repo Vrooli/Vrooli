@@ -25,25 +25,29 @@ export const ChatBubble = ({
 
     const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
-    const hasError = useMemo(() => (Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0), [createErrors, updateErrors]);
+
+    const [hasError, setHasError] = useState(false);
+    useEffect(() => {
+        if ((Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0)) {
+            console.log("chatbubble setting error true");
+            setHasError(true);
+        }
+    }, [createErrors, updateErrors]);
+    console.log("chatbubble render", hasError, message);
 
     const shouldRetry = useRef(true);
     useEffect(() => {
-        console.log("checking here", message, message.isUnsent, shouldRetry.current);
         if (message.isUnsent && shouldRetry.current) {
-            console.log("creating message 1", message);
-            console.log("creating message 2", shapeChatMessage.create({ ...message, isFork: false }));
+            shouldRetry.current = false;
             fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
                 fetch: createMessage,
                 inputs: shapeChatMessage.create({ ...message, isFork: false }),
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => {
-                    shouldRetry.current = false;
                     setEditingText(undefined);
+                    console.log("chatbubble setting error false 1", data);
+                    setHasError(false);
                     onUpdated({ ...data, isUnsent: false });
-                },
-                onError: () => {
-                    shouldRetry.current = false;
                 },
             });
         }
@@ -76,6 +80,8 @@ export const ChatBubble = ({
             successCondition: (data) => data !== null,
             onSuccess: (data) => {
                 setEditingText(undefined);
+                console.log("chatbubble setting error false 2", data);
+                setHasError(false);
                 onUpdated({ ...data, isUnsent: false });
             },
         });
