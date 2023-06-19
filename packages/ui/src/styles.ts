@@ -1,4 +1,4 @@
-import { Palette, SxProps } from "@mui/material";
+import { Palette, Stack, styled, SxProps, Theme } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 
 export const centeredDiv: SxProps = {
@@ -113,3 +113,35 @@ export const textPop: SxProps = {
                 -1px 1px 0 black,
                 1px 1px 0 black`,
 } as CSSProperties;
+
+export const formSection = (theme: Theme): SxProps => ({
+    background: theme.palette.mode === "dark" ?
+        theme.palette.background.paper :
+        theme.palette.background.default,
+    borderRadius: theme.spacing(1),
+    flexDirection: "column",
+    overflowX: "auto",
+    padding: theme.spacing(2),
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(2),
+    },
+    "@media print": {
+        border: `1px solid ${theme.palette.divider}`,
+    },
+});
+export const FormSection = styled(Stack)(({ theme }) => ({
+    ...noSelect,
+    ...formSection(theme),
+}));
+
+
+export const formContainer = (theme: Theme): SxProps => ({
+    flexDirection: "column",
+    margin: theme.spacing(2),
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(4),
+    },
+});
+export const FormContainer = styled(Stack)(({ theme }) => ({
+    ...formContainer(theme),
+}));

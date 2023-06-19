@@ -39,6 +39,9 @@ export const Footer = () => {
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,
                 zIndex: 5,
+                "@media print": {
+                    display: "none",
+                },
             }}
         >
             <Grid container justifyContent='center' spacing={1}>

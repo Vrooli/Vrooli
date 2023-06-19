@@ -1,11 +1,11 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Stack } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { CommentFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -77,7 +77,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                 maxWidth={700}
                 ref={ref}
             >
-                <Stack direction="column" spacing={4} m={2}>
+                <FormContainer>
                     <TranslatedMarkdownInput
                         language={language}
                         name="text"
@@ -85,7 +85,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                         minRows={3}
                         zIndex={zIndex}
                     />
-                </Stack>
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

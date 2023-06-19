@@ -16,6 +16,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -185,7 +186,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 maxWidth={700}
                 ref={ref}
             >
-                <Stack direction="column" spacing={4} m={2}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Routine"}
@@ -195,11 +196,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -240,7 +237,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             fullWidth
                             versions={versions}
                         />
-                    </Stack>
+                    </FormSection>
                     {/* Is internal checkbox */}
                     {isSubroutine && (
                         <Grid item xs={12}>
@@ -259,12 +256,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             </Tooltip>
                         </Grid>
                     )}
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                        paddingTop: 0,
-                    }}>
+                    <FormSection>
                         {/* Selector for single-step or multi-step routine */}
                         <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                             {/* Title with help text */}
@@ -366,8 +358,8 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                 </>
                             )
                         }
-                    </Stack>
-                </Stack>
+                    </FormSection>
+                </FormContainer>
             </BaseForm>
             <GridSubmitButtons
                 display={display}

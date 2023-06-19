@@ -27,6 +27,9 @@ export const GridActionButtons = ({
             // and a solid color when used for a dialog
             background: display === "page" ? "transparent" : palette.primary.dark,
             backdropFilter: display === "page" ? "blur(5px)" : undefined,
+            "@media print": {
+                display: "none",
+            },
         }}
         >
             {children}

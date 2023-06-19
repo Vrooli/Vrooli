@@ -1,10 +1,11 @@
 import { Chat, chatTranslationValidation, chatValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -84,9 +85,9 @@ export const ChatForm = forwardRef<any, ChatFormProps>(({
                 maxWidth={700}
                 ref={ref}
             >
-                <Stack direction="column" spacing={4} m={2}>
+                <FormContainer>
                     {/* TODO */}
-                </Stack>
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

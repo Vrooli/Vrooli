@@ -15,6 +15,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -115,17 +116,13 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 maxWidth={700}
                 ref={ref}
             >
-                <Stack direction="column" spacing={4} m={2}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Api"}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -158,12 +155,8 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                             placeholder={t("Details")}
                             zIndex={zIndex}
                         />
-                    </Stack>
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    </FormSection>
+                    <FormSection>
                         <Field
                             fullWidth
                             name="callLink"
@@ -216,7 +209,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                                 />
                             )
                         }
-                    </Stack>
+                    </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
                         zIndex={zIndex}
@@ -229,7 +222,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         fullWidth
                         versions={versions}
                     />
-                </Stack>
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

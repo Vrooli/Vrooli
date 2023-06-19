@@ -77,7 +77,15 @@ export const Navbar = forwardRef(({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box id='navbar' ref={ref} sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box
+            id='navbar'
+            ref={ref}
+            sx={{
+                paddingTop: `${Math.max(dimensions.height, 64)}px`,
+                "@media print": {
+                    display: "none",
+                },
+            }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}

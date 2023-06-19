@@ -10,6 +10,7 @@ import { ReminderFormProps } from "forms/types";
 import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
@@ -115,23 +116,21 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                     maxWidth={600}
                     ref={ref}
                 >
-                    <Stack direction="column" spacing={4} m={2}>
-                        <Stack direction="column" spacing={2}>
-                            <Field
-                                fullWidth
-                                name="name"
-                                label={t("Name")}
-                                as={TextField}
-                            />
-                            <MarkdownInput
-                                maxChars={2048}
-                                maxRows={10}
-                                minRows={4}
-                                name="description"
-                                placeholder="Description (optional)"
-                                zIndex={zIndex}
-                            />
-                        </Stack>
+                    <FormContainer>
+                        <Field
+                            fullWidth
+                            name="name"
+                            label={t("Name")}
+                            as={TextField}
+                        />
+                        <MarkdownInput
+                            maxChars={2048}
+                            maxRows={10}
+                            minRows={4}
+                            name="description"
+                            placeholder="Description (optional)"
+                            zIndex={zIndex}
+                        />
                         <DateInput
                             name="dueDate"
                             label="Due date (optional)"
@@ -229,7 +228,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                         >
                             Add Step
                         </Button>
-                    </Stack>
+                    </FormContainer>
                 </BaseForm>
             </DragDropContext>
             <GridSubmitButtons
