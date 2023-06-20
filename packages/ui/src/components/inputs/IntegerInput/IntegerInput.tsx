@@ -30,6 +30,7 @@ export const IntegerInput = ({
     max = Number.MAX_SAFE_INTEGER,
     min = Number.MIN_SAFE_INTEGER,
     name,
+    offset = 0,
     step = 1,
     tooltip = "",
     ...props
@@ -140,8 +141,8 @@ export const IntegerInput = ({
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={field.value ?? 0}
-                        onChange={(e) => updateValue(e.target.value)}
+                        value={(field.value ?? 0) + offset}
+                        onChange={(e) => updateValue(Number(e.target.value) - offset)}
                         sx={{
                             color: palette.background.textPrimary,
                             marginLeft: 1,

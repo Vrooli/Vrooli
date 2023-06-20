@@ -30,23 +30,16 @@ export const NodeGraph = ({
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
+    handleScaleChange,
     isEditing = true,
     labelVisible = true,
     language,
     links,
     nodesById,
+    scale,
     zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
-
-    // Determines the size of the nodes and edges
-    const [scale, setScale] = useState<number>(0);
-    const handleScaleChange = useCallback((delta: number, point: { x: number, y: number }) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        // Theoretically can scale infinitely, but for now limit to -5 to 2
-        setScale(s => Math.min(Math.max(s + delta, -5), 2));
-        // TODO scale by point somehow
-    }, []);
 
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([]);
@@ -78,18 +71,6 @@ export const NodeGraph = ({
             document.removeEventListener("contextmenu", handleContextMenu);
         };
     }, []);
-
-    // /**
-    //  * Add tag to head indicating that this page has custom scaling
-    //  */
-    // useEffect(() => {
-    //     const meta = document.createElement("meta");
-    //     meta.name = "viewport";
-    //     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0 user-scalable=0";
-    //     document.head.appendChild(meta);
-    //     // Remove the meta element when the component is unmounted
-    //     return () => { document.head.removeChild(meta); }
-    // }, [])
 
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls

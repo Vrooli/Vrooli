@@ -1,18 +1,17 @@
 import { CloseIcon, DUMMY_ID, exists, nodeRoutineListItemValidation, OpenInNewIcon, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { EditableText } from "components/containers/EditableText/EditableText";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
+import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -20,11 +19,11 @@ import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/models/nodeRoutineListItem";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -70,6 +69,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     isCreate,
     isEditing,
     isOpen,
+    numSubroutines,
     onCancel,
     values,
     versions,
@@ -77,7 +77,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const theme = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -96,7 +96,6 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
 
     const [indexField] = useField<number>("index");
     const [isInternalField] = useField<boolean>("routineVersion.root.isInternal");
-    const [listField] = useField<NodeRoutineListShape>("list");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("routineVersion.inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("routineVersion.outputs");
     const [resourceListField, , resourceListHelpers] = useField<ResourceList>("routineVersion.resourceList");
@@ -104,10 +103,10 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     const [versionlabelField] = useField<string>("routineVersion.versionLabel");
     const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
 
-    console.log("subroutineform", indexField, isInternalField, listField, inputsField, outputsField, resourceListField, tagsField, versionlabelField, versionsField);
+    console.log("subroutineform", indexField, isInternalField, inputsField, outputsField, resourceListField, tagsField, versionlabelField, versionsField);
 
     // If name or description doesn't exist, add them using the routine version
-    const [, , nameHelpers] = useField<string>("translations.0.name");
+    const [nameField, , nameHelpers] = useField<string>("translations.0.name");
     const [, , descriptionHelpers] = useField<string>("translations.0.description");
     const nameDescriptionAttempted = useRef(false);
     useEffect(() => {
@@ -142,25 +141,33 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
+                background: theme.palette.primary.dark,
+                color: theme.palette.primary.contrastText,
                 padding: 1,
             }}>
-                {/* Subroutine name and position */}
-                <EditableText
-                    component="TranslatedTextField"
-                    isEditing={isEditing}
-                    name="name"
-                    props={{ language }}
-                    variant="h5"
-                />
-                {!isEditing && <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(listField.value?.items?.length ?? 1)})`}</Typography>}
+                {/* Subroutine name */}
+                <Title variant="header" title={nameField.value} />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
                 />
+                {/* Position */}
+                {isEditing ? <Box sx={{ margin: "auto" }}>
+                    <IntegerInput
+                        label={t("Order")}
+                        min={0}
+                        max={numSubroutines - 1}
+                        name="index"
+                        // Offset by 1 because the index is 0-based, 
+                        // and normies don't know the real way to count
+                        offset={1}
+                        tooltip="The order of this subroutine in its parent routine"
+                    />
+                </Box> :
+                    <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(numSubroutines)})`}</Typography>
+                }
                 <Box sx={{
                     justifyContent: "end",
                     marginLeft: "auto",
@@ -169,14 +176,14 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     {!isInternalField.value && (
                         <Tooltip title="Open in full page">
                             <IconButton onClick={toGraph}>
-                                <OpenInNewIcon fill={palette.primary.contrastText} />
+                                <OpenInNewIcon fill={theme.palette.primary.contrastText} />
                             </IconButton>
                         </Tooltip>
                     )}
                     {/* Close button */}
                     <IconButton onClick={onCancel} sx={{
-                        color: palette.primary.contrastText,
-                        borderBottom: `1px solid ${palette.primary.dark}`,
+                        color: theme.palette.primary.contrastText,
+                        borderBottom: `1px solid ${theme.palette.primary.dark}`,
                     }}>
                         <CloseIcon />
                     </IconButton>
@@ -189,124 +196,16 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 maxWidth={1000}
                 ref={ref}
             >
-                <Grid container spacing={2} p={2}>
-                    {/* owner, project, isPrivate, etc. */}
-                    <Grid item xs={12}>
-                        <RelationshipList
-                            isEditing={isEditing}
-                            isFormDirty={dirty}
-                            objectType={"Routine"}
-                            zIndex={zIndex}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        {canUpdateRoutineVersion ? <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            languages={languages}
-                            zIndex={zIndex}
-                        /> : <SelectLanguageMenu
-                            currentLanguage={language}
-                            handleCurrent={setLanguage}
-                            languages={languages}
-                            zIndex={zIndex}
-                        />}
-                    </Grid>
-                    {/* Position */}
-                    <Grid item xs={12}>
-                        {
-                            isEditing && <Box sx={{
-                                marginBottom: 2,
-                            }}>
-                                <Typography variant="h6">{t("Order")}</Typography>
-                                <IntegerInput
-                                    label={t("Order")}
-                                    min={1}
-                                    max={listField.value?.items?.length ?? 1}
-                                    name="index"
-                                    tooltip="The order of this subroutine in its parent routine"
-                                />
-                            </Box>
-                        }
-                    </Grid>
-                    {/* Name */}
-                    {
-                        isEditing && <Grid item xs={12}>
-                            <TranslatedTextField
-                                fullWidth
-                                label={t("Name")}
-                                language={language}
-                                name="name"
-                            />
-                        </Grid>
-                    }
-                    {/* Description */}
-                    <Grid item xs={12} md={6}>
-                        <EditableTextCollapse
-                            component='TranslatedTextField'
-                            isEditing={isEditing}
-                            name="description"
-                            props={{
-                                fullWidth: true,
-                                language,
-                                multiline: true,
-                                maxRows: 3,
-                            }}
-                            title={t("Description")}
-                        />
-                    </Grid>
-                    {/* Instructions */}
-                    <Grid item xs={12} md={6}>
-                        <EditableTextCollapse
-                            component='TranslatedMarkdown'
-                            isEditing={canUpdateRoutineVersion}
-                            name="instructions"
-                            props={{
-                                language,
-                                placeholder: "Instructions",
-                                minRows: 3,
-                                zIndex,
-                            }}
-                            title={t("Instructions")}
-                        />
-                    </Grid>
-                    {
-                        canUpdateRoutineVersion && <Grid item xs={12}>
-                            <VersionInput
-                                fullWidth
-                                name="routineVersion.versionLabel"
-                                versions={(versionsField.value ?? []).map(v => v.versionLabel)}
-                            />
-                        </Grid>
-                    }
-                    {/* Inputs */}
-                    {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
-                        <InputOutputContainer
-                            isEditing={canUpdateRoutineVersion}
-                            handleUpdate={inputsHelpers.setValue as any}
-                            isInput={true}
-                            language={language}
-                            list={inputsField.value}
-                            zIndex={zIndex}
-                        />
-                    </Grid>}
-                    {/* Outputs */}
-                    {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
-                        <InputOutputContainer
-                            isEditing={canUpdateRoutineVersion}
-                            handleUpdate={outputsHelpers.setValue as any}
-                            isInput={false}
-                            language={language}
-                            list={outputsField.value}
-                            zIndex={zIndex}
-                        />
-                    </Grid>}
+                <FormContainer>
+                    <RelationshipList
+                        isEditing={isEditing}
+                        isFormDirty={dirty}
+                        objectType={"Routine"}
+                        zIndex={zIndex}
+                    />
                     {
                         (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
                             <ResourceListHorizontal
-                                title={"Resources"}
                                 list={resourceListField.value}
                                 canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
@@ -315,13 +214,112 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                             />
                         </Grid>
                     }
-                    <Grid item xs={12} marginBottom={4}>
-                        {
-                            canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
-                                <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
-                        }
+                    <FormContainer>
+                        <Grid container spacing={2} p={2}>
+                            <Grid item xs={12}>
+                                {canUpdateRoutineVersion ? <LanguageInput
+                                    currentLanguage={language}
+                                    handleAdd={handleAddLanguage}
+                                    handleDelete={handleDeleteLanguage}
+                                    handleCurrent={setLanguage}
+                                    languages={languages}
+                                    zIndex={zIndex}
+                                /> : <SelectLanguageMenu
+                                    currentLanguage={language}
+                                    handleCurrent={setLanguage}
+                                    languages={languages}
+                                    zIndex={zIndex}
+                                />}
+                            </Grid>
+                            {/* Name */}
+                            <Grid item xs={12}>
+                                <EditableTextCollapse
+                                    component='TranslatedTextField'
+                                    isEditing={isEditing}
+                                    name="name"
+                                    props={{
+                                        fullWidth: true,
+                                        language,
+                                    }}
+                                    title={t("Name")}
+                                />
+                            </Grid>
+                            {/* Description */}
+                            <Grid item xs={12} md={6}>
+                                <EditableTextCollapse
+                                    component='TranslatedMarkdown'
+                                    isEditing={isEditing}
+                                    name="description"
+                                    props={{
+                                        language,
+                                        maxChars: 2048,
+                                        maxRows: 4,
+                                        minRows: 4,
+                                        placeholder: "Description",
+                                        zIndex,
+                                    }}
+                                    title={t("Description")}
+                                />
+                            </Grid>
+                            {/* Instructions */}
+                            <Grid item xs={12} md={6}>
+                                <EditableTextCollapse
+                                    component='TranslatedMarkdown'
+                                    isEditing={canUpdateRoutineVersion}
+                                    name="instructions"
+                                    props={{
+                                        language,
+                                        placeholder: "Instructions",
+                                        maxChars: 8192,
+                                        maxRows: 10,
+                                        minRows: 4,
+                                        zIndex,
+                                    }}
+                                    title={t("Instructions")}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                {
+                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' zIndex={zIndex} /> :
+                                        <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
+                                }
+                            </Grid>
+                            {
+                                canUpdateRoutineVersion && <Grid item xs={12} md={6} mb={4}>
+                                    <VersionInput
+                                        fullWidth
+                                        name="routineVersion.versionLabel"
+                                        versions={(versionsField.value ?? []).map(v => v.versionLabel)}
+                                    />
+                                </Grid>
+                            }
+                        </Grid>
+                    </FormContainer>
+                    {/* Inputs/Outputs */}
+                    <Grid container spacing={2} p={2}>
+                        {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
+                            <InputOutputContainer
+                                isEditing={canUpdateRoutineVersion}
+                                handleUpdate={inputsHelpers.setValue as any}
+                                isInput={true}
+                                language={language}
+                                list={inputsField.value}
+                                zIndex={zIndex}
+                            />
+                        </Grid>}
+                        {/* Outputs */}
+                        {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
+                            <InputOutputContainer
+                                isEditing={canUpdateRoutineVersion}
+                                handleUpdate={outputsHelpers.setValue as any}
+                                isInput={false}
+                                language={language}
+                                list={outputsField.value}
+                                zIndex={zIndex}
+                            />
+                        </Grid>}
                     </Grid>
-                </Grid>
+                </FormContainer>
             </BaseForm>
             {canUpdateRoutineVersion && <GridSubmitButtons
                 display="dialog"

@@ -249,7 +249,7 @@ export const RoutineListNode = ({
             onTouchStart={handleSubroutineAdd}
             background='#6daf72'
             sx={{
-                boxShadow: 12,
+                boxShadow: 2,
                 width: addSize,
                 height: addSize,
                 position: "relative",

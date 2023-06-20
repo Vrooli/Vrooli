@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
-/**
- * Hook for debouncing a function
- */
+/** Hook for debouncing a function */
 export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
     const callbackRef = useRef(callback);
     const timeoutRef = useRef<number>();

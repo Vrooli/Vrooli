@@ -113,7 +113,7 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export const formSection = (theme: Theme): SxProps => ({
+export const formSection = (theme: Theme) => ({
     background: theme.palette.mode === "dark" ?
         theme.palette.background.paper :
         theme.palette.background.default,
@@ -127,7 +127,7 @@ export const formSection = (theme: Theme): SxProps => ({
     "@media print": {
         border: `1px solid ${theme.palette.divider}`,
     },
-});
+} as const);
 export const FormSection = styled(Stack)(({ theme }) => ({
     ...noSelect,
     ...formSection(theme),

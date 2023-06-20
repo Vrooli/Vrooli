@@ -132,6 +132,8 @@ export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutin
     canUpdateRoutineVersion: boolean;
     handleViewFull: () => void;
     isEditing: boolean;
+    /** Number of subroutines in parent routine list */
+    numSubroutines: number;
     versions: string[];
 }
 export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {

@@ -21,10 +21,12 @@ export interface BuildEditButtonsProps {
     canCancelMutate: boolean;
     errors: GridSubmitButtonsProps["errors"];
     handleCancel: () => void;
+    handleScaleChange: (delta: number) => void;
     handleSubmit: () => void;
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
+    scale: number;
 }
 
 export type CameraButtonProps = {

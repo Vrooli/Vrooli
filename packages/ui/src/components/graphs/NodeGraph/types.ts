@@ -83,8 +83,10 @@ export interface NodeGraphProps {
     handleLinkUpdate: (link: NodeLink, data: any) => void;
     /** Delete a link between two nodes */
     handleLinkDelete: (link: NodeLink) => void;
+    handleScaleChange: (delta: number) => void;
     /** Dictionary of row and column pairs for every node ID on graph */
     nodesById: { [x: string]: Node };
+    scale: number;
     zIndex: number;
 }
 

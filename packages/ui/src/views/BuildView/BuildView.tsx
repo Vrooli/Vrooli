@@ -62,6 +62,12 @@ export const BuildView = ({
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
     // The routineVersion's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
+    const [scale, setScale] = useState<number>(-1);
+    const handleScaleChange = useCallback((delta: number) => {
+        PubSub.get().publishFastUpdate({ duration: 1000 });
+        // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
+        setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
+    }, []);
 
     // Stores previous routineVersion states for undo/redo
     const [changeStack, setChangeStack] = useState<BuildRoutineVersion[]>([]);
@@ -1143,11 +1149,13 @@ export const BuildView = ({
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
+                    handleScaleChange={handleScaleChange}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={translationData.language}
                     links={changedRoutineVersion.nodeLinks}
                     nodesById={nodesById}
+                    scale={scale}
                     zIndex={zIndex}
                 />
             </Box>
@@ -1159,10 +1167,12 @@ export const BuildView = ({
                     "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
                 }}
                 handleCancel={revertChanges}
+                handleScaleChange={handleScaleChange}
                 handleSubmit={() => { handleSubmit(changedRoutineVersion); }}
                 isAdding={!uuidValidate(id)}
                 isEditing={isEditing}
                 loading={loading}
+                scale={scale}
             />
         </Box>
     );

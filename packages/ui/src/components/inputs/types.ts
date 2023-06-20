@@ -188,6 +188,7 @@ export interface IntegerInputProps extends BoxProps {
     max?: number;
     min?: number;
     name: string;
+    offset?: number;
     step?: number;
     tooltip?: string;
 }

@@ -1,4 +1,6 @@
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, Slider } from "@mui/material";
+import { useCallback } from "react";
+import { useThrottle } from "utils/hooks/useThrottle";
 import { GridSubmitButtons } from "../GridSubmitButtons/GridSubmitButtons";
 import { BuildEditButtonsProps } from "../types";
 
@@ -7,11 +9,23 @@ export const BuildEditButtons = ({
     canCancelMutate,
     errors,
     handleCancel,
+    handleScaleChange,
     handleSubmit,
     isAdding,
     isEditing,
     loading,
+    scale,
 }: BuildEditButtonsProps) => {
+
+    const handleSliderChangeThrottled = useThrottle((delta) => {
+        handleScaleChange(delta);
+    }, 50);
+
+    const handleSliderChange = useCallback((_event: Event, newValue: number | number[]) => {
+        const delta = (newValue as number) - scale;
+        console.log("handleSliderChange", delta);
+        handleSliderChangeThrottled(delta);
+    }, [scale, handleSliderChangeThrottled]);
 
     if (!isEditing) return null;
     return (
@@ -28,8 +42,27 @@ export const BuildEditButtons = ({
             paddingLeft: "calc(16px + env(safe-area-inset-left))",
             paddingRight: "calc(16px + env(safe-area-inset-right))",
             height: "calc(64px + env(safe-area-inset-bottom))",
+            width: "min(100%, 800px)",
         }}>
-            <Grid container spacing={1} sx={{ width: "min(100%, 600px)" }}>
+            <Box sx={{ width: "100%" }}>
+                <Slider
+                    aria-labelledby="range-slider"
+                    disabled={!isEditing}
+                    value={scale}
+                    onChange={handleSliderChange}
+                    valueLabelDisplay="off"
+                    min={-3}
+                    max={0.5}
+                    step={0.1}
+                    sx={{
+                        marginBottom: 2,
+                        "& .MuiSlider-root": {
+                            width: "100%",
+                        },
+                    }}
+                />
+            </Box>
+            <Grid container spacing={1} ml={2}>
                 <GridSubmitButtons
                     disabledCancel={loading || !canCancelMutate}
                     disabledSubmit={loading || !canSubmitMutate}

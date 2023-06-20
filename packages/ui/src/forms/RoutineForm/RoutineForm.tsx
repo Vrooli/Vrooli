@@ -212,14 +212,14 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={2}
                             name="description"
+                            maxChars={2048}
+                            maxRows={4}
+                            minRows={2}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
                         <TranslatedMarkdownInput
                             language={language}

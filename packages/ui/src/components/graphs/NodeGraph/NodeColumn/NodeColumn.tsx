@@ -24,7 +24,7 @@ export const NodeColumn = ({
     zIndex,
 }: NodeColumnProps) => {
     // Padding between cells
-    const padding = useMemo(() => calculateNodeSize(25, scale), [scale]);
+    const padding = useMemo(() => calculateNodeSize(50, scale), [scale]);
 
     /**
      * Create a node component for the given node data. 
@@ -119,13 +119,13 @@ export const NodeColumn = ({
                 gap: `${Math.max(padding * 4, 30)}px`,
                 // Fill available if column is empty
                 width: nodes.length === 0 ? "-webkit-fill-available" : "auto",
-                paddingLeft: columnIndex === 0 ? "25vw" : "0px",
-                paddingRight: columnIndex === columnsLength - 1 ? "25vw" : "0px",
-                marginLeft: "16px",
-                marginRight: "16px",
+                paddingLeft: "0px",
+                paddingRight: "0px",
+                marginLeft: `${Math.max(padding * 4, 30)}px`,
+                marginRight: `${Math.max(padding * 4, 30)} px`,
             }}
         >
             {nodeList}
-        </Stack>
+        </Stack >
     );
 };

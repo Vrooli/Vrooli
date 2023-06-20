@@ -93,7 +93,7 @@ export const SubroutineNode = ({
             />
             <Box
                 sx={{
-                    boxShadow: 12,
+                    boxShadow: 6,
                     minWidth: nodeSize,
                     position: "relative",
                     display: "block",
