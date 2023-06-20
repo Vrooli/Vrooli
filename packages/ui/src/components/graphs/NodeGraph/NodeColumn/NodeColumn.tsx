@@ -116,7 +116,7 @@ export const NodeColumn = ({
             alignItems="center"
             sx={{
                 // pointerEvents: 'none',
-                gap: `${padding * 4}px`,
+                gap: `${Math.max(padding * 4, 30)}px`,
                 // Fill available if column is empty
                 width: nodes.length === 0 ? "-webkit-fill-available" : "auto",
                 paddingLeft: columnIndex === 0 ? "25vw" : "0px",

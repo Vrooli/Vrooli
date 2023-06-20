@@ -63,9 +63,7 @@ export interface NodeEndDialogProps {
 }
 
 export interface NodeGraphProps {
-    /**
-     * 2D array of nodes, by column then row
-     */
+    /** 2D array of nodes, by column then row */
     columns: Node[][];
     isEditing?: boolean;
     labelVisible?: boolean;
@@ -73,33 +71,19 @@ export interface NodeGraphProps {
     links: NodeLink[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
-    /**
-     * Inserts a new routine list node along an edge
-     */
+    /** Inserts a new routine list node along an edge */
     handleNodeInsert: (link: NodeLink) => void;
-    /**
-     * Inserts new branch
-     */
+    /** Inserts new branch */
     handleBranchInsert: (link: NodeLink) => void;
-    /**
-     * Updates a node's data
-     */
+    /** Updates a node's data */
     handleNodeUpdate: (node: Node) => void;
-    /**
-     * Create a link between two nodes
-     */
+    /** Create a link between two nodes */
     handleLinkCreate: (link: NodeLink) => void;
-    /**
-     * Updates a link between two nodes
-     */
+    /** Updates a link between two nodes */
     handleLinkUpdate: (link: NodeLink, data: any) => void;
-    /**
-     * Delete a link between two nodes
-     */
+    /** Delete a link between two nodes */
     handleLinkDelete: (link: NodeLink) => void;
-    /**
-     * Dictionary of row and column pairs for every node ID on graph
-     */
+    /** Dictionary of row and column pairs for every node ID on graph */
     nodesById: { [x: string]: Node };
     zIndex: number;
 }

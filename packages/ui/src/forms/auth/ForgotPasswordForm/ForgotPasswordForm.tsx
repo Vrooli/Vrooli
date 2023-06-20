@@ -1,6 +1,5 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
@@ -83,7 +82,7 @@ export const ForgotPasswordForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("RememberLogBackIn")}
                                 </Typography>
@@ -96,7 +95,7 @@ export const ForgotPasswordForm = ({
                                         ...clickSize,
                                         ...formNavLink,
                                         flexDirection: "row-reverse",
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("DontHaveAccountSignUp")}
                                 </Typography>

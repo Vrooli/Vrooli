@@ -5,7 +5,7 @@ import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordT
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { CSSProperties, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
@@ -128,7 +128,7 @@ export const LogInForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("ForgotPassword")}
                                 </Typography>
@@ -141,7 +141,7 @@ export const LogInForm = ({
                                         ...clickSize,
                                         ...formNavLink,
                                         flexDirection: "row-reverse",
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("DontHaveAccountSignUp")}
                                 </Typography>

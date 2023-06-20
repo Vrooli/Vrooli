@@ -1,6 +1,6 @@
 import { ActionIcon, CloseIcon, NoActionIcon, Routine } from "@local/shared";
 import { Box, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { CSSProperties, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
@@ -102,6 +102,10 @@ export const SubroutineNode = ({
                     overflow: "hidden",
                     background: palette.mode === "light" ? "#b0bbe7" : "#384164",
                     color: palette.background.textPrimary,
+                    "@media print": {
+                        border: `1px solid ${palette.mode === "light" ? "#b0bbe7" : "#384164"}`,
+                        boxShadow: "none",
+                    },
                 }}
             >
                 <Container
@@ -151,7 +155,11 @@ export const SubroutineNode = ({
                             width: "100%",
                             lineBreak: "anywhere" as any,
                             whiteSpace: "pre" as any,
-                        } as CSSProperties}
+                            "@media print": {
+                                textShadow: "none",
+                                color: "black",
+                            },
+                        }}
                     >{firstString(title, "Untitled")}</Typography>}
                     {isEditing && (
                         <IconButton

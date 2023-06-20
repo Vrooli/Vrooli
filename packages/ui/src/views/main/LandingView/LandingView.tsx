@@ -1,6 +1,5 @@
 import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
 import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import Earth from "assets/img/Earth.svg";
 import RelaxingCouch from "assets/img/relaxing-couch.jpg";
 import RobotsCollab from "assets/img/robots-collab.jpg";
@@ -368,7 +367,7 @@ export const LandingView = ({
                         </ul>
                     </SlideContent>
                     <SlideContent id={slide7Id}>
-                        <Typography variant="h2" mb={4} sx={{ ...slideTitle, ...textPop, zIndex: 6 } as CSSProperties}>
+                        <Typography variant="h2" mb={4} sx={{ ...slideTitle, ...textPop, zIndex: 6 }}>
                             Ready to Change the World?
                         </Typography>
                         <PulseButton

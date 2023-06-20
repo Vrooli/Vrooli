@@ -40,6 +40,9 @@ export const GraphActions = ({
             justifyContent: "center",
             alignItems: "center",
             paddingTop: "8px",
+            "@media print": {
+                display: "none",
+            },
         }}>
             {showAll && <>
                 <Tooltip title={canUndo ? "Undo" : ""}>

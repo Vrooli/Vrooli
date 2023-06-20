@@ -16,38 +16,24 @@ export type EdgePositions = {
 }
 
 export interface BaseEdgeProps {
-    /**
-     * ID of the container which points should be drawn from
-     */
+    /** ID of the container which points should be drawn from */
     containerId: string;
-    /**
-     * ID of the first DOM node.
-     */
+    /** ID of the first DOM node. */
     fromId: string;
-    /**
-     * Determines if editing popup can be displayed.
-     */
+    /** Determines if editing popup can be displayed. */
     isEditing: boolean;
-    /**
-     * Component to display when popover is open
-     */
+    /** Component to display when popover is open */
     popoverComponent?: JSX.Element;
     /**
      * Time in bezier curve display popover button, from 0 to 1. 
      * Defaults to midpoint of edge (0.5).
      */
     popoverT?: number;
-    /**
-     * How thick to draw the line.
-     */
+    /** How thick to draw the line. */
     thiccness: number;
-    /**
-     * Milliseconds between each draw of the edge.
-     */
+    /** Milliseconds between each draw of the edge. */
     timeBetweenDraws: number;
-    /**
-    * ID of the second DOM node.
-    */
+    /** ID of the second DOM node. */
     toId: string;
 }
 
@@ -73,20 +59,12 @@ export interface NodeEdgeProps {
      */
     handleDelete: (link: NodeLink) => void;
     handleEdit: (link: NodeLink) => void;
-    /**
-     * Determines if editing popup can be displayed.
-     */
+    /** Determines if editing popup can be displayed. */
     isEditing: boolean;
-    /**
-     * If true, puts edit button further to the right
-     */
+    /** If true, puts edit button further to the right */
     isFromRoutineList: boolean;
-    /**
-     * If true, puts edit button further to the left
-     */
+    /** If true, puts edit button further to the left */
     isToRoutineList: boolean;
-    /**
-     * Line thickness changes with scale
-     */
+    /** Line thickness changes with scale */
     scale: number;
 }

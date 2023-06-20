@@ -1,46 +1,45 @@
 import { Box, Palette, Stack, styled, SxProps, Theme } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 
-export const centeredDiv: SxProps = {
+export const centeredDiv = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-};
+} as const;
 
-export const textShadow: SxProps = {
+export const textShadow = {
     textShadow:
         `-0.5px -0.5px 0 black,  
         0.5px -0.5px 0 black,
         -0.5px 0.5px 0 black,
         0.5px 0.5px 0 black`,
-};
+} as const;
 
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
  */
-export const clickSize: SxProps = {
+export const clickSize = {
     minHeight: "48px",
-};
+} as const;
 
-export const multiLineEllipsis = (lines: number): SxProps => ({
+export const multiLineEllipsis = (lines: number) => ({
     display: "-webkit-box",
     WebkitLineClamp: lines,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
     textOverflow: "ellipsis",
-});
+}) as const;
 
 /**
  * Disables text highlighting
  */
-export const noSelect: SxProps = {
+export const noSelect = {
     WebkitTouchCallout: "none", /* iOS Safari */
     WebkitUserSelect: "none", /* Safari */
     MozUserSelect: "none",
     msUserSelect: "none", /* Internet Explorer/Edge */
     userSelect: "none", /* Non-prefixed version, currently
     supported by Chrome, Edge, Opera and Firefox */
-};
+} as const;
 
 export const linkColors = (palette: Palette) => ({
     a: {
@@ -62,7 +61,7 @@ export const linkColors = (palette: Palette) => ({
 export const greenNeonText = {
     color: "#fff",
     filter: "drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 32px #0fa) drop-shadow(0 0 21px #0fa)",
-};
+} as const;
 
 export const iconButtonProps = {
     background: "transparent",
@@ -73,21 +72,21 @@ export const iconButtonProps = {
         transform: "scale(1.2)",
     },
     transition: "all 0.2s ease",
-};
+} as const;
 
-export const slideText: SxProps = {
+export const slideText = {
     margin: "auto",
     textAlign: { xs: "left", md: "justify" }, fontSize: { xs: "1.25rem", md: "1.5rem" },
     zIndex: 10,
-};
+} as const;
 
-export const slideTitle: SxProps = {
+export const slideTitle = {
     textAlign: "center",
     fontSize: { xs: "2.4em", sm: "3rem", md: "3.75rem" },
     zIndex: 10,
-};
+} as const;
 
-export const slideImageContainer: SxProps = {
+export const slideImageContainer = {
     justifyContent: "center",
     height: "100%",
     display: "flex",
@@ -100,9 +99,9 @@ export const slideImageContainer: SxProps = {
         objectFit: "contain",
         zIndex: "3",
     },
-} as CSSProperties;
+} as const;
 
-export const textPop: SxProps = {
+export const textPop = {
     padding: "0",
     color: "white",
     textAlign: "center",
@@ -112,7 +111,7 @@ export const textPop: SxProps = {
                 1px -1px 0 black,
                 -1px 1px 0 black,
                 1px 1px 0 black`,
-} as CSSProperties;
+} as const;
 
 export const formSection = (theme: Theme): SxProps => ({
     background: theme.palette.mode === "dark" ?

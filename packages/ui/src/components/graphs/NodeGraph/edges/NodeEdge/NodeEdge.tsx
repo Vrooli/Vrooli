@@ -25,7 +25,7 @@ export const NodeEdge = ({
     const { palette } = useTheme();
 
     // Store dimensions of edge
-    const thiccness = useMemo(() => Math.ceil(calculateNodeSize(30, scale)), [scale]);
+    const thiccness = useMemo(() => Math.max(Math.min(Math.ceil(calculateNodeSize(30, scale)), 50), 10), [scale]);
 
     // Triggers edit menu in parent. This is needed because the link's from and to nodes
     // can be updated, and the edge doesn't have this information
