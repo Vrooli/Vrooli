@@ -2,13 +2,11 @@ import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Range } from "@codemirror/state";
 import { ErrorIcon, LangsKey, MagicIcon, OpenThreadIcon, RedoIcon, SvgComponent, UndoIcon, WarningIcon } from "@local/shared";
-import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
-import { useField } from "formik";
-import { JsonProps } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
@@ -23,7 +21,7 @@ import ReactDOMServer from "react-dom/server";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { JsonStandardInputProps } from "../types";
+import { CodeInputBaseProps } from "../types";
 
 export enum StandardLanguage {
     Angular = "angular",
@@ -406,35 +404,32 @@ const languageDisplayMap: { [x in StandardLanguage]: [LangsKey, LangsKey] } = {
     [StandardLanguage.Yaml]: ["Yaml", "YamlHelp"],
 };
 
-// TODO for morning: this component is supposed to be for creating a standard for inputting JSON in JSONInput. 
-// I think all of this multi-language stuff should be in JsonInput instead, and then rename that component to CodeInput 
-// or something, with a prop to limit the language.
-// TODO 1.5: Instead of first TODO, may be able to combine JsonStandardInput and JsonInput into one component. To do this, make "JSON Standard" a 
+// TODO May be able to combine CodeInputBase and JsonInput into one component. To do this, make "JSON Standard" a 
 // new language option. Also need to add support for format (which is JSON Standard) which, if provided, limits the language to JSON 
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
 // "standard input" components, but the duplicate code prevention may be worth it.
-export const JsonStandardInput = ({
-    isEditing,
+export const CodeInputBase = ({
+    defaultValue,
+    disabled,
+    format,
     limitTo,
+    variables,
     zIndex,
-}: JsonStandardInputProps) => {
+}: CodeInputBaseProps) => {
+    console.log("codeinputbase", limitTo);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [defaultValueField, , defaultValueHelpers] = useField<JsonProps["defaultValue"]>("defaultValue");
-    const [formatField, formatMeta, formatHelpers] = useField<JsonProps["format"]>("format");
-    const [variablesField, , variablesHelpers] = useField<JsonProps["variables"]>("variables");
-
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
 
     // Last valid schema format
-    const [internalValue, setInternalValue] = useState<string>(jsonToString(formatField.value) ?? "");
+    const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
     const updateInternalValue = useCallback((value: string) => {
-        if (!isEditing) return;
+        if (disabled) return;
         setInternalValue(value);
-    }, [isEditing]);
+    }, [disabled]);
 
     // Limit language options
     const availableLanguages = useMemo(() => {
@@ -524,7 +519,7 @@ export const JsonStandardInput = ({
         zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
-        if (!isEditing) return;
+        if (disabled) return;
         // We want to provide the assistant with the most relevant context
         let context: string | undefined = undefined;
         const maxContextLength = 1500;
@@ -544,7 +539,7 @@ export const JsonStandardInput = ({
         else if (internalValue.length > 2) context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isOpen: true, context: context ? `\`\`\`\n${context}\n\`\`\`\n\n` : undefined }));
-    }, [internalValue, isEditing]);
+    }, [disabled, internalValue]);
 
     // Handle action buttons
     type Action = {
@@ -617,13 +612,13 @@ export const JsonStandardInput = ({
                     flexDirection: { xs: "column", sm: "row" }, // switch to column on xs screens, row on sm and larger
                 }}>
                     {/* Select language */}
-                    {availableLanguages.length > 0 &&
+                    {availableLanguages.length > 1 &&
                         <Grid item xs={12} sm={6}>
                             <SelectorBase
                                 name="mode"
                                 value={mode}
                                 onChange={setMode}
-                                disabled={!isEditing}
+                                disabled={disabled}
                                 options={availableLanguages}
                                 getOptionLabel={(r) => t(languageDisplayMap[r as StandardLanguage][0], { ns: "langs" })}
                                 fullWidth
@@ -650,7 +645,7 @@ export const JsonStandardInput = ({
                             {actions.map(({ label, Icon, onClick }, i) => <Tooltip key={i} title={label}>
                                 <IconButton
                                     onClick={onClick}
-                                    disabled={!isEditing}
+                                    disabled={disabled}
                                 >
                                     <Icon fill={palette.primary.contrastText} />
                                 </IconButton>
@@ -705,13 +700,13 @@ export const JsonStandardInput = ({
                 {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
                 {/* TODO */}
-                {/* Helper text label */}
-                {
+                {/* Helper text label TODO */}
+                {/* {
                     formatMeta.error &&
                     <Typography variant="body1" sx={{ color: "red" }}>
                         {formatMeta.error}
                     </Typography>
-                }
+                } */}
             </Stack >
         </>
     );

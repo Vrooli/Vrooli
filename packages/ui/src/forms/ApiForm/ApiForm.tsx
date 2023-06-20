@@ -1,9 +1,9 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, CompleteIcon, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Button, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { JsonStandardInput, StandardLanguage } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
@@ -203,10 +203,10 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         }
                         {
                             hasDocUrl === false && (
-                                <JsonStandardInput
-                                    fieldName="schemaText"
-                                    isEditing={true}
+                                <CodeInputBase
+                                    disabled={false}
                                     limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
+                                    name="schemaText"
                                     zIndex={zIndex}
                                 />
                             )

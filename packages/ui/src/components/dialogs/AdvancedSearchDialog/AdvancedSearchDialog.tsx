@@ -104,6 +104,7 @@ export const AdvancedSearchDialog = ({
                             childContainers={schema.containers}
                             fields={schema.fields}
                             layout={schema.formLayout}
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
                             onUpload={() => { }}
                             theme={theme}
                             zIndex={zIndex}

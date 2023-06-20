@@ -1,9 +1,10 @@
 import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
+import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { JsonStandardInput, StandardLanguage } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
@@ -139,10 +140,10 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                             zIndex={zIndex}
                         />
                     </FormSection>
-                    <JsonStandardInput
-                        fieldName="content"
-                        isEditing={true}
+                    <CodeInput
+                        disabled={false}
                         limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
+                        name="content"
                         zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput

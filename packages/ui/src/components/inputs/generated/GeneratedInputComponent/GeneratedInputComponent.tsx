@@ -1,9 +1,9 @@
 import { InputType } from "@local/shared";
 import { useMemo } from "react";
 import { GeneratedCheckbox } from "../GeneratedCheckbox/GeneratedCheckbox";
+import { GeneratedCodeInput } from "../GeneratedCodeInput/GeneratedCodeInput";
 import { GeneratedDropzone } from "../GeneratedDropzone/GeneratedDropzone";
 import { GeneratedIntegerInput } from "../GeneratedIntegerInput/GeneratedIntegerInput";
-import { GeneratedJsonInput } from "../GeneratedJsonInput/GeneratedJsonInput";
 import { GeneratedLanguageInput } from "../GeneratedLanguageInput/GeneratedLanguageInput";
 import { GeneratedMarkdownInput } from "../GeneratedMarkdownInput/GeneratedMarkdownInput";
 import { GeneratedRadio } from "../GeneratedRadio/GeneratedRadio";
@@ -20,7 +20,7 @@ import { GeneratedInputComponentProps } from "../types";
 const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JSX.Element } = {
     [InputType.Checkbox]: GeneratedCheckbox,
     [InputType.Dropzone]: GeneratedDropzone,
-    [InputType.JSON]: GeneratedJsonInput,
+    [InputType.JSON]: GeneratedCodeInput,
     [InputType.IntegerInput]: GeneratedIntegerInput,
     [InputType.LanguageInput]: GeneratedLanguageInput,
     [InputType.Markdown]: GeneratedMarkdownInput,

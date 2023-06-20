@@ -33,13 +33,13 @@ export function StandardVersionSelectSwitch({
         openCreateDialog();
         // Remove create data, if any
         onChange(null);
-    }, []);
+    }, [onChange, openCreateDialog]);
     const handleCreateClick = useCallback(() => {
         setIsConnecting(false);
         closeCreateDialog();
         // Remove connect data, if any
         onChange(null);
-    }, []);
+    }, [onChange, closeCreateDialog]);
 
     return (
         <>

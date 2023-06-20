@@ -326,6 +326,7 @@
     "Message_other": "Messages",
     "MicrophonePermissionDenied": "Permission denied. Please allow access to your microphone.",
     "Min": "Min",
+    "MinRows": "Min rows",
     "Month": "Month",
     "Monthly": "Monthly",
     "MustCompleteRoutinesInOrder": "Must complete routines in order",

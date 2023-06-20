@@ -124,6 +124,7 @@ export const SubroutineView = ({
             return acc;
         }, {}),
         enableReinitialize: true,
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onSubmit: () => { },
     });
 
@@ -175,6 +176,7 @@ export const SubroutineView = ({
                         fieldData={fieldData}
                         index={index}
                         textPrimary={palette.background.textPrimary}
+                        // eslint-disable-next-line react/no-array-index-key
                         onUpload={() => { }}
                         zIndex={zIndex}
                     />
@@ -255,6 +257,7 @@ export const SubroutineView = ({
                     title={"Resources"}
                     list={resourceList as ResourceList}
                     canUpdate={false}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={loading}
                     zIndex={zIndex}
@@ -271,7 +274,8 @@ export const SubroutineView = ({
                         {inputComponents}
                         <Button
                             startIcon={<SuccessIcon />}
-                            fullWidth onClick={() => { }}
+                            fullWidth
+                            onClick={() => { }}
                             color="secondary"
                             sx={{ marginTop: 2 }}
                             variant="contained"

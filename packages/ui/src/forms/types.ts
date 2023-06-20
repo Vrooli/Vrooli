@@ -1,5 +1,5 @@
 import { InputType } from "@local/shared";
-import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
@@ -174,17 +174,17 @@ export interface DropzoneProps extends Omit<DP, "onUpload" | "zIndex"> {
 } // onUpload handled by form
 
 /**
- * Props for rendering a JSON input component
- */
-export interface JsonProps extends Omit<JP, "id" | "onChange" | "value" | "zIndex"> {
-    defaultValue?: string;
-}
-
-/**
  * Props for rendering a LanguageInput component
  */
 export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
     defaultValue?: string[];
+}
+
+/**
+ * Props for rendering a language standard input component (e.g. JSON, TypeScript, HTML, etc.)
+ */
+export interface CodeProps extends Omit<CP, "id" | "onChange" | "value" | "zIndex"> {
+    defaultValue?: string;
 }
 
 /**
@@ -250,25 +250,21 @@ export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | 
  * Props for rendering a TextField input component (the most common input component)
  */
 export interface TextFieldProps {
-    /**
-     * Initial value of the text field.
-     */
+    /** Initial value of the text field. */
     defaultValue?: string;
-    /**
-     * Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')
-     */
+    /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /**
-     * Maximum number of rows for the text field. Defaults to 1.
-     */
+    /** Maximum number of rows for the text field. Defaults to 1. */
     maxRows?: number;
+    /** Minimum number of rows for the text field. Defaults to 1. */
+    minRows?: number;
 }
 
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, "name"> {
-    defaultValue?: any; // Ignored
+export interface IntegerInputProps extends Omit<QP, "defaultValue" | "name"> {
+    defaultValue?: any; // Ignored, but required by some components
 }
 
 /**
@@ -337,7 +333,7 @@ export interface FieldDataJSON extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: JsonProps
+    props: CodeProps
 }
 
 /**

@@ -1,10 +1,11 @@
 import { checkboxStandardInputForm, CompleteIcon, InputType, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, RefreshIcon, switchStandardInputForm, textFieldStandardInputForm } from "@local/shared";
 import { Box, Button, Grid } from "@mui/material";
 import { Formik, useField } from "formik";
+import { defaultStandardPropsMap } from "forms/generators";
 import { FieldData } from "forms/types";
 import { t } from "i18next";
 import { useMemo } from "react";
-import { CheckboxStandardInput, DropzoneStandardInput, emptyCheckboxOption, emptyRadioOption, IntegerStandardInput, JsonStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from "../";
+import { CheckboxStandardInput, CodeStandardInput, DropzoneStandardInput, IntegerStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from "../";
 import { BaseStandardInputProps } from "../types";
 
 /**
@@ -22,14 +23,13 @@ export const BaseStandardInput = ({
     const [field, , helpers] = useField(fieldName ?? "");
 
     // Generate input component for type-specific fields
-    const { defaultValues, SchemaInput, validationSchema } = useMemo(() => {
-        let defaultValues: FieldData["props"] = {};
-        let SchemaInput: ((props: any) => JSX.Element) | null = null;
-        let validationSchema: any = null;
-        if (!fieldName || !isEditing) return { defaultValues, SchemaInput, validationSchema };
+    const { SchemaInput, validationSchema, ...defaultValues } = useMemo(() => {
+        const SchemaInput: ((props: any) => JSX.Element) | null = null;
+        const validationSchema: any = null;
+        if (!fieldName || !isEditing) return { SchemaInput, validationSchema };
         // Try to find schema in local storage
         const typeKey = `${storageKey}-${inputType}`;
-        let storedProps: FieldData["props"] | null = null;
+        let storedProps: FieldData["props"] | object = {};
         if (localStorage.getItem(typeKey)) {
             try {
                 console.log("checking key", localStorage.getItem(typeKey));
@@ -44,99 +44,72 @@ export const BaseStandardInput = ({
         console.log("storedProps", typeKey, storedProps);
         console.log("getting input data", inputType);
         switch (inputType) {
-            case InputType.TextField:
-                return {
-                    defaultValues: {
-                        defaultValue: "",
-                        autoComplete: "",
-                        maxRows: 1,
-                        ...storedProps,
-                    },
-                    SchemaInput: TextFieldStandardInput,
-                    validationSchema: textFieldStandardInputForm,
-                };
-            case InputType.JSON:
-                return {
-                    defaultValues: {
-                        format: JSON.stringify({}),
-                        defaultValue: "",
-                        variables: {},
-                        ...storedProps,
-                    },
-                    SchemaInput: JsonStandardInput,
-                    validationSchema: jsonStandardInputForm,
-                };
-            case InputType.IntegerInput:
-                defaultValues = {
-                    defaultValue: 0,
-                    min: 0,
-                    max: 1000000,
-                    step: 1,
-                    ...storedProps,
-                };
-                SchemaInput = IntegerStandardInput;
-                validationSchema = quantityBoxStandardInputForm;
-                break;
-            case InputType.Radio:
-                return {
-                    defaultValues: {
-                        defaultValue: "",
-                        options: [emptyRadioOption(0)],
-                        row: false,
-                        ...storedProps,
-                    },
-                    SchemaInput: RadioStandardInput,
-                    validationSchema: radioStandardInputForm,
-                };
             case InputType.Checkbox:
                 return {
-                    defaultValues: {
-                        defaultValue: [false],
-                        options: [emptyCheckboxOption(0)],
-                        row: false,
-                        ...storedProps,
-                    },
+                    ...defaultStandardPropsMap[InputType.Checkbox](storedProps),
+                    ...storedProps,
                     SchemaInput: CheckboxStandardInput,
                     validationSchema: checkboxStandardInputForm,
                 };
-            case InputType.Switch:
-                return {
-                    defaultValues: {
-                        defaultValue: false,
-                        ...storedProps,
-                    },
-                    SchemaInput: SwitchStandardInput,
-                    validationSchema: switchStandardInputForm,
-                };
             case InputType.Dropzone:
                 return {
-                    defaultValues: {
-                        ...storedProps,
-                    },
+                    ...defaultStandardPropsMap[InputType.Dropzone](storedProps),
+                    ...storedProps,
                     SchemaInput: DropzoneStandardInput,
                     validationSchema: null,
                 };
+            case InputType.IntegerInput:
+                return {
+                    ...defaultStandardPropsMap[InputType.IntegerInput](storedProps),
+                    ...storedProps,
+                    SchemaInput: IntegerStandardInput,
+                    validationSchema: quantityBoxStandardInputForm,
+                };
+            case InputType.JSON:
+                return {
+                    ...defaultStandardPropsMap[InputType.JSON](storedProps),
+                    ...storedProps,
+                    SchemaInput: CodeStandardInput,
+                    validationSchema: jsonStandardInputForm,
+                };
             case InputType.Markdown:
                 return {
-                    defaultValues: {
-                        defaultValue: "",
-                        ...storedProps,
-                    },
+                    ...defaultStandardPropsMap[InputType.Markdown](storedProps),
+                    ...storedProps,
                     SchemaInput: MarkdownStandardInput,
                     validationSchema: markdownStandardInputForm,
                 };
+            case InputType.Radio:
+                return {
+                    ...defaultStandardPropsMap[InputType.Radio](storedProps),
+                    ...storedProps,
+                    SchemaInput: RadioStandardInput,
+                    validationSchema: radioStandardInputForm,
+                };
+            case InputType.Switch:
+                return {
+                    ...defaultStandardPropsMap[InputType.Switch](storedProps),
+                    ...storedProps,
+                    SchemaInput: SwitchStandardInput,
+                    validationSchema: switchStandardInputForm,
+                };
+            case InputType.TextField:
+                return {
+                    ...defaultStandardPropsMap[InputType.TextField](storedProps),
+                    ...storedProps,
+                    SchemaInput: TextFieldStandardInput,
+                    validationSchema: textFieldStandardInputForm,
+                };
             default:
                 return {
-                    defaultValues: {},
                     SchemaInput: null,
                     validationSchema: null,
                 };
         }
-        return { defaultValues, SchemaInput, validationSchema };
         // localStorage.setItem(typeKey, JSON.stringify(newSchema));
     }, [fieldName, inputType, isEditing, storageKey]);
 
-    console.log("basestandardinpug", fieldName, inputType, defaultValues, field.value?.props);
+    console.log("basestandardinput", field.value, defaultValues, inputType);
 
     // useEffect(() => {
     //     if (field.value && field.value.type !== inputType) {
@@ -170,7 +143,7 @@ export const BaseStandardInput = ({
         >
             {(formik) => SchemaInput && <>
                 <SchemaInput
-                    {...formik}
+                    {...formik.values}
                     isEditing={isEditing}
                     fieldName={fieldName}
                     // yup={field.value.yup}

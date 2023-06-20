@@ -3,11 +3,11 @@
  * must match a certain schema.
  */
 import { AddIcon, DeleteIcon } from "@local/shared";
-import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { RadioProps } from "forms/types";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { RadioStandardInputProps } from "../types";
 
 /**
@@ -97,6 +97,8 @@ const RadioOption = ({
 export const RadioStandardInput = ({
     isEditing,
 }: RadioStandardInputProps) => {
+    const { t } = useTranslation();
+
     const [defaultValueField, , defaultValueHelpers] = useField<RadioProps["defaultValue"]>("defaultValue");
     const [optionsField, , optionsHelpers] = useField<RadioProps["options"]>("options");
     // const [rowField, , rowHelpers] = useField<RadioProps['row']>('row');
@@ -148,24 +150,13 @@ export const RadioStandardInput = ({
             ))}
             {isEditing && (
                 <Tooltip placement="top" title="Add option">
-                    <ColorIconButton
-                        color="inherit"
+                    <Button
+                        color="secondary"
                         onClick={handleOptionAdd}
-                        aria-label="Add"
-                        background="#6daf72"
-                        sx={{
-                            zIndex: 1,
-                            width: "fit-content",
-                            margin: "5px auto !important",
-                            padding: "0",
-                            marginBottom: "16px !important",
-                            display: "flex",
-                            alignItems: "center",
-                            borderRadius: "100%",
-                        }}
-                    >
-                        <AddIcon fill="white" />
-                    </ColorIconButton>
+                        variant="outlined"
+                        startIcon={<AddIcon />}
+                        sx={{ margin: 1 }}
+                    >{t("Add")}</Button>
                 </Tooltip>
             )}
         </Stack>

@@ -26,6 +26,7 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -55,7 +56,7 @@ export const routineInitialValues = (
     },
     versionLabel: "1.0.0",
     ...existing,
-    resourceList: orDefault(existing?.resourceList, {
+    resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     }),

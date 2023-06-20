@@ -1,5 +1,5 @@
 import { BuildIcon, VisibleIcon } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
@@ -52,13 +52,20 @@ export const StandardInput = ({
             />}
             {
                 (isPreviewOn || disabled) ?
-                    (field.value && <GeneratedInputComponent
+                    field.value ? <GeneratedInputComponent
                         disabled={true} // Always disabled, since this is a preview
                         fieldData={field.value}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
                         zIndex={zIndex}
-                    />) :
+                    /> :
+                        <Typography
+                            variant="body2"
+                            color="textSecondary"
+                            sx={{ textAlign: "center", fontStyle: "italic" }}
+                        >
+                            No input data
+                        </Typography> :
                     <Box>
                         <SelectorBase<InputTypeOption>
                             fullWidth
