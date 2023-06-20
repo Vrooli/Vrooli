@@ -28,15 +28,13 @@ export type CodeStandardInputProps = StandardInputCommonProps & {
 
 export type DropzoneStandardInputProps = StandardInputCommonProps;
 
-export type MarkdownStandardInputProps = StandardInputCommonProps;
-
 export type IntegerStandardInputProps = StandardInputCommonProps;
 
 export type RadioStandardInputProps = StandardInputCommonProps;
 
 export type SwitchStandardInputProps = StandardInputCommonProps;
 
-export type TextFieldStandardInputProps = StandardInputCommonProps;
+export type TextStandardInputProps = StandardInputCommonProps;
 
 export interface StandardInputProps {
     disabled?: boolean;

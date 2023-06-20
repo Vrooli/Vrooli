@@ -6,11 +6,10 @@ export * from "./GeneratedInputComponent/GeneratedInputComponent";
 export * from "./GeneratedInputComponentWithLabel/GeneratedInputComponentWithLabel";
 export * from "./GeneratedIntegerInput/GeneratedIntegerInput";
 export * from "./GeneratedLanguageInput/GeneratedLanguageInput";
-export * from "./GeneratedMarkdownInput/GeneratedMarkdownInput";
 export * from "./GeneratedRadio/GeneratedRadio";
 export * from "./GeneratedSelector/GeneratedSelector";
 export * from "./GeneratedSlider/GeneratedSlider";
 export * from "./GeneratedSwitch/GeneratedSwitch";
 export * from "./GeneratedTagSelector/GeneratedTagSelector";
-export * from "./GeneratedTextField/GeneratedTextField";
+export * from "./GeneratedTextInput/GeneratedTextInput";
 

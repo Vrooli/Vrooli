@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { AddIcon, DeleteIcon } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, IconButton, Radio, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { RadioProps } from "forms/types";
 import { useCallback } from "react";
@@ -56,12 +56,12 @@ const RadioOption = ({
 
     return (
         <Stack direction="row" sx={{ paddingBottom: 2 }}>
-            <IconButton
-                onClick={handleDelete}
-            >
-                <DeleteIcon fill={palette.error.light} />
-            </IconButton>
-            {isEditing ? (
+            <Tooltip placement="top" title='Should this option be selected by default?'>
+                <Radio
+                    checked={value}
+                    onChange={handleCheckboxChange}
+                />
+            </Tooltip>{isEditing ? (
                 <TextField
                     label="Label"
                     value={label}
@@ -71,25 +71,11 @@ const RadioOption = ({
             ) : (
                 <Typography>{label}</Typography>
             )}
-            <Tooltip placement="top" title='Should this option be checked by default?'>
-                <FormControlLabel
-                    disabled={!isEditing}
-                    label="Default"
-                    labelPlacement='start'
-                    control={
-                        <Checkbox
-                            checked={value}
-                            onChange={handleCheckboxChange}
-                        />
-                    }
-                    // Hide label on small screens
-                    sx={{
-                        ".MuiFormControlLabel-label": {
-                            display: { xs: "none", sm: "block" },
-                        },
-                    }}
-                />
-            </Tooltip>
+            <IconButton
+                onClick={handleDelete}
+            >
+                <DeleteIcon fill={palette.error.light} />
+            </IconButton>
         </Stack>
     );
 };
@@ -117,9 +103,9 @@ export const RadioStandardInput = ({
         if (filtered.length === 0) {
             filtered.push(emptyRadioOption(0));
         }
-        // If defaultValue is not one of the values in filtered, set it to the first value
+        // If defaultValue is not one of the values in filtered, set it to null
         if (!filtered.some(o => o.value === defaultValueField.value)) {
-            defaultValueHelpers.setValue(filtered[0].value);
+            defaultValueHelpers.setValue(null);
         }
         optionsHelpers.setValue(filtered);
     }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
@@ -132,8 +118,10 @@ export const RadioStandardInput = ({
         optionsHelpers.setValue(options);
         if (dValue) {
             defaultValueHelpers.setValue(options[index].value);
+        } else if (defaultValueField.value === options[index].value) {
+            defaultValueHelpers.setValue(null);
         }
-    }, [defaultValueHelpers, optionsField.value, optionsHelpers]);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
 
     return (
         <Stack direction="column">

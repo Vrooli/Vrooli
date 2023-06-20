@@ -1,7 +1,7 @@
 import { InputType } from "@local/shared";
 import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { CodeProps, FieldData } from "forms/types";
-import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
+import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextProps, YupField } from "../types";
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -31,10 +31,10 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
         ...props,
     }),
     [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, "name">>): Omit<IntegerInputProps, "name"> => ({
-        ...props,
-    }),
-    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
-        defaultValue: "",
+        defaultValue: 0,
+        max: Number.MAX_SAFE_INTEGER,
+        min: Number.MIN_SAFE_INTEGER,
+        step: 1,
         ...props,
     }),
     [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
@@ -80,11 +80,13 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
         defaultValue: [],
         ...props,
     }),
-    [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
+    [InputType.Text]: (props: Partial<TextProps>): TextProps => ({
         autoComplete: "off",
         defaultValue: "",
-        maxRows: 1,
-        minRows: 1,
+        isMarkdown: true,
+        maxChars: 1000,
+        maxRows: 2,
+        minRows: 4,
         ...props,
     }),
 };

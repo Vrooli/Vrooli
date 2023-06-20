@@ -632,8 +632,12 @@ export const CodeInputBase = ({
                         </Grid>
                     }
                     {/* Actions, Help button, Status */}
-                    <Grid item xs={12} sm={6} sx={{
+                    <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
                         marginLeft: { xs: 0, sm: "auto" },
+                        ...(availableLanguages.length <= 1 && {
+                            display: "flex",
+                            justifyContent: "flex-end",
+                        }),
                     }}>
                         <Box sx={{
                             display: "flex",
@@ -652,7 +656,7 @@ export const CodeInputBase = ({
                             </Tooltip>)}
                             <HelpButton
                                 markdown={t(help, { ns: "langs" })}
-                                sxRoot={{ fill: palette.secondary.light }}
+                                sx={{ fill: palette.secondary.contrastText }}
                             />
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}

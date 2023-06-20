@@ -1,5 +1,5 @@
 import { InputType } from "@local/shared";
-import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
@@ -188,27 +188,14 @@ export interface CodeProps extends Omit<CP, "id" | "onChange" | "value" | "zInde
 }
 
 /**
- * Props for rendering a Markdown input component
- */
-export interface MarkdownProps extends Omit<MP, "id" | "onChange" | "value" | "zIndex"> {
-    defaultValue?: string;
-}
-
-/**
  * Props for rendering a Radio button input component
  */
 export interface RadioProps {
-    /**
-     * The initial value of the radio button. Must be one of the values in the `options` prop.
-     */
-    defaultValue?: string;
-    /**
-     * Radio button options.
-     */
+    /** The initial value of the radio button. Must be one of the values in the `options` prop. */
+    defaultValue?: string | null;
+    /** Radio button options. */
     options: { label: string; value: string; }[];
-    /**
-     * If true, displays options in a row.
-     */
+    /** If true, displays options in a row. */
     row?: boolean;
 }
 
@@ -247,17 +234,22 @@ export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | 
 }
 
 /**
- * Props for rendering a TextField input component (the most common input component)
+ * Props for rendering a text input component (the most common input component)
  */
-export interface TextFieldProps {
+export interface TextProps {
     /** Initial value of the text field. */
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /** Maximum number of rows for the text field. Defaults to 1. */
+    /** If true, displays MarkdownInput instead of TextField */
+    isMarkdown?: boolean;
+    /** Maximum number of characters for the text field. Defaults to 1000 */
+    maxChars?: number;
+    /** Maximum number of rows for the text field. Defaults to 2. */
     maxRows?: number;
-    /** Minimum number of rows for the text field. Defaults to 1. */
+    /** Minimum number of rows for the text field. Defaults to 4. */
     minRows?: number;
+    placeholder?: string;
 }
 
 /**
@@ -351,20 +343,6 @@ export interface FieldDataLanguageInput extends FieldDataBase {
 }
 
 /**
- * Field data type and props for Markdown input components
- */
-export interface FieldDataMarkdown extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Markdown;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: MarkdownProps
-}
-
-/**
  * Field data type and props for Radio button input components
  */
 export interface FieldDataRadio extends FieldDataBase {
@@ -437,15 +415,15 @@ export interface FieldDataTagSelector extends FieldDataBase {
 /**
  * Field data type and props for TextField input components
  */
-export interface FieldDataTextField extends FieldDataBase {
+export interface FieldDataText extends FieldDataBase {
     /**
      * The type of the field
      */
-    type: InputType.TextField;
+    type: InputType.Text;
     /**
      * Extra props for the input component, depending on the type
      */
-    props: TextFieldProps;
+    props: TextProps;
 }
 
 /**
@@ -471,13 +449,12 @@ export type FieldData =
     FieldDataJSON |
     FieldDataLanguageInput |
     FieldDataIntegerInput |
-    FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
     FieldDataTagSelector |
-    FieldDataTextField;
+    FieldDataText;
 
 //==============================================================
 /* #endregion Input Component Data */

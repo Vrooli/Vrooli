@@ -12,9 +12,10 @@ export const inputYup = yup.object().shape({
     // checks: 
 });
 
-export const textFieldStandardInputForm = yup.object().shape({
+export const textStandardInputForm = yup.object().shape({
     defaultValue: opt(yup.string().transform(blankToUndefined)),
     autoComplete: opt(yup.string().transform(blankToUndefined)),
+    isMarkdown: opt(yup.boolean()),
     maxRows: opt(yup.number()),
     yup: opt(inputYup),
 });
@@ -91,9 +92,4 @@ export const checkboxStandardInputForm = yup.object().shape({
 
 export const switchStandardInputForm = yup.object().shape({
     defaultValue: opt(yup.boolean()),
-});
-
-export const markdownStandardInputForm = yup.object().shape({
-    defaultValue: opt(yup.string().transform(blankToUndefined)),
-    minRows: opt(yup.number()),
 });

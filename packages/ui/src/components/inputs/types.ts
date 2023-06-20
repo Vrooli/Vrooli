@@ -1,5 +1,6 @@
 import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/shared";
-import { BoxProps, TextFieldProps } from "@mui/material";
+import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
+import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
@@ -9,6 +10,10 @@ export interface CharLimitIndicatorProps {
     maxChars: number;
     size?: number;
 }
+
+export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
+    label: string;
+};
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
@@ -176,6 +181,7 @@ export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
 export interface IntegerInputProps extends BoxProps {
     autoFocus?: boolean;
     disabled?: boolean;
+    fullWidth?: boolean;
     key?: string;
     initial?: number;
     label?: string;

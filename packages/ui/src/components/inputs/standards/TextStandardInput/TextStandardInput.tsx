@@ -1,8 +1,12 @@
 import { Grid, Slider, TextField, Typography } from "@mui/material";
+import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
+import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useFormikContext } from "formik";
+import { FieldDataText } from "forms/types";
 import { useTranslation } from "react-i18next";
-import { TextFieldStandardInputProps } from "../types";
+import { TextStandardInputProps } from "../types";
 
 const autoCompleteOptions = [
     "off", "on", "name", "honorific-prefix", "given-name",
@@ -24,14 +28,15 @@ const autoCompleteOptions = [
  * Input for entering (and viewing format of) TextField data that 
  * must match a certain schema.
  */
-export const TextFieldStandardInput = ({
+export const TextStandardInput = ({
     isEditing,
-}: TextFieldStandardInputProps) => {
+    zIndex,
+}: TextStandardInputProps) => {
     const { t } = useTranslation();
 
-    const { values, setFieldValue } = useFormikContext<{ maxRows: number, minRows: number }>();
+    const { values, setFieldValue } = useFormikContext<FieldDataText["props"]>();
 
-    const handleSliderChange = (event, newValue) => {
+    const handleSliderChange = (_event, newValue) => {
         setFieldValue("minRows", newValue[0]);
         setFieldValue("maxRows", newValue[1]);
     };
@@ -40,12 +45,29 @@ export const TextFieldStandardInput = ({
         <Grid container spacing={2}>
             <Grid item xs={12}>
                 <Field
-                    fullWidth
-                    disabled={!isEditing}
-                    name="defaultValue"
-                    label={t("DefaultValue")}
-                    as={TextField}
+                    name="isMarkdown"
+                    label={"Support markdown?"}
+                    component={CheckboxInput}
                 />
+            </Grid>
+            <Grid item xs={12}>
+                {values.isMarkdown ?
+                    <MarkdownInput
+                        disabled={!isEditing}
+                        name="defaultValue"
+                        placeholder={t("DefaultValue")}
+                        minRows={values.minRows ?? 2}
+                        maxRows={values.maxRows ?? 4}
+                        zIndex={zIndex}
+                    /> :
+                    <Field
+                        fullWidth
+                        disabled={!isEditing}
+                        name="defaultValue"
+                        label={t("DefaultValue")}
+                        as={TextField}
+                    />
+                }
             </Grid>
             <Grid item xs={12}>
                 <Selector
@@ -58,14 +80,23 @@ export const TextFieldStandardInput = ({
                     label="Auto-fill"
                 />
             </Grid>
-            <Grid item xs={12} sm={6} sx={{ margin: "auto" }}>
+            <Grid item xs={12} md={6}>
+                <IntegerInput
+                    disabled={!isEditing}
+                    fullWidth
+                    label={"Max text length"}
+                    name="maxChars"
+                    tooltip="The maximum number of characters allowed in the text field"
+                />
+            </Grid>
+            <Grid item xs={12} md={6} sx={{ margin: "auto" }}>
                 <Typography id="range-slider" gutterBottom>
                     {t("MinRows")}/{t("MaxRows")}
                 </Typography>
                 <Slider
                     aria-labelledby="range-slider"
                     disabled={!isEditing}
-                    value={[values.minRows, values.maxRows]}
+                    value={[values.minRows ?? 1, values.maxRows ?? 1]}
                     onChange={handleSliderChange}
                     valueLabelDisplay="auto"
                     min={1}
@@ -86,6 +117,7 @@ export const TextFieldStandardInput = ({
                     }}
                 />
             </Grid>
+
         </Grid>
     );
 };

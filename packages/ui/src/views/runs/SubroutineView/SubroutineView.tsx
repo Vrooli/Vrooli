@@ -176,7 +176,7 @@ export const SubroutineView = ({
                         fieldData={fieldData}
                         index={index}
                         textPrimary={palette.background.textPrimary}
-                        // eslint-disable-next-line react/no-array-index-key
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
                         zIndex={zIndex}
                     />

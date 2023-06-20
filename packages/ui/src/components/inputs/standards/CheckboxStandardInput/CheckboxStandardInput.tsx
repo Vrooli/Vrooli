@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { AddIcon, DeleteIcon } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, Checkbox, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { CheckboxProps } from "forms/types";
 import { useCallback } from "react";
@@ -52,11 +52,12 @@ const CheckboxOption = ({
 
     return (
         <Stack direction="row" sx={{ paddingBottom: 2 }}>
-            <IconButton
-                onClick={handleDelete}
-            >
-                <DeleteIcon fill={palette.error.light} />
-            </IconButton>
+            <Tooltip placement="top" title='Should this option be checked by default?'>
+                <Checkbox
+                    checked={value}
+                    onChange={handleCheckboxChange}
+                />
+            </Tooltip>
             {isEditing ? (
                 <TextField
                     label="Label"
@@ -67,25 +68,11 @@ const CheckboxOption = ({
             ) : (
                 <Typography>{label}</Typography>
             )}
-            <Tooltip placement="top" title='Should this option be checked by default?'>
-                <FormControlLabel
-                    disabled={!isEditing}
-                    label="Default"
-                    labelPlacement='start'
-                    control={
-                        <Checkbox
-                            checked={value}
-                            onChange={handleCheckboxChange}
-                        />
-                    }
-                    // Hide label on small screens
-                    sx={{
-                        ".MuiFormControlLabel-label": {
-                            display: { xs: "none", sm: "block" },
-                        },
-                    }}
-                />
-            </Tooltip>
+            <IconButton
+                onClick={handleDelete}
+            >
+                <DeleteIcon fill={palette.error.light} />
+            </IconButton>
         </Stack>
     );
 };

@@ -111,6 +111,17 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                     },
                 }}
                 tabIndex={tabIndex}
+                // Don't show description
+                renderValue={(value) => {
+                    const option = findOption(value as string);
+                    if (!exists(option)) return null;
+                    const labelText = getOptionLabel(option);
+                    return (
+                        <Stack direction="column">
+                            <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+                        </Stack>
+                    );
+                }}
             >
                 {
                     noneOption ? (

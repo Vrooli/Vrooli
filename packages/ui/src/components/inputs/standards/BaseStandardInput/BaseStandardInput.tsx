@@ -1,11 +1,9 @@
-import { checkboxStandardInputForm, CompleteIcon, InputType, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, RefreshIcon, switchStandardInputForm, textFieldStandardInputForm } from "@local/shared";
-import { Box, Button, Grid } from "@mui/material";
-import { Formik, useField } from "formik";
+import { checkboxStandardInputForm, InputType, jsonStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textStandardInputForm } from "@local/shared";
+import { FormikProvider, useField, useFormik } from "formik";
 import { defaultStandardPropsMap } from "forms/generators";
 import { FieldData } from "forms/types";
-import { t } from "i18next";
-import { useMemo } from "react";
-import { CheckboxStandardInput, CodeStandardInput, DropzoneStandardInput, IntegerStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from "../";
+import { useEffect, useMemo } from "react";
+import { CheckboxStandardInput, CodeStandardInput, DropzoneStandardInput, IntegerStandardInput, RadioStandardInput, SwitchStandardInput, TextStandardInput } from "../";
 import { BaseStandardInputProps } from "../types";
 
 /**
@@ -72,13 +70,6 @@ export const BaseStandardInput = ({
                     SchemaInput: CodeStandardInput,
                     validationSchema: jsonStandardInputForm,
                 };
-            case InputType.Markdown:
-                return {
-                    ...defaultStandardPropsMap[InputType.Markdown](storedProps),
-                    ...storedProps,
-                    SchemaInput: MarkdownStandardInput,
-                    validationSchema: markdownStandardInputForm,
-                };
             case InputType.Radio:
                 return {
                     ...defaultStandardPropsMap[InputType.Radio](storedProps),
@@ -93,12 +84,12 @@ export const BaseStandardInput = ({
                     SchemaInput: SwitchStandardInput,
                     validationSchema: switchStandardInputForm,
                 };
-            case InputType.TextField:
+            case InputType.Text:
                 return {
-                    ...defaultStandardPropsMap[InputType.TextField](storedProps),
+                    ...defaultStandardPropsMap[InputType.Text](storedProps),
                     ...storedProps,
-                    SchemaInput: TextFieldStandardInput,
-                    validationSchema: textFieldStandardInputForm,
+                    SchemaInput: TextStandardInput,
+                    validationSchema: textStandardInputForm,
                 };
             default:
                 return {
@@ -109,39 +100,38 @@ export const BaseStandardInput = ({
         // localStorage.setItem(typeKey, JSON.stringify(newSchema));
     }, [fieldName, inputType, isEditing, storageKey]);
 
-    console.log("basestandardinput", field.value, defaultValues, inputType);
+    console.log("basestandardinput render", field.value, defaultValues, inputType);
 
-    // useEffect(() => {
-    //     if (field.value && field.value.type !== inputType) {
-    //         console.log('standardinput useeffect setting value', JSON.stringify(field.value), field.value?.type, inputType)
-    //         helpers.setValue({ ...field.value, type: inputType as any, props: defaultValues });
-    //     }
-    // }, [inputType, field.value, helpers, defaultValues]);
+    const formik = useFormik({
+        enableReinitialize: true,
+        initialValues: {
+            ...defaultValues,
+            ...(field.value?.props ?? {}),
+        },
+        onSubmit: (values) => {
+            if (!fieldName || !isEditing) return;
+            const updatedField = { ...field.value, props: values };
+            if (JSON.stringify(updatedField) === JSON.stringify(field.value)) return;
+            // Store schema props in local storage. 
+            // This allows us to keep the schema when switching between input types, 
+            // which may prevent work from being lost.
+            const typeKey = `${storageKey}-${inputType}`;
+            localStorage.setItem(typeKey, JSON.stringify(values));
+            helpers.setValue(updatedField);
+        },
+        validateOnChange: true,
+        validationSchema,
+    });
+
+    useEffect(() => {
+        if (formik.isValid && formik.dirty) {
+            formik.submitForm();
+        }
+    }, [formik]);
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={{
-                ...defaultValues,
-                ...(field.value?.props ?? {}),
-            }}
-            onSubmit={(values) => {
-                console.log("onsubmit 1", fieldName, field.value, values);
-                if (!fieldName || !isEditing) return;
-                const updatedField = { ...field.value, props: values };
-                console.log("should update schema?", updatedField, field.value, JSON.stringify(updatedField) === JSON.stringify(field.value));
-                if (JSON.stringify(updatedField) === JSON.stringify(field.value)) return;
-                // Store schema props in local storage. 
-                // This allows us to keep the schema when switching between input types, 
-                // which may prevent work from being lost.
-                const typeKey = `${storageKey}-${inputType}`;
-                localStorage.setItem(typeKey, JSON.stringify(values));
-                console.log("going to update schema", typeKey, values);
-                helpers.setValue(updatedField);
-            }}
-            validationSchema={validationSchema}
-        >
-            {(formik) => SchemaInput && <>
+        <FormikProvider value={formik}>
+            {SchemaInput && <>
                 <SchemaInput
                     {...formik.values}
                     isEditing={isEditing}
@@ -149,40 +139,8 @@ export const BaseStandardInput = ({
                     // yup={field.value.yup}
                     zIndex={zIndex}
                 />
-                <Grid container spacing={2} mt={2} sx={{
-                    padding: 2,
-                    paddingTop: 2,
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                    maxWidth: "min(700px, 100%)",
-                    left: 0,
-                }}
-                >
-                    <Grid item xs={6}>
-                        <Box onClick={() => { formik.handleSubmit(); }}>
-                            <Button
-                                disabled={!formik.isValid || !formik.dirty}
-                                fullWidth
-                                startIcon={<CompleteIcon />}
-                                variant="contained"
-                            >{t("Confirm")}</Button>
-                        </Box>
-                    </Grid>
-                    {/* Cancel button */}
-                    <Grid item xs={6}>
-                        <Button
-                            disabled={!formik.dirty}
-                            fullWidth
-                            onClick={() => {
-                                formik.resetForm();
-                                localStorage.removeItem(`${storageKey}-${inputType}`);
-                            }}
-                            startIcon={<RefreshIcon />}
-                            variant="outlined"
-                        >{t("Reset")}</Button>
-                    </Grid>
-                </Grid>
+                <p>{JSON.stringify(formik.values)}</p>
             </>}
-        </Formik>
+        </FormikProvider>
     );
 };
