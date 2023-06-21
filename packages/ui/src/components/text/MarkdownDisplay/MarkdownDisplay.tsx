@@ -1,5 +1,5 @@
 import { CopyIcon } from "@local/shared";
-import { IconButton } from "@mui/material";
+import { IconButton, Link } from "@mui/material";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
 import Markdown from "markdown-to-jsx";
@@ -7,9 +7,7 @@ import { useEffect, useRef } from "react";
 import { PubSub } from "utils/pubsub";
 import { MarkdownDisplayProps } from "../types";
 
-/**
- * Pretty code block, with copy button 
- */
+/** Pretty code block with copy button */
 const CodeBlock = ({ children }) => {
     const textRef = useRef<HTMLElement | null>(null);
 
@@ -94,6 +92,26 @@ const processMarkdown = (content: string): string => {
     return result;
 };
 
+// Your list of special prefixes
+const SPECIAL_PREFIXES = ["user:", "organization:", "note:", "project:"];
+
+/** Creates custom links for Vrooli objects, and normal links otherwise */
+const CustomLink = ({ children, href }) => {
+    // Check if this is a special link
+    const isSpecialLink = SPECIAL_PREFIXES.some(prefix => href.startsWith(prefix));
+
+    if (isSpecialLink) {
+        return <Link href={href} sx={{
+            backgroundColor: "#f8f9fa",
+            border: "1px solid #ced4da",
+            borderRadius: "4px",
+            padding: "2px",
+        }}>{children}</Link>;
+    } else {
+        return <Link href={href}>{children}</Link>;
+    }
+};
+
 export const MarkdownDisplay = ({
     content,
     sx,
@@ -103,6 +121,7 @@ export const MarkdownDisplay = ({
     const options = {
         overrides: {
             code: CodeBlock,
+            a: CustomLink,
         },
     };
 

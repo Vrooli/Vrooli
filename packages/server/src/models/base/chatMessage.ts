@@ -28,34 +28,70 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
     mutate: {
         shape: {
             pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
-                // Collect data to ensure that trigger has chat ID and user ID 
-                // for each message, whether it's a create, update, or delete
-                const messageData: Record<string, { chatId: string; userId: string }> = {};
-                // Loop through createList and updateList. Collect IDs with missing data
-                const missingDataIds = new Set<string>();
+                // Collect bot information for bots to respond to messages.
+                // Collect chatIds and userIds to send notifications and trigger web socket events.
+                const botData: Record<string, string> = {};
+                const messageData: Record<string, {
+                    botData: string[] | null;
+                    chatId: string | null;
+                    userId: string
+                }> = {};
+                // Find known information, which overrides information we'll query later
                 for (const d of [...createList, ...updateList.map(({ where, data }) => ({ ...data, id: where.id }))]) {
-                    if ((d as ChatMessageCreateInput).chatConnect) {
-                        messageData[d.id] = { chatId: (d as ChatMessageCreateInput).chatConnect, userId: userData.id };
-                    } else {
-                        missingDataIds.add(d.id);
-                    }
+                    messageData[d.id] = {
+                        botData: null,
+                        chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
+                        userId: userData.id,
+                    };
                 }
-                // Add every delete ID to missingDataIds
                 for (const d of deleteList) {
-                    missingDataIds.add(d);
+                    messageData[d] = { botData: null, chatId: null, userId: userData.id };
                 }
-                // If there are any missing data IDs, query the database for them
-                if (missingDataIds.size > 0) {
-                    const messages = await prisma.chat_message.findMany({
-                        where: { id: { in: [...missingDataIds] } },
-                        select: { id: true, chatId: true, userId: true },
-                    });
-                    for (const { id, chatId, userId } of messages) {
-                        messageData[id] = { chatId: chatId ?? "", userId: userId ?? "" };
+                // Query data for every message
+                const queriedData = await prisma.chat_message.findMany({
+                    where: { id: { in: [...createList.map(c => c.id), ...updateList.map(({ where }) => where.id), ...deleteList] } },
+                    select: {
+                        id: true,
+                        chat: {
+                            select: {
+                                id: true,
+                                participants: {
+                                    where: {
+                                        user: {
+                                            AND: [
+                                                { id: { not: userData.id } },
+                                                { isBot: true },
+                                            ],
+                                        },
+                                    },
+                                    select: {
+                                        user: {
+                                            select: {
+                                                id: true,
+                                                botSettings: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        user: { select: { id: true } },
+                    },
+                });
+                // Populate botData and messageData
+                for (const d of queriedData) {
+                    const currBots = d.chat?.participants.map(p => p.user) ?? [];
+                    for (const b of currBots) {
+                        botData[b.id] = b.botSettings ?? JSON.stringify({});
                     }
+                    messageData[d.id] = {
+                        botData: messageData[d.id].botData ?? currBots.map(b => b.id),
+                        chatId: messageData[d.id].chatId ?? d.chat?.id ?? null,
+                        userId: messageData[d.id].userId ?? d.user?.id ?? null,
+                    };
                 }
-                // Return the message data
-                return { messageData };
+                // Return data
+                return { botData, messageData };
             },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
@@ -69,7 +105,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
-                // Call triggers
+                // Call triggers TODO handle bot responses
                 for (const c of created) {
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
