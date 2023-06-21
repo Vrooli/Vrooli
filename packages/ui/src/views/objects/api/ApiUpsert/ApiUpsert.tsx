@@ -24,7 +24,7 @@ export const ApiUpsert = ({
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ApiVersion>(endpointGetApiVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 

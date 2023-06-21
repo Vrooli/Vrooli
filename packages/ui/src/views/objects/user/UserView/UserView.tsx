@@ -72,7 +72,7 @@ export const UserView = ({
     const [user, setUser] = useState<User | null | undefined>(null);
     useDisplayServerError(userErrors ?? profileErrors);
     useEffect(() => {
-        const urlEnding = getLastUrlPart();
+        const urlEnding = getLastUrlPart({});
         if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
         else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });

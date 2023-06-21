@@ -259,7 +259,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, organization, bio, zIndex, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, organization, bio, zIndex, actionData]);
 
     /**
      * Opens add new page

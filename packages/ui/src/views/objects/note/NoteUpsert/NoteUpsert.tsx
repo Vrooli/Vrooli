@@ -23,7 +23,7 @@ export const NoteUpsert = ({
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, NoteVersion>(endpointGetNoteVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 

@@ -24,7 +24,7 @@ export const QuestionUpsert = ({
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Question>(endpointGetQuestion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 

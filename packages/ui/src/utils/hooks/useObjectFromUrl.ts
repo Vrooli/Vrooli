@@ -35,7 +35,7 @@ export function useObjectFromUrl<TData extends ListObjectType>({
     idFallback,
 }: UseObjectFromUrlProps<TData>): UseObjectFromUrlReturn<TData> {
     // Get URL params
-    const urlParams = useMemo(() => parseSingleItemUrl(), []);
+    const urlParams = useMemo(() => parseSingleItemUrl({}), []);
 
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
 

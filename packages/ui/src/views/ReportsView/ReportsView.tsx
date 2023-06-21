@@ -27,8 +27,8 @@ export const ReportsView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const objectType = useMemo(() => getLastUrlPart(1), []);
+    const { id } = useMemo(() => parseSingleItemUrl({}), []);
+    const objectType = useMemo(() => getLastUrlPart({ offset: 1 }), []);
 
     const { data } = useFetch<ReportSearchInput, ReportSearchResult>({
         ...endpointGetReports,
