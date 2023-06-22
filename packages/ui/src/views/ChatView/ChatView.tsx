@@ -271,6 +271,18 @@ export const ChatView = ({
                             disabled={!chat}
                             disableAssistant={true}
                             fullWidth
+                            getTaggableItems={async (searchString) => {
+                                // Find all users in the chat, plus @Everyone
+                                let users = [
+                                    //TODO handle @Everyone
+                                    ...(chat?.participants?.map(p => p.user) ?? []),
+                                ];
+                                // Filter out current user
+                                users = users.filter(p => p.id !== getCurrentUser(session).id);
+                                // Filter out users that don't match the search string
+                                users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                                return users;
+                            }}
                             maxChars={1500}
                             minRows={4}
                             maxRows={15}

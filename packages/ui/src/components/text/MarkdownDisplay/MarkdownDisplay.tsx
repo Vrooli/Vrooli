@@ -122,13 +122,17 @@ const routeToEndpoint = {
 /** Creates custom links for Vrooli objects, and normal links otherwise */
 const CustomLink = ({ children, href }) => {
     // Check if this is a special link
-    let url;
+    let linkUrl, windowUrl;
     try {
-        url = new URL(href);
-    } catch (_) { /* empty */ }
+        linkUrl = new URL(href);
+        windowUrl = new URL(window.location.href);
+        console.log("CustomLink got url", linkUrl, windowUrl);
+    } catch (_) {
+        console.error("CustomLink failed to parse url", href);
+    }
 
-    const matchingRoute: string | undefined = url ? specialRoutes.find(route => url.pathname.startsWith(route)) : undefined;
-    const isSpecialLink: boolean = url.hostname === new URL(window.location.href).hostname && matchingRoute !== undefined;
+    const matchingRoute: string | undefined = linkUrl ? specialRoutes.find(route => linkUrl.pathname.startsWith(route)) : undefined;
+    const isSpecialLink: boolean = linkUrl && linkUrl.hostname === windowUrl.hostname && matchingRoute !== undefined;
     const endpoint = (isSpecialLink && matchingRoute) ? routeToEndpoint[matchingRoute] : null;
 
     // Fetch hook

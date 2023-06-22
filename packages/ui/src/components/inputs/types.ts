@@ -2,6 +2,7 @@ import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
+import { ListObjectType } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 
@@ -144,6 +145,11 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     disabled?: boolean;
     disableAssistant?: boolean;
     error?: boolean;
+    /**
+     * Callback to provide data for "@" tagging dropdown. 
+     * If not provided, the dropdown will not appear.
+     */
+    getTaggableItems?: (query: string) => Promise<ListObjectType[]>;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
