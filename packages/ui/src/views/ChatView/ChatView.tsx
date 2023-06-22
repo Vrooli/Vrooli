@@ -1,4 +1,4 @@
-import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, LINKS, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
@@ -13,6 +13,7 @@ import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
@@ -41,14 +42,18 @@ export const ChatView = ({
 
     useEffect(() => {
         if (chat) return;
-        // Check if the chat already exists
-        const alreadyExists = chatInfo?.id && uuidValidate(chatInfo.id);
+        // Check if the chat already exists, or if the URL has an id
+        let chatId = chatInfo?.id;
+        if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
+            chatId = base36ToUuid(window.location.pathname.split("/")[2]);
+        }
+        const alreadyExists = chatId && uuidValidate(chatId);
         // If so, find chat by id
         if (alreadyExists) {
             console.log("getting chat", chatInfo);
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getData,
-                inputs: { id: chatInfo.id! },
+                inputs: { id: chatId as string },
                 onSuccess: (data) => { setChat(data); },
             });
         }
@@ -86,9 +91,18 @@ export const ChatView = ({
         });
 
         // Define chat-specific event handlers
-        socket.on("message", (message) => {
-            // handle incoming chat message
-            console.log(message);
+        socket.on("message", (message: ChatMessage) => {
+            // Add message to chat if it's not already there. 
+            // Make sure it is inserted in the correct order, using the created_at field.
+            // Find index to insert message at
+            setChat(c => ({
+                ...c,
+                messages: updateArray(
+                    c!.messages ?? [],
+                    c!.messages.findIndex(m => m.created_at > message.created_at),
+                    message,
+                ),
+            } as Chat));
         });
 
         // Leave the chat room when the component is unmounted
@@ -113,14 +127,14 @@ export const ChatView = ({
     useEffect(() => {
         if (chat) {
             // If chatting with default AI assistant, keep start message in chat.
-            const chattingWithValyxa = chatInfo.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID);
+            const chattingWithValyxa = chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID);
             setMessages(m => chattingWithValyxa && m.length === 1 ? [m[0], ...chat.messages] : chat.messages);
         }
-    }, [chat, chatInfo.invites]);
+    }, [chat]);
     useEffect(() => {
         // If chatting with default AI assistant, add start message so that we don't need 
         // to query the server for it.
-        if (chatInfo.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
+        if (chat && chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
             const startText = t(task ?? "start", { lng, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
             setMessages([{
                 __typename: "ChatMessage" as const,
@@ -129,7 +143,7 @@ export const ChatView = ({
                 updated_at: new Date().toISOString(),
                 chat: {
                     __typename: "Chat" as const,
-                    id: chatInfo.id!,
+                    id: chat.id,
                 } as any,
                 translations: [{
                     __typename: "ChatMessageTranslation" as const,
@@ -154,7 +168,7 @@ export const ChatView = ({
                 },
             }] as any);
         }
-    }, [chatInfo, lng, t, task]);
+    }, [chat, lng, t, task]);
 
     const [createMessage, { loading: isCreateMessageLoading }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
     const handleSendButtonClick = () => {
@@ -170,6 +184,7 @@ export const ChatView = ({
                 newMessage: context ?? "",
             }}
             onSubmit={(values, helpers) => {
+                if (!chat) return;
                 const isEditing = values.editingMessage.trim().length > 0;
                 if (isEditing) {
                     //TODO
@@ -186,7 +201,7 @@ export const ChatView = ({
                         isUnsent: true,
                         chat: {
                             __typename: "Chat" as const,
-                            id: chat?.id!,
+                            id: chat.id,
                         } as any,
                         translations: [{
                             __typename: "ChatMessageTranslation" as const,

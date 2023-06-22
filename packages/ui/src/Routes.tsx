@@ -152,7 +152,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <CreateView {...viewProps} />
                 </NavRoute>
-                <NavRoute path={LINKS.Chat} {...props}>
+                <NavRoute path={`${LINKS.Chat}/:id`} {...props}>
                     <ChatView {...viewProps} />
                 </NavRoute>
                 <NavRoute

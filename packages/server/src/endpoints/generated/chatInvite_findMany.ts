@@ -173,6 +173,12 @@ export const chatInvite_findMany = {
       "updated_at": true,
       "message": true,
       "status": true,
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true
+      },
       "you": {
         "canDelete": true,
         "canUpdate": true

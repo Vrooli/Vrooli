@@ -220,6 +220,13 @@ export const chatInvite_accept = {
   "updated_at": true,
   "message": true,
   "status": true,
+  "user": {
+    "id": true,
+    "isBot": true,
+    "name": true,
+    "handle": true,
+    "__typename": "User"
+  },
   "you": {
     "canDelete": true,
     "canUpdate": true

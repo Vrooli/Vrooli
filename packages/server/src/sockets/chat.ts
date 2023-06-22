@@ -29,6 +29,7 @@ export const chatSocketHandlers = (io: Server, socket: Socket) => {
                         OR: [
                             { openToAnyoneWithInvite: true },
                             { participants: { some: { user: { id } } } },
+                            { creator: { id } },
                         ],
                     },
                 });

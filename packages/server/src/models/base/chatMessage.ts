@@ -32,20 +32,27 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 // Collect chatIds and userIds to send notifications and trigger web socket events.
                 const botData: Record<string, string> = {};
                 const messageData: Record<string, {
-                    botData: string[] | null;
-                    chatId: string | null;
-                    userId: string
+                    botData: string[] | null; // IDs of bots in this message's chat
+                    chatId: string | null; // ID of the chat this message belongs to
+                    participantsCount: number | null; // Total number of participants in the chat, including bots, users, and the current user
+                    userId: string // ID of the user who sent this message
                 }> = {};
                 // Find known information, which overrides information we'll query later
                 for (const d of [...createList, ...updateList.map(({ where, data }) => ({ ...data, id: where.id }))]) {
                     messageData[d.id] = {
                         botData: null,
                         chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
+                        participantsCount: null,
                         userId: userData.id,
                     };
                 }
                 for (const d of deleteList) {
-                    messageData[d] = { botData: null, chatId: null, userId: userData.id };
+                    messageData[d] = {
+                        botData: null,
+                        chatId: null,
+                        participantsCount: null,
+                        userId: userData.id,
+                    };
                 }
                 // Query data for every message
                 const queriedData = await prisma.chat_message.findMany({
@@ -73,6 +80,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                                         },
                                     },
                                 },
+                                _count: { select: { participants: true } },
                             },
                         },
                         user: { select: { id: true } },
@@ -87,6 +95,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     messageData[d.id] = {
                         botData: messageData[d.id].botData ?? currBots.map(b => b.id),
                         chatId: messageData[d.id].chatId ?? d.chat?.id ?? null,
+                        participantsCount: messageData[d.id].participantsCount ?? d.chat?._count?.participants ?? null,
                         userId: messageData[d.id].userId ?? d.user?.id ?? null,
                     };
                 }
@@ -107,6 +116,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             post: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
                 // Call triggers TODO handle bot responses
                 for (const c of created) {
+                    // Common trigger logic
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
@@ -118,6 +128,24 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         },
                         objectType: __typename,
                     });
+                    // Determine which bots should respond, if any.
+                    // Here are the conditions:
+                    // 1. If there are no bots in the chat, no bots should respond.
+                    // 2. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
+                    // 3. Otherwise, we must check the message to see if any bots were mentioned
+                    // Get message and bot data
+                    const message = preMap[__typename].messageData[c.id];
+                    const botIds = preMap[__typename].botData;
+                    // Check condition 1
+                    if (botIds.length === 0) continue;
+                    // Check condition 2
+                    if (botIds.length === 1 && message.participantsCount === 2) {
+                        //TODO
+                    }
+                    // Check condition 3
+                    else {
+                        //TODO
+                    }
                 }
                 for (const u of updated) {
                     await Trigger(prisma, userData.languages).objectUpdated({

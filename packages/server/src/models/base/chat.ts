@@ -44,6 +44,7 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                creator: { connect: { id: rest.userData.id } },
                 // Create invite for non-bots
                 invites: {
                     create: data.invitesCreate?.map((u) => ({

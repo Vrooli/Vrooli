@@ -18,6 +18,7 @@ export const chatInvite: GqlPartial<ChatInvite> = {
         updated_at: true,
         message: true,
         status: true,
+        user: async () => rel((await import("./user")).user, "nav"),
         you: () => rel(chatInviteYou, "full"),
     },
     full: {

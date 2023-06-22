@@ -32,7 +32,7 @@ export type ChatViewProps = BaseViewProps & {
      *     //...other chat info like translations and labels (optional)
      * }` to start a new chat with the given users.
      * */
-    chatInfo: Partial<Chat>;
+    chatInfo?: Partial<Chat>;
     context?: string | null | undefined;
     task?: AssistantTask;
     zIndex: number;
