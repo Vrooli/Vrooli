@@ -3,7 +3,8 @@ import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { CustomError } from "../events";
-import { Notify, sendResetPasswordLink, sendVerificationLink } from "../notify";
+import { Notify } from "../notify";
+import { sendResetPasswordLink, sendVerificationLink } from "../tasks";
 import { PrismaType } from "../types";
 import { toSession } from "./session";
 

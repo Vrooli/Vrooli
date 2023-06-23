@@ -7,11 +7,10 @@ import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models/base";
 import { initializeRedis } from "../redisConn";
+import { sendMail, sendPush } from "../tasks";
 import { PrismaType, SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
-import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
-import { sendPush } from "./push";
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 
