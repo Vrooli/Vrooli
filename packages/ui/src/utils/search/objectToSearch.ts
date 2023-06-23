@@ -109,6 +109,7 @@ export enum SearchPageTabOption {
 }
 
 export enum CalendarPageTabOption {
+    All = "All",
     FocusModes = "FocusModes",
     Meetings = "Meetings",
     RunProjects = "RunProjects",

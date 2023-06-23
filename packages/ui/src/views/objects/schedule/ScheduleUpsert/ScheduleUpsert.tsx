@@ -17,6 +17,8 @@ import { SessionContext } from "utils/SessionContext";
 import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
 
+const tabParams = (calendarTabParams) => calendarTabParams.filter(tp => tp.tabType !== "All");
+
 export const ScheduleUpsert = ({
     canChangeTab = true,
     canSetScheduleFor = true,
@@ -36,7 +38,7 @@ export const ScheduleUpsert = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
-        return calendarTabParams.map((tab, i) => ({
+        return tabParams(calendarTabParams).map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
@@ -46,11 +48,11 @@ export const ScheduleUpsert = ({
     const [currTab, setCurrTab] = useState<PageTab<CalendarPageTabOption>>(() => {
         if (!isCreate) return tabs[0];
         if (defaultTab !== undefined) {
-            const index = calendarTabParams.findIndex(tab => tab.tabType === defaultTab);
+            const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === defaultTab);
             if (index !== -1) return tabs[index];
         }
         const searchParams = parseSearchParams();
-        const index = calendarTabParams.findIndex(tab => tab.tabType === searchParams.type);
+        const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === searchParams.type);
         // Default to bookmarked tab
         if (index === -1) return tabs[0];
         // Return tab
@@ -58,7 +60,7 @@ export const ScheduleUpsert = ({
     });
     useEffect(() => {
         if (!isCreate && defaultTab !== undefined) {
-            const index = calendarTabParams.findIndex(tab => tab.tabType === defaultTab);
+            const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === defaultTab);
             if (index !== -1) setCurrTab(tabs[index]);
         }
     }, [defaultTab, isCreate, tabs]);

@@ -21,8 +21,8 @@ export const scheduleInitialValues = (
 ): ScheduleShape => ({
     __typename: "Schedule" as const,
     id: DUMMY_ID,
-    startTime: null,
-    endTime: null,
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
     // Default to current timezone
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     exceptions: [],
@@ -112,12 +112,12 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                     <Stack direction="column" spacing={2}>
                         <DateInput
                             name="startTime"
-                            label="Start time (optional)"
+                            label="Start time"
                             type="datetime-local"
                         />
                         <DateInput
-                            name="emdTime"
-                            label="End time (optional)"
+                            name="endTime"
+                            label="End time"
                             type="datetime-local"
                         />
                         <TimezoneSelector name="timezone" label="Timezone" />

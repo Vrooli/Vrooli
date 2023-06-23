@@ -7951,6 +7951,13 @@ export type ScheduleExceptionUpdateInput = {
   originalStartTime?: InputMaybe<Scalars['Date']>;
 };
 
+export enum ScheduleFor {
+  FocusMode = 'FocusMode',
+  Meeting = 'Meeting',
+  RunProject = 'RunProject',
+  RunRoutine = 'RunRoutine'
+}
+
 export type ScheduleRecurrence = {
   __typename: 'ScheduleRecurrence';
   dayOfMonth?: Maybe<Scalars['Int']>;
@@ -8034,6 +8041,7 @@ export type ScheduleSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   endTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  scheduleFor?: InputMaybe<ScheduleFor>;
   scheduleForUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ScheduleSortBy>;
@@ -10307,6 +10315,7 @@ export type ResolversTypes = {
   ScheduleExceptionSearchResult: ResolverTypeWrapper<ScheduleExceptionSearchResult>;
   ScheduleExceptionSortBy: ScheduleExceptionSortBy;
   ScheduleExceptionUpdateInput: ScheduleExceptionUpdateInput;
+  ScheduleFor: ScheduleFor;
   ScheduleRecurrence: ResolverTypeWrapper<ScheduleRecurrence>;
   ScheduleRecurrenceCreateInput: ScheduleRecurrenceCreateInput;
   ScheduleRecurrenceEdge: ResolverTypeWrapper<ScheduleRecurrenceEdge>;

@@ -1,4 +1,4 @@
-import { ScheduleSortBy } from "@local/shared";
+import { ScheduleFor, ScheduleSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsSchedule, ScheduleEndpoints } from "../logic";
 
@@ -12,6 +12,13 @@ export const typeDef = gql`
         StartTimeDesc
         EndTimeAsc
         EndTimeDesc
+    }
+
+    enum ScheduleFor {
+        FocusMode
+        Meeting
+        RunProject
+        RunRoutine
     }
 
     input ScheduleCreateInput {
@@ -64,6 +71,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         endTimeFrame: TimeFrame
         ids: [ID!]
+        scheduleFor: ScheduleFor
         scheduleForUserId: ID
         searchString: String
         sortBy: ScheduleSortBy
@@ -96,9 +104,11 @@ export const typeDef = gql`
 
 export const resolvers: {
     ScheduleSortBy: typeof ScheduleSortBy;
+    ScheduleFor: typeof ScheduleFor;
     Query: EndpointsSchedule["Query"];
     Mutation: EndpointsSchedule["Mutation"];
 } = {
     ScheduleSortBy,
+    ScheduleFor,
     ...ScheduleEndpoints,
 };

@@ -56,12 +56,12 @@ export const index = intPositiveOrZero;
 
 // dates
 export const timezone = yup.string().transform(blankToUndefined).max(64, maxStrErr);
-export const startTime = yup.date().min(new Date(), "Start time must be in the future");
+export const startTime = yup.date();
 export const endTime = yup.date().min(yup.ref("startTime"), "End time must be after start date");
-export const originalStartTime = yup.date().min(new Date(), "Start time must be in the future");
-export const newStartTime = yup.date().min(new Date(), "Start time must be in the future");
+export const originalStartTime = yup.date();
+export const newStartTime = yup.date();
 export const newEndTime = yup.date().min(yup.ref("newStartTime"), "End time must be after start date");
-export const endDate = yup.date().min(new Date(), "End date must be in the future");
+export const endDate = yup.date();
 
 // strings
 export const bio = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
