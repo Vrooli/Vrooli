@@ -421,6 +421,159 @@ export const notificationSubscription_findOne = {
           },
           "__typename": "Label"
         },
+        "focusModes": {
+          "labels": {
+            "id": true,
+            "color": true,
+            "label": true,
+            "__typename": "Label"
+          },
+          "id": true,
+          "name": true,
+          "description": true,
+          "__typename": "FocusMode"
+        },
+        "runProjects": {
+          "projectVersion": {
+            "id": true,
+            "complexity": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "versionIndex": true,
+            "versionLabel": true,
+            "root": {
+              "id": true,
+              "isPrivate": true,
+              "__typename": "Project"
+            },
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "name": true
+            },
+            "__typename": "ProjectVersion"
+          },
+          "id": true,
+          "isPrivate": true,
+          "completedComplexity": true,
+          "contextSwitches": true,
+          "startedAt": true,
+          "timeElapsed": true,
+          "completedAt": true,
+          "name": true,
+          "status": true,
+          "stepsCount": true,
+          "organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          },
+          "user": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true,
+            "canRead": true
+          },
+          "__typename": "RunProject"
+        },
+        "runRoutines": {
+          "routineVersion": {
+            "id": true,
+            "complexity": true,
+            "isAutomatable": true,
+            "isComplete": true,
+            "isDeleted": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "root": {
+              "id": true,
+              "isInternal": true,
+              "isPrivate": true,
+              "__typename": "Routine"
+            },
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "instructions": true,
+              "name": true
+            },
+            "versionIndex": true,
+            "versionLabel": true,
+            "__typename": "RoutineVersion"
+          },
+          "id": true,
+          "isPrivate": true,
+          "completedComplexity": true,
+          "contextSwitches": true,
+          "startedAt": true,
+          "timeElapsed": true,
+          "completedAt": true,
+          "name": true,
+          "status": true,
+          "stepsCount": true,
+          "inputsCount": true,
+          "wasRunAutomatically": true,
+          "organization": {
+            "id": true,
+            "handle": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Organization"
+          },
+          "user": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true,
+            "__typename": "User"
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true,
+            "canRead": true
+          },
+          "__typename": "RunRoutine"
+        },
         "id": true,
         "created_at": true,
         "updated_at": true,

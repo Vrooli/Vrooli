@@ -19,6 +19,7 @@ export const typeDef = gql`
     input ChatCreateInput {
         id: ID!
         openToAnyoneWithInvite: Boolean
+        task: String # If chatting with Valyxa or another bot, this is used to set up the initial message
         organizationConnect: ID
         restrictedToRolesConnect: [ID!]
         invitesCreate: [ChatInviteCreateInput!]

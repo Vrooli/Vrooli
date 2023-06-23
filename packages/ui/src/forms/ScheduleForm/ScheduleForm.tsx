@@ -134,7 +134,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                 borderRadius: 2,
                                 marginBottom: 2,
                                 padding: 2,
-                                boxShadow: 4,
+                                boxShadow: 2,
                                 background: palette.background.default,
                             }}>
                                 <Stack

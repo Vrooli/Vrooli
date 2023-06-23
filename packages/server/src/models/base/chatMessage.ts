@@ -54,9 +54,51 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         userId: userData.id,
                     };
                 }
-                // Query data for every message
+                // Query chat information for new messages
+                const chatIdsForNewMessages = createList.map(c => c.chatConnect);
+                const chatInfoForNewMessages = await prisma.chat.findMany({
+                    where: { id: { in: chatIdsForNewMessages } },
+                    select: {
+                        id: true,
+                        participants: {
+                            where: {
+                                user: {
+                                    AND: [
+                                        { id: { not: userData.id } },
+                                        { isBot: true },
+                                    ],
+                                },
+                            },
+                            select: {
+                                user: {
+                                    select: {
+                                        id: true,
+                                        botSettings: true,
+                                    },
+                                },
+                            },
+                        },
+                        _count: { select: { participants: true } },
+                    },
+                });
+                // Map chat information for new messages back to message data
+                chatInfoForNewMessages.forEach(chat => {
+                    const message = createList.find(m => m.chatConnect === chat.id);
+                    if (message) {
+                        messageData[message.id] = {
+                            botData: chat.participants.map(p => {
+                                botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
+                                return p.user.id;
+                            }),
+                            chatId: chat.id,
+                            participantsCount: chat._count.participants,
+                            userId: userData.id,
+                        };
+                    }
+                });
+                // Query message and chat information for updated and deleted messages
                 const queriedData = await prisma.chat_message.findMany({
-                    where: { id: { in: [...createList.map(c => c.id), ...updateList.map(({ where }) => where.id), ...deleteList] } },
+                    where: { id: { in: [...updateList.map(({ where }) => where.id), ...deleteList] } },
                     select: {
                         id: true,
                         chat: {
@@ -86,19 +128,20 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         user: { select: { id: true } },
                     },
                 });
-                // Populate botData and messageData
-                for (const d of queriedData) {
-                    const currBots = d.chat?.participants.map(p => p.user) ?? [];
-                    for (const b of currBots) {
-                        botData[b.id] = b.botSettings ?? JSON.stringify({});
+                // Merge queriedData into messageData, without overwriting data from createList
+                queriedData.forEach(d => {
+                    if (!messageData[d.id]) {
+                        messageData[d.id] = {
+                            botData: d.chat?.participants.map(p => {
+                                botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
+                                return p.user.id;
+                            }) ?? null,
+                            chatId: d.chat?.id ?? null,
+                            participantsCount: d.chat?._count?.participants ?? null,
+                            userId: d.user?.id ?? "",
+                        };
                     }
-                    messageData[d.id] = {
-                        botData: messageData[d.id].botData ?? currBots.map(b => b.id),
-                        chatId: messageData[d.id].chatId ?? d.chat?.id ?? null,
-                        participantsCount: messageData[d.id].participantsCount ?? d.chat?._count?.participants ?? null,
-                        userId: messageData[d.id].userId ?? d.user?.id ?? null,
-                    };
-                }
+                });
                 // Return data
                 return { botData, messageData };
             },

@@ -581,6 +581,7 @@ export type ChatCreateInput = {
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
+  task?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
 };
 

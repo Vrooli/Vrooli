@@ -1,4 +1,4 @@
-import { AddIcon, Chat, ChatCreateInput, ChatMessage, ChatMessageCreateInput, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPostChatMessage, FindByIdInput, LINKS, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { AddIcon, Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
@@ -54,7 +54,10 @@ export const ChatView = ({
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getData,
                 inputs: { id: chatId as string },
-                onSuccess: (data) => { setChat(data); },
+                onSuccess: (data) => {
+                    console.log("GOT CHAT!!!", data);
+                    setChat(data);
+                },
             });
         }
         // Otherwise, start a new chat
@@ -126,15 +129,13 @@ export const ChatView = ({
     const [messages, setMessages] = useState<(ChatMessage & { isUnsent?: boolean })[]>([]);
     useEffect(() => {
         if (chat) {
-            // If chatting with default AI assistant, keep start message in chat.
-            const chattingWithValyxa = chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID);
-            setMessages(m => chattingWithValyxa && m.length === 1 ? [m[0], ...chat.messages] : chat.messages);
+            setMessages(chat.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
         }
     }, [chat]);
     useEffect(() => {
-        // If chatting with default AI assistant, add start message so that we don't need 
-        // to query the server for it.
-        if (chat && chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
+        // If chatting with default AI assistant, add start message so that the user 
+        // sees something while the chat is loading
+        if (chat && chat.messages.length === 0 && chat.invites?.length === 1 && chat.invites?.some((invite: Chat["invites"][0]) => invite.user.id === VALYXA_ID)) {
             const startText = t(task ?? "start", { lng, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
             setMessages([{
                 __typename: "ChatMessage" as const,
@@ -170,11 +171,7 @@ export const ChatView = ({
         }
     }, [chat, lng, t, task]);
 
-    const [createMessage, { loading: isCreateMessageLoading }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
-    const handleSendButtonClick = () => {
-        // Implement this to send a new message.
-    };
-    console.log("context in chatview", messages);
+    console.log("context in chatview", messages, chat?.messages);
 
     return (
         <Formik

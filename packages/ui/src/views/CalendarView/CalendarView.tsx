@@ -273,6 +273,7 @@ export const CalendarView = ({
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range
     const events = useMemo<CalendarEvent[]>(() => {
+        console.log("calculating events...", schedules);
         if (!dateRange.start || !dateRange.end) return [];
         // Initialize result
         const result: CalendarEvent[] = [];

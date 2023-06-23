@@ -152,12 +152,7 @@ services:
       VIRTUAL_PORT: "${PORT_DOCS}"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-  # Used to view the database. Open http://localhost:8080, then use the following settings:
-  #   System: PostgreSQL
-  #   Server: db
-  #   Username: ${DB_USER}
-  #   Password: ${DB_PASSWORD}
-  #   Database: ${DB_NAME}
+  # Used to view the database. Open http://localhost:8080
   adminer:
     image: ghcr.io/jeliebig/adminer-autologin
     container_name: adminer
