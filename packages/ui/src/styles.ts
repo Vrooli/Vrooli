@@ -60,7 +60,7 @@ export const linkColors = (palette: Palette) => ({
 
 export const greenNeonText = {
     color: "#fff",
-    filter: "drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 32px #0fa) drop-shadow(0 0 21px #0fa)",
+    filter: "drop-shadow(0 0 1px #0fa) drop-shadow(0 0 2px #0fa) drop-shadow(0 0 20px #0fa)",
 } as const;
 
 export const iconButtonProps = {
@@ -81,8 +81,9 @@ export const slideText = {
 } as const;
 
 export const slideTitle = {
-    textAlign: "center",
     fontSize: { xs: "2.4em", sm: "3rem", md: "3.75rem" },
+    letterSpacing: "-0.05em",
+    textAlign: "center",
     zIndex: 10,
 } as const;
 

@@ -1,9 +1,6 @@
 import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
 import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import Earth from "assets/img/Earth.svg";
-import RelaxingCouch from "assets/img/relaxing-couch.jpg";
-import RobotsCollab from "assets/img/robots-collab.jpg";
-import WomanTriumph from "assets/img/woman-triumph.jpg";
 import { PulseButton } from "components/buttons/PulseButton/PulseButton";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "components/slides";
@@ -153,13 +150,12 @@ export const LandingView = ({
                         <Typography component="h1" sx={{
                             ...slideTitle,
                             ...greenNeonText,
-                            fontFamily: "Neuropol",
                             fontWeight: "bold",
                         }}>
-                            An Open-Source Economy
+                            Revolutionize Your Workflow
                         </Typography>
                         <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: "center" }}>
-                            We're building the tools to automate the future of work
+                            Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with a few clicks.
                         </Typography>
                         <PulseButton
                             variant="outlined"
@@ -170,7 +166,7 @@ export const LandingView = ({
                                 marginLeft: "auto !important",
                                 marginRight: "auto !important",
                             }}
-                        >Start</PulseButton>
+                        >Start Now</PulseButton>
                         {/* Icon buttons for White paper, GitHub, Twitter, and Discord */}
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center" sx={{ paddingTop: 8, zIndex: 3 }}>
                             <Tooltip title="Read the white Paper" placement="bottom">
@@ -196,126 +192,61 @@ export const LandingView = ({
                         </Stack>
                     </SlideContent>
                     <SlideContent id={slide2Id}>
-                        <Typography variant='h2' sx={{ ...slideTitle }}>Three Easy Steps</Typography>
-                        <Grid container>
-                            <Grid item xs={12} md={4} p={2}>
-                                <GlossyContainer>
-                                    <Typography variant='h5' mb={2}><b>Connect</b></Typography>
-                                    <ul style={{ textAlign: "left" }}>
-                                        <li>Find or create a routine for anything you want to accomplish</li>
-                                        <li>Fly solo or join an organization</li>
-                                    </ul>
-                                </GlossyContainer>
+                        <Stack
+                            direction="column"
+                            spacing={5}
+                            p={4}
+                            textAlign="center"
+                            justifyContent="center"
+                            alignItems="center"
+                            sx={{
+                                background: "#2c2d2fd1",
+                                borderRadius: 4,
+                                boxShadow: 2,
+                                zIndex: 2,
+                            }}
+                        >
+                            <Typography variant='h2' sx={{ ...slideTitle }}>AI-Driven Conversations</Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6} margin="auto">
+                                    <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: "center" }}>
+                                        Create and interact with AI bots, capable of intelligent conversation and task execution.
+                                    </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6} sx={{ paddingLeft: "0 !important" }}>
+                                    <Box sx={{ ...slideImageContainer }}>
+                                        {/* <Box
+                                            component="img"
+                                            alt="Showcases the concept of taking back your freedom. Features a woman who looks empowered and in control, looking straight ahead, with triumph in her eyes"
+                                            src={WomanTriumph}
+                                            sx={{ borderRadius: "32px", objectFit: "cover" }}
+                                        /> */}
+                                    </Box>
+                                </Grid>
                             </Grid>
-                            <Grid item xs={12} md={4} p={2}>
-                                <GlossyContainer>
-                                    <Typography variant='h5' mb={2}><b>Collaborate</b></Typography>
-                                    <ul style={{ textAlign: "left" }}>
-                                        <li>Build, vote, and give feedback on routines</li>
-                                        <li>Design the ultimate organization</li>
-                                    </ul>
-                                </GlossyContainer>
-                            </Grid>
-                            <Grid item xs={12} md={4} p={2}>
-                                <GlossyContainer>
-                                    <Typography variant='h5' mb={2}><b>Automate</b></Typography>
-                                    <ul style={{ textAlign: "left" }}>
-                                        <li>Connect to APIs and smart contracts</li>
-                                        <li>Complete complex tasks from a single site</li>
-                                    </ul>
-                                </GlossyContainer>
-                            </Grid>
-                        </Grid>
-                        <Typography variant="h3" pt={2} sx={{ ...slideText, textAlign: "center", lineHeight: 2 }}>
-                            This combination creates a
-                            <Box sx={{
-                                display: "inline-block",
-                                color: "#ffe768",
-                                filter: "drop-shadow(0 0 1px #ffe768) drop-shadow(0 0 10px #ffe768) drop-shadow(0 0 41px #ffe768)",
-                                paddingLeft: 2,
-                                transform: "scale(1.05",
-                            }}>
-                                <b>self-improving productivity machine</b>
-                            </Box>
-                        </Typography>
+                            {/* Illustration for the slide. A stylized graphic of a bot engaging in a chat conversation */}
+                        </Stack>
                     </SlideContent>
                     <SlideContent id={slide3Id}>
-                        <Typography variant='h2' mb={4} sx={{ ...slideTitle }}>
-                            Take Back Your Freedom
+                        <Typography variant='h2' sx={{ ...slideTitle }}>Collaborative Routines</Typography>
+                        <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: "center" }}>
+                            Design routines with users and bots, catering to various tasks like creative writing, form creation, and scheduled automation.
                         </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6} margin="auto">
-                                <Stack direction="column" spacing={2}>
-                                    <Typography variant="h5" sx={{ ...slideText }}>
-                                        Vrooli empowers you to unlock personal growth, streamline tasks, and leverage your skills effectively.
-                                    </Typography>
-                                    <Typography variant="h5" sx={{ ...slideText }}>
-                                        It guides you through organizing your life, acquiring new knowledge, and monetizing your talents.
-                                    </Typography>
-                                </Stack>
-                            </Grid>
-                            <Grid item xs={12} sm={6} sx={{ paddingLeft: "0 !important" }}>
-                                <Box sx={{ ...slideImageContainer }}>
-                                    <Box
-                                        component="img"
-                                        alt="Showcases the concept of taking back your freedom. Features a woman who looks empowered and in control, looking straight ahead, with triumph in her eyes"
-                                        src={WomanTriumph}
-                                        sx={{ borderRadius: "32px", objectFit: "cover" }}
-                                    />
-                                </Box>
-                            </Grid>
-                        </Grid>
+                        {/* GIF for the slide. Animated representation of a routine being built and executed */}
                     </SlideContent>
                     <SlideContent id={slide4Id}>
-                        <Typography variant="h2" sx={{ ...slideTitle }}>
-                            Sharing is Scaling
+                        <Typography variant='h2' sx={{ ...slideTitle }}>Organizational Management</Typography>
+                        <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: "center" }}>
+                            Organize your business processes efficiently with routines and bots, or copy an existing business in a few clicks.
                         </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6} sx={{ paddingLeft: "0 !important" }}>
-                                <Box sx={{ ...slideImageContainer }}>
-                                    <Box
-                                        component="img"
-                                        alt="showcases the concept of 'Sharing is Scaling' through the use of robots collaborating to build something."
-                                        src={RobotsCollab}
-                                        sx={{ borderRadius: "32px", objectFit: "cover" }}
-                                    />
-                                </Box>
-                            </Grid>
-                            <Grid item xs={12} sm={6} margin="auto">
-                                <Stack direction="column" spacing={2}>
-                                    <Typography variant="h5" sx={{ ...slideText }}>
-                                        Utilize existing routines as building blocks to rapidly construct complex processes.
-                                    </Typography>
-                                    <Typography variant="h5" sx={{ ...slideText }}>
-                                        Contribute to the community to receive rewards, recognition, and valuable feedback.
-                                    </Typography>
-                                </Stack>
-                            </Grid>
-                        </Grid>
+                        {/* Illustration for the slide. A graphic showing a bird-eye view of an organization managed by bots */}
                     </SlideContent>
                     <SlideContent id={slide5Id}>
-                        <Typography variant="h2" sx={{ ...slideTitle }}>
-                            Automate With Minimal Effort
+                        <Typography variant='h2' sx={{ ...slideTitle }}>Automating the Economy</Typography>
+                        <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: "center" }}>
+                            By combining bots, routines, and organizations, we pave the way for an automated and transparent economy, accessible to everyone.
                         </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6} margin="auto">
-                                <Stack direction="column" spacing={2}>
-                                    <Typography variant="h5" sx={{ ...slideText }}>
-                                        Harness the power of AI to generate routines, streamlining processes and maximizing productivity.
-                                    </Typography>
-                                </Stack>
-                            </Grid>
-                            <Grid item xs={12} sm={6} sx={{ paddingLeft: "0 !important" }}>
-                                <Box sx={{ ...slideImageContainer }}>
-                                    <Box
-                                        component="img"
-                                        alt="Visually represents the concept of 'Automate With Minimal Effort'. Features a modern living room environment with a clean and minimalistic design. Within this environment, there is a person relaxing on a couch using an AR headset to access automation technology, which is visually represented in the image in a way that conveys ease of use and minimal effort. The person's interactions with a device or interface that is visually distinct from the rest of the environment, such as a touchscreen or a voice-activated assistant."
-                                        src={RelaxingCouch}
-                                        sx={{ borderRadius: "32px", objectFit: "cover" }}
-                                    />
-                                </Box>
-                            </Grid>
-                        </Grid>
+                        {/* GIF for the slide. Animated visualization of a global network showing the growth of automated systems */}
                     </SlideContent>
                 </SlideContainerNeon>
                 <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 4 }}>
