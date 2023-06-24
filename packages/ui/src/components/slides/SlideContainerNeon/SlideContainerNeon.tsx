@@ -3,9 +3,9 @@ import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
 import { useCallback } from "react";
 import Particles from "react-tsparticles";
+import { SlideContainer } from "styles";
 import { loadFull } from "tsparticles";
 import type { Container, Engine } from "tsparticles-engine";
-import { SlideContainer } from "../SlideContainer/SlideContainer";
 import { SlideContainerNeonProps } from "../types";
 
 const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";

@@ -24,6 +24,7 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
     [InputType.JSON]: (props: Partial<Omit<CodeProps, "id">>): Omit<CodeProps, "id"> => ({
         defaultValue: "",
         limitTo: [StandardLanguage.JsonStandard],
+        name: "",
         ...props,
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
@@ -51,6 +52,7 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
         ...props,
     }),
     [InputType.Slider]: (props: SliderProps) => {
+        // eslint-disable-next-line prefer-const
         let { defaultValue, min, max, step, ...otherProps } = props;
         const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
         const nearest = (value: number, min: number, max: number, steps: number) => {

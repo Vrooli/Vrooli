@@ -1,4 +1,4 @@
-import { Box, Palette, Stack, styled, SxProps, Theme } from "@mui/material";
+import { Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
 export const centeredDiv = {
     display: "flex",
@@ -63,7 +63,7 @@ export const greenNeonText = {
     filter: "drop-shadow(0 0 1px #0fa) drop-shadow(0 0 2px #0fa) drop-shadow(0 0 20px #0fa)",
 } as const;
 
-export const iconButtonProps = {
+export const slideIconButton = {
     background: "transparent",
     border: "1px solid #0fa",
     "&:hover": {
@@ -73,34 +73,118 @@ export const iconButtonProps = {
     },
     transition: "all 0.2s ease",
 } as const;
+export const SlideIconButton = styled(IconButton)(({ theme }) => ({
+    ...slideIconButton,
+}));
 
-export const slideText = {
-    margin: "auto",
-    textAlign: { xs: "left", md: "justify" }, fontSize: { xs: "1.25rem", md: "1.5rem" },
+export const slideText = (theme: Theme) => ({
     zIndex: 10,
-} as const;
+    textAlign: "center",
+    [theme.breakpoints.up("md")]: {
+        fontSize: "1.5rem",
+    },
+    [theme.breakpoints.down("md")]: {
+        fontSize: "1.25rem",
+    },
+} as const);
+export const SlideText = styled("h3")(({ theme }) => ({
+    ...slideText(theme),
+}));
 
-export const slideTitle = {
-    fontSize: { xs: "2.4em", sm: "3rem", md: "3.75rem" },
+export const slideTitle = (theme: Theme) => ({
     letterSpacing: "-0.05em",
     textAlign: "center",
     zIndex: 10,
-} as const;
+    [theme.breakpoints.up("md")]: {
+        fontSize: "3.75rem",
+    },
+    [theme.breakpoints.up("sm")]: {
+        fontSize: "3rem",
+    },
+    [theme.breakpoints.up("xs")]: {
+        fontSize: "2.4rem",
+    },
+} as const);
+export const SlideTitle = styled(Typography)(({ theme }) => ({
+    ...slideTitle(theme),
+}));
 
-export const slideImageContainer = {
+export const slideImageContainer = (theme: Theme) => ({
     justifyContent: "center",
     height: "100%",
     display: "flex",
     "& > img": {
-        maxWidth: {
-            xs: "min(225px, 90%)",
-            sm: "min(300px, 90%)",
+        [theme.breakpoints.up("xs")]: {
+            maxWidth: "min(300px, 90%)",
+        },
+        [theme.breakpoints.down("xs")]: {
+            maxWidth: "min(225px, 90%)",
         },
         maxHeight: "100%",
-        objectFit: "contain",
         zIndex: "3",
     },
+} as const);
+export const SlideImageContainer = styled(Box)(({ theme }) => ({
+    ...slideImageContainer(theme),
+}));
+
+export const slideImage = (theme: Theme) => ({
+    borderRadius: theme.spacing(4),
+    objectFit: "cover",
+} as const);
+export const SlideImage = styled("img")(({ theme }) => ({
+    ...slideImage(theme),
+}));
+
+export const slideContent = (theme: Theme) => ({
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    marginLeft: "auto",
+    marginRight: "auto",
+    maxWidth: "700px",
+    minHeight: "100vh",
+    padding: theme.spacing(2),
+    textAlign: "center",
+    zIndex: 5,
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(8),
+    },
+} as const);
+export const SlideContent = styled(Stack)(({ theme }) => ({
+    ...slideContent(theme),
+}));
+
+export const slideContainer = {
+    overflow: "hidden",
+    position: "relative",
+    scrollSnapAlign: "start",
 } as const;
+export const SlideContainer = styled(Box)(() => ({
+    ...slideContainer,
+}));
+
+export const slidePage = {
+    scrollBehavior: "smooth",
+} as const;
+export const SlidePage = styled(Box)(() => ({
+    ...slidePage,
+}));
+
+export const slideBox = (theme: Theme) => ({
+    ...slideContent(theme),
+    background: "#2c2d2fd1",
+    borderRadius: theme.spacing(4),
+    boxShadow: theme.shadows[2],
+    minHeight: "unset",
+    zIndex: 2,
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(6),
+    },
+} as const);
+export const SlideBox = styled(Stack)(({ theme }) => ({
+    ...slideBox(theme),
+}));
 
 export const textPop = {
     padding: "0",
@@ -162,4 +246,36 @@ export const OverviewContainer = styled(Box)(({ theme }) => ({
         boxShadow: theme.shadows[2],
         width: "min(500px, 100vw)",
     },
+}));
+
+const pulse = keyframes`
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 255, 170, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
+    }
+`;
+
+export const PulseButton = styled(Button)(({ theme }) => ({
+    fontSize: "1.8rem",
+    // Button border has neon green glow animation
+    animation: `${pulse} 3s infinite ease`,
+    borderColor: "#0fa",
+    borderWidth: "2px",
+    color: "#0fa",
+    fontWeight: 550,
+    width: "fit-content",
+    // On hover, brighten and grow
+    "&:hover": {
+        borderColor: "#0fa",
+        color: "#0fa",
+        background: "transparent",
+        filter: "brightness(1.2)",
+        transform: "scale(1.05)",
+    },
+    transition: "all 0.2s ease",
 }));
