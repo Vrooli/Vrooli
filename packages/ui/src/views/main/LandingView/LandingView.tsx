@@ -1,4 +1,4 @@
-import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
+import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, SvgComponent, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
 import { Box, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
@@ -21,6 +21,13 @@ const slide4Id = "organizations";
 const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
 const slideContentIds = [slide1Id, slide2Id, slide3Id, slide4Id, slide5Id, slide6Id];
+
+const externalLinks: [string, string, SvgComponent][] = [
+    ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
+    ["Check out our code", SOCIALS.GitHub, GitHubIcon],
+    ["Follow us on Twitter", SOCIALS.Twitter, TwitterIcon],
+    ["Join us on Discord", SOCIALS.Discord, DiscordIcon],
+];
 
 /**
  * View displayed for Home page when not logged in
@@ -115,7 +122,7 @@ export const LandingView = ({
                 onClose={onClose}
             />
             <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
-                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 3 }}>
+                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
                     <SlideContent id={slide1Id}>
                         <SlideTitle variant="h1" sx={{
                             ...greenNeonText,
@@ -149,26 +156,13 @@ export const LandingView = ({
                         >Start Now</PulseButton>
                         {/* Icon buttons for White paper, GitHub, Twitter, and Discord */}
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
-                            <Tooltip title="Read the white Paper" placement="bottom">
-                                <SlideIconButton onClick={() => openLink(setLocation, WHITE_PAPER_URL)}>
-                                    <ArticleIcon fill='#0fa' />
-                                </SlideIconButton>
-                            </Tooltip>
-                            <Tooltip title="Check out our code" placement="bottom">
-                                <SlideIconButton onClick={() => openLink(setLocation, SOCIALS.GitHub)}>
-                                    <GitHubIcon fill='#0fa' />
-                                </SlideIconButton>
-                            </Tooltip>
-                            <Tooltip title="Follow us on Twitter" placement="bottom">
-                                <SlideIconButton onClick={() => openLink(setLocation, SOCIALS.Twitter)}>
-                                    <TwitterIcon fill='#0fa' />
-                                </SlideIconButton>
-                            </Tooltip>
-                            <Tooltip title="Join us on Discord" placement="bottom">
-                                <SlideIconButton onClick={() => openLink(setLocation, SOCIALS.Discord)}>
-                                    <DiscordIcon fill='#0fa' />
-                                </SlideIconButton>
-                            </Tooltip>
+                            {externalLinks.map(([tooltip, link, Icon]) => (
+                                <Tooltip key={tooltip} title={tooltip} placement="bottom">
+                                    <SlideIconButton onClick={() => openLink(setLocation, link)}>
+                                        <Icon fill='#0fa' />
+                                    </SlideIconButton>
+                                </Tooltip>
+                            ))}
                         </Stack>
                     </SlideContent>
                     <SlideContent id={slide2Id}>
@@ -232,7 +226,7 @@ export const LandingView = ({
                         </SlideBox>
                     </SlideContent>
                 </SlideContainerNeon>
-                <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 4 }}>
+                <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 3 }}>
                     {/* Background stars */}
                     <TwinkleStars
                         amount={400}

@@ -116,10 +116,10 @@ export const slideImageContainer = (theme: Theme) => ({
     display: "flex",
     "& > img": {
         [theme.breakpoints.up("xs")]: {
-            maxWidth: "min(300px, 90%)",
+            maxWidth: "min(300px, 100%)",
         },
         [theme.breakpoints.down("xs")]: {
-            maxWidth: "min(225px, 90%)",
+            maxWidth: "min(225px, 100%)",
         },
         maxHeight: "100%",
         zIndex: "3",
