@@ -120,6 +120,7 @@ export const LandingView = ({
                         <SlideTitle variant="h1" sx={{
                             ...greenNeonText,
                             fontWeight: "bold",
+                            marginBottom: "0!important",
                             [theme.breakpoints.up("md")]: {
                                 fontSize: "4.75rem",
                             },
@@ -132,8 +133,8 @@ export const LandingView = ({
                         }}>
                             Revolutionize Your Workflow
                         </SlideTitle>
-                        <SlideText>
-                            Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with a few clicks.
+                        <SlideText sx={{ paddingBottom: 4 }}>
+                            Harness the power of AI to automate tasks, collaborate effortlessly, and start businesses with ease.
                         </SlideText>
                         <PulseButton
                             variant="outlined"
@@ -143,6 +144,7 @@ export const LandingView = ({
                             sx={{
                                 marginLeft: "auto !important",
                                 marginRight: "auto !important",
+                                marginBottom: 3,
                             }}
                         >Start Now</PulseButton>
                         {/* Icon buttons for White paper, GitHub, Twitter, and Discord */}
@@ -193,6 +195,11 @@ export const LandingView = ({
                         <SlideBox>
                             <SlideTitle variant='h2'>Simple Routines</SlideTitle>
                             <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6} margin="auto">
+                                    <SlideText>
+                                        Design routines for a wide variety of tasks, such as business management, content creation, and surveys.
+                                    </SlideText>
+                                </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <SlideImageContainer>
                                         <SlideImage
@@ -200,11 +207,6 @@ export const LandingView = ({
                                             src={CollaborativeRoutines}
                                         />
                                     </SlideImageContainer>
-                                </Grid>
-                                <Grid item xs={12} sm={6} margin="auto">
-                                    <SlideText>
-                                        Design routines for a wide variety of tasks, such as business management, content creation, and surveys.
-                                    </SlideText>
                                 </Grid>
                             </Grid>
                         </SlideBox>

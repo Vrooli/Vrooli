@@ -80,6 +80,7 @@ export const SlideIconButton = styled(IconButton)(({ theme }) => ({
 export const slideText = (theme: Theme) => ({
     zIndex: 10,
     textAlign: "center",
+    textWrap: "balance",
     [theme.breakpoints.up("md")]: {
         fontSize: "1.5rem",
     },
@@ -148,7 +149,7 @@ export const slideContent = (theme: Theme) => ({
     textAlign: "center",
     zIndex: 5,
     "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(8),
+        marginBottom: theme.spacing(4),
     },
 } as const);
 export const SlideContent = styled(Stack)(({ theme }) => ({

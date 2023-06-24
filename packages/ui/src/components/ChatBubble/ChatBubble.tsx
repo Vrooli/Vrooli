@@ -1,5 +1,5 @@
 import { BotIcon, ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage, UserIcon } from "@local/shared";
-import { Avatar, Box, Grid, useTheme } from "@mui/material";
+import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
@@ -88,36 +88,34 @@ export const ChatBubble = ({
     };
 
     return (
-        <Box
+        <Stack
             key={index}
             sx={{ display: "flex", justifyContent: isOwn ? "flex-end" : "flex-start", p: 2 }}
+            direction="column"
+            spacing={1}
         >
-            {/* Avatar only display if it's not your message */}
+            {/* User name display if it's not your message */}
             {!isOwn && (
-                <Avatar
-                    // src={message.user.avatar} TODO
-                    alt={message.user?.name ?? message.user?.handle}
-                    // onClick handlers...
-                    sx={{
-                        bgcolor: message.user.isBot ? "grey" : undefined,
-                        boxShadow: 2,
-                        cursor: "pointer",
-                    }}
-                >
-                    {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
-                </Avatar>
+                <Typography variant="body2">
+                    {message.user?.name ?? message.user?.handle}
+                </Typography>
             )}
-
-            {/* Message bubble with reaction */}
-            <Box sx={{
-                ml: !isOwn ? 2 : 2,
-                mr: isOwn ? 2 : 2,
-                display: "block",
-                maxWidth: "100%",
-                position: "relative",
-                overflowWrap: "break-word",
-                wordWrap: "break-word",
-            }}>
+            {/* Avatar, chat bubble, and status indicator */}
+            <Stack direction="row" spacing={1}>
+                {!isOwn && (
+                    <Avatar
+                        // src={message.user.avatar} TODO
+                        alt={message.user?.name ?? message.user?.handle}
+                        // onClick handlers...
+                        sx={{
+                            bgcolor: message.user.isBot ? "grey" : undefined,
+                            boxShadow: 2,
+                            cursor: "pointer",
+                        }}
+                    >
+                        {message.user.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                    </Avatar>
+                )}
                 <Box
                     sx={{
                         p: 1,
@@ -131,6 +129,7 @@ export const ChatBubble = ({
                         color: palette.background.textPrimary,
                         borderRadius: "8px",
                         boxShadow: 2,
+                        width: editingText !== undefined ? "100%" : "unset",
                     }}
                 >
                     {editingText === undefined ? <MarkdownDisplay
@@ -141,6 +140,7 @@ export const ChatBubble = ({
                         }}
                     /> : <>
                         <MarkdownInputBase
+                            fullWidth
                             maxChars={1500}
                             minRows={editingText?.split("\n").length ?? 1}
                             name="edit-message"
@@ -166,24 +166,26 @@ export const ChatBubble = ({
                     </>
                     }
                 </Box>
-            </Box>
-            {/* Status indicator and edit/retry buttons */}
-            {isOwn && (
-                <Box display="flex" alignItems="center">
-                    <ChatBubbleStatus
-                        isEditing={Boolean(editingText)}
-                        isSending={isCreating || isUpdating}
-                        hasError={hasError}
-                        onEdit={() => {
-                            startEditing();
-                        }}
-                        onRetry={() => {
-                            shouldRetry.current = true;
-                            onUpdated({ ...message, isUnsent: true });
-                        }}
-                    />
-                </Box>
-            )}
-        </Box>
+                {/* Status indicator and edit/retry buttons */}
+                {isOwn && (
+                    <Box display="flex" alignItems="center">
+                        <ChatBubbleStatus
+                            isEditing={Boolean(editingText)}
+                            isSending={isCreating || isUpdating}
+                            hasError={hasError}
+                            onEdit={() => {
+                                startEditing();
+                            }}
+                            onRetry={() => {
+                                shouldRetry.current = true;
+                                onUpdated({ ...message, isUnsent: true });
+                            }}
+                        />
+                    </Box>
+                )}
+            </Stack>
+            {/* Reactions */}
+            {/* TODO */}
+        </Stack>
     );
 };
