@@ -230,13 +230,13 @@ export async function getMultiTypePermissions(
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
     // Loop through each ID and calculate permissions
-    for (const id of Object.keys(authDataById)) {
+    for (const [id, authData] of Object.entries(authDataById)) {
         // Get permissions object for this ID
-        const { validate } = getLogic(["validate"], authDataById[id].__typename, userData?.languages ?? ["en"], "getMultiplePermissions");
-        const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataById[id], userData.id), userData.id) : false;
-        const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ["en"]);
+        const { validate } = getLogic(["validate"], authData.__typename, userData?.languages ?? ["en"], "getMultiplePermissions");
+        const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authData, userData.id), userData.id) : false;
+        const isDeleted = validate.isDeleted(authData, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
-        const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ["en"]);
+        const isPublic = validate.isPublic(authData, userData?.languages ?? ["en"]);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id], userId: userData?.id });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.

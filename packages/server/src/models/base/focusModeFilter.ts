@@ -36,7 +36,7 @@ export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => FocusModeModel.validate!.owner(data.focusMode as any, userId),
+        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -46,7 +46,7 @@ export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof 
             private: {},
             public: {},
             owner: (userId) => ({
-                focusMode: FocusModeModel.validate!.visibility.owner(userId),
+                focusMode: FocusModeModel.validate.visibility.owner(userId),
             }),
         },
     },

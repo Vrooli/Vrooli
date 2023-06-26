@@ -79,7 +79,6 @@ export const SlideContainerNeon = ({
                 background: blackRadial,
                 backgroundAttachment: "fixed",
                 color: "white",
-                scrollSnapAlign: "start",
                 ...sx,
             }}
         >

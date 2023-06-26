@@ -95,7 +95,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate!.visibility.owner(userId),
+                chat: ChatModel.validate.visibility.owner(userId),
             }),
         },
     },

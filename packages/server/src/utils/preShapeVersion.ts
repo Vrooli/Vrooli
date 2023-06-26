@@ -12,7 +12,7 @@ export const preShapeVersion = ({
     objectType,
 }: {
     createList: { [x: string]: any }[],
-    updateList: { where: { id: string }, data: { [x: string]: any } }[],
+    updateList: { [x: string]: any }[],
     objectType: GqlModelType | `${GqlModelType}`,
 }): {
     embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }>,

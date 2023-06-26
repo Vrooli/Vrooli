@@ -58,7 +58,7 @@ export const GridSubmitButtons = ({
                 <Button
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
-                    onClick={onCancel}
+                    onClick={() => { onCancel(); }}
                     startIcon={<CancelIcon />}
                     variant="outlined"
                 >{t("Cancel")}</Button>

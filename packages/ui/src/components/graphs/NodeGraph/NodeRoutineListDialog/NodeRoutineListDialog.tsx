@@ -23,11 +23,12 @@ export const NodeRoutineListDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => nodeRoutineListInitialValues(session, node?.routineVersion as any, node), [node, session]);
+    console.log("noderoutinelistdialog render", node, initialValues);
 
     return (
         <LargeDialog
             id="routine-list-node-dialog"
-            onClose={handleClose}
+            onClose={() => { handleClose(); }}
             isOpen={isOpen}
             titleId={titleId}
             zIndex={zIndex}
@@ -42,7 +43,7 @@ export const NodeRoutineListDialog = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values) => {
-                    handleClose(values as any);
+                    handleClose(values);
                 }}
                 validate={async (values) => await validateNodeRoutineListValues(values, node ?? undefined)}
             >

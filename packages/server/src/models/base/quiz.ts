@@ -138,15 +138,15 @@ export const QuizModel: ModelLogic<QuizModelLogic, typeof suppFields> = ({
             private: {
                 OR: [
                     { isPrivate: true },
-                    { project: ProjectModel.validate!.visibility.private },
-                    { routine: RoutineModel.validate!.visibility.private },
+                    { project: ProjectModel.validate.visibility.private },
+                    { routine: RoutineModel.validate.visibility.private },
                 ],
             },
             public: {
                 AND: [
                     { isPrivate: false },
-                    { project: ProjectModel.validate!.visibility.public },
-                    { routine: RoutineModel.validate!.visibility.public },
+                    { project: ProjectModel.validate.visibility.public },
+                    { routine: RoutineModel.validate.visibility.public },
                 ],
             },
             owner: (userId) => ({ createdBy: { id: userId } }),

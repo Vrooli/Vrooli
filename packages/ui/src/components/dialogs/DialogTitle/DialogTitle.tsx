@@ -39,7 +39,7 @@ export const DialogTitle = forwardRef(({
                 <IconButton
                     aria-label="close"
                     edge="end"
-                    onClick={onClose}
+                    onClick={() => { onClose(); }}
                     sx={{ marginLeft: "auto" }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} />

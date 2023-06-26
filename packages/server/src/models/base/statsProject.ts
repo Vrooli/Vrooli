@@ -40,15 +40,15 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ProjectModel.validate!.owner(data.project as any, userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data.project as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
             ["project", "Project"],
         ], languages),
         visibility: {
-            private: { project: ProjectModel.validate!.visibility.private },
-            public: { project: ProjectModel.validate!.visibility.public },
-            owner: (userId) => ({ project: ProjectModel.validate!.visibility.owner(userId) }),
+            private: { project: ProjectModel.validate.visibility.private },
+            public: { project: ProjectModel.validate.visibility.public },
+            owner: (userId) => ({ project: ProjectModel.validate.visibility.owner(userId) }),
         },
     },
 });

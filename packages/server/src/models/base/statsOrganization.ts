@@ -40,15 +40,15 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             organization: "Organization",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate!.owner(data.organization as any, userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
             ["organization", "Organization"],
         ], languages),
         visibility: {
-            private: { organization: OrganizationModel.validate!.visibility.private },
-            public: { organization: OrganizationModel.validate!.visibility.public },
-            owner: (userId) => ({ organization: OrganizationModel.validate!.visibility.owner(userId) }),
+            private: { organization: OrganizationModel.validate.visibility.private },
+            public: { organization: OrganizationModel.validate.visibility.public },
+            owner: (userId) => ({ organization: OrganizationModel.validate.visibility.owner(userId) }),
         },
     },
 });

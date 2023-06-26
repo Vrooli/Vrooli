@@ -56,13 +56,13 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => RunRoutineModel.validate!.owner(data.runRoutine as any, userId),
+        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as any, userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
+        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },
-            owner: (userId) => ({ runRoutine: RunRoutineModel.validate!.visibility.owner(userId) }),
+            owner: (userId) => ({ runRoutine: RunRoutineModel.validate.visibility.owner(userId) }),
         },
     },
 });

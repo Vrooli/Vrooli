@@ -240,7 +240,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => BookmarkListModel.validate!.owner(data.list as any, userId),
+        owner: (data, userId) => BookmarkListModel.validate.owner(data.list as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -265,7 +265,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             private: {},
             public: {},
             owner: (userId) => ({
-                list: BookmarkListModel.validate!.visibility.owner(userId),
+                list: BookmarkListModel.validate.visibility.owner(userId),
             }),
         },
     },

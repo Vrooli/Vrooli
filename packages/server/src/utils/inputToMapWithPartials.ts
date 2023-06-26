@@ -1,3 +1,4 @@
+import { GqlModelType } from "@local/shared";
 import { getLogic } from "../getters";
 import { PrismaRelMap } from "../models/types";
 import { IdsByAction, IdsByType, InputsByType, QueryAction } from "./types";
@@ -58,6 +59,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
     actionType: QueryAction,
     relMap: PrismaRelMap<T>,
     object: any,//PrismaUpdate | { where: { [key: string]: any }, data: PrismaUpdate } | string,
+    idField: string,
     languages: string[],
 ): {
     idsByAction: IdsByAction,
@@ -72,6 +74,10 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
     if (["Create", "Update", "Delete"].includes(actionType)) {
         inputsByType[relMap.__typename] = { Create: [], Update: [], Delete: [], [actionType]: [object as any] };
     }
+    // Remove update shape, if exists
+    if (Object.keys(object).length === 2 && Object.prototype.hasOwnProperty.call(object, "data") && Object.prototype.hasOwnProperty.call(object, "where")) {
+        object = object.data;
+    }
     // If action is Connect, Disconnect, or Delete, add to maps and return. 
     // The rest of the function is for parsing objects
     if (["Connect", "Disconnect", "Delete"].includes(actionType)) {
@@ -82,9 +88,8 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
     // Can only be Create, Update, or Read past this point
     // If not a 'Create' (i.e. already exists in database), add id of this object to return object
     if (actionType !== "Create") {
-        const objectId = actionType === "Update" ? object.where.id : object.id;
-        idsByAction[actionType] = [objectId];
-        idsByType[relMap.__typename] = [objectId];
+        idsByAction[actionType] = [object[idField]];
+        idsByType[relMap.__typename] = [object[idField]];
     }
     // Loop through all keys in relationship map
     Object.keys(relMap).forEach((key) => {
@@ -95,10 +100,11 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
         const relType = relMap[key]!;
 
         // Helper function to process relationship action
-        const processRelationshipAction = (action, relationshipAction, relationshipType) => {
+        const processRelationshipAction = (action: QueryAction, key: string, relType: GqlModelType | `${GqlModelType}`) => {
             // Get nested relMap data
-            const { format } = getLogic(["format"], relationshipType, languages, "inputToMapWithPartials loop");
+            const { format, idField: relIdField } = getLogic(["format", "idField"], relType, languages, "inputToMapWithPartials loop");
             const childRelMap = format.gqlRelMap;
+            const relationshipAction = `${key}${action}`;
 
             if (Object.prototype.hasOwnProperty.call(object, relationshipAction)) {
                 // Get the nested object(s) corresponding to the relationship action
@@ -110,7 +116,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                 nestedObjects.forEach((nestedObject) => {
                     // Handle Disconnect case (boolean or array of strings)
                     if (action === "Disconnect" && typeof nestedObject === "boolean") {
-                        nestedObject = `${relationshipType}|${key}`;
+                        nestedObject = `${relType}|${key}`;
                     }
 
                     // Recursive call for nested objects
@@ -118,6 +124,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                         action,
                         childRelMap as any,
                         nestedObject,
+                        relIdField,
                         languages,
                     );
 
@@ -140,8 +147,7 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
                 });
             } else {
                 // Process regular relationship actions
-                const relationshipAction = `${key}${action}`;
-                processRelationshipAction(action, relationshipAction, relType);
+                processRelationshipAction(action, key, relType);
             }
         });
     });

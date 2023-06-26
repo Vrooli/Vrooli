@@ -70,7 +70,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                     updateList,
                     userData,
                 });
-                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                const combined = [...createList, ...updateList];
                 combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
                 await Promise.all(combined.map(async (input) => { await validateNodePositions(prisma, input, userData.languages); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
@@ -80,7 +80,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 const { dataWeights } = await calculateWeightData(
                     prisma,
                     userData.languages,
-                    [...createList, ...updateList.map(u => u.data)],
+                    combined,
                     deleteList,
                 );
                 // Convert dataWeights to a map for easy lookup
@@ -230,10 +230,10 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            RoutineModel.validate!.isPublic(data.root as any, languages),
+            RoutineModel.validate.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => RoutineModel.validate!.owner(data.root as any, userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -259,7 +259,7 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
                 ],
             },
             owner: (userId) => ({
-                root: RoutineModel.validate!.visibility.owner(userId),
+                root: RoutineModel.validate.visibility.owner(userId),
             }),
         },
     },

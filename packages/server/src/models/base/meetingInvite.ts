@@ -83,7 +83,7 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
             private: {},
             public: {},
             owner: (userId) => ({
-                meeting: MeetingModel.validate!.visibility.owner(userId),
+                meeting: MeetingModel.validate.visibility.owner(userId),
             }),
         },
     },

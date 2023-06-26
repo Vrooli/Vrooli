@@ -89,7 +89,7 @@ const genSitemapForObject = async (
             const { delegate, validate } = getLogic(["delegate", "validate"], objectType, ["en"], "batchCollectEntries");
             const batch = await delegate(prisma).findMany({
                 where: {
-                    ...validate!.visibility.public,
+                    ...validate.visibility.public,
                 },
                 // Grab id, handle, root data, and translations
                 select: {

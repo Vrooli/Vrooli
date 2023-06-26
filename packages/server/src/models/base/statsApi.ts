@@ -40,15 +40,15 @@ export const StatsApiModel: ModelLogic<StatsApiModelLogic, typeof suppFields> = 
             api: "Api",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ApiModel.validate!.owner(data.api as any, userId),
+        owner: (data, userId) => ApiModel.validate.owner(data.api as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_apiSelect>(data, [
             ["api", "Api"],
         ], languages),
         visibility: {
-            private: { api: ApiModel.validate!.visibility.private },
-            public: { api: ApiModel.validate!.visibility.public },
-            owner: (userId) => ({ api: ApiModel.validate!.visibility.owner(userId) }),
+            private: { api: ApiModel.validate.visibility.private },
+            public: { api: ApiModel.validate.visibility.public },
+            owner: (userId) => ({ api: ApiModel.validate.visibility.owner(userId) }),
         },
     },
 });

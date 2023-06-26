@@ -95,6 +95,7 @@ export const SlideText = styled("h3")(({ theme }) => ({
 export const slideTitle = (theme: Theme) => ({
     letterSpacing: "-0.05em",
     textAlign: "center",
+    wordBreak: "break-word",
     zIndex: 10,
     [theme.breakpoints.up("md")]: {
         fontSize: "3.75rem",
@@ -159,14 +160,12 @@ export const SlideContent = styled(Stack)(({ theme }) => ({
 export const slideContainer = {
     overflow: "hidden",
     position: "relative",
-    scrollSnapAlign: "start",
 } as const;
 export const SlideContainer = styled(Box)(() => ({
     ...slideContainer,
 }));
 
 export const slidePage = {
-    scrollBehavior: "smooth",
 } as const;
 export const SlidePage = styled(Box)(() => ({
     ...slidePage,

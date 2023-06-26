@@ -1,5 +1,6 @@
-import { MemberSortBy } from "@local/shared";
+import { MaxObjects, MemberSortBy } from "@local/shared";
 import { selPad } from "../../builders";
+import { defaultPermissions } from "../../utils";
 import { MemberFormat } from "../format/member";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
@@ -38,5 +39,19 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
                 { user: UserModel.search!.searchStringQuery() },
             ],
         }),
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ id: true, organization: "Organization" }),
+        permissionResolvers: defaultPermissions,
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
+        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as any, languages),
+        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as any, languages),
+        visibility: {
+            private: { organization: OrganizationModel.validate.visibility.private },
+            public: { organization: OrganizationModel.validate.visibility.public },
+            owner: (userId) => ({ organization: OrganizationModel.validate.visibility.owner(userId) }),
+        },
     },
 });

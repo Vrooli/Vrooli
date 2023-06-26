@@ -1,8 +1,9 @@
-import { RoleSortBy, roleValidation } from "@local/shared";
+import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
-import { bestTranslation, translationShapeHelper } from "../../utils";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { RoleFormat } from "../format/role";
 import { ModelLogic } from "../types";
+import { OrganizationModel } from "./organization";
 import { RoleModelLogic } from "./types";
 
 const __typename = "Role" as const;
@@ -62,5 +63,18 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
             ],
         }),
     },
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ id: true, organization: "Organization" }),
+        permissionResolvers: defaultPermissions,
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
+        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as any, languages),
+        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as any, languages),
+        visibility: {
+            private: { organization: OrganizationModel.validate.visibility.private },
+            public: { organization: OrganizationModel.validate.visibility.public },
+            owner: (userId) => ({ organization: OrganizationModel.validate.visibility.owner(userId) }),
+        },
+    },
 });

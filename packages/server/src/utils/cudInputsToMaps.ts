@@ -41,11 +41,11 @@ export const cudInputsToMaps = async ({
     let idsByAction: IdsByAction = {};
     let inputsByType: InputsByType = {};
     // Find validator for this (root) object type
-    const { format } = getLogic(["format"], objectType, languages, "getAuthenticatedIds");
+    const { format, idField } = getLogic(["format", "idField"], objectType, languages, "getAuthenticatedIds");
     // Combine createMany, updateMany, and deleteMany into one array, with an action property
     const manyList = [
         ...((createMany ?? []).map(data => ({ actionType: "Create", data }))),
-        ...((updateMany ?? []).map(data => ({ actionType: "Update", data }))),
+        ...((updateMany ?? []).map(({ data }) => ({ actionType: "Update", data }))),
         ...((deleteMany ?? []).map(id => ({ actionType: "Delete", data: id }))),
     ];
     // Filter out objects that are strings (i.e. Deletes), since the rest of the function only works with objects
@@ -67,7 +67,7 @@ export const cudInputsToMaps = async ({
             idsByAction: childIdsByAction,
             idsByType: childIdsByType,
             inputsByType: childInputsByType,
-        } = inputToMapWithPartials(object.actionType as QueryAction, format.prismaRelMap, object.data as PrismaUpdate, languages);
+        } = inputToMapWithPartials(object.actionType as QueryAction, format.prismaRelMap, object.data as PrismaUpdate, idField, languages);
         // Merge idsByAction and idsByType with childIdsByAction and childIdsByType
         idsByAction = merge(idsByAction, childIdsByAction);
         idsByType = merge(idsByType, childIdsByType);

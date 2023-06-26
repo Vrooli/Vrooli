@@ -133,10 +133,10 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             public: {},
             owner: (userId) => ({
                 OR: [
-                    { focusModes: { some: FocusModeModel.validate!.visibility.owner(userId) } },
-                    { meetings: { some: MeetingModel.validate!.visibility.owner(userId) } },
-                    { runProjects: { some: RunProjectModel.validate!.visibility.owner(userId) } },
-                    { runRoutines: { some: RunRoutineModel.validate!.visibility.owner(userId) } },
+                    { focusModes: { some: FocusModeModel.validate.visibility.owner(userId) } },
+                    { meetings: { some: MeetingModel.validate.visibility.owner(userId) } },
+                    { runProjects: { some: RunProjectModel.validate.visibility.owner(userId) } },
+                    { runRoutines: { some: RunRoutineModel.validate.visibility.owner(userId) } },
                 ],
             }),
         },

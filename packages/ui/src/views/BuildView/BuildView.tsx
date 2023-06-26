@@ -8,9 +8,11 @@ import { FindSubroutineDialog } from "components/dialogs/FindSubroutineDialog/Fi
 import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
+import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { NodeWithRoutineListShape } from "forms/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BuildAction, Status } from "utils/consts";
@@ -135,6 +137,7 @@ export const BuildView = ({
     /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
+        console.log("handlenodeupdate", changedRoutineVersion.nodes, updateArray(changedRoutineVersion.nodes, nodeIndex, node));
         if (nodeIndex === -1) return;
         addToChangeStack({
             ...changedRoutineVersion,
@@ -216,23 +219,24 @@ export const BuildView = ({
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
     // Subroutine info dialog
-    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeWithRoutineListShape, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedSubroutine({ node: node as Node & { routineList: NodeRoutineList }, routineItemId: subroutineId });
+        if (node && node.routineList) setOpenedSubroutine({ node: node as NodeWithRoutineListShape, routineItemId: subroutineId });
     }, [nodesById]);
     const closeSubroutineDialog = useCallback(() => {
         setOpenedSubroutine(null);
     }, []);
 
     // Routine list info dialog
-    const [openedRoutineList, setOpenedRoutineList] = useState<{ node: Node & { routineList: NodeRoutineList } } | null>(null);
+    const [openedRoutineList, setOpenedRoutineList] = useState<NodeWithRoutineListShape | null>(null);
     const handleRoutineListOpen = useCallback((nodeId: string) => {
         const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedRoutineList({ node: node as Node & { routineList: NodeRoutineList } });
+        if (node && node.routineList) setOpenedRoutineList(node as NodeWithRoutineListShape);
     }, [nodesById]);
-    const closeRoutineListDialog = useCallback((updatedNode?: Node & { routineList: NodeRoutineList }) => {
-        if (updatedNode) handleNodeUpdate(updatedNode);
+    const closeRoutineListDialog = useCallback((updatedNode?: NodeWithRoutineListShape) => {
+        console.log("close routine list dialog", updatedNode);
+        if (updatedNode) handleNodeUpdate(updatedNode as Node);
         setOpenedRoutineList(null);
     }, [handleNodeUpdate]);
 
@@ -1058,7 +1062,7 @@ export const BuildView = ({
             />}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
-                data={openedSubroutine}
+                data={openedSubroutine as SubroutineInfoDialogProps["data"]}
                 defaultLanguage={translationData.language}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate as any}
@@ -1074,7 +1078,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 isOpen={Boolean(openedRoutineList)}
                 language={translationData.language}
-                node={openedRoutineList as any}
+                node={openedRoutineList}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}

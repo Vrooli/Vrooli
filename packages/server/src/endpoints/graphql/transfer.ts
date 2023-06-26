@@ -66,23 +66,23 @@ export const typeDef = gql`
 
     input TransferSearchInput {
         after: String
-        createdTimeFrame: TimeFrame
-        ids: [ID!]
-        status: TransferStatus
-        fromOrganizationId: ID # If not set, uses your userId
-        toOrganizationId: ID
-        toUserId: ID
-        searchString: String
-        sortBy: TransferSortBy
-        take: Int
-        updatedTimeFrame: TimeFrame
-        visibility: VisibilityType
         apiId: ID
+        createdTimeFrame: TimeFrame
+        fromOrganizationId: ID # If not set, uses your userId
+        ids: [ID!]
         noteId: ID
         projectId: ID
         routineId: ID
+        searchString: String
         smartContractId: ID
+        sortBy: TransferSortBy
         standardId: ID
+        status: TransferStatus
+        take: Int
+        toOrganizationId: ID
+        toUserId: ID
+        updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
     }
 
     type TransferSearchResult {

@@ -60,7 +60,7 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate!.visibility.owner(userId),
+                chat: ChatModel.validate.visibility.owner(userId),
             }),
         },
     },

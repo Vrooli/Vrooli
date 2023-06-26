@@ -35,11 +35,10 @@ export const subroutineInitialValues = (
 ): NodeRoutineListItemShape => ({
     __typename: "NodeRoutineListItem" as const,
     id: uuid(),
-    index: 0,
-    isOptional: false,
-    list: {} as any, //TODO
+    index: existing?.index ?? 0,
+    isOptional: existing?.isOptional ?? false,
+    list: existing?.list ?? {} as any,
     routineVersion: routineInitialValues(session, existing?.routineVersion as any),
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "NodeRoutineListItemTranslation" as const,
         id: DUMMY_ID,

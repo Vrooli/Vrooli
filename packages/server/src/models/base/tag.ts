@@ -79,7 +79,7 @@ export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ id: true }),
+        permissionsSelect: () => ({ id: true, tag: true }),
         permissionResolvers: defaultPermissions,
         owner: () => ({}),
         isDeleted: () => false,

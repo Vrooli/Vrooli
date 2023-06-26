@@ -221,4 +221,5 @@ export const ReactionModel: ModelLogic<ReactionModelLogic, typeof suppFields> = 
             return true;
         }
     },
+    validate: {} as any,
 });

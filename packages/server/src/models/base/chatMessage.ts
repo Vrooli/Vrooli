@@ -38,7 +38,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     userId: string // ID of the user who sent this message
                 }> = {};
                 // Find known information, which overrides information we'll query later
-                for (const d of [...createList, ...updateList.map(({ where, data }) => ({ ...data, id: where.id }))]) {
+                for (const d of [...createList, ...updateList]) {
                     messageData[d.id] = {
                         botData: null,
                         chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
@@ -98,7 +98,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 });
                 // Query message and chat information for updated and deleted messages
                 const queriedData = await prisma.chat_message.findMany({
-                    where: { id: { in: [...updateList.map(({ where }) => where.id), ...deleteList] } },
+                    where: { id: { in: [...updateList.map(u => u.id), ...deleteList] } },
                     select: {
                         id: true,
                         chat: {
@@ -275,7 +275,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate!.visibility.owner(userId),
+                chat: ChatModel.validate.visibility.owner(userId),
             }),
         },
     },

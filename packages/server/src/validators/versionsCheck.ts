@@ -13,8 +13,8 @@ type VersionsCheckProps = {
         versionLabel?: string | null | undefined
     }[],
     updateList: {
-        where: { id: string },
-        data: { versionLabel?: string | null | undefined },
+        id: string,
+        versionLabel?: string | null | undefined,
     }[],
     deleteList: string[],
     userData: SessionUserToken,
@@ -45,9 +45,9 @@ export const versionsCheck = async ({
         rootId: x.rootConnect || x.rootCreate?.id as string,
         versionLabel: x.versionLabel,
     }));
-    const update = updateList.filter(x => x.data.versionLabel).map(x => ({
-        id: x.where.id,
-        versionLabel: x.data.versionLabel,
+    const update = updateList.filter(x => x.versionLabel).map(x => ({
+        id: x.id,
+        versionLabel: x.versionLabel,
     }));
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);

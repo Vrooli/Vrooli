@@ -56,10 +56,10 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
     search: {} as any,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ProjectVersionModel.validate!.isPublic(data.projectVersion as any, languages),
+        isPublic: (data, languages) => ProjectVersionModel.validate.isPublic(data.projectVersion as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectVersionModel.validate!.owner(data.projectVersion as any, userId),
+        owner: (data, userId) => ProjectVersionModel.validate.owner(data.projectVersion as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -69,7 +69,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
             private: {},
             public: {},
             owner: (userId) => ({
-                projectVersion: ProjectVersionModel.validate!.visibility.owner(userId),
+                projectVersion: ProjectVersionModel.validate.visibility.owner(userId),
             }),
         },
     },

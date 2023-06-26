@@ -139,6 +139,7 @@ export const TagSelectorBase = ({
         <Autocomplete
             id="tags-input"
             disabled={disabled}
+            disablePortal
             fullWidth
             multiple
             freeSolo={true}

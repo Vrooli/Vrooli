@@ -65,10 +65,10 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizAttemptModel.validate!.isPublic(data.quizAttempt as any, languages),
+        isPublic: (data, languages) => QuizAttemptModel.validate.isPublic(data.quizAttempt as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizAttemptModel.validate!.owner(data.quizAttempt as any, userId),
+        owner: (data, userId) => QuizAttemptModel.validate.owner(data.quizAttempt as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -78,7 +78,7 @@ export const QuizQuestionResponseModel: ModelLogic<QuizQuestionResponseModelLogi
             private: {},
             public: {},
             owner: (userId) => ({
-                quizAttempt: QuizAttemptModel.validate!.visibility.owner(userId),
+                quizAttempt: QuizAttemptModel.validate.visibility.owner(userId),
             }),
         },
     },

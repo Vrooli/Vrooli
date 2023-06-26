@@ -1,4 +1,5 @@
-import { Node, NodeEnd, NodeLink, NodeRoutineList, RoutineVersion } from "@local/shared";
+import { Node, NodeEnd, NodeLink, RoutineVersion } from "@local/shared";
+import { NodeWithRoutineListShape } from "forms/types";
 import { BuildAction } from "utils/consts";
 
 export interface NodeContextMenuProps {
@@ -109,10 +110,10 @@ export interface NodeColumnProps {
 }
 
 export interface NodeRoutineListDialogProps {
-    handleClose: (updatedNode?: Node & { routineList: NodeRoutineList }) => void;
+    handleClose: (updatedNode?: NodeWithRoutineListShape) => void;
     isEditing: boolean;
     isOpen: boolean;
-    node: Node & { routineList: NodeRoutineList } | null;
+    node: NodeWithRoutineListShape | null;
     language: string;
     zIndex: number;
 }

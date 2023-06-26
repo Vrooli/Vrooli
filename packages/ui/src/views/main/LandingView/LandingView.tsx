@@ -75,37 +75,6 @@ export const LandingView = ({
                 setEarthTransform("translate(0%, 100%) scale(1)");
                 setIsSkyVisible(false);
             }
-            // Create timeout to snap to nearest slide
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            timeoutRef.current = setTimeout(() => {
-                const slides = slideContentIds.map(id => document.getElementById(id));
-                let minDistance = Infinity;
-                let nearestSlide;
-
-                for (const slide of slides) {
-                    if (!slide) continue;
-                    // Calculate distance from slide to scroll position
-                    const rect = slide.getBoundingClientRect();
-                    const windowHeight = (window.innerHeight || document.documentElement.clientHeight);
-                    const distance = Math.abs(rect.top - windowHeight / 2);
-                    // If slide is at least halfway in view, set with min distance of 0
-                    if (rect.top < windowHeight / 2 && rect.bottom > windowHeight / 2) {
-                        minDistance = 0;
-                        nearestSlide = slide;
-                    }
-                    // Otherwise, determine closest scroll using direction and distance
-                    else if (
-                        (scrollDirectionRef.current === "down" && rect.top > 0) ||
-                        (scrollDirectionRef.current === "up" && rect.bottom < windowHeight)
-                    ) {
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            nearestSlide = slide;
-                        }
-                    }
-                }
-                nearestSlide?.scrollIntoView({ behavior: "smooth" });
-            }, 350);
         };
         // Add scroll listener to body
         window.addEventListener("scroll", onScroll, { passive: true });
@@ -123,7 +92,12 @@ export const LandingView = ({
             />
             <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
-                    <SlideContent id={slide1Id}>
+                    <SlideContent id={slide1Id} sx={{
+                        minHeight: {
+                            xs: "calc(100vh - 64px - 56px)",
+                            md: "calc(100vh - 64px)",
+                        },
+                    }}>
                         <SlideTitle variant="h1" sx={{
                             ...greenNeonText,
                             fontWeight: "bold",
@@ -167,7 +141,7 @@ export const LandingView = ({
                     </SlideContent>
                     <SlideContent id={slide2Id}>
                         <SlideBox>
-                            <SlideTitle variant='h2'>AI-Driven Conversations</SlideTitle>
+                            <SlideTitle variant='h2'>AI Coworkers</SlideTitle>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} margin="auto">
                                     <SlideText>
@@ -187,11 +161,11 @@ export const LandingView = ({
                     </SlideContent>
                     <SlideContent id={slide3Id}>
                         <SlideBox>
-                            <SlideTitle variant='h2'>Simple Routines</SlideTitle>
+                            <SlideTitle variant='h2'>Do Anything</SlideTitle>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} margin="auto">
                                     <SlideText>
-                                        Design routines for a wide variety of tasks, such as business management, content creation, and surveys.
+                                        Collaboratively design routines for a wide variety of tasks, such as business management, content creation, and surveys.
                                     </SlideText>
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -207,7 +181,7 @@ export const LandingView = ({
                     </SlideContent>
                     <SlideContent id={slide4Id}>
                         <SlideBox>
-                            <SlideTitle variant='h2'>Organizational Management</SlideTitle>
+                            <SlideTitle variant='h2'>Manage Organizations</SlideTitle>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} margin="auto">
                                     <SlideText>

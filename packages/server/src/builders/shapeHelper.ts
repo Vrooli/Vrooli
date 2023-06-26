@@ -236,7 +236,7 @@ export const shapeHelper = async<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update, preMap, prisma, userData });
+            const updated = await (mutate.shape as any).update({ data: update.data, preMap, prisma, userData, where: update.where });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });

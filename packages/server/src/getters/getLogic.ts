@@ -3,7 +3,7 @@ import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
 import { ModelLogic } from "../models/types";
 
-type LogicProps = "delegate" | "display" | "duplicate" | "format" | "mutate" | "search" | "validate";
+type LogicProps = "delegate" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 
 type GetLogicReturn<
     Logic extends LogicProps,
@@ -12,6 +12,7 @@ type GetLogicReturn<
     display: "display" extends Logic ? Required<ModelLogic<any, any>>["display"] : ModelLogic<any, any>["display"],
     duplicate: "duplicate" extends Logic ? Required<ModelLogic<any, any>>["duplicate"] : ModelLogic<any, any>["duplicate"],
     format: "format" extends Logic ? Required<ModelLogic<any, any>>["format"] : ModelLogic<any, any>["format"],
+    idField: string,
     mutate: "mutate" extends Logic ? Required<ModelLogic<any, any>>["mutate"] : ModelLogic<any, any>["mutate"],
     search: "search" extends Logic ? Required<ModelLogic<any, any>>["search"] : ModelLogic<any, any>["search"],
     validate: "validate" extends Logic ? Required<ModelLogic<any, any>>["validate"] : ModelLogic<any, any>["validate"],
@@ -49,7 +50,12 @@ export function getLogic<
     // Loop through requested types to validate that all requested types exist
     for (const field of props) {
         // Get logic function
-        const logic = object[field as any];
+        let logic = object[field as any];
+        // If this is for "idField" and it doesn't exist, default to "id"
+        if (field === "idField" && !logic) {
+            logic = "id";
+            object[field as any] = logic;
+        }
         // Make sure logic function exists
         if (!logic && throwErrorIfNotFound) {
             throw new CustomError("0367", "InvalidArgs", languages, { errorTrace, objectType, field });

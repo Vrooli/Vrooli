@@ -49,8 +49,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                     updateList,
                     userData,
                 });
-                const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
                 const maps = preShapeVersion({ createList, updateList, objectType: __typename });
                 return { ...maps };
             },
@@ -271,10 +270,10 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ProjectModel.validate!.isPublic(data.root as any, languages),
+            ProjectModel.validate.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectModel.validate!.owner(data.root as any, userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data.root as any, userId),
         permissionsSelect: (...params) => ({
             id: true,
             isDeleted: true,
@@ -300,7 +299,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
                 ],
             },
             owner: (userId) => ({
-                root: ProjectModel.validate!.visibility.owner(userId),
+                root: ProjectModel.validate.visibility.owner(userId),
             }),
         },
     },

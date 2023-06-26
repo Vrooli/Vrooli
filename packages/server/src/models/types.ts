@@ -53,7 +53,12 @@ export type ModelLogic<
     format: Formatter<Model>;
     /** Handles copying the object */
     duplicate?: Duplicator<any, any>;
-    /** The primary key of the object. If not provided, defaults to "id" */
+    /** 
+     * The primary key of the object. If not provided, defaults to "id".
+     * 
+     * NOTE: If using this for more than tags, you might want to update the logic in `cudHelper` 
+     * to avoid id collisions between different object types.
+     * */
     idField?: keyof Model["GqlModel"];
     /** Functions and data for searching the object */
     search?: Model["GqlSearch"] extends undefined ? undefined :
@@ -74,7 +79,7 @@ export type ModelLogic<
         PrismaUpdate: Model["PrismaUpdate"],
     }>;
     /** Permissions checking  */
-    validate?: Validator<{
+    validate: Validator<{
         GqlCreate: Model["GqlCreate"],
         GqlUpdate: Model["GqlUpdate"],
         PrismaModel: Exclude<Model["PrismaModel"], undefined>,
@@ -419,10 +424,7 @@ export type Mutater<Model extends {
          */
         pre?: ({ createList, updateList, deleteList, prisma, userData }: {
             createList: Model["GqlCreate"][],
-            updateList: {
-                where: { id: string },
-                data: Model["GqlUpdate"],
-            }[],
+            updateList: (Model["GqlUpdate"] & { id: string })[],
             deleteList: string[],
             prisma: PrismaType,
             userData: SessionUserToken,

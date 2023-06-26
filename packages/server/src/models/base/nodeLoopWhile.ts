@@ -38,15 +38,15 @@ export const NodeLoopWhileModel: ModelLogic<NodeLoopWhileModelLogic, typeof supp
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ loop: "NodeLoop" }),
+        permissionsSelect: () => ({ id: true, loop: "NodeLoop" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeLoopModel.validate!.owner(data.loop as any, userId),
-        isDeleted: (data, languages) => NodeLoopModel.validate!.isDeleted(data.loop as any, languages),
-        isPublic: (data, languages) => NodeLoopModel.validate!.isPublic(data.loop as any, languages),
+        owner: (data, userId) => NodeLoopModel.validate.owner(data.loop as any, userId),
+        isDeleted: (data, languages) => NodeLoopModel.validate.isDeleted(data.loop as any, languages),
+        isPublic: (data, languages) => NodeLoopModel.validate.isPublic(data.loop as any, languages),
         visibility: {
-            private: { loop: NodeLoopModel.validate!.visibility.private },
-            public: { loop: NodeLoopModel.validate!.visibility.public },
-            owner: (userId) => ({ loop: NodeLoopModel.validate!.visibility.owner(userId) }),
+            private: { loop: NodeLoopModel.validate.visibility.private },
+            public: { loop: NodeLoopModel.validate.visibility.public },
+            owner: (userId) => ({ loop: NodeLoopModel.validate.visibility.owner(userId) }),
         },
     },
 });
