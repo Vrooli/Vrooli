@@ -120,6 +120,8 @@ export const SubroutineNode = ({
                             "#667899",
                         color: palette.mode === "light" ? palette.primary.contrastText : palette.secondary.contrastText,
                         padding: "0.1em",
+                        paddingLeft: "8px!important",
+                        paddingRight: "8px!important",
                         textAlign: "center",
                         cursor: "pointer",
                         "&:hover": {
@@ -149,12 +151,12 @@ export const SubroutineNode = ({
                         sx={{
                             ...noSelect,
                             ...textShadow,
-                            ...multiLineEllipsis(1),
+                            ...multiLineEllipsis(2),
                             fontSize,
                             textAlign: "center",
                             width: "100%",
-                            lineBreak: "anywhere" as any,
-                            whiteSpace: "pre" as any,
+                            lineBreak: scale < -2 ? "anywhere" : "normal",
+                            // whiteSpace: "pre" as any,
                             "@media print": {
                                 textShadow: "none",
                                 color: "black",
