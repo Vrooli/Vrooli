@@ -248,9 +248,14 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
     for (const curr of objectsToCheck) {
         // If the object is null or undefined, skip it
         if (!exists(curr)) continue;
-        // Call tryTitle and trySubtitle
-        title = tryTitle(curr, langs);
-        subtitle = trySubtitle(curr, langs);
+        // Check for a title if we haven't found one yet
+        if (!title) {
+            title = tryTitle(curr, langs);
+        }
+        // Check for a subtitle if we haven't found one yet
+        if (!subtitle) {
+            subtitle = trySubtitle(curr, langs);
+        }
         // If both are found, break
         if (title && subtitle) break;
     }
@@ -296,15 +301,15 @@ export const getDisplay = (
         };
     }
     // If a member or chat participant, use the user's display
-    if (isOfType(object, "Member", "ChatParticipant")) return getDisplay(object.user as ListObjectType);
+    if (isOfType(object, "Member", "ChatParticipant")) return getDisplay({ __typename: "User", ...object.user } as ListObjectType);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
     if (isOfType(object, "NodeRoutineListItem") && title.length === 0 && subtitle.length === 0) {
-        const routineVersionDisplay = getDisplay(object.routineVersion as ListObjectType, languages);
+        const routineVersionDisplay = getDisplay({ __typename: "RoutineVersion", ...object.routineVersion } as ListObjectType, langs);
         return {
-            title: title.length === 0 ? routineVersionDisplay.title : title,
-            subtitle: subtitle.length === 0 ? routineVersionDisplay.subtitle : subtitle,
+            title: firstString(title, routineVersionDisplay.title),
+            subtitle: firstString(subtitle, routineVersionDisplay.subtitle),
         };
     }
     return { title, subtitle };
@@ -393,7 +398,7 @@ export type ListToListItemProps<T extends keyof ListActions | undefined> = {
     loading: boolean,
     onClick?: (item: NavigableObject) => void,
     zIndex: number,
-} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : {});
+} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : object);
 
 /**
  * Converts a list of objects to a list of ListItems

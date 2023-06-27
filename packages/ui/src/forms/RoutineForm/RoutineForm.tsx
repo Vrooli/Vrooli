@@ -99,7 +99,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     zIndex,
     ...props
 }, ref) => {
-    console.log("ROUTINE FORM", values);
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();

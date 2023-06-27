@@ -9,7 +9,7 @@ export const isOwnerAdminCheck = (
     userId: string | null | undefined,
 ): boolean => {
     // Can't be an admin if not logged in
-    if (userId === null) return false;
+    if (userId === null || userId === undefined) return false;
     // If the owner is a user, check id
     if (owner.User) return owner.User.id === userId;
     // If the owner is an organization, check if you're a member with "isAdmin" set to true
@@ -20,4 +20,4 @@ export const isOwnerAdminCheck = (
     }
     // If the owner is neither a user nor an organization, return false
     return false;
-}
+};

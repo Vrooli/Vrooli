@@ -102,8 +102,6 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     const [versionlabelField] = useField<string>("routineVersion.versionLabel");
     const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
 
-    console.log("subroutineform", indexField, isInternalField, inputsField, outputsField, resourceListField, tagsField, versionlabelField, versionsField);
-
     // If name or description doesn't exist, add them using the routine version
     const [nameField, , nameHelpers] = useField<string>("translations.0.name");
     const [, , descriptionHelpers] = useField<string>("translations.0.description");
@@ -116,7 +114,6 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
         const hasDescription = nodeTranslations.description !== undefined && nodeTranslations.description !== "";
         const hasRoutineVersionName = routineVersionTranslations.name !== undefined && routineVersionTranslations.name !== "";
         const hasRoutineVersionDescription = routineVersionTranslations.description !== undefined && routineVersionTranslations.description !== "";
-        console.log("subroutineform beep", nodeTranslations, routineVersionTranslations, hasName, hasDescription, hasRoutineVersionName, hasRoutineVersionDescription);
         if (!hasName && hasRoutineVersionName) {
             nameHelpers.setValue(routineVersionTranslations.name ?? "");
         }
