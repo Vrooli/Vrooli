@@ -62,7 +62,8 @@ export const CookieSettingsDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: "CookieSettings" }}
+                title={t("CookieSettings")}
+                titleId={titleId}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: "16px" }}>
                 {/* Strictly necessary */}
@@ -150,19 +151,21 @@ export const CookieSettingsDialog = ({
                         <Button
                             fullWidth
                             type="submit"
+                            variant="contained"
                         >{t("Confirm")}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             onClick={handleAcceptAllCookies}
+                            variant="contained"
                         >{t("AcceptAll")}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
-                            variant="text"
                             onClick={onCancel}
+                            variant="outlined"
                         >{t("Cancel")}</Button>
                     </Grid>
                 </Grid>

@@ -26,6 +26,7 @@ model api {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)
     bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
@@ -81,8 +82,10 @@ model api_version {
     id                      String                      @id @default(uuid()) @db.Uuid
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    completedAt             DateTime?                   @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
+    schemaText              String?                     @db.VarChar(16384)
     isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)
     isLatest                Boolean                     @default(false)
@@ -708,6 +711,7 @@ model note_version {
     id                  String                      @id @default(uuid()) @db.Uuid
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
+    completedAt         DateTime?                   @db.Timestamptz(6)
     intendToPullRequest Boolean                     @default(true)
     isComplete          Boolean                     @default(false)
     isDeleted           Boolean                     @default(false)

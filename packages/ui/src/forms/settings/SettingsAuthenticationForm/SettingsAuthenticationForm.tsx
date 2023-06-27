@@ -18,12 +18,8 @@ export const SettingsAuthenticationForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 500px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
 
             {/* Hidden username input because some password managers require it */}

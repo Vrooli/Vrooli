@@ -8,10 +8,13 @@ import { FindSubroutineDialog } from "components/dialogs/FindSubroutineDialog/Fi
 import { LinkDialog } from "components/dialogs/LinkDialog/LinkDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SubroutineInfoDialog } from "components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog";
+import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeRoutineListDialog } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { NodeWithRoutineListShape } from "forms/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BuildAction, Status } from "utils/consts";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useStableObject } from "utils/hooks/useStableObject";
@@ -23,9 +26,6 @@ import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { BuildViewProps } from "../types";
-
-const helpText =
-    "## What am I looking at?\nThis is the **Build** page. Here you can create and edit multi-step routines.\n\n## What is a routine?\nA *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.\n\nAll valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.\n\nWhen a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.\n\n## How do I build a multi-step routine?\nIf you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.\n\nYou can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.\n\nEach link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.\n\nYou also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.";
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -56,6 +56,7 @@ export const BuildView = ({
     zIndex = 200,
 }: BuildViewProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
 
@@ -63,6 +64,12 @@ export const BuildView = ({
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
     // The routineVersion's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
+    const [scale, setScale] = useState<number>(-1);
+    const handleScaleChange = useCallback((delta: number) => {
+        PubSub.get().publishFastUpdate({ duration: 1000 });
+        // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
+        setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
+    }, []);
 
     // Stores previous routineVersion states for undo/redo
     const [changeStack, setChangeStack] = useState<BuildRoutineVersion[]>([]);
@@ -127,11 +134,10 @@ export const BuildView = ({
 
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
-    /**
-     * Updates a node's data
-     */
+    /** Updates a node's data */
     const handleNodeUpdate = useCallback((node: Node) => {
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === node.id);
+        console.log("handlenodeupdate", changedRoutineVersion.nodes, updateArray(changedRoutineVersion.nodes, nodeIndex, node));
         if (nodeIndex === -1) return;
         addToChangeStack({
             ...changedRoutineVersion,
@@ -213,23 +219,24 @@ export const BuildView = ({
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
     // Subroutine info dialog
-    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeWithRoutineListShape, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedSubroutine({ node: node as Node & { routineList: NodeRoutineList }, routineItemId: subroutineId });
+        if (node && node.routineList) setOpenedSubroutine({ node: node as NodeWithRoutineListShape, routineItemId: subroutineId });
     }, [nodesById]);
     const closeSubroutineDialog = useCallback(() => {
         setOpenedSubroutine(null);
     }, []);
 
     // Routine list info dialog
-    const [openedRoutineList, setOpenedRoutineList] = useState<{ node: Node & { routineList: NodeRoutineList } } | null>(null);
+    const [openedRoutineList, setOpenedRoutineList] = useState<NodeWithRoutineListShape | null>(null);
     const handleRoutineListOpen = useCallback((nodeId: string) => {
         const node = nodesById[nodeId];
-        if (node && node.routineList) setOpenedRoutineList({ node: node as Node & { routineList: NodeRoutineList } });
+        if (node && node.routineList) setOpenedRoutineList(node as NodeWithRoutineListShape);
     }, [nodesById]);
-    const closeRoutineListDialog = useCallback((updatedNode?: Node & { routineList: NodeRoutineList }) => {
-        if (updatedNode) handleNodeUpdate(updatedNode);
+    const closeRoutineListDialog = useCallback((updatedNode?: NodeWithRoutineListShape) => {
+        console.log("close routine list dialog", updatedNode);
+        if (updatedNode) handleNodeUpdate(updatedNode as Node);
         setOpenedRoutineList(null);
     }, [handleNodeUpdate]);
 
@@ -257,9 +264,7 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutineVersion]);
 
-    /**
-     * Deletes a link, without deleting any nodes.
-     */
+    /** Deletes a link, without deleting any nodes. */
     const handleLinkDelete = useCallback((link: NodeLink) => {
         addToChangeStack({
             ...changedRoutineVersion,
@@ -421,9 +426,7 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutineVersion]);
 
-    /**
-     * Updates an existing link between two nodes
-     */
+    /** Updates an existing link between two nodes */
     const handleLinkUpdate = useCallback((link: NodeLink) => {
         const linkIndex = changedRoutineVersion.nodeLinks.findIndex(l => l.id === link.id);
         if (linkIndex === -1) return;
@@ -448,9 +451,7 @@ export const BuildView = ({
         });
     }, [addToChangeStack, calculateLinksAfterNodeRemove, changedRoutineVersion]);
 
-    /**
-     * Deletes a subroutine from a node
-     */
+    /** Deletes a subroutine from a node */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -470,9 +471,7 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutineVersion]);
 
-    /**
-     * Drops or unlinks a node
-     */
+    /** Drops or unlinks a node */
     const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -593,9 +592,7 @@ export const BuildView = ({
         setMoveNode(null);
     }, [handleNodeDrop, moveNode]);
 
-    /**
-     * Inserts a new routine list node along an edge
-     */
+    /** Inserts a new routine list node along an edge */
     const handleNodeInsert = useCallback((link: NodeLink) => {
         // Find link index
         const linkIndex = changedRoutineVersion.nodeLinks.findIndex(l => l.from.id === link.from.id && l.to.id === link.to.id);
@@ -660,9 +657,7 @@ export const BuildView = ({
         addToChangeStack(newRoutine);
     }, [addToChangeStack, changedRoutineVersion, createEndNode, createRoutineListNode]);
 
-    /**
-     * Adds a subroutine routine list
-     */
+    /** Adds a subroutine routine list */
     const handleSubroutineAdd = useCallback((nodeId: string, routineVersion: RoutineVersion) => {
         // Find the node with changes
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
@@ -691,7 +686,7 @@ export const BuildView = ({
         });
         // Close dialog
         closeAddSubroutineDialog();
-    }, [addToChangeStack, changedRoutineVersion]);
+    }, [addToChangeStack, changedRoutineVersion, closeAddSubroutineDialog]);
 
     /**
      * Reoders a subroutine in a routine list item
@@ -727,9 +722,7 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutineVersion]);
 
-    /**
-     * Add a new end node AFTER a node
-     */
+    /** Add a new end node AFTER a node */
     const handleAddEndAfter = useCallback((nodeId: string) => {
         // Find links where this node is the "from" node
         const links = changedRoutineVersion.nodeLinks.filter(l => l.from.id === nodeId);
@@ -910,7 +903,7 @@ export const BuildView = ({
                 if (node) setMoveNode(node);
                 break;
         }
-    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutineVersion.nodes, handleNodeDelete, handleSubroutineDelete, handleRoutineListOpen, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
@@ -1069,7 +1062,7 @@ export const BuildView = ({
             />}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
-                data={openedSubroutine}
+                data={openedSubroutine as SubroutineInfoDialogProps["data"]}
                 defaultLanguage={translationData.language}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate as any}
@@ -1085,7 +1078,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 isOpen={Boolean(openedRoutineList)}
                 language={translationData.language}
-                node={openedRoutineList as any}
+                node={openedRoutineList}
                 zIndex={zIndex + 3}
             />
             {/* Navbar */}
@@ -1104,13 +1097,16 @@ export const BuildView = ({
                     color: palette.primary.contrastText,
                     paddingLeft: "calc(8px + env(safe-area-inset-left))",
                     paddingRight: "calc(8px + env(safe-area-inset-right))",
+                    "@media print": {
+                        display: "none",
+                    },
                 }}
             >
                 <StatusButton status={status.status} messages={status.messages} />
                 {/* Language */}
                 {languageComponent}
                 {/* Help button */}
-                <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} />
+                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
                 {/* Close Icon */}
                 <IconButton
                     edge="start"
@@ -1157,11 +1153,13 @@ export const BuildView = ({
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
+                    handleScaleChange={handleScaleChange}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={translationData.language}
                     links={changedRoutineVersion.nodeLinks}
                     nodesById={nodesById}
+                    scale={scale}
                     zIndex={zIndex}
                 />
             </Box>
@@ -1173,10 +1171,12 @@ export const BuildView = ({
                     "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
                 }}
                 handleCancel={revertChanges}
+                handleScaleChange={handleScaleChange}
                 handleSubmit={() => { handleSubmit(changedRoutineVersion); }}
                 isAdding={!uuidValidate(id)}
                 isEditing={isEditing}
                 loading={loading}
+                scale={scale}
             />
         </Box>
     );

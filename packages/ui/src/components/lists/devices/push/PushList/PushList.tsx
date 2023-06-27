@@ -114,6 +114,7 @@ export const PushList = ({
                     fullWidth
                     onClick={setupPush}
                     startIcon={<AddIcon />}
+                    variant="outlined"
                 >{t("AddThisDevice")}</Button>
             </Stack>
         </form>

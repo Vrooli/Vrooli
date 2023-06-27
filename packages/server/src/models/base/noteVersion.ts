@@ -47,8 +47,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                     updateList,
                     userData,
                 });
-                const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
                 const maps = preShapeVersion({ createList, updateList, objectType: __typename });
                 return { ...maps };
             },
@@ -115,10 +114,10 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
-            NoteModel.validate!.isPublic(data.root as any, languages),
+            NoteModel.validate.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => NoteModel.validate!.owner(data.root as any, userId),
+        owner: (data, userId) => NoteModel.validate.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -144,7 +143,7 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
                 ],
             },
             owner: (userId) => ({
-                root: NoteModel.validate!.visibility.owner(userId),
+                root: NoteModel.validate.visibility.owner(userId),
             }),
         },
     },

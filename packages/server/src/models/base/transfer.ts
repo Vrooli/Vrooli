@@ -1,6 +1,6 @@
-import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, transferValidation } from "@local/shared";
+import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
-import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel, UserModel } from ".";
 import { noNull, permissionsSelectHelper, selPad } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { CustomError } from "../../events";
@@ -294,6 +294,36 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         yup: transferValidation,
     },
     search: {
+        defaultSort: TransferSortBy.DateCreatedDesc,
+        sortBy: TransferSortBy,
+        searchFields: {
+            apiId: true,
+            createdTimeFrame: true,
+            fromOrganizationId: true,
+            noteId: true,
+            projectId: true,
+            routineId: true,
+            smartContractId: true,
+            standardId: true,
+            status: true,
+            toOrganizationId: true,
+            toUserId: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                { fromUser: UserModel.search!.searchStringQuery() },
+                { fromOrganization: OrganizationModel.search!.searchStringQuery() },
+                { toUser: UserModel.search!.searchStringQuery() },
+                { toOrganization: OrganizationModel.search!.searchStringQuery() },
+                { api: ApiModel.search!.searchStringQuery() },
+                { note: NoteModel.search!.searchStringQuery() },
+                { project: ProjectModel.search!.searchStringQuery() },
+                { routine: RoutineModel.search!.searchStringQuery() },
+                { smartContract: SmartContractModel.search!.searchStringQuery() },
+                { standard: StandardModel.search!.searchStringQuery() },
+            ],
+        }),
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
@@ -304,7 +334,7 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
                 };
             },
         },
-    } as any,
+    },
     transfer,
     validate: {} as any,
 });

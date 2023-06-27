@@ -2,7 +2,7 @@ import { HistoryIcon, LightModeIcon, LINKS, LockIcon, NotificationsCustomizedIco
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Header } from "components/text/Header/Header";
+import { Title } from "components/text/Title/Title";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsData, SettingsViewProps } from "../types";
@@ -67,11 +67,9 @@ export const SettingsView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Settings",
-                }}
+                title={t("Settings")}
             />
-            <Header title={t("Account")} />
+            <Title title={t("Account")} variant="header" />
             <CardGrid minWidth={300}>
                 {accountSettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard
@@ -84,7 +82,7 @@ export const SettingsView = ({
                     />
                 ))}
             </CardGrid>
-            <Header title={t("Display")} sxs={{ text: { paddingTop: 2 } }} />
+            <Title title={t("Display")} sxs={{ text: { paddingTop: 2 } }} variant="header" />
             <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                 {displaySettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard

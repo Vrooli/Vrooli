@@ -33,9 +33,7 @@ export const ResetPasswordForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "ResetPassword",
-                }}
+                title={t("ResetPassword")}
             />
             <Formik
                 initialValues={{
@@ -63,10 +61,11 @@ export const ResetPasswordForm = ({
             >
                 {(formik) => <BaseForm
                     dirty={formik.dirty}
+                    display={"dialog"}
                     isLoading={loading}
                     style={{
-                        display: "block",
                         ...formPaper,
+                        paddingBottom: "unset",
                     }}
                 >
                     <Grid container spacing={2}>
@@ -93,6 +92,7 @@ export const ResetPasswordForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("Submit")}

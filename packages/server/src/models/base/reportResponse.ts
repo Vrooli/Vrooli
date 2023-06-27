@@ -1,8 +1,9 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
-import { reportResponseValidation } from "@local/shared";
+import { ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportResponseFormat } from "../format/reportResponse";
 import { ModelLogic } from "../types";
@@ -43,6 +44,21 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         yup: reportResponseValidation,
     },
     search: {
+        defaultSort: ReportResponseSortBy.DateCreatedDesc,
+        sortBy: ReportResponseSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            languageIn: true,
+            reportId: true,
+            updatedTimeFrame: true,
+            userId: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                "detailsWrapped",
+                { report: ReportModel.search!.searchStringQuery() },
+            ],
+        }),
         supplemental: {
             graphqlFields: suppFields,
             dbFields: ["createdById"],
@@ -54,6 +70,19 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
                 };
             },
         },
-    } as any,
-    validate: {} as any,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: 100000,
+        permissionsSelect: () => ({ id: true, report: "Report" }),
+        permissionResolvers: defaultPermissions,
+        owner: (data, userId) => ReportModel.validate.owner(data.report as any, userId),
+        isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as any, languages),
+        isPublic: (data, languages) => ReportModel.validate.isPublic(data.report as any, languages),
+        visibility: {
+            private: { report: ReportModel.validate.visibility.private },
+            public: { report: ReportModel.validate.visibility.public },
+            owner: (userId) => ({ report: ReportModel.validate.visibility.owner(userId) }),
+        },
+    },
 });

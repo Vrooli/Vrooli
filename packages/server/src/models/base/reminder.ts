@@ -37,7 +37,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
                 ...(await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                embeddingNeedsUpdate: typeof data.name === "string" || typeof data.description === "string",
+                embeddingNeedsUpdate: (typeof data.name === "string" || typeof data.description === "string") ? true : undefined,
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
@@ -65,10 +65,10 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderListModel.validate!.isPublic(data.reminderList as any, languages),
+        isPublic: (data, languages) => ReminderListModel.validate.isPublic(data.reminderList as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderListModel.validate!.owner(data.reminderList as any, userId),
+        owner: (data, userId) => ReminderListModel.validate.owner(data.reminderList as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -78,7 +78,7 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
             private: {},
             public: {},
             owner: (userId) => ({
-                reminderList: ReminderListModel.validate!.visibility.owner(userId),
+                reminderList: ReminderListModel.validate.visibility.owner(userId),
             }),
         },
     },

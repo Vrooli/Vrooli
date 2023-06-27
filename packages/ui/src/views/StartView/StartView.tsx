@@ -185,9 +185,8 @@ export const StartView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Start",
-                }}
+                title={t("Start")}
+                hideTitleOnDesktop
             />
             {/* Main content */}
             <Box sx={{
@@ -199,7 +198,7 @@ export const StartView = ({
                 height: "calc(100vh - 128px)", // Minus double the app bar height
             }}>
                 <Box sx={{
-                    width: "min(calc(100vw - 16px), 400px)",
+                    width: "min(calc(100vw - 16px), 600px)",
                     marginTop: 4,
                     background: palette.background.paper,
                     borderRadius: 2,

@@ -4,7 +4,7 @@ export const smallButtonProps = (isEditing: boolean, canPressWhenNotEditing: boo
     overflow: "hidden",
     boxShadow: !isEditing && !canPressWhenNotEditing ? 0 : 4,
     pointerEvents: !isEditing && !canPressWhenNotEditing ? "none" : "auto",
-});
+}) as const;
 
 export const largeButtonProps = (isEditing: boolean, canPressWhenNotEditing: boolean) => ({
     minWidth: { xs: "58px", md: "69px" },
@@ -12,15 +12,15 @@ export const largeButtonProps = (isEditing: boolean, canPressWhenNotEditing: boo
     overflow: "hidden",
     boxShadow: !isEditing && !canPressWhenNotEditing ? 0 : 4,
     pointerEvents: !isEditing && !canPressWhenNotEditing ? "none" : "auto",
-});
+}) as const;
 
 export const commonIconProps = () => ({
     width: "69px",
     height: "69px",
-    color: "white",
-});
+    fill: "white",
+}) as const;
 
 export const commonLabelProps = () => ({
     width: { xs: "58px", md: "69px" },
     textAlign: "center",
-});
+}) as const;

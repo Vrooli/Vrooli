@@ -12,7 +12,7 @@ export type EndpointsTranslate = {
 export const TranslateEndpoints: EndpointsTranslate = {
     Query: {
         translate: async (_, { input }, { prisma, req }, info) => {
-            throw new CustomError("0328", "NotImplemented", req.languages);
+            throw new CustomError("0328", "NotImplemented", req.session.languages);
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split("-")[0];
             const targetTag = input.languageTarget.split("-")[0];
@@ -21,7 +21,7 @@ export const TranslateEndpoints: EndpointsTranslate = {
             try {
                 fields = JSON.parse(input.fields);
             } catch (e) {
-                throw new CustomError("0329", "InvalidArgs", req.languages);
+                throw new CustomError("0329", "InvalidArgs", req.session.languages);
             }
             // Grab translatable values from input
             const filteredFields = Object.entries(fields).filter(([key, value]) => !["type", "id", "language"].includes(key) && typeof value === "string" && value.trim().length > 0);

@@ -7,6 +7,7 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -15,8 +16,7 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -26,6 +26,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -196,9 +197,13 @@ export const RoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Routine",
-                }}
+                title={firstString(name, t("Routine"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <Formik
                 enableReinitialize={true}
@@ -243,15 +248,6 @@ export const RoutineView = ({
                             zIndex={zIndex + 1}
                         />
                     </Dialog>}
-                    <ObjectTitle
-                        language={language}
-                        languages={availableLanguages}
-                        loading={isLoading}
-                        title={name}
-                        setLanguage={setLanguage}
-                        translations={existing?.translations ?? []}
-                        zIndex={zIndex}
-                    />
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
@@ -296,6 +292,7 @@ export const RoutineView = ({
                                 fullWidth
                                 onClick={markAsComplete}
                                 color="secondary"
+                                variant="outlined"
                                 sx={{ marginTop: 2 }}
                             >{t("MarkAsComplete")}</Button>}
                         </ContentCollapse>
@@ -303,11 +300,18 @@ export const RoutineView = ({
                     {/* "View Graph" button if this is a multi-step routine */}
                     {
                         existing?.nodes?.length ? <Box>
-                            <Subheader
+                            <Title
                                 title={"This is a multi-step routine."}
                                 help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                                variant="subheader"
                             />
-                            <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                            <Button
+                                startIcon={<RoutineIcon />}
+                                fullWidth
+                                onClick={viewGraph}
+                                color="secondary"
+                                variant="outlined"
+                            >View Graph</Button>
                         </Box> : null
                     }
                     {/* Tags */}

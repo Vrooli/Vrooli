@@ -1,5 +1,5 @@
 import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, organizationValidation, Session } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -11,6 +11,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -82,21 +83,12 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Organization"}
@@ -106,11 +98,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -127,8 +115,10 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         />
                         <TranslatedMarkdownInput
                             language={language}
+                            maxChars={2048}
                             minRows={4}
                             name="bio"
+                            placeholder={t("Bio")}
                             zIndex={zIndex}
                         />
                         <br />
@@ -136,8 +126,8 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             name="tags"
                             zIndex={zIndex}
                         />
-                    </Stack>
-                </Stack>
+                    </FormSection>
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

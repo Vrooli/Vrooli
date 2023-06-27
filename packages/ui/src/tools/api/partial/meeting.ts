@@ -41,21 +41,19 @@ export const meeting: GqlPartial<Meeting> = {
     full: {
         __define: {
             0: async () => rel((await import("./label")).label, "full"),
-            1: async () => rel((await import("./schedule")).schedule, "full"),
         },
         attendees: async () => rel((await import("./user")).user, "nav"),
         invites: async () => rel((await import("./meetingInvite")).meetingInvite, "list", { omit: "meeting" }),
         labels: { __use: 0 },
-        schedule: { __use: 1 },
+        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "full"),
     },
     list: {
         __define: {
             0: async () => rel((await import("./label")).label, "list"),
-            1: async () => rel((await import("./schedule")).schedule, "list"),
         },
         labels: { __use: 0 },
-        schedule: { __use: 1 },
+        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "list"),
     },
 };

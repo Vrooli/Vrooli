@@ -38,18 +38,23 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
+                // These relations are treated as one-to-one in the API, but not in the database.
+                const difficultOnes = {
+                    ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest })),
+                    ...(await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest })),
+                };
                 return {
                     id: data.id,
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
                     ...(await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest })),
                     // ...(await labelsShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], isOneToOne: false, isRequired: false, parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest })),
                     ...(await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest })),
+                    // Replace each difficult key with plural version
+                    ...Object.fromEntries(Object.entries(difficultOnes).map(([k, v]) => [`${k}s`, v])),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -128,10 +133,10 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
             public: {},
             owner: (userId) => ({
                 OR: [
-                    { focusModes: { some: FocusModeModel.validate!.visibility.owner(userId) } },
-                    { meetings: { some: MeetingModel.validate!.visibility.owner(userId) } },
-                    { runProjects: { some: RunProjectModel.validate!.visibility.owner(userId) } },
-                    { runRoutines: { some: RunRoutineModel.validate!.visibility.owner(userId) } },
+                    { focusModes: { some: FocusModeModel.validate.visibility.owner(userId) } },
+                    { meetings: { some: MeetingModel.validate.visibility.owner(userId) } },
+                    { runProjects: { some: RunProjectModel.validate.visibility.owner(userId) } },
+                    { runRoutines: { some: RunRoutineModel.validate.visibility.owner(userId) } },
                 ],
             }),
         },

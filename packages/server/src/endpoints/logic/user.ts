@@ -53,7 +53,7 @@ export const UserEndpoints: EndpointsUser = {
             // // Update object
             // const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
             // if (!updated)
-            //     throw new CustomError("0162", "ErrorUnknown", req.languages);
+            //     throw new CustomError("0162", "ErrorUnknown", req.session.languages);
             // return updated;
         },
         userDeleteOne: async (_, { input }, { prisma, req, res }, info) => {

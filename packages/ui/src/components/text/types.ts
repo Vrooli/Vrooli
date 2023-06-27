@@ -9,33 +9,20 @@ export interface DateDisplayProps extends BoxProps {
     timestamp?: number;
 }
 
-export interface ObjectTitleProps extends BoxProps {
-    language: string;
-    languages: string[];
-    loading: boolean;
-    setLanguage: (language: string) => void;
-    translations: { language: string }[];
-    title: string | undefined;
-    zIndex: number;
+export interface MarkdownDisplayProps {
+    content: string | undefined;
+    sx?: { [x: string]: any; };
+    variant?: TypographyProps["variant"];
 }
 
 export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string
     objectType: ObjectType;
-    owner: Routine['owner'] | null | undefined
+    owner: Routine["owner"] | null | undefined
     sxs?: {
         label?: { [x: string]: any };
     }
-}
-
-export interface HeaderProps {
-    help?: string | undefined;
-    sxs?: {
-        stack?: { [x: string]: any; };
-        text?: { [x: string]: any; };
-    }
-    title: string | undefined;
 }
 
 export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
@@ -50,14 +37,24 @@ export interface TextShrinkProps extends TypographyProps {
     minFontSize?: string | number;
 }
 
-export interface SubheaderProps {
-    help?: string | undefined;
+export interface TitleProps {
+    help?: string;
+    /** Icon displayed to the left of the title */
     Icon?: SvgComponent;
+    options?: {
+        Icon: SvgComponent;
+        label: string;
+        onClick: (e?: any) => void;
+    }[];
     sxs?: {
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
-    title: string | undefined;
+    title?: string;
+    /** Replaces title if provided */
+    titleComponent?: JSX.Element;
+    /** Determines size */
+    variant: "header" | "subheader";
 }
 
 export interface VersionDisplayProps extends BoxProps {

@@ -24,9 +24,7 @@ export const FormView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                titleData={{
-                    title,
-                }}
+                title={title}
             />
             <Box sx={{
                 backgroundColor: palette.background.paper,

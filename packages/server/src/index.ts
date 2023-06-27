@@ -1,19 +1,23 @@
 import { i18nConfig } from "@local/shared";
 import { ApolloServer } from "apollo-server-express";
-import cookieParser from "cookie-parser";
+import cookie from "cookie";
 import cors from "cors";
 import express from "express";
 import fs from "fs";
 import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
+import { app } from "./app";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
+import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
+import { server } from "./server";
 import { setupStripe, setupValyxa } from "./services";
+import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -65,12 +69,14 @@ const main = async () => {
         logger.error("🚨 Failed to connect to Redis", { trace: "0207", error });
     }
 
-    const app = express();
-
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
+
     // For parsing cookies
-    app.use(cookieParser());
+    app.use((req, res, next) => {
+        req.cookies = cookie.parse(req.headers.cookie || "");
+        next();
+    });
 
     // For authentication
     app.use(auth.authenticate);
@@ -93,7 +99,7 @@ const main = async () => {
         }
     });
 
-    // Set up external services
+    // Set up external services (including webhooks)
     setupStripe(app);
     setupValyxa(app);
 
@@ -142,8 +148,23 @@ const main = async () => {
     //     cors: false
     // });
 
+    // Set up websocket server
+    // Pass the session to the socket, after it's been authenticated
+    io.use(auth.authenticateSocket);
+    // Listen for new WebSocket connections
+    io.on("connection", (socket) => {
+        console.log("a user connected");
+        // Add handlers
+        chatSocketHandlers(io, socket);
+        notificationSocketHandlers(io, socket);
+        // Handle disconnect
+        socket.on("disconnect", () => {
+            console.log("user disconnected");
+        });
+    });
+
     // Start Express server
-    app.listen(5329);
+    server.listen(5329);
 
     // Start cron jobs
     initStatsCronJobs();

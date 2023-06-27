@@ -1,5 +1,7 @@
-import { ChatMessageSortBy, MaxObjects, uuidValidate } from "@local/shared";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, MaxObjects, uuidValidate } from "@local/shared";
+import { shapeHelper } from "../../builders";
+import { Trigger } from "../../events";
+import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatMessageFormat } from "../format/chatMessage";
 import { ModelLogic } from "../types";
@@ -23,7 +25,202 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         },
     },
     format: ChatMessageFormat,
-    mutate: {} as any, //TODO make sure that chat's updated_at is updated when a message is created, so that it shows up first in the list
+    mutate: {
+        shape: {
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                // Collect bot information for bots to respond to messages.
+                // Collect chatIds and userIds to send notifications and trigger web socket events.
+                const botData: Record<string, string> = {};
+                const messageData: Record<string, {
+                    botData: string[] | null; // IDs of bots in this message's chat
+                    chatId: string | null; // ID of the chat this message belongs to
+                    participantsCount: number | null; // Total number of participants in the chat, including bots, users, and the current user
+                    userId: string // ID of the user who sent this message
+                }> = {};
+                // Find known information, which overrides information we'll query later
+                for (const d of [...createList, ...updateList]) {
+                    messageData[d.id] = {
+                        botData: null,
+                        chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
+                        participantsCount: null,
+                        userId: userData.id,
+                    };
+                }
+                for (const d of deleteList) {
+                    messageData[d] = {
+                        botData: null,
+                        chatId: null,
+                        participantsCount: null,
+                        userId: userData.id,
+                    };
+                }
+                // Query chat information for new messages
+                const chatIdsForNewMessages = createList.map(c => c.chatConnect);
+                const chatInfoForNewMessages = await prisma.chat.findMany({
+                    where: { id: { in: chatIdsForNewMessages } },
+                    select: {
+                        id: true,
+                        participants: {
+                            where: {
+                                user: {
+                                    AND: [
+                                        { id: { not: userData.id } },
+                                        { isBot: true },
+                                    ],
+                                },
+                            },
+                            select: {
+                                user: {
+                                    select: {
+                                        id: true,
+                                        botSettings: true,
+                                    },
+                                },
+                            },
+                        },
+                        _count: { select: { participants: true } },
+                    },
+                });
+                // Map chat information for new messages back to message data
+                chatInfoForNewMessages.forEach(chat => {
+                    const message = createList.find(m => m.chatConnect === chat.id);
+                    if (message) {
+                        messageData[message.id] = {
+                            botData: chat.participants.map(p => {
+                                botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
+                                return p.user.id;
+                            }),
+                            chatId: chat.id,
+                            participantsCount: chat._count.participants,
+                            userId: userData.id,
+                        };
+                    }
+                });
+                // Query message and chat information for updated and deleted messages
+                const queriedData = await prisma.chat_message.findMany({
+                    where: { id: { in: [...updateList.map(u => u.id), ...deleteList] } },
+                    select: {
+                        id: true,
+                        chat: {
+                            select: {
+                                id: true,
+                                participants: {
+                                    where: {
+                                        user: {
+                                            AND: [
+                                                { id: { not: userData.id } },
+                                                { isBot: true },
+                                            ],
+                                        },
+                                    },
+                                    select: {
+                                        user: {
+                                            select: {
+                                                id: true,
+                                                botSettings: true,
+                                            },
+                                        },
+                                    },
+                                },
+                                _count: { select: { participants: true } },
+                            },
+                        },
+                        user: { select: { id: true } },
+                    },
+                });
+                // Merge queriedData into messageData, without overwriting data from createList
+                queriedData.forEach(d => {
+                    if (!messageData[d.id]) {
+                        messageData[d.id] = {
+                            botData: d.chat?.participants.map(p => {
+                                botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
+                                return p.user.id;
+                            }) ?? null,
+                            chatId: d.chat?.id ?? null,
+                            participantsCount: d.chat?._count?.participants ?? null,
+                            userId: d.user?.id ?? "",
+                        };
+                    }
+                });
+                // Return data
+                return { botData, messageData };
+            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                isFork: data.isFork,
+                user: { connect: { id: rest.userData.id } },
+                ...(data.forkId ? { fork: { connect: { id: data.forkId } } } : {}),
+                ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
+            post: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
+                // Call triggers TODO handle bot responses
+                for (const c of created) {
+                    // Common trigger logic
+                    await Trigger(prisma, userData.languages).objectCreated({
+                        createdById: userData.id,
+                        hasCompleteAndPublic: true, // N/A
+                        hasParent: true, // N/A
+                        owner: { id: userData.id, __typename: "User" },
+                        object: {
+                            ...c,
+                            ...preMap[__typename].messageData[c.id],
+                        },
+                        objectType: __typename,
+                    });
+                    // Determine which bots should respond, if any.
+                    // Here are the conditions:
+                    // 1. If there are no bots in the chat, no bots should respond.
+                    // 2. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
+                    // 3. Otherwise, we must check the message to see if any bots were mentioned
+                    // Get message and bot data
+                    const message = preMap[__typename].messageData[c.id];
+                    const botIds = preMap[__typename].botData;
+                    // Check condition 1
+                    if (botIds.length === 0) continue;
+                    // Check condition 2
+                    if (botIds.length === 1 && message.participantsCount === 2) {
+                        //TODO
+                    }
+                    // Check condition 3
+                    else {
+                        //TODO
+                    }
+                }
+                for (const u of updated) {
+                    await Trigger(prisma, userData.languages).objectUpdated({
+                        updatedById: userData.id,
+                        hasCompleteAndPublic: true, // N/A
+                        hasParent: true, // N/A
+                        owner: { id: userData.id, __typename: "User" },
+                        object: {
+                            ...u,
+                            ...preMap[__typename].messageData[u.id],
+                        },
+                        objectType: __typename,
+                        wasCompleteAndPublic: true, // N/A
+                    });
+                }
+                for (const d of deletedIds) {
+                    await Trigger(prisma, userData.languages).objectDeleted({
+                        deletedById: userData.id,
+                        hasBeenTransferred: false, // N/A
+                        hasParent: true, // N/A
+                        object: {
+                            id: d,
+                            ...preMap[__typename].messageData[d],
+                        },
+                        objectType: __typename,
+                        wasCompleteAndPublic: true, // N/A
+                    });
+                }
+            },
+        },
+        yup: chatInviteValidation,
+    },
     search: {
         defaultSort: ChatMessageSortBy.DateCreatedDesc,
         searchFields: {
@@ -78,7 +275,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate!.visibility.owner(userId),
+                chat: ChatModel.validate.visibility.owner(userId),
             }),
         },
     },

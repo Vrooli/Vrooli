@@ -6,7 +6,8 @@ import { getLogic } from "../getters";
 import { PrismaType, SessionUserToken } from "../types";
 
 /**
- * Given the IDs of every object which needs to be authenticated, queries for all data required to perform authentication.
+ * Given the primary keys of every object which needs to be authenticated, 
+ * queries for all data required to perform authentication.
  */
 export const getAuthenticatedData = async (
     idsByType: { [key in GqlModelType]?: string[] },
@@ -18,9 +19,10 @@ export const getAuthenticatedData = async (
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
     for (const type of Object.keys(idsByType) as GqlModelType[]) {
         // Find validator and prisma delegate for this object type
-        const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getAuthenticatedData");
+        const { delegate, idField, validate } = getLogic(["delegate", "idField", "validate"], type, userData?.languages ?? ["en"], "getAuthenticatedData");
+
         // Query for data
-        const where = { id: { in: idsByType[type] } };
+        const where = { [idField]: { in: idsByType[type] } };
         let select: PrismaSelect | undefined;
         let data: any[];
         try {
@@ -32,7 +34,7 @@ export const getAuthenticatedData = async (
         }
         // Add data to return object
         for (const datum of data) {
-            authDataById[datum.id] = { __typename: type, ...datum };
+            authDataById[datum[idField]] = { __typename: type, ...datum };
         }
     }
     // Return the data

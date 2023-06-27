@@ -2,13 +2,14 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 // Types of objects which have labels
-type LabelledObjectType = "Api" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "SmartContract" | "Standard";
+type LabelledObjectType = "Api" | "Chat" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "SmartContract" | "Standard";
 
 /**
  * Maps type of a label's parent with the unique field
  */
 const parentMapper: { [key in LabelledObjectType]: string } = {
     "Api": "api_labels_labelledid_labelid_unique",
+    "Chat": "chat_labels_labelledid_labelid_unique",
     "FocusMode": "focus_mode_labels_labelledid_labelid_unique",
     "Issue": "issue_labels_labelledid_labelid_unique",
     "Meeting": "meeting_labels_labelledid_labelid_unique",

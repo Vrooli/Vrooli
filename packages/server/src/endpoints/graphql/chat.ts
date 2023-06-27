@@ -19,6 +19,7 @@ export const typeDef = gql`
     input ChatCreateInput {
         id: ID!
         openToAnyoneWithInvite: Boolean
+        task: String # If chatting with Valyxa or another bot, this is used to set up the initial message
         organizationConnect: ID
         restrictedToRolesConnect: [ID!]
         invitesCreate: [ChatInviteCreateInput!]
@@ -37,12 +38,15 @@ export const typeDef = gql`
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        participantsDelete: [ID!]
         translationsCreate: [ChatTranslationCreateInput!]
         translationsUpdate: [ChatTranslationUpdateInput!]
         translationsDelete: [ID!]
     }
     type Chat {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         openToAnyoneWithInvite: Boolean!
         organization: Organization
         restrictedToRoles: [Role!]!

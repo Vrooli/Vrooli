@@ -1,10 +1,11 @@
 import { DUMMY_ID, orDefault, Session, StandardVersion, standardVersionTranslationValidation, standardVersionValidation } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -12,6 +13,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { StandardFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { InputTypeOptions } from "utils/consts";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
@@ -107,31 +109,18 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Standard"}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -146,16 +135,16 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
+                            name="description"
+                            maxChars={2048}
                             minRows={4}
                             maxRows={8}
-                            name="description"
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
-                    </Stack>
+                    </FormSection>
                     <StandardInput
                         fieldName="preview"
                         zIndex={zIndex}
@@ -172,7 +161,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                         fullWidth
                         versions={versions}
                     />
-                </Stack>
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

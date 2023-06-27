@@ -1,7 +1,8 @@
 import { DUMMY_ID, orDefault, ProjectVersion, projectVersionTranslationValidation, projectVersionValidation, Session } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryListHorizontal } from "components/lists/directory";
@@ -11,6 +12,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -111,32 +113,19 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Project"}
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -151,16 +140,16 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={4}
                             name="description"
+                            maxChars={2048}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
-                    </Stack>
+                    </FormSection>
                     <DirectoryListHorizontal
                         canUpdate={true}
                         directory={directoryField.value}
@@ -173,17 +162,17 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                         fullWidth
                         versions={versions}
                     />
-                </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
+                </FormContainer>
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     );
 });

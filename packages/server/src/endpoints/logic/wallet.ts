@@ -45,9 +45,9 @@ export const WalletEndpoints: EndpointsWallet = {
                 });
             }
             else {
-                const userId = getUser(req)?.id;
+                const userId = getUser(req.session)?.id;
                 if (!userId)
-                    throw new CustomError("0166", "NotLoggedIn", req.languages);
+                    throw new CustomError("0166", "NotLoggedIn", req.session.languages);
                 wallets = await prisma.wallet.findMany({
                     where: { userId },
                     select: walletFields,
@@ -80,7 +80,7 @@ export const WalletEndpoints: EndpointsWallet = {
                     // If code is 404, then resource does not exist. This means that the wallet has no transactions.
                     // In this case, we shouldn't throw an error
                     if (err.status_code !== 404) {
-                        throw new CustomError("0167", "ExternalServiceError", req.languages);
+                        throw new CustomError("0167", "ExternalServiceError", req.session.languages);
                     }
                 } finally {
                     return handles;

@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ObjectMap } from "../models/base";
+import { getLogic } from "../getters";
 
 /**
  * Used in mutate.shape.pre of non-versioned objects which have translations
@@ -12,22 +12,22 @@ export const preShapeEmbeddableTranslatable = ({
     objectType,
 }: {
     createList: { [x: string]: any }[],
-    updateList: { where: { id: string }, data: { [x: string]: any } }[],
+    updateList: { [x: string]: any }[],
     objectType: GqlModelType | `${GqlModelType}`,
 }): { embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> } => {
     // Initialize map
     const embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> = {};
-    // Find id field
-    const idField = ObjectMap[objectType]!.idField ?? "id";
+    // Get id field
+    const { idField } = getLogic(["idField"], objectType, ["en"], "preShapeEmbeddableTranslatable");
     // For createList, every language needs to be updated
     for (const create of createList) {
-        embeddingNeedsUpdateMap[create[idField as any]] = create.translationsCreate.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>);
+        embeddingNeedsUpdateMap[create[idField as any]] = create.translationsCreate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>) ?? {};
     }
     // Same for updateList
     for (const update of updateList) {
-        embeddingNeedsUpdateMap[update.where[idField as any]] = {
-            ...update.data.translationsCreate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>),
-            ...update.data.translationsUpdate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>),
+        embeddingNeedsUpdateMap[update[idField as any]] = {
+            ...update.translationsCreate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>),
+            ...update.translationsUpdate?.reduce((acc, t) => ({ ...acc, [t.language]: true }), {} as Record<string, boolean>),
         };
     }
     return { embeddingNeedsUpdateMap };

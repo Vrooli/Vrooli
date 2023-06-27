@@ -152,7 +152,11 @@ export const ResourceListVertical = ({
                 margin: "auto",
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={openDialog} startIcon={<AddIcon />}>Add Resource</Button>
+                <Button
+                    fullWidth onClick={openDialog}
+                    startIcon={<AddIcon />}
+                    variant="outlined"
+                >Add Resource</Button>
             </Box>}
         </>
     );

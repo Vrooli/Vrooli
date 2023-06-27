@@ -126,16 +126,7 @@ export const projectVersion_findMany = {
       "runProjectsCount": true,
       "simplicity": true,
       "versionIndex": true,
-      "versionLabel": true,
-      "you": {
-        "canComment": true,
-        "canCopy": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canUse": true,
-        "canRead": true
-      }
+      "versionLabel": true
     }
   },
   "pageInfo": {

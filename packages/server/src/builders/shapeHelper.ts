@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
@@ -102,18 +102,14 @@ export type ShapeHelperProps<
     PrimaryKey extends string,
     SoftDelete extends boolean,
 > = {
-    /**
-     * The data to convert
-     */
+    /** The data to convert */
     data: Input,
     /**
      * True if relationship is one-to-one. This makes 
      * the results a single object instead of an array
      */
     isOneToOne: IsOneToOne,
-    /**
-     * True if relationship must be provided
-     */
+    /** True if relationship must be provided */
     isRequired: IsRequired,
     /**
     * If relationship is a join table, data required to create the join table record
@@ -138,13 +134,9 @@ export type ShapeHelperProps<
      * A map of pre-shape data for all objects in the mutation, keyed by object type. 
      */
     preMap: { [x in `${GqlModelType}`]?: any },
-    /**
-     * The name of the primaryKey key field. Defaults to "id"
-     */
+    /** The name of the primaryKey key field. Defaults to "id" */
     primaryKey?: PrimaryKey,
-    /**
-     * The Prisma client
-     */
+    /** The Prisma client */
     prisma: PrismaType,
     relation: RelField,
     relTypes: Types,
@@ -206,8 +198,8 @@ export const shapeHelper = async<
         // Shape the data
         const currShaped = shapeRelationshipData(curr);
         // Add to result
-        result[t.toLowerCase()] = Array.isArray(result[t.toLowerCase()]) ?
-            [...result[t.toLowerCase()] as any, ...currShaped] :
+        result[lowercaseFirstLetter(t)] = Array.isArray(result[lowercaseFirstLetter(t)]) ?
+            [...result[lowercaseFirstLetter(t)] as any, ...currShaped] :
             currShaped;
     }
     // Now we can further shape the result
@@ -244,7 +236,7 @@ export const shapeHelper = async<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update, preMap, prisma, userData });
+            const updated = await (mutate.shape as any).update({ data: update.data, preMap, prisma, userData, where: update.where });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });

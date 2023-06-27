@@ -5,7 +5,7 @@ import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/Dele
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { SettingsAuthenticationForm } from "forms/settings";
 import { useCallback, useContext, useState } from "react";
@@ -79,34 +79,38 @@ export const SettingsAuthenticationView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Authentication",
-                }}
+                title={t("Authentication")}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Box>
-                    <Subheader
+                    <Title
                         help={t("WalletListHelp")}
                         Icon={WalletIcon}
-                        title={t("Wallet", { count: 2 })} />
+                        title={t("Wallet", { count: 2 })}
+                        variant="subheader"
+                    />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
                     />
-                    <Subheader
+                    <Title
                         help={t("EmailListHelp")}
                         Icon={EmailIcon}
-                        title={t("Email", { count: 2 })} />
+                        title={t("Email", { count: 2 })}
+                        variant="subheader"
+                    />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numVerifiedWallets={numVerifiedWallets}
                     />
-                    <Subheader
+                    <Title
                         help={t("PasswordChangeHelp")}
-                        title={t("ChangePassword")} />
+                        title={t("ChangePassword")}
+                        variant="subheader"
+                    />
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
@@ -143,6 +147,7 @@ export const SettingsAuthenticationView = ({
                         color="secondary"
                         onClick={onLogOut}
                         startIcon={<LogOutIcon />}
+                        variant="outlined"
                         sx={{
                             display: "flex",
                             width: "min(100%, 400px)",
@@ -156,6 +161,7 @@ export const SettingsAuthenticationView = ({
                     <Button
                         onClick={openDelete}
                         startIcon={<DeleteIcon />}
+                        variant="text"
                         sx={{
                             background: palette.error.main,
                             color: palette.error.contrastText,

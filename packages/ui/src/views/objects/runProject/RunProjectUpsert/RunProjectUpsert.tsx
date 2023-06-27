@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,10 +20,11 @@ export const RunProjectUpsert = ({
     onCompleted,
     zIndex = 200,
 }: RunProjectUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, RunProject>(endpointGetRunProject);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
@@ -38,9 +40,7 @@ export const RunProjectUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateRun" : "UpdateRun",
-                }}
+                title={t(isCreate ? "CreateRun" : "UpdateRun")}
             />
             <Formik
                 enableReinitialize={true}

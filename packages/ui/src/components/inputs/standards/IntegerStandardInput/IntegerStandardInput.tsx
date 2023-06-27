@@ -17,6 +17,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
+                    fullWidth
                     label={t("DefaultValue")}
                     name="defaultValue"
                     tooltip="The default value of the input"
@@ -25,6 +26,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
+                    fullWidth
                     label={t("Min")}
                     name="min"
                     tooltip="The minimum value of the integer"
@@ -33,6 +35,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
+                    fullWidth
                     label={t("Max")}
                     name="max"
                     tooltip="The maximum value of the integer"
@@ -41,6 +44,7 @@ export const IntegerStandardInput = ({
             <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
+                    fullWidth
                     label={t("Step")}
                     name="step"
                     tooltip="How much to increment/decrement by"

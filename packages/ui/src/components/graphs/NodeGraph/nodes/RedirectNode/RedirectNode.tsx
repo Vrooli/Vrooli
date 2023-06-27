@@ -1,6 +1,6 @@
 import { RedirectIcon } from "@local/shared";
 import { IconButton, Tooltip, Typography } from "@mui/material";
-import { CSSProperties, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import usePress from "utils/hooks/usePress";
 import { calculateNodeSize, DraggableNode } from "../";
@@ -23,7 +23,7 @@ export const RedirectNode = ({
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: "none",
-            } as CSSProperties}
+            }}
         >
             {label}
         </Typography>

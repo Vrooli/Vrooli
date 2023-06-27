@@ -52,7 +52,7 @@ export function CommentContainer({
         sortByOptions,
         timeFrame,
     } = useFindMany<ThreadType>({
-        canSearch: (params) => uuidValidate(Object.values(params.where)[0]),
+        canSearch: (params) => uuidValidate(Object.values(params.where ?? {})[0]),
         controlsUrl: false,
         searchType: "Comment",
         resolve: (result) => result.threads,
@@ -142,6 +142,7 @@ export function CommentContainer({
                 startIcon={<CreateIcon />}
                 onClick={handleAddCommentOpen}
                 sx={{ marginTop: 2 }}
+                variant="outlined"
             >{t("AddComment")}</Button> : null}
         </ContentCollapse>
     );

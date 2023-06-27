@@ -75,9 +75,8 @@ export const NavList = () => {
                     href={LINKS.Start}
                     onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start); }}
                     startIcon={<LogInIcon />}
+                    variant="contained"
                     sx={{
-                        background: "#387e30",
-                        borderRadius: "10px",
                         whiteSpace: "nowrap",
                         // Hide text on small screens, and remove start icon's padding
                         fontSize: { xs: "0px", sm: "1em", md: "1.4em" },

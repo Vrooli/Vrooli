@@ -20,7 +20,7 @@ export const PhoneEndpoints: EndpointsPhone = {
         },
         sendVerificationText: async (_, { input }, { prisma, req }) => {
             await rateLimit({ maxUser: 50, req });
-            await setupVerificationCode(input.phoneNumber, prisma, req.languages);
+            await setupVerificationCode(input.phoneNumber, prisma, req.session.languages);
             return { __typename: "Success" as const, success: true };
         },
     },

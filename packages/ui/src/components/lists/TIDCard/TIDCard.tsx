@@ -67,6 +67,7 @@ export const TIDCard = ({
                         marginLeft: "auto",
                         alignSelf: "flex-end",
                     }}
+                    variant="text"
                 >{buttonText}</Button>
             </Box>
         </Box>

@@ -26,7 +26,6 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
     const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem("lastPath")), []);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
-        console.log("useUpsertActions.onAction", action, item);
         // URL of view page for the object
         const viewUrl = item ? getObjectUrl(item as any) : undefined;
         switch (action) {

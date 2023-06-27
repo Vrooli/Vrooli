@@ -45,6 +45,13 @@ export const MenuTitle = ({
                 aria-label="close"
                 edge="end"
                 onClick={onClose}
+                onKeyDown={(e) => {
+                    // Cancel tabbing to close button. 
+                    // Useful for menus with tabbable items, like ListMenu
+                    if (e.key === "Tab") {
+                        e.stopPropagation();
+                    }
+                }}
                 sx={{ marginLeft: "auto" }}
             >
                 <CloseIcon fill={palette.primary.contrastText} />

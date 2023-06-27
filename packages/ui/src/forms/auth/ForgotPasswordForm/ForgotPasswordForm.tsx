@@ -1,6 +1,5 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
@@ -28,9 +27,7 @@ export const ForgotPasswordForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "ForgotPassword",
-                }}
+                title={t("ForgotPassword")}
             />
             <Formik
                 initialValues={{
@@ -50,10 +47,11 @@ export const ForgotPasswordForm = ({
             >
                 {(formik) => <BaseForm
                     dirty={formik.dirty}
+                    display={"dialog"}
                     isLoading={loading}
                     style={{
-                        display: "block",
                         ...formPaper,
+                        paddingBottom: "unset",
                     }}
                 >
                     <Grid container spacing={2}>
@@ -72,6 +70,7 @@ export const ForgotPasswordForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("Submit")}
@@ -83,7 +82,7 @@ export const ForgotPasswordForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("RememberLogBackIn")}
                                 </Typography>
@@ -96,7 +95,7 @@ export const ForgotPasswordForm = ({
                                         ...clickSize,
                                         ...formNavLink,
                                         flexDirection: "row-reverse",
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("DontHaveAccountSignUp")}
                                 </Typography>

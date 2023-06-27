@@ -2,8 +2,8 @@ import { SearchIcon } from "@local/shared";
 import { Box, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
@@ -21,7 +21,7 @@ export const LinkInput = ({
     const textFieldRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
-    // Search dialog to find objects. to link to
+    // Search dialog to find objects to link to
     const hasSelectedObject = useRef(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true); }, []);
@@ -102,7 +102,7 @@ export const LinkInput = ({
                 {/* Title/Subtitle */}
                 {title && (
                     <Tooltip title={subtitle}>
-                        <Markdown style={{ marginLeft: "8px" }}>{`${title}${subtitle ? " - " + subtitle : ""}`}</Markdown>
+                        <MarkdownDisplay sx={{ marginLeft: "8px" }} content={`${title}${subtitle ? " - " + subtitle : ""}`} />
                     </Tooltip>
                 )}
             </Box>

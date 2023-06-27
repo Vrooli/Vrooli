@@ -55,7 +55,7 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
         let message = error.message ?? error.name ?? "";
         // If error is named ValidationError, it's from yup
         if (error.name === "ValidationError") {
-            const languages = getUser(req)?.languages ?? ["en"];
+            const languages = getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
             message = i18next.t("error:ValidationFailed", { lng, defaultValue: "Validation failed." });
         }
@@ -77,18 +77,10 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
     Object.entries(restEndpoints).forEach(([route, methods]) => {
         // Create route
         const routerChain = router.route(route);
-        const testn1 = route;
-        const test0 = methods;
         // Loop through each method
         Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
             routerChain[method]((req: Request, res: Response) => {
                 // Find input from request
-                const test1 = req.params;
-                const test2 = req.query;
-                const test3 = req.body;
-                const test4 = typeof req.body === "object" ? req.body : {};
-                const test5 = { ...req.params, ...parseInput(req.query) };
-                const test6 = { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
                 const input: Record<string, string> = method === "get" ?
                     { ...req.params, ...parseInput(req.query) } :
                     { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };

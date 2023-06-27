@@ -2,10 +2,13 @@ import { endpointGetNoteVersion, NoteVersion, useLocation } from "@local/shared"
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -20,6 +23,7 @@ export const NoteView = ({
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
@@ -59,9 +63,13 @@ export const NoteView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Note",
-                }}
+                title={firstString(name, t("Note"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>
@@ -83,12 +91,30 @@ export const NoteView = ({
                         bar: {
                             borderRadius: 0,
                             background: palette.primary.main,
+                            position: "sticky",
+                            top: 0,
+                        },
+                        root: {
+                            height: "100%",
+                            position: "relative",
+                            maxWidth: "800px",
+                            margin: "auto",
+                            ...(display === "page" ? {
+                                marginBottom: 4,
+                                borderRadius: { xs: 0, md: 1 },
+                                overflow: "overlay",
+                            } : {}),
                         },
                         textArea: {
                             borderRadius: 0,
                             resize: "none",
-                            minHeight: "100vh",
+                            height: "100%",
+                            overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
+                            border: "none",
+                            ...(display === "page" ? {
+                                minHeight: "100vh",
+                            } : {}),
                         },
                     }}
                     zIndex={zIndex}

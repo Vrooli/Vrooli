@@ -48,9 +48,7 @@ export const WelcomeView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "WelcomeToVrooli",
-                }}
+                title={t("WelcomeToVrooli")}
             />
             <Box sx={{
                 display: "flex",
@@ -65,21 +63,25 @@ export const WelcomeView = ({
                         <Button
                             onClick={() => setLocation(LINKS.Tutorial)}
                             startIcon={<LearnIcon fill="black" />}
+                            variant="contained"
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t("Tutorial")}</Button>
                         <Button
                             onClick={() => setLocation(LINKS.Example)}
                             startIcon={<PlayIcon fill="black" />}
+                            variant="contained"
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t("RunExample")}</Button>
                         {checkIfLoggedIn(session) && <Button
                             onClick={() => setLocation(LINKS.SettingsProfile)}
                             startIcon={<ProfileIcon fill="black" />}
+                            variant="contained"
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t("SetUpProfile")}</Button>}
                         <Button
                             onClick={() => openLink(setLocation, WHITE_PAPER_URL)}
                             startIcon={<ArticleIcon fill="black" />}
+                            variant="contained"
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t("ReadWhitePaper")}</Button>
                     </Stack>

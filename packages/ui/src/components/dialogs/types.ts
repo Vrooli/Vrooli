@@ -1,7 +1,7 @@
 import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
-import { StatsCompactPropsObject } from "components/text/types";
+import { StatsCompactPropsObject, TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -62,12 +62,10 @@ export interface DeleteDialogProps {
     zIndex: number;
 }
 
-export interface DialogTitleProps {
+export interface DialogTitleProps extends Omit<TitleProps, "variant"> {
     below?: JSX.Element | boolean | undefined;
-    helpText?: string;
     id: string;
     onClose: () => void;
-    title?: string;
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |

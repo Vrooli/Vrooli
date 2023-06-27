@@ -19,9 +19,9 @@ export async function createHelper<GraphQLModel>({
     req,
 }: CreateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
-    const { format } = getLogic(["format"], objectType, req.languages, "createHelper");
+    const { format } = getLogic(["format"], objectType, req.session.languages, "createHelper");
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
     // Create objects. cudHelper will check permissions
     const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });
     const { created } = cudResult;

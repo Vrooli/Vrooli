@@ -70,32 +70,33 @@ export async function rateLimit({
     // If maxIp not supplied, use maxUser
     maxIp = maxIp ?? maxUser;
     // Parse request
-    const hasApiToken = req.apiToken === true;
-    const userData = getUser(req);
-    const hasUserData = req.isLoggedIn === true && userData !== null;
+    const hasApiToken = req.session.apiToken === true;
+    const userData = getUser(req.session);
+    const hasUserData = req.session.isLoggedIn === true && userData !== null;
     // Try connecting to redis
     try {
         const client = await initializeRedis();
         // Apply rate limit to API TODO factor in cost of request, instead of just incrementing by 1
         if (hasApiToken) {
-            const key = `${keyBase}:api:${req.apiToken}`;
-            await checkRateLimit(client, key, maxApi, window, req.languages);
+            const key = `${keyBase}:api:${req.session.apiToken}`;
+            await checkRateLimit(client, key, maxApi, window, req.session.languages);
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
-        else if (req.fromSafeOrigin === false) {
-            throw new CustomError("0271", "MustUseApiToken", req.languages);
+        else if (req.session.fromSafeOrigin === false) {
+            throw new CustomError("0271", "MustUseApiToken", req.session.languages);
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
-        await checkRateLimit(client, key, maxIp, window, req.languages);
+        await checkRateLimit(client, key, maxIp, window, req.session.languages);
         // Apply rate limit to user
         if (hasUserData) {
             const key = `${keyBase}:user:${userData.id}`;
-            await checkRateLimit(client, key, maxUser, window, req.languages);
+            await checkRateLimit(client, key, maxUser, window, req.session.languages);
         }
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
         logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
+        throw error;
     }
 }

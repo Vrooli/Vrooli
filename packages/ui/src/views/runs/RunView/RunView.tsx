@@ -1065,6 +1065,7 @@ export const RunView = ({
                                 startIcon={<ArrowLeftIcon />}
                                 onClick={toPrevious}
                                 disabled={unsavedChanges}
+                                variant="outlined"
                             >
                                 {t("Previous")}
                             </Button>}
@@ -1075,6 +1076,7 @@ export const RunView = ({
                                 startIcon={<ArrowRightIcon />}
                                 onClick={toNext} // NOTE: changes are saved on next click
                                 disabled={!subroutineComplete}
+                                variant="contained"
                             >
                                 {t("Next")}
                             </Button>)}
@@ -1082,6 +1084,7 @@ export const RunView = ({
                                 fullWidth
                                 startIcon={<SuccessIcon />}
                                 onClick={toNext}
+                                variant="contained"
                             >
                                 {t("Complete")}
                             </Button>)}

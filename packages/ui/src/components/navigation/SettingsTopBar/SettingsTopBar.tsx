@@ -50,7 +50,7 @@ const searchItems: PreSearchItem[] = [
 export const SettingsTopBar = ({
     display,
     onClose,
-    titleData,
+    ...rest
 }: SettingsTopBarProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -66,9 +66,9 @@ export const SettingsTopBar = ({
 
     return (
         <TopBar
+            {...rest}
             display={display}
             onClose={onClose}
-            titleData={titleData}
             // Search bar to find settings
             below={<Box sx={{
                 width: "min(100%, 700px)",

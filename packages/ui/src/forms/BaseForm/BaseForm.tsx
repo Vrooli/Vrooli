@@ -11,7 +11,9 @@ export type BaseFormRef = {
 export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
     children,
     dirty,
+    display,
     isLoading = false,
+    maxWidth,
     promptBeforeUnload = true,
     style,
 }, ref) => {
@@ -38,9 +40,15 @@ export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
 
     return (
         <Form style={{
-            display: "flex",
+            display: "block",
+            margin: "auto",
             alignItems: "center",
             justifyContent: "center",
+            width: maxWidth ? `min(${maxWidth}px, 100vw - ${display === "page" ? "16px" : "64px"})` : "-webkit-fill-available",
+            maxWidth: "100%",
+            paddingBottom: "64px", // Make room for the submit buttons
+            paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,
+            paddingRight: display === "dialog" ? "env(safe-area-inset-right)" : undefined,
             ...(style ?? {}),
         }}>
             {/* When loading, display a dark overlay */}

@@ -63,7 +63,7 @@ export const onCommonPlain = async ({
             hasCompleteAndPublic: true, // N/A
             hasParent: false, // N/A
             owner: ownerMap[c.id],
-            objectId: c.id as string,
+            object: c,
             objectType,
         });
     }
@@ -74,7 +74,7 @@ export const onCommonPlain = async ({
             hasCompleteAndPublic: true, // Not applicable
             hasParent: false, // Not applicable
             owner: ownerMap[u.id],
-            objectId: u.id as string,
+            object: u,
             objectType,
             wasCompleteAndPublic: true, // Not applicable
         });
@@ -86,7 +86,7 @@ export const onCommonPlain = async ({
             wasCompleteAndPublic: true, // Not applicable
             hasBeenTransferred: true, // Not applicable
             hasParent: false, // Not applicable
-            objectId: d,
+            object: { id: d },
             objectType,
         });
     }

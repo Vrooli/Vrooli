@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -19,10 +20,11 @@ export const ApiUpsert = ({
     onCompleted,
     zIndex = 200,
 }: ApiUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ApiVersion>(endpointGetApiVersion);
     useEffect(() => { id && getData({ id }); }, [getData, id]);
 
@@ -38,9 +40,7 @@ export const ApiUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateApi" : "UpdateApi",
-                }}
+                title={t(isCreate ? "CreateApi" : "UpdateApi")}
             />
             <Formik
                 enableReinitialize={true}

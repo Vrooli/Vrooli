@@ -3,8 +3,8 @@ import { Box } from "@mui/material";
 import termsMarkdown from "assets/policy/terms.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { PageTab } from "components/types";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdown } from "utils/hooks/useMarkdown";
@@ -39,9 +39,7 @@ export const TermsView = ({
         <TopBar
             display={display}
             onClose={onClose}
-            titleData={{
-                titleKey: "Terms",
-            }}
+            title={t("Terms")}
             below={<PageTabs
                 ariaLabel="privacy policy and terms tabs"
                 currTab={currTab}
@@ -51,7 +49,7 @@ export const TermsView = ({
             />}
         />
         <Box m={2}>
-            <Markdown>{terms}</Markdown>
+            <MarkdownDisplay content={terms} />
         </Box>
     </>;
 };

@@ -62,14 +62,14 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
             id: true,
             list: "ResourceList",
         }),
-        permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ResourceListModel.validate!.owner(data.list as any, userId),
+        permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
+        owner: (data, userId) => ResourceListModel.validate.owner(data.list as any, userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => ResourceListModel.validate!.isPublic(data.list as any, languages),
+        isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as any, languages),
         visibility: {
             private: {},
             public: {},
-            owner: (userId) => ({ list: ResourceListModel.validate!.visibility.owner(userId) }),
+            owner: (userId) => ({ list: ResourceListModel.validate.visibility.owner(userId) }),
         },
     },
 });

@@ -126,7 +126,7 @@ export const CommandPalette = () => {
         >
             <DialogTitle
                 id={titleId}
-                helpText={t("CommandPaletteHelp")}
+                help={t("CommandPaletteHelp")}
                 title={t("CommandPaletteTitle")}
                 onClose={close}
             />

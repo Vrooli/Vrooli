@@ -1,8 +1,11 @@
 import { Box, keyframes } from "@mui/material";
 import Blob1 from "assets/img/blob1.svg";
 import Blob2 from "assets/img/blob2.svg";
+import { useCallback } from "react";
 import Particles from "react-tsparticles";
-import { SlideContainer } from "../SlideContainer/SlideContainer";
+import { SlideContainer } from "styles";
+import { loadFull } from "tsparticles";
+import type { Container, Engine } from "tsparticles-engine";
 import { SlideContainerNeonProps } from "../types";
 
 const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";
@@ -57,6 +60,16 @@ export const SlideContainerNeon = ({
     sx,
 }: SlideContainerNeonProps) => {
 
+    const particlesInit = useCallback(async (engine: Engine) => {
+        await loadFull(engine);
+    }, []);
+
+    const particlesLoaded = useCallback((container: Container | undefined) => {
+        console.log(container);
+        return Promise.resolve();
+    }, []);
+
+
     return (
         <SlideContainer
             id={id}
@@ -66,7 +79,6 @@ export const SlideContainerNeon = ({
                 background: blackRadial,
                 backgroundAttachment: "fixed",
                 color: "white",
-                scrollSnapAlign: "start",
                 ...sx,
             }}
         >
@@ -79,19 +91,15 @@ export const SlideContainerNeon = ({
                 zIndex: 1,
             }}
             >
-                {/* @ts-ignore TODO */}
                 <Particles
                     id="tsparticles"
-                    canvasClassName="tsparticles-canvas"
+                    init={particlesInit}
+                    loaded={particlesLoaded}
                     options={{
                         fullScreen: { enable: true, zIndex: 0 },
                         fpsLimit: 60,
                         interactivity: {
                             events: {
-                                onClick: {
-                                    enable: true,
-                                    mode: "push",
-                                },
                                 onHover: {
                                     enable: true,
                                     mode: "repulse",

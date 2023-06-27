@@ -40,10 +40,10 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderModel.validate!.isPublic(data.reminder as any, languages),
+        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate!.owner(data.reminder as any, userId),
+        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -53,7 +53,7 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
             private: {},
             public: {},
             owner: (userId) => ({
-                reminder: ReminderModel.validate!.visibility.owner(userId),
+                reminder: ReminderModel.validate.visibility.owner(userId),
             }),
         },
     },

@@ -7,6 +7,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ListMenuItemData } from "components/dialogs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
 import { AddAfterLinkDialogProps } from "../types";
@@ -22,6 +23,7 @@ export const AddAfterLinkDialog = ({
     links,
     zIndex,
 }: AddAfterLinkDialogProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     /**
@@ -53,7 +55,8 @@ export const AddAfterLinkDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: "LinkSelect" }}
+                title={t("LinkSelect")}
+                titleId={titleId}
             />
             <DialogContent>
                 <List>

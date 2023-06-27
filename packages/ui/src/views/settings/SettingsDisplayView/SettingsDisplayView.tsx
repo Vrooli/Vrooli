@@ -31,11 +31,9 @@ export const SettingsDisplayView = ({
         <>
             <SettingsTopBar
                 display={display}
+                help={t("DisplaySettingsDescription")}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Display",
-                    helpKey: "DisplaySettingsDescription",
-                }}
+                title={t("Display")}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -74,10 +72,16 @@ export const SettingsDisplayView = ({
                         />}
                     </Formik>
                     <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session); }} sx={{
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                        }}>{t("ClearSearchHistory")}</Button>
+                        <Button
+                            id="clear-search-history-button"
+                            color="secondary"
+                            startIcon={<SearchIcon />}
+                            onClick={() => { session && clearSearchHistory(session); }}
+                            variant="outlined"
+                            sx={{
+                                marginLeft: "auto",
+                                marginRight: "auto",
+                            }}>{t("ClearSearchHistory")}</Button>
                     </Box>
                 </Stack>
             </Stack>

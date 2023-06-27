@@ -79,9 +79,7 @@ export const CreateView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Create",
-                }}
+                title={t("Create")}
             />
             <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon }, index) => (

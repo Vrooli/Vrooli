@@ -9,8 +9,8 @@ import { ShapeModel } from "types";
  */
 export const updateVersion = <
     Root extends { versionInfo?: { id: string, versionLabel: string | null | undefined } | null | undefined },
-    VersionCreateInput extends {},
-    VersionUpdateInput extends {},
+    VersionCreateInput extends object,
+    VersionUpdateInput extends object,
 >(
     originalRoot: Root,
     updatedRoot: Root,

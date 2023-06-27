@@ -1,10 +1,16 @@
 export const chatMessage_update = {
   "chat": {
     "participants": {
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true,
+        "__typename": "User"
+      },
       "id": true,
-      "isBot": true,
-      "name": true,
-      "handle": true,
+      "created_at": true,
+      "updated_at": true,
       "__typename": "ChatParticipant"
     },
     "invites": {
@@ -13,6 +19,13 @@ export const chatMessage_update = {
       "updated_at": true,
       "message": true,
       "status": true,
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true,
+        "__typename": "User"
+      },
       "you": {
         "canDelete": true,
         "canUpdate": true
@@ -79,6 +92,8 @@ export const chatMessage_update = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "organization": {
       "id": true,

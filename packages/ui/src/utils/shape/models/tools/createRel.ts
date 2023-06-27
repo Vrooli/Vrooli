@@ -29,13 +29,13 @@ type CreateRelOutput<
  */
 export const createRel = <
     Item extends (IsOneToOne extends "one" ?
-        { [x in FieldName]?: {} | null | undefined } :
-        { [x in FieldName]?: {}[] | null | undefined }),
+        { [x in FieldName]?: object | null | undefined } :
+        { [x in FieldName]?: object[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
     // Shape object only required when RelTypes includes 'Create' or 'Update'
     Shape extends ("Create" extends RelTypes[number] ?
-        ShapeModel<any, {}, null> :
+        ShapeModel<any, object, null> :
         never),
     IsOneToOne extends "one" | "many",
 >(

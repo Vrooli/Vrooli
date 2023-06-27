@@ -259,4 +259,4 @@ export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
 /**
  * A task mode supported by Valyxa
  */
-export type AssistantTask = "start" | "note";
+export type AssistantTask = "start" | "note" | "standard";

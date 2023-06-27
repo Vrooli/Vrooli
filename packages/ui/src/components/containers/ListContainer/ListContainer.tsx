@@ -18,7 +18,7 @@ export const ListContainer = ({
             marginLeft: "auto",
             marginRight: "auto",
             ...(isEmpty ? {} : {
-                boxShadow: 12,
+                boxShadow: 4,
                 background: palette.background.paper,
                 borderRadius: "8px",
                 overflow: "overlay",

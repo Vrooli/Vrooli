@@ -6,6 +6,7 @@ import { NavigableObject } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
+import { SingleOrArray } from "../../../../server/src/types";
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
@@ -20,10 +21,12 @@ export interface BuildEditButtonsProps {
     canCancelMutate: boolean;
     errors: GridSubmitButtonsProps["errors"];
     handleCancel: () => void;
+    handleScaleChange: (delta: number) => void;
     handleSubmit: () => void;
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
+    scale: number;
 }
 
 export type CameraButtonProps = {
@@ -47,11 +50,11 @@ export interface CommentsButtonProps {
 }
 
 export interface EllipsisActionButtonProps {
-    children: JSX.Element | null | (JSX.Element | null)[]
+    children: SingleOrArray<JSX.Element | null>;
 }
 
 export interface GridActionButtonsProps {
-    children: JSX.Element | JSX.Element[];
+    children: SingleOrArray<JSX.Element | null>;
     display: ViewDisplayType;
 }
 
@@ -65,6 +68,7 @@ export interface GridSubmitButtonsProps {
     onCancel: () => void;
     onSetSubmitting?: (isSubmitting: boolean) => void;
     onSubmit?: () => void;
+    sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
 }
 
 export interface HelpButtonProps extends ButtonProps {

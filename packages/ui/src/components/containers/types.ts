@@ -14,14 +14,12 @@ export interface CommentContainerProps {
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[] | boolean | null | undefined;
-    helpKey?: CommonKey;
-    helpVariables?: { [x: string]: string | number };
+    help?: string;
     /**
      * Icon displayed to the left of the title
      */
     Icon?: SvgComponent;
-    titleKey: CommonKey;
-    titleVariables?: { [x: string]: string | number };
+    title: string;
     id?: string;
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
@@ -30,12 +28,10 @@ export interface TitleContainerProps {
          * If set, adds icon for option to the right of the title
          */
         Icon?: SvgComponent;
-        key: CommonKey;
+        label: string;
         onClick: (e?: any) => void;
-        variables?: Record<string, any>
     }[];
     sx?: object;
-    tooltip?: string;
 }
 
 export interface ListContainerProps {
@@ -61,6 +57,7 @@ export interface ContentCollapseProps {
     sxs?: {
         titleContainer?: { [x: string]: any };
         root?: { [x: string]: any };
+        helpButton?: { [x: string]: any };
     }
     title?: string | null;
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";

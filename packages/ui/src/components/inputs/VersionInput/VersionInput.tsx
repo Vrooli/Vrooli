@@ -98,7 +98,7 @@ export const VersionInput = ({
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
-                    <BumpMajorIcon />
+                    <BumpMajorIcon fill="white" />
                 </ColorIconButton>
             </Tooltip>
             <Tooltip placement="top" title="Moderate bump (increment the middle number)">
@@ -111,7 +111,7 @@ export const VersionInput = ({
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
-                    <BumpModerateIcon />
+                    <BumpModerateIcon fill="white" />
                 </ColorIconButton>
             </Tooltip>
             <Tooltip placement="top" title="Minor bump (increment the last number)">
@@ -123,7 +123,7 @@ export const VersionInput = ({
                         borderRadius: "0 5px 5px 0",
                         height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
-                    <BumpMinorIcon />
+                    <BumpMinorIcon fill="white" />
                 </ColorIconButton>
             </Tooltip>
         </Stack>

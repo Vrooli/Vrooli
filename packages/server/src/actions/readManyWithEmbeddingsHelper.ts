@@ -26,12 +26,12 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     req,
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = getUser(req);
+    const userData = getUser(req.session);
     const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0487", "InternalError", req.languages, { objectType });
+    if (!model) throw new CustomError("0487", "InternalError", req.session.languages, { objectType });
     // Check take limit
     if (Number.isInteger(input.take) && input.take > MAX_TAKE) {
-        throw new CustomError("0488", "InternalError", req.languages, { objectType, take: input.take });
+        throw new CustomError("0488", "InternalError", req.session.languages, { objectType, take: input.take });
     }
     const embedResults = await findTags({ //TODO support more than just tags
         limit: Number.isInteger(input.take) ? input.take : DEFAULT_TAKE,
@@ -42,7 +42,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         thresholdBookmarks: 0,
         thresholdDistance: 2,
     });
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     const select = selectHelper(partialInfo);
     const searchResults = await prisma.tag.findMany({
         where: { id: { in: embedResults.map(t => t.id) } },

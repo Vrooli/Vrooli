@@ -433,14 +433,5 @@ export const projectVersion_findOne = {
   "simplicity": true,
   "versionIndex": true,
   "versionLabel": true,
-  "you": {
-    "canComment": true,
-    "canCopy": true,
-    "canDelete": true,
-    "canReport": true,
-    "canUpdate": true,
-    "canUse": true,
-    "canRead": true
-  },
   "__typename": "ProjectVersion"
 } as const;

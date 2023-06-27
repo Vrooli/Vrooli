@@ -68,11 +68,6 @@ export const AdvancedSearchDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <TopBar
-                display="dialog"
-                onClose={handleClose}
-                titleData={{ titleId, titleKey: "AdvancedSearch" }}
-            />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
@@ -86,17 +81,17 @@ export const AdvancedSearchDialog = ({
                 validationSchema={validationSchema}
             >
                 {(formik) => <>
-                    {/* Reset search button */}
-                    <Button
-                        onClick={() => { formik.resetForm(); }}
-                        startIcon={<RefreshIcon />}
-                        sx={{
-                            display: "flex",
-                            margin: "auto",
-                            marginTop: 2,
-                            marginBottom: 2,
-                        }}
-                    >{t("Reset")}</Button>
+                    <TopBar
+                        display="dialog"
+                        onClose={handleClose}
+                        title={t("AdvancedSearch")}
+                        titleId={titleId}
+                        options={[{
+                            Icon: RefreshIcon,
+                            label: t("Reset"),
+                            onClick: () => { formik.resetForm(); },
+                        }]}
+                    />
                     <Box sx={{
                         margin: "auto",
                         display: "flex",
@@ -109,6 +104,7 @@ export const AdvancedSearchDialog = ({
                             childContainers={schema.containers}
                             fields={schema.fields}
                             layout={schema.formLayout}
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
                             onUpload={() => { }}
                             theme={theme}
                             zIndex={zIndex}
@@ -122,6 +118,7 @@ export const AdvancedSearchDialog = ({
                                 startIcon={<SearchIcon />}
                                 type="submit"
                                 onClick={formik.handleSubmit as any}
+                                variant="contained"
                             >{t("Search")}</Button>
                         </Grid>
                         <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
@@ -129,6 +126,7 @@ export const AdvancedSearchDialog = ({
                                 fullWidth
                                 startIcon={<CancelIcon />}
                                 onClick={handleClose}
+                                variant="outlined"
                             >{t("Cancel")}</Button>
                         </Grid>
                     </GridActionButtons>

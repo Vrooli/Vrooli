@@ -1,8 +1,8 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
-import { List, Typography, useTheme } from "@mui/material";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success, useLocation } from "@local/shared";
+import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
@@ -22,8 +23,8 @@ export const ReminderList = ({
     reminders,
     zIndex,
 }: ReminderListProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
+    const [, setLocation] = useLocation();
 
     // Internal state
     const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -143,10 +144,14 @@ export const ReminderList = ({
             {/* List */}
             <TitleContainer
                 Icon={ReminderIcon}
-                titleKey="ToDo"
+                title={t("ToDo")}
                 options={[{
+                    Icon: OpenInNewIcon,
+                    label: t("SeeAll"),
+                    onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminders}`); },
+                }, {
                     Icon: AddIcon,
-                    key: "Create",
+                    label: t("Create"),
                     onClick: openDialog,
                 }]}
             >

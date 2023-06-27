@@ -176,7 +176,7 @@ export const MoveNodeMenu = ({
         >
             <DialogTitle
                 id={titleId}
-                helpText={t("NodeMoveDialogHelp")}
+                help={t("NodeMoveDialogHelp")}
                 onClose={onClose}
                 title={t("NodeMove")}
             />

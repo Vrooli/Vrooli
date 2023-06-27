@@ -7,9 +7,10 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -86,17 +87,7 @@ export const ProjectView = ({
      * Displays name, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -114,15 +105,21 @@ export const ProjectView = ({
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
-                <ObjectTitle
-                    language={language}
-                    languages={availableLanguages}
-                    loading={isLoading}
-                    title={name}
-                    setLanguage={setLanguage}
-                    translations={existing?.translations ?? []}
-                    zIndex={zIndex}
-                />
+                {
+                    isLoading ? (
+                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : <Title
+                        title={name}
+                        variant="header"
+                        options={permissions.canUpdate ? [{
+                            label: t("Edit"),
+                            Icon: EditIcon,
+                            onClick: () => { actionData.onActionStart("Edit"); },
+                        }] : []}
+                    />
+                }
                 {/* Handle */}
                 {
                     handle && <Link href={`https://handle.me/${handle}`} underline="hover">
@@ -174,17 +171,14 @@ export const ProjectView = ({
                     />
                 </Stack>
             </Stack>
-        </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, language, availableLanguages, isLoading, name, existing, zIndex, handle, description, permissions.canBookmark]);
+        </OverviewContainer>
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Project",
-                }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

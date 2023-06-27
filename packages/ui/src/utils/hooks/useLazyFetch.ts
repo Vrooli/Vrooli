@@ -72,12 +72,10 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
             options,
         })
             .then(({ data, errors, version }: ServerResponse) => {
-                console.log("useLazyFetch data", data, errors);
                 setState({ loading: false, data, errors });
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
-                console.log("useLazyFetch error", errors);
                 setState({ loading: false, data: undefined, errors });
                 return { errors, version };
             });

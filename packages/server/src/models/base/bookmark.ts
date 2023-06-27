@@ -1,4 +1,4 @@
-import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, MaxObjects, uppercaseFirstLetter } from "@local/shared";
+import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, lowercaseFirstLetter, MaxObjects, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../../builders";
@@ -157,7 +157,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             if (!userId) return result;
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
-            const fieldName = `${bookmarkFor.toLowerCase()}Id`;
+            const fieldName = `${lowercaseFirstLetter(bookmarkFor)}Id`;
             const isBookmarkredArray = await prisma.bookmark.findMany({ where: { list: { user: { id: userId } }, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
@@ -240,7 +240,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => BookmarkListModel.validate!.owner(data.list as any, userId),
+        owner: (data, userId) => BookmarkListModel.validate.owner(data.list as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
@@ -265,7 +265,7 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
             private: {},
             public: {},
             owner: (userId) => ({
-                list: BookmarkListModel.validate!.visibility.owner(userId),
+                list: BookmarkListModel.validate.visibility.owner(userId),
             }),
         },
     },

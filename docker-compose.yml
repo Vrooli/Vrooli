@@ -152,6 +152,24 @@ services:
       VIRTUAL_PORT: "${PORT_DOCS}"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+  # Used to view the database. Open http://localhost:8080
+  adminer:
+    image: ghcr.io/jeliebig/adminer-autologin
+    container_name: adminer
+    restart: always
+    environment:
+      ADMINER_PLUGINS: login-env-vars
+      ADMINER_DRIVER: pgsql
+      ADMINER_SERVER: db
+      ADMINER_USERNAME: "${DB_USER}"
+      ADMINER_PASSWORD: "${DB_PASSWORD}"
+      ADMINER_DB: "${DB_NAME}"
+    networks:
+      - app
+    depends_on:
+      - db
+    ports:
+      - 8080:8080
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9
@@ -161,13 +179,6 @@ services:
   #     - app
   #   expose:
   #     - ${PORT_TRANSLATE}
-  # adminer:
-  #     image: adminer
-  #     restart: always
-  #     depends_on:
-  #         - db
-  #     ports:
-  #         - 8080:8080
 
 networks:
   proxy:

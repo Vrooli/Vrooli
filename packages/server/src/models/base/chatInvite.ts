@@ -1,4 +1,5 @@
-import { ChatInviteSortBy, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
+import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatInviteFormat } from "../format/chatInvite";
@@ -20,7 +21,27 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         },
     },
     format: ChatInviteFormat,
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => {
+                return {
+                    id: data.id,
+                    message: noNull(data.message),
+                    ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest })),
+                    ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Chat", parentRelationshipName: "invites", data, ...rest })),
+                };
+            },
+            update: async ({ data, ...rest }) => ({
+                message: noNull(data.message),
+            }),
+        },
+        trigger: {
+            onCreated: async ({ created, prisma, userData }) => {
+                //TODO Create invite notifications
+            },
+        },
+        yup: chatInviteValidation,
+    },
     search: {
         defaultSort: ChatInviteSortBy.DateCreatedDesc,
         searchFields: {
@@ -74,7 +95,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
             private: {},
             public: {},
             owner: (userId) => ({
-                chat: ChatModel.validate!.visibility.owner(userId),
+                chat: ChatModel.validate.visibility.owner(userId),
             }),
         },
     },

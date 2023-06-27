@@ -192,7 +192,7 @@ export const LinkDialog = ({
             <DialogTitle
                 id={titleId}
                 title={t(isAdd ? "LinkAdd" : "LinkEdit")}
-                helpText={helpText}
+                help={helpText}
                 onClose={handleCancel}
             />
             <DialogContent sx={{

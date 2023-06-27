@@ -40,15 +40,15 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate!.owner(data.routine as any, userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data.routine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_routineSelect>(data, [
             ["routine", "Routine"],
         ], languages),
         visibility: {
-            private: { routine: RoutineModel.validate!.visibility.private },
-            public: { routine: RoutineModel.validate!.visibility.public },
-            owner: (userId) => ({ routine: RoutineModel.validate!.visibility.owner(userId) }),
+            private: { routine: RoutineModel.validate.visibility.private },
+            public: { routine: RoutineModel.validate.visibility.public },
+            owner: (userId) => ({ routine: RoutineModel.validate.visibility.owner(userId) }),
         },
     },
 });

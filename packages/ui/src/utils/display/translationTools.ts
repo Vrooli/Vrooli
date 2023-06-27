@@ -1,7 +1,6 @@
 import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { OptionalTranslation } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { ObjectSchema, ValidationError } from "yup";
 
@@ -676,8 +675,8 @@ export const getTranslationData = <
  * Handles onBlurs for translation fields in a formik object
  */
 export const handleTranslationBlur = (
-    field: FieldInputProps<{}>,
-    meta: FieldMetaProps<{}>,
+    field: FieldInputProps<object>,
+    meta: FieldMetaProps<object>,
     event: { target: { name: string } },
     language: string,
 ) => {
@@ -777,7 +776,7 @@ export const combineErrorsWithTranslations = (
 export const addEmptyTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    helpers: FieldHelperProps<{}>,
+    helpers: FieldHelperProps<object>,
     language: string,
 ) => {
     // Get copy of current translations
@@ -808,7 +807,7 @@ export const addEmptyTranslation = (
 export const removeTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    helpers: FieldHelperProps<{}>,
+    helpers: FieldHelperProps<object>,
     language: string,
 ) => {
     // Get copy of current translations
@@ -839,24 +838,4 @@ export const translateSnackMessage = (
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };
-};
-
-/**
- * Finds the translated title and help text for a component
- * @param data Data required to find the title and help text
- * @returns Object with title and help text, each of which can be undefined
- */
-export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | undefined): { title?: string, help?: string } => {
-    if (!data) return {};
-    let title: string | undefined = data.title;
-    let help: string | undefined = data.help;
-    if (!title && data.titleKey) {
-        title = i18next.t(data.titleKey, { ...data.titleVariables, ns: "common", defaultValue: "" });
-        if (title === "") title = undefined;
-    }
-    if (!help && data.helpKey) {
-        help = i18next.t(data.helpKey, { ...data.helpVariables, ns: "common", defaultValue: "" });
-        if (help === "") help = undefined;
-    }
-    return { title, help };
 };

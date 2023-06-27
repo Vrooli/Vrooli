@@ -1,4 +1,4 @@
-import { RoutineVersion } from "@local/shared";
+import { Chat, RoutineVersion } from "@local/shared";
 import React from "react";
 import { AssistantTask } from "types";
 import { ViewProps } from "./objects/types";
@@ -22,7 +22,17 @@ export type CalendarViewProps = BaseViewProps
 
 export type ChatViewProps = BaseViewProps & {
     botSettings?: string | null | undefined;
-    chatId?: "Valyxa" | string | null | undefined;
+    /** 
+     * Info for finding an existing chat or starting a new one.
+     * 
+     * Pass an ID if you want to find an existing chat.
+     * 
+     * Pass `{ 
+     *     invites: [{ id: "abc-123"}, { id: "345-678"}],
+     *     //...other chat info like translations and labels (optional)
+     * }` to start a new chat with the given users.
+     * */
+    chatInfo?: Partial<Chat>;
     context?: string | null | undefined;
     task?: AssistantTask;
     zIndex: number;

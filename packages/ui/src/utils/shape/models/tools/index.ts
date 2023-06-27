@@ -2,6 +2,7 @@ export * from "./createOwner";
 export * from "./createPrims";
 export * from "./createRel";
 export * from "./createVersion";
+export * from "./shapeDate";
 export * from "./shapeUpdate";
 export * from "./updateOwner";
 export * from "./updatePrims";

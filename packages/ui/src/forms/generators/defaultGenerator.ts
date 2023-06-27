@@ -1,6 +1,7 @@
 import { InputType } from "@local/shared";
-import { FieldData } from "forms/types";
-import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
+import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
+import { CodeProps, FieldData } from "forms/types";
+import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextProps, YupField } from "../types";
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -8,7 +9,7 @@ import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInp
  * Assumes that any key in props might be missing.
  * @returns The passed-in props object with default values added
  */
-const defaultMap: { [key in InputType]: (props: any) => any } = {
+export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
         color: "secondary",
         defaultValue: new Array(props.options?.length ?? 0).fill(false),
@@ -20,8 +21,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: [],
         ...props,
     }),
-    [InputType.JSON]: (props: Partial<Omit<JsonProps, "id">>): Omit<JsonProps, "id"> => ({
+    [InputType.JSON]: (props: Partial<Omit<CodeProps, "id">>): Omit<CodeProps, "id"> => ({
         defaultValue: "",
+        limitTo: [StandardLanguage.JsonStandard],
+        name: "",
         ...props,
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
@@ -29,10 +32,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         ...props,
     }),
     [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, "name">>): Omit<IntegerInputProps, "name"> => ({
-        ...props,
-    }),
-    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
-        defaultValue: "",
+        defaultValue: 0,
+        max: Number.MAX_SAFE_INTEGER,
+        min: Number.MIN_SAFE_INTEGER,
+        step: 1,
         ...props,
     }),
     [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
@@ -49,6 +52,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         ...props,
     }),
     [InputType.Slider]: (props: SliderProps) => {
+        // eslint-disable-next-line prefer-const
         let { defaultValue, min, max, step, ...otherProps } = props;
         const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
         const nearest = (value: number, min: number, max: number, steps: number) => {
@@ -78,8 +82,13 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: [],
         ...props,
     }),
-    [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
+    [InputType.Text]: (props: Partial<TextProps>): TextProps => ({
+        autoComplete: "off",
         defaultValue: "",
+        isMarkdown: true,
+        maxChars: 1000,
+        maxRows: 2,
+        minRows: 4,
         ...props,
     }),
 };
@@ -93,7 +102,7 @@ export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
     return fields.map(field => {
         const { props, ...otherKeys } = field;
         return {
-            props: defaultMap[field.type](props as any),
+            props: defaultStandardPropsMap[field.type](props as any),
             ...otherKeys,
         };
     });
@@ -116,10 +125,10 @@ export const createDefaultFieldData = ({
     type,
     yup,
 }: CreateDefaultFieldDataProps): FieldData | null => {
-    if (!type || !defaultMap[type]) return null;
+    if (!type || !defaultStandardPropsMap[type]) return null;
     return ({
         type: type as any,
-        props: defaultMap[type]({}),
+        props: defaultStandardPropsMap[type]({}),
         fieldName: fieldName ?? "",
         label: label ?? "",
         yup: yup ?? ({

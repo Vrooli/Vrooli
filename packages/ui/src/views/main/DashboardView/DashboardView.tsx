@@ -23,6 +23,7 @@ import { useReactSearch } from "utils/hooks/useReactSearch";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
+import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
@@ -206,7 +207,7 @@ export const DashboardView = ({
         const { root, ...rest } = note;
         const asRoot = { ...root, versions: [note] };
         setNotes(n => [asRoot, ...n]);
-    }, []);
+    }, [closeCreateNote]);
 
     // Calculate upcoming events using schedules 
     const upcomingEvents = useMemo(() => {
@@ -261,6 +262,7 @@ export const DashboardView = ({
                     zIndex={zIndex + 1}
                 />
             </LargeDialog>
+            {/* Main content */}
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -306,10 +308,10 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={MonthIcon}
                     isEmpty={upcomingEvents.length === 0}
-                    titleKey="Schedule"
+                    title={t("Schedule")}
                     options={[{
                         Icon: OpenInNewIcon,
-                        key: "Open",
+                        label: t("Open"),
                         onClick: openSchedule,
                     }]}
                 >
@@ -327,11 +329,14 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={NoteIcon}
                     isEmpty={noteItems.length === 0}
-                    titleKey="Note"
-                    titleVariables={{ count: 2 }}
+                    title={t("Note", { count: 2 })}
                     options={[{
+                        Icon: OpenInNewIcon,
+                        label: t("SeeAll"),
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Notes}`); },
+                    }, {
                         Icon: AddIcon,
-                        key: "Create",
+                        label: t("Create"),
                         onClick: openCreateNote,
                     }]}
                 >

@@ -75,9 +75,7 @@ export const DateRangeMenu = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "SelectDateRange",
-                }}
+                title={t("SelectDateRange")}
             />
             <Stack direction="column" spacing={2} m={2}>
                 <Grid container spacing={2}>
@@ -112,6 +110,7 @@ export const DateRangeMenu = ({
                     type="submit"
                     fullWidth
                     onClick={() => { onSubmit(after, before); onClose(); }}
+                    variant="contained"
                 >{t("Ok")}</Button>
             </Stack>
         </Popover>

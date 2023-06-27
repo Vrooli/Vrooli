@@ -50,6 +50,8 @@ export const chatInvite_findMany = {
           "name": true
         },
         "id": true,
+        "created_at": true,
+        "updated_at": true,
         "openToAnyoneWithInvite": true,
         "organization": {
           "id": true,
@@ -147,6 +149,17 @@ export const chatInvite_findMany = {
             "description": true
           }
         },
+        "participants": {
+          "user": {
+            "id": true,
+            "isBot": true,
+            "name": true,
+            "handle": true
+          },
+          "id": true,
+          "created_at": true,
+          "updated_at": true
+        },
         "participantsCount": true,
         "invitesCount": true,
         "you": {
@@ -160,6 +173,12 @@ export const chatInvite_findMany = {
       "updated_at": true,
       "message": true,
       "status": true,
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true
+      },
       "you": {
         "canDelete": true,
         "canUpdate": true

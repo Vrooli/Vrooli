@@ -11,10 +11,12 @@ import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import Markdown from "markdown-to-jsx";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -155,18 +157,7 @@ export const OrganizationView = ({
      * Displays name, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Avatar
                 src="/broken-image.jpg" //TODO
                 sx={{
@@ -206,22 +197,15 @@ export const OrganizationView = ({
                         <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit organization">
-                                <IconButton
-                                    aria-label="Edit organization"
-                                    size="small"
-                                    onClick={() => actionData.onActionStart("Edit")}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
+                    ) : <Title
+                        title={name}
+                        variant="header"
+                        options={permissions.canUpdate ? [{
+                            label: t("Edit"),
+                            Icon: EditIcon,
+                            onClick: () => { actionData.onActionStart("Edit"); },
+                        }] : []}
+                    />
                 }
                 {/* Handle */}
                 {
@@ -252,7 +236,7 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Markdown variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Markdown>
+                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -274,8 +258,8 @@ export const OrganizationView = ({
                     />
                 </Stack>
             </Stack>
-        </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, actionData]);
+        </OverviewContainer>
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, organization, bio, zIndex, actionData]);
 
     /**
      * Opens add new page
@@ -291,9 +275,6 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Organization",
-                }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

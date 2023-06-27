@@ -1,4 +1,4 @@
-import { DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
+import { CompleteIcon, DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -10,12 +10,13 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -25,6 +26,7 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -43,10 +45,6 @@ export const routineInitialValues = (
     nodeLinks: [],
     nodes: [],
     outputs: [],
-    resourceList: {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-    },
     root: {
         __typename: "Routine" as const,
         id: DUMMY_ID,
@@ -58,6 +56,10 @@ export const routineInitialValues = (
     },
     versionLabel: "1.0.0",
     ...existing,
+    resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
+        __typename: "ResourceList" as const,
+        id: DUMMY_ID,
+    }),
     translations: orDefault(existing?.translations, [{
         __typename: "RoutineVersionTranslation" as const,
         id: DUMMY_ID,
@@ -179,21 +181,12 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <FormContainer>
                     <RelationshipList
                         isEditing={true}
                         objectType={"Routine"}
@@ -203,11 +196,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                    }}>
+                    <FormSection>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -222,19 +211,21 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             language={language}
                             name="name"
                         />
-                        <TranslatedTextField
-                            fullWidth
-                            label={t("Description")}
+                        <TranslatedMarkdownInput
                             language={language}
-                            multiline
-                            minRows={2}
-                            maxRows={2}
                             name="description"
+                            maxChars={2048}
+                            maxRows={4}
+                            minRows={2}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
                         />
                         <TranslatedMarkdownInput
                             language={language}
                             name="instructions"
+                            maxChars={8192}
                             minRows={4}
+                            placeholder={t("Instructions")}
                             zIndex={zIndex}
                         />
                         <br />
@@ -246,7 +237,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             fullWidth
                             versions={versions}
                         />
-                    </Stack>
+                    </FormSection>
                     {/* Is internal checkbox */}
                     {isSubroutine && (
                         <Grid item xs={12}>
@@ -265,23 +256,31 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             </Tooltip>
                         </Grid>
                     )}
-                    <Stack direction="column" spacing={2} sx={{
-                        borderRadius: 2,
-                        background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                        padding: 2,
-                        paddingTop: 0,
-                    }}>
+                    <FormSection>
                         {/* Selector for single-step or multi-step routine */}
                         <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                             {/* Title with help text */}
-                            <Subheader
+                            <Title
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
+                                variant="subheader"
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? "outlined" : "contained"}>Yes</Button>
-                                <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? "outlined" : "contained"}>No</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => handleMultiStepChange(true)}
+                                    variant="outlined"
+                                    startIcon={isMultiStep === true ? <CompleteIcon /> : undefined}
+                                >{t("Yes")}</Button>
+                                <Button
+                                    fullWidth
+                                    color="secondary"
+                                    onClick={() => handleMultiStepChange(false)}
+                                    variant="outlined"
+                                    startIcon={isMultiStep === false ? <CompleteIcon /> : undefined}
+                                >{t("No")}</Button>
                             </Stack >
                         </Grid >
                         {/* Data displayed only by multi-step routines */}
@@ -320,7 +319,12 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     </LargeDialog>
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
-                                        <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
+                                        <Button
+                                            startIcon={<RoutineIcon />}
+                                            fullWidth color="secondary"
+                                            onClick={handleGraphOpen}
+                                            variant="contained"
+                                        >View Graph</Button>
                                     </Grid>
                                     {/* # nodes, # links, Simplicity, complexity & other graph stats */}
                                     {/* TODO */}
@@ -354,8 +358,8 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                 </>
                             )
                         }
-                    </Stack>
-                </Stack>
+                    </FormSection>
+                </FormContainer>
             </BaseForm>
             <GridSubmitButtons
                 display={display}

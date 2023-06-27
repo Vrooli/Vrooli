@@ -1,6 +1,5 @@
 import { Node, NodeEnd } from "@local/shared";
 import { Box, Tooltip, Typography } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
@@ -40,27 +39,23 @@ export const EndNode = ({
         return null;
     }, [isLinked, linksIn.length]);
 
-    const { innerCircleSize, outerCircleSize } = useMemo(() => {
-        const nodeSize = calculateNodeSize(NodeWidth.End, scale);
-        return {
-            innerCircleSize: nodeSize / 2,
-            outerCircleSize: nodeSize,
-        };
-    }, [scale]);
+    const outerCircleSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.End, scale) * 2}px, 5vw), 150px)`, [scale]);
+    const innerCircleSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.End, scale)}px, 2.5vw), 75px)`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.End, scale) / 2}px, 1.5em)`, [scale]);
 
-    const labelObject = useMemo(() => labelVisible && outerCircleSize > 75 ? (
+    const labelObject = useMemo(() => labelVisible && scale > -2 ? (
         <Typography
             variant="h6"
             sx={{
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: "none",
-                fontSize: `min(${outerCircleSize / 5}px, 2em)`,
-            } as CSSProperties}
+                fontSize,
+            }}
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, outerCircleSize, label]);
+    ) : null, [labelVisible, scale, fontSize, label]);
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
@@ -122,8 +117,8 @@ export const EndNode = ({
                         aria-owns={contextOpen ? contextId : undefined}
                         {...pressEvents}
                         sx={{
-                            width: `max(${outerCircleSize}px, 48px)`,
-                            height: `max(${outerCircleSize}px, 48px)`,
+                            width: outerCircleSize,
+                            height: outerCircleSize,
                             position: "relative",
                             display: "block",
                             backgroundColor: node.end?.wasSuccessful === false ? "#7c262a" : "#387e30",
@@ -135,13 +130,17 @@ export const EndNode = ({
                                 transform: "scale(1.1)",
                                 transition: "all 0.2s",
                             },
+                            "@media print": {
+                                border: `1px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
+                                boxShadow: "none",
+                            },
                         }}
                     >
                         <Box
                             id={`${isLinked ? "" : "unlinked-"}node-end-inner-circle-${node.id}`}
                             sx={{
-                                width: `max(${innerCircleSize}px, 32px)`,
-                                height: `max(${innerCircleSize}px, 32px)`,
+                                width: innerCircleSize,
+                                height: innerCircleSize,
                                 position: "absolute",
                                 display: "block",
                                 margin: "0",

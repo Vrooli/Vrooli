@@ -55,8 +55,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                     updateList,
                     userData,
                 });
-                const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
                 const maps = preShapeVersion({ createList, updateList, objectType: __typename });
                 return { ...maps };
             },
@@ -133,10 +132,10 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate!.isPublic(data.root as any, languages),
+            ApiModel.validate.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate!.owner(data.root as any, userId),
+        owner: (data, userId) => ApiModel.validate.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -162,7 +161,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 ],
             },
             owner: (userId) => ({
-                root: ApiModel.validate!.visibility.owner(userId),
+                root: ApiModel.validate.visibility.owner(userId),
             }),
         },
     },

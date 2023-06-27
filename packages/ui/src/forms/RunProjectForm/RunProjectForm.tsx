@@ -101,16 +101,10 @@ export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
             </LargeDialog>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={600}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(600px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     {/* TODO */}
@@ -119,6 +113,7 @@ export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
                         <Button
                             onClick={handleAddSchedule}
                             startIcon={<AddIcon />}
+                            variant="outlined"
                             sx={{
                                 display: "flex",
                                 margin: "auto",

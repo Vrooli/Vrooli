@@ -1,4 +1,3 @@
-import { NodeRoutineListItem } from "@local/shared";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "forms/SubroutineForm/SubroutineForm";
@@ -27,9 +26,10 @@ export const SubroutineInfoDialog = ({
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    const subroutine = useMemo<NodeRoutineListItem | undefined>(() => {
-        if (!data?.node || !data?.routineItemId) return undefined;
-        return data.node.routineList.items.find(r => r.id === data.routineItemId);
+    const { subroutine, numSubroutines } = useMemo(() => {
+        if (!data?.node || !data?.routineItemId) return { subroutine: undefined, numSubroutines: 0 };
+        const subroutine = data.node.routineList.items.find(r => r.id === data.routineItemId);
+        return { subroutine, numSubroutines: data.node.routineList.items.length };
     }, [data]);
 
     const formRef = useRef<BaseFormRef>();
@@ -62,9 +62,10 @@ export const SubroutineInfoDialog = ({
                 {(formik) => <SubroutineForm
                     canUpdateRoutineVersion={canUpdate}
                     handleViewFull={handleViewFull}
-                    isCreate={true}
+                    isCreate={false}
                     isEditing={isEditing}
                     isOpen={true}
+                    numSubroutines={numSubroutines}
                     onCancel={onClose}
                     ref={formRef}
                     versions={[]}

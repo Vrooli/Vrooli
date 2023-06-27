@@ -794,8 +794,8 @@ export type QuizQuestionResponseModelLogic = {
 }
 
 export type ReactionModelLogic = {
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Reaction,
@@ -1023,8 +1023,8 @@ export type RunProjectModelLogic = {
 }
 
 export type RunProjectStepModelLogic = {
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: RunProjectStepCreateInput,
     GqlUpdate: RunProjectStepUpdateInput,
     GqlModel: RunProjectStep,

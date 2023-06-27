@@ -7,7 +7,7 @@ import { RunProjectShape } from "./runProject";
 import { RunRoutineShape } from "./runRoutine";
 import { ScheduleExceptionShape, shapeScheduleException } from "./scheduleException";
 import { ScheduleRecurrenceShape, shapeScheduleRecurrence } from "./scheduleRecurrence";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "timezone"> & {
     __typename?: "Schedule";
@@ -22,7 +22,7 @@ export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "tim
 
 export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, ScheduleUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "startTime", "endTime", "timezone"),
+        ...createPrims(d, "id", ["startTime", shapeDate], ["endTime", shapeDate], "timezone"),
         ...createRel(d, "exceptions", ["Create"], "many", shapeScheduleException, (e) => ({
             ...e,
             schedule: { __typename: "Schedule" as const, id: d.id },
@@ -38,7 +38,7 @@ export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, Sched
         ...createRel(d, "runRoutine", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "startTime", "endTime", "timezone"),
+        ...updatePrims(o, u, "id", ["startTime", shapeDate], ["endTime", shapeDate], "timezone"),
         ...updateRel(o, u, "exceptions", ["Create", "Update", "Delete"], "many", shapeScheduleException, (e, i) => ({
             ...e,
             schedule: { __typename: "Schedule" as const, id: i.id },

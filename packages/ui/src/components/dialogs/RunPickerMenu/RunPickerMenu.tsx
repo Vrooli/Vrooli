@@ -202,6 +202,7 @@ export const RunPickerMenu = ({
                     marginLeft: 2,
                     marginRight: 2,
                 }}
+                variant="contained"
             >New Run</Button>
         </Menu>
     );

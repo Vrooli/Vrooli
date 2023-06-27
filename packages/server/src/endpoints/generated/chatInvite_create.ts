@@ -1,10 +1,16 @@
 export const chatInvite_create = {
   "chat": {
     "participants": {
+      "user": {
+        "id": true,
+        "isBot": true,
+        "name": true,
+        "handle": true,
+        "__typename": "User"
+      },
       "id": true,
-      "isBot": true,
-      "name": true,
-      "handle": true,
+      "created_at": true,
+      "updated_at": true,
       "__typename": "ChatParticipant"
     },
     "messages": {
@@ -95,6 +101,8 @@ export const chatInvite_create = {
       "name": true
     },
     "id": true,
+    "created_at": true,
+    "updated_at": true,
     "openToAnyoneWithInvite": true,
     "organization": {
       "id": true,
@@ -212,6 +220,13 @@ export const chatInvite_create = {
   "updated_at": true,
   "message": true,
   "status": true,
+  "user": {
+    "id": true,
+    "isBot": true,
+    "name": true,
+    "handle": true,
+    "__typename": "User"
+  },
   "you": {
     "canDelete": true,
     "canUpdate": true

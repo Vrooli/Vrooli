@@ -1,8 +1,10 @@
-import { nodeLinkValidation } from "@local/shared";
+import { MaxObjects, nodeLinkValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
 import { NodeLinkFormat } from "../format/nodeLink";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
+import { RoutineVersionModel } from "./routineVersion";
 import { NodeLinkModelLogic } from "./types";
 
 const __typename = "NodeLink" as const;
@@ -43,5 +45,19 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
             }),
         },
         yup: nodeLinkValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
+        permissionResolvers: defaultPermissions,
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
+        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as any, languages),
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
+        visibility: {
+            private: { routineVersion: RoutineVersionModel.validate.visibility.private },
+            public: { routineVersion: RoutineVersionModel.validate.visibility.public },
+            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+        },
     },
 });

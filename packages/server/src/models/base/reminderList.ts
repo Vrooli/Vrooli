@@ -41,14 +41,14 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => FocusModeModel.validate!.owner(data.focusMode as any, userId),
+        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as any, userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                focusMode: FocusModeModel.validate!.visibility.owner(userId),
+                focusMode: FocusModeModel.validate.visibility.owner(userId),
             }),
         },
     },

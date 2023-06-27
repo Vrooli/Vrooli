@@ -38,15 +38,15 @@ export const NodeRoutineListModel: ModelLogic<NodeRoutineListModelLogic, typeof 
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ node: "Node" }),
+        permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate!.owner(data.node as any, userId),
-        isDeleted: (data, languages) => NodeModel.validate!.isDeleted(data.node as any, languages),
-        isPublic: (data, languages) => NodeModel.validate!.isPublic(data.node as any, languages),
+        owner: (data, userId) => NodeModel.validate.owner(data.node as any, userId),
+        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as any, languages),
+        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as any, languages),
         visibility: {
-            private: { node: NodeModel.validate!.visibility.private },
-            public: { node: NodeModel.validate!.visibility.public },
-            owner: (userId) => ({ node: NodeModel.validate!.visibility.owner(userId) }),
+            private: { node: NodeModel.validate.visibility.private },
+            public: { node: NodeModel.validate.visibility.public },
+            owner: (userId) => ({ node: NodeModel.validate.visibility.owner(userId) }),
         },
     },
 });

@@ -1,6 +1,6 @@
-import { nodeEndValidation } from "@local/shared";
+import { MaxObjects, nodeEndValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../../builders";
-import { nodeEndNextShapeHelper } from "../../utils";
+import { defaultPermissions, nodeEndNextShapeHelper } from "../../utils";
 import { NodeEndFormat } from "../format/nodeEnd";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
@@ -36,5 +36,19 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
             },
         },
         yup: nodeEndValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ id: true, node: "Node" }),
+        permissionResolvers: defaultPermissions,
+        owner: (data, userId) => NodeModel.validate.owner(data.node as any, userId),
+        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as any, languages),
+        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as any, languages),
+        visibility: {
+            private: { node: NodeModel.validate.visibility.private },
+            public: { node: NodeModel.validate.visibility.public },
+            owner: (userId) => ({ node: NodeModel.validate.visibility.owner(userId) }),
+        },
     },
 });

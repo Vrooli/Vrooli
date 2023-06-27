@@ -1,13 +1,14 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
-import { Button, useTheme } from "@mui/material";
+import { AddIcon, Chat, CommentIcon, CommonKey, CompleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
+import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listToListItems } from "utils/display/listTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -16,19 +17,20 @@ import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTabs } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { InboxPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 const tabParams = [{
-    Icon: NotificationsAllIcon,
-    titleKey: "Notification" as CommonKey,
-    searchType: SearchType.Notification,
-    tabType: InboxPageTabOption.Notifications,
-    where: {},
-}, {
     Icon: CommentIcon,
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Messages,
+    where: {},
+}, {
+    Icon: NotificationsAllIcon,
+    titleKey: "Notification" as CommonKey,
+    searchType: SearchType.Notification,
+    tabType: InboxPageTabOption.Notifications,
     where: {},
 }];
 
@@ -45,7 +47,6 @@ export const InboxView = ({
     const { palette } = useTheme();
 
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<InboxPageTabOption>(tabParams, 0);
-    console.log("usetabs data", tabParams, currTab, handleTabChange, searchType, tabs, title, where);
 
     const {
         allData,
@@ -57,6 +58,7 @@ export const InboxView = ({
         searchType,
         where,
     });
+    console.log("usetabs data", allData, currTab, searchType, where);
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
@@ -108,13 +110,28 @@ export const InboxView = ({
         });
     }, [markAllAsReadMutation, setAllData]);
 
+    const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
+    const openCreateChat = useCallback(() => { setIsCreateChatOpen(true); }, []);
+    const closeCreateChat = useCallback(() => { setIsCreateChatOpen(false); }, []);
+    const onChatCreated = useCallback((chat: Chat) => {
+        closeCreateChat();
+        //TODO
+    }, [closeCreateChat]);
+
+    const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
+        if (currTab.value === InboxPageTabOption.Notifications) {
+            return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
+        }
+        return [openCreateChat, AddIcon, "CreateChat"] as const;
+    }, [currTab.value, onMarkAllAsRead, openCreateChat]);
+
     const onAction = useCallback((action: keyof (ChatListItemActions | NotificationListItemActions), id: string) => {
         switch (action) {
-            case "MarkAsRead":
-                onMarkAsRead(id, searchType as InboxType);
-                break;
             case "Delete":
                 onDelete(id, searchType as InboxType);
+                break;
+            case "MarkAsRead":
+                onMarkAsRead(id, searchType as InboxType);
                 break;
         }
     }, [onDelete, onMarkAsRead, searchType]);
@@ -158,12 +175,26 @@ export const InboxView = ({
 
     return (
         <>
+            {/* Create chat dialog */}
+            <LargeDialog
+                id="add-chat-dialog"
+                onClose={closeCreateChat}
+                isOpen={isCreateChatOpen}
+                zIndex={zIndex + 1}
+            >
+                <ChatUpsert
+                    display="dialog"
+                    isCreate={true}
+                    onCancel={closeCreateChat}
+                    onCompleted={onChatCreated}
+                    zIndex={zIndex + 1}
+                />
+            </LargeDialog>
+            {/* Main content */}
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    title,
-                }}
+                title={title}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
                     currTab={currTab}
@@ -171,17 +202,6 @@ export const InboxView = ({
                     tabs={tabs}
                 />}
             />
-            <Button
-                onClick={onMarkAllAsRead}
-                disabled={!listItems.length}
-                sx={{
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                    marginTop: 2,
-                    marginBottom: 2,
-                    display: "block",
-                }}
-            >{t("MarkAllAsRead")}</Button>
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={listItems.length === 0}
@@ -189,15 +209,17 @@ export const InboxView = ({
                 {listItems}
             </ListContainer>
             {/* New Chat button */}
-            {currTab.value === InboxPageTabOption.Messages && <SideActionButtons
+            <SideActionButtons
                 display={display}
                 zIndex={zIndex + 1}
                 sx={{ position: "fixed" }}
             >
-                <ColorIconButton aria-label="new-chat" background={palette.secondary.main} onClick={() => { }} >
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </ColorIconButton>
-            </SideActionButtons>}
+                <Tooltip title={t(actionTooltip)}>
+                    <ColorIconButton aria-label="new-chat" background={palette.secondary.main} onClick={onActionButtonPress} >
+                        <ActionButtonIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                </Tooltip>
+            </SideActionButtons>
         </>
     );
 };

@@ -1,13 +1,13 @@
 import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
+import { PrismaType, RecursivePartial, SessionData, SessionUserToken } from "../types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: Request;
+    req: { session: SessionData };
     where?: { [x: string]: any };
     visibility?: VisibilityType;
 }
@@ -17,7 +17,7 @@ export type CreateHelperProps = {
     input: any;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: Request;
+    req: { session: SessionData };
 }
 
 export interface CUDHelperInput {
@@ -43,14 +43,14 @@ export type DeleteManyHelperProps = {
     input: DeleteManyInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: Request;
+    req: { session: SessionData };
 }
 
 export type DeleteOneHelperProps = {
     input: Pick<DeleteOneInput, "id">;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: Request;
+    req: { session: SessionData };
 }
 
 export type CopyHelperProps = {
@@ -58,7 +58,7 @@ export type CopyHelperProps = {
     input: CopyInput,
     objectType: `${GqlModelType}`,
     prisma: PrismaType,
-    req: Request;
+    req: { session: SessionData },
 }
 
 export type ReadManyHelperProps<
@@ -75,7 +75,7 @@ export type ReadManyHelperProps<
     input: Input;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUserToken[] };
+    req: { session: { languages: string[], users?: SessionUserToken[] } };
     visibility?: VisibilityType;
 }
 
@@ -90,7 +90,7 @@ export type ReadOneHelperProps = {
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUserToken[] };
+    req: { session: { languages: string[], users?: SessionUserToken[] } };
 }
 
 export type RelBuilderHelperProps<

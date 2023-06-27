@@ -1,4 +1,4 @@
-import { Count, GqlModelType, ViewFor, ViewSortBy } from "@local/shared";
+import { Count, GqlModelType, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 import { onlyValidIds, selPad } from "../../builders";
 import { CustomError } from "../../events";
@@ -220,7 +220,7 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
             if (!userId) return result;
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
-            const fieldName = `${viewFor.toLowerCase()}Id`;
+            const fieldName = `${lowercaseFirstLetter(viewFor)}Id`;
             const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true if viewed
             for (let i = 0; i < ids.length; i++) {

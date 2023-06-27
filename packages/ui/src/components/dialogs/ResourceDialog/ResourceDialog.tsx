@@ -53,7 +53,7 @@ export const ResourceDialog = ({
                 <DialogTitle
                     id={titleId}
                     title={(index < 0) ? "Add Resource" : "Update Resource"}
-                    helpText={helpText}
+                    help={helpText}
                     onClose={handleClose}
                 />
                 <Formik

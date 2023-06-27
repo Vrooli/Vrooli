@@ -62,12 +62,8 @@ export const SettingsProfileForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
             <Grid container spacing={2} sx={{
                 paddingBottom: 4,
@@ -124,8 +120,10 @@ export const SettingsProfileForm = ({
                 <Grid item xs={12}>
                     <TranslatedMarkdownInput
                         language={language}
+                        maxChars={2048}
                         minRows={4}
                         name="bio"
+                        placeholder={t("Bio")}
                         zIndex={zIndex}
                     />
                 </Grid>

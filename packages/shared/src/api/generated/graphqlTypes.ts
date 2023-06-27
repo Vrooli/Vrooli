@@ -555,6 +555,7 @@ export type BookmarkUpdateInput = {
 
 export type Chat = {
   __typename: 'Chat';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   invites: Array<ChatInvite>;
   invitesCount: Scalars['Int'];
@@ -568,6 +569,7 @@ export type Chat = {
   restrictedToRoles: Array<Role>;
   translations: Array<ChatTranslation>;
   translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
   you: ChatYou;
 };
 
@@ -579,6 +581,7 @@ export type ChatCreateInput = {
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
+  task?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
 };
 
@@ -866,6 +869,7 @@ export type ChatUpdateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  participantsDelete?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
   restrictedToRolesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
@@ -7948,6 +7952,13 @@ export type ScheduleExceptionUpdateInput = {
   originalStartTime?: InputMaybe<Scalars['Date']>;
 };
 
+export enum ScheduleFor {
+  FocusMode = 'FocusMode',
+  Meeting = 'Meeting',
+  RunProject = 'RunProject',
+  RunRoutine = 'RunRoutine'
+}
+
 export type ScheduleRecurrence = {
   __typename: 'ScheduleRecurrence';
   dayOfMonth?: Maybe<Scalars['Int']>;
@@ -8031,6 +8042,7 @@ export type ScheduleSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   endTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  scheduleFor?: InputMaybe<ScheduleFor>;
   scheduleForUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ScheduleSortBy>;
@@ -10304,6 +10316,7 @@ export type ResolversTypes = {
   ScheduleExceptionSearchResult: ResolverTypeWrapper<ScheduleExceptionSearchResult>;
   ScheduleExceptionSortBy: ScheduleExceptionSortBy;
   ScheduleExceptionUpdateInput: ScheduleExceptionUpdateInput;
+  ScheduleFor: ScheduleFor;
   ScheduleRecurrence: ResolverTypeWrapper<ScheduleRecurrence>;
   ScheduleRecurrenceCreateInput: ScheduleRecurrenceCreateInput;
   ScheduleRecurrenceEdge: ResolverTypeWrapper<ScheduleRecurrenceEdge>;
@@ -11311,6 +11324,7 @@ export type BookmarkToResolvers<ContextType = any, ParentType extends ResolversP
 };
 
 export type ChatResolvers<ContextType = any, ParentType extends ResolversParentTypes['Chat'] = ResolversParentTypes['Chat']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invites?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType>;
   invitesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11324,6 +11338,7 @@ export type ChatResolvers<ContextType = any, ParentType extends ResolversParentT
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ChatYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

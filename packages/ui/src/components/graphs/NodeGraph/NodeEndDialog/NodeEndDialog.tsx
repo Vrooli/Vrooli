@@ -4,6 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeEndForm, nodeEndInitialValues, validateNodeEndValues } from "forms/NodeEndForm/NodeEndForm";
 import { useContext, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { SessionContext } from "utils/SessionContext";
 import { NodeEndDialogProps } from "../types";
 
@@ -17,6 +18,7 @@ export const NodeEndDialog = ({
     language,
     zIndex,
 }: NodeEndDialogProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
@@ -33,7 +35,8 @@ export const NodeEndDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: isEditing ? "NodeEndEdit" : "NodeEndInfo" }}
+                title={t(isEditing ? "NodeEndEdit" : "NodeEndInfo")}
+                titleId={titleId}
             />
             <Formik
                 enableReinitialize={true}

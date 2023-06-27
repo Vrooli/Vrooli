@@ -1,5 +1,5 @@
 import { endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
-import { Box, Card, CardContent, Grid, Typography, useTheme } from "@mui/material";
+import { Box, Divider, List, ListItem, ListItemText, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
@@ -160,9 +160,7 @@ export const StatsView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "StatisticsShort",
-                }}
+                title={t("StatisticsShort")}
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}
@@ -186,7 +184,7 @@ export const StatsView = ({
                 variant="body1"
                 textAlign="center"
                 onClick={handleDateRangeOpen}
-                sx={{ cursor: "pointer" }}
+                sx={{ cursor: "pointer", marginBottom: 4, marginTop: 2 }}
             >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
             <ContentCollapse
@@ -196,38 +194,46 @@ export const StatsView = ({
                     root: {
                         marginBottom: 4,
                     },
+                    titleContainer: {
+                        justifyContent: "center",
+                    },
                 }}
             >
-                <Grid container spacing={2}>
+                <List sx={{
+                    background: palette.background.paper,
+                    borderRadius: 2,
+                    maxWidth: 400,
+                    margin: "auto",
+                }}>
                     {Object.entries(aggregate).map(([field, value], index) => {
                         // Uppercase first letter of field name
                         const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
                         const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
                         return (
-                            <Grid key={index} item xs={12} sm={6} md={4} lg={3}>
-                                <Card sx={{
-                                    background: palette.primary.light,
-                                    color: palette.primary.contrastText,
-                                    height: "100%",
-                                }}>
-                                    <CardContent>
-                                        <Typography variant="h6" textAlign="center" gutterBottom>
-                                            {title}
-                                        </Typography>
-                                        <Typography variant="body1" textAlign="center">
-                                            {value}
-                                        </Typography>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
+                            <>
+                                <ListItem key={index}>
+                                    <ListItemText
+                                        primary={title}
+                                        secondary={value}
+                                    />
+                                </ListItem>
+                                {/* Do not add a divider after the last item */}
+                                {index !== Object.entries(aggregate).length - 1 && <Divider />}
+                            </>
                         );
                     })}
-                </Grid>
+                </List>
             </ContentCollapse>
+
             {/* Line graph cards */}
             <ContentCollapse
                 isOpen={true}
                 titleKey="Visual"
+                sxs={{
+                    titleContainer: {
+                        justifyContent: "center",
+                    },
+                }}
             >
                 <CardGrid minWidth={275}>
                     {cards}

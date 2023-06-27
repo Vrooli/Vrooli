@@ -25,7 +25,6 @@ export const MeetingFormat: Formatter<MeetingModelLogic> = {
         labels: "label",
         restrictedToRoles: "role",
         attendees: "user",
-        invites: "user",
     },
     countFields: {
         attendeesCount: true,

@@ -1,6 +1,5 @@
 import { endpointPostReport, Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
 import { DialogContent, Link, Typography } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -55,7 +54,7 @@ export const ReportDialog = ({
             <DialogTitle
                 id={titleId}
                 title={title}
-                helpText={t("ReportsHelp")}
+                help={t("ReportsHelp")}
                 onClose={handleCancel}
             />
             <DialogContent>
@@ -65,7 +64,7 @@ export const ReportDialog = ({
                         ...formNavLink,
                         justifyContent: "center",
                         marginTop: 2,
-                    } as CSSProperties}>
+                    }}>
                         {t("ViewExistingReports")}
                     </Typography>
                 </Link>

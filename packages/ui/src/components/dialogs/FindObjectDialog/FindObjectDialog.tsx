@@ -427,12 +427,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             >
                 <TopBar
                     display="dialog"
+                    help={t("FindObjectDialogHelp")}
+                    hideTitleOnDesktop={true}
                     onClose={() => { handleCancel(); }}
-                    titleData={{
-                        hideOnDesktop: true,
-                        titleKey: "SearchVrooli",
-                        helpKey: "FindObjectDialogHelp",
-                    }}
+                    title={t("SearchVrooli")}
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
                         currTab={currTab!}
@@ -502,6 +500,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                                 fullWidth
                                 color="secondary"
                                 onClick={() => setSelectedObject(null)}
+                                variant="outlined"
                             >
                                 Select a different object
                             </Button>

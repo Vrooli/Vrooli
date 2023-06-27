@@ -4,7 +4,7 @@ import { CustomError } from "../../events";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { NodeFormat } from "../format/node";
 import { ModelLogic } from "../types";
-import { RoutineModel } from "./routine";
+import { RoutineVersionModel } from "./routineVersion";
 import { NodeModelLogic } from "./types";
 
 const __typename = "Node" as const;
@@ -65,15 +65,15 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ routineVersion: "RoutineVersion" }),
+        permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate!.owner(data.routineVersion as any, userId),
-        isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),
-        isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
+        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as any, languages),
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
         visibility: {
-            private: { routineVersion: RoutineModel.validate!.visibility.private },
-            public: { routineVersion: RoutineModel.validate!.visibility.public },
-            owner: (userId) => ({ routineVersion: RoutineModel.validate!.visibility.owner(userId) }),
+            private: { routineVersion: RoutineVersionModel.validate.visibility.private },
+            public: { routineVersion: RoutineVersionModel.validate.visibility.public },
+            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
         },
     },
 });

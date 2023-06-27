@@ -1,11 +1,11 @@
 import { BuildIcon, VisibleIcon } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { useField } from "formik";
 import { FieldData } from "forms/types";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";
 import { StandardInputProps } from "../types";
@@ -21,6 +21,9 @@ export const StandardInput = ({
     const { palette } = useTheme();
 
     const [field, , helpers] = useField<FieldData | null>(fieldName);
+    useEffect(() => {
+        console.log("standardinput field changed", field.value);
+    }, [field.value]);
 
     // Toggle preview/edit mode
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
@@ -52,13 +55,20 @@ export const StandardInput = ({
             />}
             {
                 (isPreviewOn || disabled) ?
-                    (field.value && <GeneratedInputComponent
+                    field.value ? <GeneratedInputComponent
                         disabled={true} // Always disabled, since this is a preview
                         fieldData={field.value}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         onUpload={() => { }}
                         zIndex={zIndex}
-                    />) :
+                    /> :
+                        <Typography
+                            variant="body2"
+                            color="textSecondary"
+                            sx={{ textAlign: "center", fontStyle: "italic" }}
+                        >
+                            No input data
+                        </Typography> :
                     <Box>
                         <SelectorBase<InputTypeOption>
                             fullWidth
@@ -66,6 +76,7 @@ export const StandardInput = ({
                             value={inputType}
                             onChange={handleInputTypeSelect}
                             getOptionLabel={(option: InputTypeOption) => option.label}
+                            getOptionDescription={(option: InputTypeOption) => option.description}
                             name="inputType"
                             inputAriaLabel='input-type-selector'
                             label="Type"

@@ -127,8 +127,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                     updateList,
                     userData,
                 });
-                const combined = [...createList, ...updateList.map(({ data }) => data)];
-                combined.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
                 const maps = preShapeVersion({ createList, updateList, objectType: __typename });
                 return { ...maps };
             },
@@ -252,10 +251,10 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            StandardModel.validate!.isPublic(data.root as any, languages),
+            StandardModel.validate.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => StandardModel.validate!.owner(data.root as any, userId),
+        owner: (data, userId) => StandardModel.validate.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -281,7 +280,7 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
                 ],
             },
             owner: (userId) => ({
-                root: StandardModel.validate!.visibility.owner(userId),
+                root: StandardModel.validate.visibility.owner(userId),
             }),
         },
     },

@@ -36,7 +36,7 @@ export const usePinchZoom = ({
             const touch1 = e.touches[0];
             const touch2 = e.touches[1];
             return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
-        }
+        };
         const handleTouchStart = (e: TouchEvent) => {
             // Find the target
             const targetId = (e as any)?.target?.id;
@@ -100,7 +100,7 @@ export const usePinchZoom = ({
             } else if (e.deltaY < 0) {
                 onScaleChange(-moveBy, cursor);
             }
-        }
+        };
         document.addEventListener("touchstart", handleTouchStart);
         document.addEventListener("touchmove", handleTouchMove);
         document.addEventListener("touchend", handleTouchEnd);
@@ -110,10 +110,10 @@ export const usePinchZoom = ({
             document.removeEventListener("touchmove", handleTouchMove);
             document.removeEventListener("touchend", handleTouchEnd);
             document.removeEventListener("wheel", handleWheel);
-        }
+        };
     }, [onScaleChange, isPinching, validTargetIds]);
 
     return {
         isPinching,
-    }
+    };
 };

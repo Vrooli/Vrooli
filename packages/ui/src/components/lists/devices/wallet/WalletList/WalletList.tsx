@@ -206,6 +206,7 @@ export const WalletList = ({
                         maxWidth: "400px",
                         width: "auto",
                     }}
+                    variant="outlined"
                 >Add Wallet</Button>
             </Box>
         </>

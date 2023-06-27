@@ -4,6 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListForm, nodeRoutineListInitialValues, validateNodeRoutineListValues } from "forms/NodeRoutineListForm/NodeRoutineListForm";
 import { useContext, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { SessionContext } from "utils/SessionContext";
 import { NodeRoutineListDialogProps } from "../types";
 
@@ -17,15 +18,17 @@ export const NodeRoutineListDialog = ({
     language,
     zIndex,
 }: NodeRoutineListDialogProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => nodeRoutineListInitialValues(session, node?.routineVersion as any, node), [node, session]);
+    console.log("noderoutinelistdialog render", node, initialValues);
 
     return (
         <LargeDialog
             id="routine-list-node-dialog"
-            onClose={handleClose}
+            onClose={() => { handleClose(); }}
             isOpen={isOpen}
             titleId={titleId}
             zIndex={zIndex}
@@ -33,13 +36,14 @@ export const NodeRoutineListDialog = ({
             <TopBar
                 display="dialog"
                 onClose={handleClose}
-                titleData={{ titleId, titleKey: isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo" }}
+                title={t(isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo")}
+                titleId={titleId}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values) => {
-                    handleClose(values as any);
+                    handleClose(values);
                 }}
                 validate={async (values) => await validateNodeRoutineListValues(values, node ?? undefined)}
             >

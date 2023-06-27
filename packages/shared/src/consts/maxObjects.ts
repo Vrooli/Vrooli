@@ -205,17 +205,27 @@ export const MaxObjects = {
         User: 0,
         Organization: 5000,
     },
+    Member: {
+        User: 0,
+        Organization: {
+            private: {
+                noPremium: 5,
+                premium: 500,
+            },
+            public: {
+                noPremium: 10,
+                premium: 1000,
+            },
+        },
+    },
     MemberInvite: {
         User: 0,
         Organization: 1000,
     },
-    Node: {
-        User: {
-            private: 0,
-            public: 10000,
-        },
-        Organization: 0,
-    },
+    Node: 100000,
+    NodeEnd: 100000,
+    NodeLink: 100000,
+    NodeLinkWhen: 100000,
     NodeLoop: 100000,
     NodeLoopWhile: 100000,
     NodeRoutineList: 100000,
@@ -334,6 +344,19 @@ export const MaxObjects = {
     },
     Resource: 50000,
     ResourceList: 50000,
+    Role: {
+        User: 0,
+        Organization: {
+            private: {
+                noPremium: 5,
+                premium: 50,
+            },
+            public: {
+                noPremium: 5,
+                premium: 50,
+            },
+        },
+    },
     Routine: {
         private: {
             noPremium: 25,
@@ -365,6 +388,8 @@ export const MaxObjects = {
             premium: 1000,
         },
     },
+    ScheduleException: 100000,
+    ScheduleRecurrence: 100000,
     SmartContract: {
         private: {
             noPremium: 6,

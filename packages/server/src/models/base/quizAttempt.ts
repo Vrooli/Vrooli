@@ -1,5 +1,6 @@
 import { QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
 import { noNull, shapeHelper } from "../../builders";
+import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizAttemptFormat } from "../format/quizAttempt";
 import { ModelLogic } from "../types";
@@ -71,5 +72,20 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
             },
         },
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as any, languages),
+        isTransferable: false,
+        maxObjects: 100000,
+        owner: (data, userId) => QuizModel.validate.owner(data.quiz as any, userId),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                quiz: QuizModel.validate.visibility.owner(userId),
+            }),
+        },
+    },
 });

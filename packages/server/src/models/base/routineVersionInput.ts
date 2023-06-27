@@ -1,9 +1,10 @@
 import { routineVersionInputValidation } from "@local/shared";
 import { noNull, selPad, shapeHelper } from "../../builders";
-import { translationShapeHelper } from "../../utils";
+import { defaultPermissions, translationShapeHelper } from "../../utils";
 import { RoutineVersionInputFormat } from "../format/routineVersionInput";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
+import { RoutineVersionModel } from "./routineVersion";
 import { RoutineVersionInputModelLogic } from "./types";
 
 const __typename = "RoutineVersionInput" as const;
@@ -42,5 +43,19 @@ export const RoutineVersionInputModel: ModelLogic<RoutineVersionInputModelLogic,
             }),
         },
         yup: routineVersionInputValidation,
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
+        isTransferable: false,
+        maxObjects: 100000,
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({ routineVersion: RoutineVersionModel.validate.visibility.owner(userId) }),
+        },
     },
 });
