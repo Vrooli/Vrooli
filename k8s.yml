@@ -134,9 +134,17 @@ spec:
       containers:
         - env:
             - name: POSTGRES_PASSWORD
-              value: <DB_PASSWORD>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: POSTGRES_USER
-              value: <DB_USER>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: PROJECT_DIR
               value: /srv/app
           image: ankane/pgvector:v0.4.1
@@ -145,7 +153,11 @@ spec:
               command:
                 - pg_isready
                 - -U
-                - <DB_USER>
+                -
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             failureThreshold: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -251,11 +263,23 @@ spec:
             - --dev-addr=0.0.0.0:4000
           env:
             - name: LETSENCRYPT_EMAIL
-              value: <LETSENCRYPT_EMAIL>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: LETSENCRYPT_HOST
-              value: <VIRTUAL_HOST_DOCS>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VIRTUAL_HOST
-              value: <VIRTUAL_HOST_DOCS>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VIRTUAL_PORT
               value: "4000"
           image: docs
@@ -413,23 +437,59 @@ spec:
             - chmod +x /srv/app/scripts/* && /srv/app/scripts/server.sh
           env:
             - name: ADMIN_PASSWORD
-              value: <ADMIN_PASSWORD>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: ADMIN_WALLET
-              value: <ADMIN_WALLET>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: BLOCKFROST_API_KEY
-              value: <BLOCKFROST_API_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: CREATE_MOCK_DATA
               value: "false"
+            - name: DB_PASSWORD
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: DB_PULL
               value: "false"
             - name: DB_URL
-              value: postgresql://<DB_USER>:<DB_PASSWORD>@db:5432
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@db:5432
+            - name: DB_USER
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: HUGGINGFACE_API_KEY
-              value: <HUGGINGFACE_API_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: LETSENCRYPT_EMAIL
-              value: <LETSENCRYPT_EMAIL>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: LETSENCRYPT_HOST
-              value: <VIRTUAL_HOST>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: NODE_ENV
               value: production
             - name: PROJECT_DIR
@@ -437,31 +497,83 @@ spec:
             - name: REDIS_CONN
               value: redis:6379
             - name: SERVER_URL
-              value: <SERVER_URL>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: SITE_EMAIL_ALIAS
-              value: <SITE_EMAIL_ALIAS>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: SITE_EMAIL_FROM
-              value: <SITE_EMAIL_FROM>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: SITE_EMAIL_PASSWORD
-              value: <SITE_EMAIL_PASSWORD>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: SITE_EMAIL_USERNAME
-              value: <SITE_EMAIL_USERNAME>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: SITE_IP
-              value: <SITE_IP>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: STRIPE_SECRET_KEY
-              value: <STRIPE_SECRET_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: STRIPE_WEBHOOK_SECRET
-              value: <STRIPE_WEBHOOK_SECRET>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VALYXA_API_KEY
-              value: <VALYXA_API_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VALYXA_PASSWORD
-              value: <VALYXA_PASSWORD>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VAPID_PRIVATE_KEY
-              value: <VAPID_PRIVATE_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VAPID_PUBLIC_KEY
-              value: <VAPID_PUBLIC_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VIRTUAL_HOST
-              value: <VIRTUAL_HOST>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VIRTUAL_PATH
               value: /api
             - name: VIRTUAL_PORT
@@ -600,35 +712,71 @@ spec:
             - chmod +x /srv/app/scripts/* && /srv/app/scripts/ui.sh
           env:
             - name: LETSENCRYPT_EMAIL
-              value: <LETSENCRYPT_EMAIL>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: LETSENCRYPT_HOST
-              value: <VIRTUAL_HOST>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: NODE_ENV
               value: production
             - name: PROJECT_DIR
               value: /srv/app
             - name: VIRTUAL_HOST
-              value: <VIRTUAL_HOST>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VIRTUAL_PATH
               value: /
             - name: VIRTUAL_PORT
               value: "3000"
             - name: VITE_GOOGLE_ADSENSE_PUBLISHER_ID
-              value: <GOOGLE_ADSENSE_PUBLISHER_ID>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VITE_GOOGLE_TRACKING_ID
-              value: <GOOGLE_TRACKING_ID>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VITE_PORT_SERVER
               value: "5329"
             - name: VITE_SERVER_LOCATION
               value: dns
             - name: VITE_SERVER_URL
-              value: <SERVER_URL>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VITE_SITE_IP
-              value: <SITE_IP>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VITE_STRIPE_PUBLISHABLE_KEY
-              value: <STRIPE_PUBLISHABLE_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
             - name: VITE_VAPID_PUBLIC_KEY
-              value: <VAPID_PUBLIC_KEY>
+              value:
+              valueFrom:
+              secretKeyRef:
+                name: vrooli-secrets
+                key:  
           image: ui:prod
           name: ui
           ports:

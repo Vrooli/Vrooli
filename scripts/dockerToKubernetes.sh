@@ -166,7 +166,6 @@ sed -i -E 's/\$\{([^}]+)\}/<\1>/g' ${COMPOSE_FILE}.edit
 
 # Convert the docker-compose file
 kompose convert -f ${COMPOSE_FILE}.edit -o k8s.yml
-
 if [ $? -ne 0 ]; then
     error "Failed to convert the Docker Compose file"
     exit 1
@@ -176,3 +175,31 @@ fi
 
 # Remove the edited docker-compose file
 rm ${COMPOSE_FILE}.edit
+
+# Replace angle brackets surrounded by whitespaces with Kubernetes secrets
+sed -i -E 's|(\s)<([^>]+)>|\n              valueFrom:\n              secretKeyRef:\n                name: '"${SECRET_NAME}"'\n                key: \1|g' k8s.yml
+if [ $? -ne 0 ]; then
+    error "Failed to replace angle brackets with Kubernetes secrets"
+    exit 1
+else
+    success "Angle brackets replaced with Kubernetes secrets successfully"
+fi
+# Replace angle brackets within strings with Kubernetes variable references
+# NOTE: This assumes that the referenced variables are defined earlier in the same env section.
+# This is because Kubernetes does not allow secret references in string interpolations.
+sed -i -E 's|<([^>]+)>|$(\1)|g' k8s.yml
+if [ $? -ne 0 ]; then
+    error "Failed to replace angle brackets within strings with Kubernetes variable references"
+    exit 1
+else
+    success "Angle brackets within strings replaced with Kubernetes variable references successfully"
+fi
+
+# Dry run the generated Kubernetes YAML file to check for errors
+kubectl apply -f k8s.yml --dry-run=client
+if [ $? -ne 0 ]; then
+    error "Failed to dry run the generated Kubernetes YAML file"
+    exit 1
+else
+    success "Generated Kubernetes YAML file validated successfully"
+fi

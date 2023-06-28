@@ -52,6 +52,8 @@ services:
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: ${PORT_SERVER}
       REDIS_CONN: "redis:${PORT_REDIS}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
       DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
