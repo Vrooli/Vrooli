@@ -45,7 +45,6 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
-    [InputType.Prompt]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
     [InputType.Radio]: (value: string) => radioValueToSearch(value),
     [InputType.Selector]: (value) => value, //TODO
     [InputType.Slider]: (value) => value, //TODO
@@ -63,7 +62,6 @@ const searchToInputType: { [key in InputType]: (value: any) => any } = {
     [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
-    [InputType.Prompt]: (value: string) => value,
     [InputType.Radio]: (value: string) => searchToRadioValue(value),
     [InputType.Selector]: (value) => value, //TODO
     [InputType.Slider]: (value) => value, //TODO

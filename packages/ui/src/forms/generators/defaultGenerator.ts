@@ -1,7 +1,6 @@
 import { InputType } from "@local/shared";
-import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { CodeProps, FieldData } from "forms/types";
-import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextProps, YupField } from "../types";
+import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextProps, YupField } from "../types";
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -21,10 +20,8 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
         defaultValue: [],
         ...props,
     }),
-    [InputType.JSON]: (props: Partial<Omit<CodeProps, "id">>): Omit<CodeProps, "id"> => ({
+    [InputType.JSON]: (props: Partial<Omit<CodeProps, "id">>): Omit<CodeProps, "id" | "name"> => ({
         defaultValue: "",
-        limitTo: [StandardLanguage.JsonStandard],
-        name: "",
         ...props,
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
@@ -38,10 +35,6 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
         step: 1,
         ...props,
     }),
-    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, "id">>): Omit<MarkdownProps, "id" | "name"> => ({
-        defaultValue: "",
-        ...props,
-    }), //TODO change when custom prompt input implemented, if it's needed
     [InputType.Radio]: (props: Partial<RadioProps>) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : "",
         ...props,
