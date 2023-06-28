@@ -140,8 +140,32 @@ else
 fi
 success "Kubernetes secrets set successfully"
 
+# Specify non-sensitive environment variables, which will be replaced with their values in the Docker Compose file.
+# DO NOT INCLUDE VARIABLES FOR PASSWORDS OR OTHER SENSITIVE INFORMATION!!!
+NON_SENSITIVE_VARS=("SERVER_LOCATION" "CREATE_MOCK_DATA" "DB_PULL" "PORT_UI" "PORT_SERVER" "PORT_DB" "PORT_REDIS" "PORT_DOCS" "PORT_TRANSLATE" "PROJECT_DIR" "GENERATE_SOURCEMAP")
+
+# Load environment variables from .env file
+set -a
+source ${ENV_FILE}
+set +a
+
+# Create a copy of the docker-compose file, which we will prepare for Kompose
+cp ${COMPOSE_FILE} ${COMPOSE_FILE}.edit
+
+# Replace non-sensitive environment variables with their values
+for VAR_NAME in ${NON_SENSITIVE_VARS[@]}; do
+    VAR_VALUE=${!VAR_NAME}
+    echo "Replacing ${VAR_NAME} with ${VAR_VALUE}"
+    sed -i -E 's|\$\{'"${VAR_NAME}"'\}|'"${VAR_VALUE}"'|g' ${COMPOSE_FILE}.edit
+done
+
+# Replace remaining environment variables with their names, wrapped in angle brackets
+# For example, ${DB_USER} becomes <DB_USER>.
+# These will be replaced with Kubernetes secrets later.
+sed -i -E 's/\$\{([^}]+)\}/<\1>/g' ${COMPOSE_FILE}.edit
+
 # Convert the docker-compose file
-kompose convert -f ${COMPOSE_FILE}
+kompose convert -f ${COMPOSE_FILE}.edit -o k8s.yml
 
 if [ $? -ne 0 ]; then
     error "Failed to convert the Docker Compose file"
@@ -149,3 +173,6 @@ if [ $? -ne 0 ]; then
 else
     success "Docker Compose file converted successfully"
 fi
+
+# Remove the edited docker-compose file
+rm ${COMPOSE_FILE}.edit
