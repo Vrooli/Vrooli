@@ -177,7 +177,8 @@ fi
 rm ${COMPOSE_FILE}.edit
 
 # Replace angle brackets surrounded by whitespaces with Kubernetes secrets
-sed -i -E 's|(\s)<([^>]+)>|\n              valueFrom:\n              secretKeyRef:\n                name: '"${SECRET_NAME}"'\n                key: \1|g' k8s.yml
+# sed -i -E 's|(\s)<([^>]+)>|\n              valueFrom:\n                secretKeyRef:\n                name: '"${SECRET_NAME}"'\n                key: \1|g' k8s.yml
+sed -i -E 's|value: <([^>]+)>|valueFrom:\n                secretKeyRef:\n                  name: '"${SECRET_NAME}"'\n                  key: \1|g' k8s.yml
 if [ $? -ne 0 ]; then
     error "Failed to replace angle brackets with Kubernetes secrets"
     exit 1
@@ -202,4 +203,17 @@ if [ $? -ne 0 ]; then
     exit 1
 else
     success "Generated Kubernetes YAML file validated successfully"
+    prompt "Would you like to apply the generated Kubernetes YAML file now? (y/n)"
+    read -n1 -r APPLY
+    if [ "$APPLY" = "y" ]; then
+        kubectl apply -f k8s.yml
+        if [ $? -ne 0 ]; then
+            error "Failed to apply the generated Kubernetes YAML file"
+            exit 1
+        else
+            success "Generated Kubernetes YAML file applied successfully"
+        fi
+    else
+        success "Generated Kubernetes YAML file not applied"
+    fi
 fi
