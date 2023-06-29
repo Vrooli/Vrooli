@@ -177,7 +177,6 @@ fi
 rm ${COMPOSE_FILE}.edit
 
 # Replace angle brackets surrounded by whitespaces with Kubernetes secrets
-# sed -i -E 's|(\s)<([^>]+)>|\n              valueFrom:\n                secretKeyRef:\n                name: '"${SECRET_NAME}"'\n                key: \1|g' k8s.yml
 sed -i -E 's|value: <([^>]+)>|valueFrom:\n                secretKeyRef:\n                  name: '"${SECRET_NAME}"'\n                  key: \1|g' k8s.yml
 if [ $? -ne 0 ]; then
     error "Failed to replace angle brackets with Kubernetes secrets"

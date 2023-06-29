@@ -27,7 +27,7 @@ while getopts "v:d:hg:" opt; do
         GRAPHQL_GENERATE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-g GRAPHQL_GENERATE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
         echo "  -h --help: Show this help message"
@@ -238,6 +238,18 @@ gzip -f production-docker-images.tar
 if [ $? -ne 0 ]; then
     error "Failed to compress Docker images"
     exit 1
+fi
+
+# Send docker images to Docker Hub
+prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
+read -n1 -r SEND_TO_DOCKER_HUB
+echo
+if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
+    source "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+    if [ $? -ne 0 ]; then
+        error "Failed to send Docker images to Docker Hub"
+        exit 1
+    fi
 fi
 
 # Copy build to VPS
