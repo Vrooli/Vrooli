@@ -1,10 +1,8 @@
 import { Router } from "@local/shared";
 import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
 import ReactDOM from "react-dom/client";
-import ReactGA from "react-ga";
 import { App } from "./App";
 import "./i18n"; // Must import for translations to work
-import reportWebVitals from "./reportWebVitals";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { getDeviceInfo } from "./utils/display/device";
 import { PubSub } from "./utils/pubsub";
@@ -48,17 +46,17 @@ if ("serviceWorker" in navigator) {
     });
 }
 
-// Measure performance with Google Analytics. 
-// See results at https://analytics.google.com/
-ReactGA.initialize(import.meta.env.VITE_GOOGLE_TRACKING_ID);
-const sendToAnalytics = ({ name, delta, id }) => {
-    console.log("sendToAnalytics", { name, delta, id }, import.meta.env.VITE_GOOGLE_TRACKING_ID);
-    ReactGA.event({
-        category: "Web Vitals",
-        action: name,
-        value: Math.round(name === "CLS" ? delta * 1000 : delta), // CLS is reported as a fraction, so multiply by 1000 to make it more readable
-        label: id,
-        nonInteraction: true,
-    });
-};
-reportWebVitals(sendToAnalytics);
+// // Measure performance with Google Analytics. 
+// // See results at https://analytics.google.com/
+// ReactGA.initialize(import.meta.env.VITE_GOOGLE_TRACKING_ID);
+// const sendToAnalytics = ({ name, delta, id }) => {
+//     console.log("sendToAnalytics", { name, delta, id }, import.meta.env.VITE_GOOGLE_TRACKING_ID);
+//     ReactGA.event({
+//         category: "Web Vitals",
+//         action: name,
+//         value: Math.round(name === "CLS" ? delta * 1000 : delta), // CLS is reported as a fraction, so multiply by 1000 to make it more readable
+//         label: id,
+//         nonInteraction: true,
+//     });
+// };
+// reportWebVitals(sendToAnalytics);

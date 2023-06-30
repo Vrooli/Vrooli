@@ -37,7 +37,14 @@ export const isSafeOrigin = (req: Request): boolean => {
     // dev tools work properly.
     if (process.env.NODE_ENV === "development") return true;
     const origins = safeOrigins();
-    const origin = req.headers.origin;
+    let origin = req.headers.origin;
+    // Sometimes the origin is undefined. Luckily, we can parse it from the referer.
+    if (!origin) {
+        if (req.headers.referer) {
+            const refererUrl = new URL(req.headers.referer);
+            origin = refererUrl.origin;
+        }
+    }
     if (origin === undefined) {
         return false;
     }

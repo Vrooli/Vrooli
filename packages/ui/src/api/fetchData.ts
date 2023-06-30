@@ -8,7 +8,7 @@ const portServer: string = import.meta.env.VITE_PORT_SERVER ?? "5329";
 export const urlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}/api/v2/rest` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}/v2` :
+        `${import.meta.env.VITE_SERVER_URL}/v2/rest` :
         `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api/v2/rest`;
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :

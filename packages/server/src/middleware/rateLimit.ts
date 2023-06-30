@@ -83,7 +83,7 @@ export async function rateLimit({
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
         else if (req.session.fromSafeOrigin === false) {
-            throw new CustomError("0271", "MustUseApiToken", req.session.languages);
+            throw new CustomError("0271", "MustUseApiToken", req.session.languages, { keyBase });
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
