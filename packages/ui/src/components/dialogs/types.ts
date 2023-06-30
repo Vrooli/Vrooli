@@ -394,8 +394,3 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
         content?: { [x: string]: any };
     }
 }
-
-export interface WelcomeDialogProps {
-    isOpen: boolean;
-    onClose: () => any;
-}

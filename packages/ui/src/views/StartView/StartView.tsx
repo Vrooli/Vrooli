@@ -140,7 +140,7 @@ export const StartView = ({
             PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
             PubSub.get().publishSession(walletCompleteResult.session);
             // Redirect to main dashboard
-            setLocation(walletCompleteResult?.firstLogIn ? LINKS.Welcome : (redirect ?? LINKS.Home));
+            setLocation(redirect ?? LINKS.Home);
             // Set up push notifications
             setupPush();
         }

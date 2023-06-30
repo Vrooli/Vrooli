@@ -56,7 +56,7 @@ export const SignUpForm = ({
                                 messageVariables: { appName: BUSINESS_NAME },
                                 buttons: [{
                                     labelKey: "Ok", onClick: () => {
-                                        setLocation(LINKS.Welcome);
+                                        setLocation(LINKS.Home);
                                         // Set up push notifications
                                         setupPush();
                                     },

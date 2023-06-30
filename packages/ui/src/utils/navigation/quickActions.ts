@@ -170,21 +170,11 @@ export const shortcuts: PreSearchItem[] = [
     //     label: 'Search your completed projects and routines advanced',
     //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
     // },
-    {
-        label: "BeginnersGuide",
-        keywords: viewKeywords,
-        value: `${LINKS.Welcome}`,
-    },
-    {
-        label: "Faq",
-        keywords: viewKeywords,
-        value: `${LINKS.FAQ}`,
-    },
-    {
-        label: "Tutorial",
-        keywords: viewKeywords,
-        value: `${LINKS.Tutorial}`,
-    },
+    // {
+    //     label: "Tutorial", //TODO bring back when interactive popup tutorial is ready
+    //     keywords: viewKeywords,
+    //     value: `${LINKS.Tutorial}`,
+    // },
 ];
 
 /**

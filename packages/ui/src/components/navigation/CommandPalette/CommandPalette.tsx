@@ -1,4 +1,4 @@
-import { endpointGetFeedPopular, LINKS, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
+import { endpointGetFeedPopular, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -75,18 +75,14 @@ export const CommandPalette = () => {
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // If "help" typed (or your language's equivalent), add help and faq shortcuts as first result
+        // If "help" typed (or your language's equivalent)
         const lowercaseHelp = t("Help").toLowerCase();
         if (searchString.toLowerCase().startsWith(lowercaseHelp)) {
-            firstResults.push({
-                __typename: "Shortcut",
-                label: t("ShortcutBeginnersGuide"),
-                id: LINKS.Welcome,
-            }, {
-                __typename: "Shortcut",
-                label: t("ShortcutFaq"),
-                id: LINKS.FAQ,
-            });
+            // firstResults.push({ TODO
+            //     __typename: "Shortcut",
+            //     label: t("Tutorial"),
+            //     id: LINKS.Tutorial,
+            // });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
         const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);

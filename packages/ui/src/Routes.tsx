@@ -29,8 +29,6 @@ const {
     PrivacyPolicyView,
     TermsView,
 } = lazily(() => import("./views/legal"));
-const { TutorialView } = lazily(() => import("./views/tutorial"));
-const { WelcomeView } = lazily(() => import("./views/WelcomeView/WelcomeView"));
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
@@ -354,24 +352,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <TermsView {...viewProps} />
-                </NavRoute>
-                <NavRoute
-                    path={LINKS.Tutorial}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="monthly"
-                    {...props}
-                >
-                    <TutorialView {...viewProps} />
-                </NavRoute>
-                <NavRoute
-                    path={LINKS.Welcome}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="monthly"
-                    {...props}
-                >
-                    <WelcomeView {...viewProps} />
                 </NavRoute>
                 <NavRoute {...props}>
                     <NotFoundView />

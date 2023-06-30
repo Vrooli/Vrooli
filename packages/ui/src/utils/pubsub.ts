@@ -23,10 +23,9 @@ export type Pubs = "Celebration" |
     "Session" |
     "Snack" |
     "Theme" |
+    "Tutorial" |
     "NodeDrag" |
-    "NodeDrop" |
-    "Welcome";
-
+    "NodeDrop";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
     messageKey: KeyList;
@@ -138,8 +137,8 @@ export class PubSub {
     publishTheme(theme: "light" | "dark") {
         this.publish("Theme", theme);
     }
-    publishWelcome() {
-        this.publish("Welcome");
+    publishTutorial() {
+        this.publish("Tutorial");
     }
 
     // eslint-disable-next-line @typescript-eslint/ban-types
@@ -203,8 +202,8 @@ export class PubSub {
     subscribeTheme(subscriber: (theme: "light" | "dark") => void) {
         return this.subscribe("Theme", subscriber);
     }
-    subscribeWelcome(subscriber: () => void) {
-        return this.subscribe("Welcome", subscriber);
+    subscribeTutorial(subscriber: () => void) {
+        return this.subscribe("Tutorial", subscriber);
     }
 
     unsubscribe(token: symbol) {

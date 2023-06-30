@@ -6,7 +6,6 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { WelcomeDialog } from "components/dialogs/WelcomeDialog/WelcomeDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
@@ -112,7 +111,7 @@ export function App() {
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
     const [isLoading, setIsLoading] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
-    const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
@@ -397,9 +396,9 @@ export function App() {
             setIsLeftHanded(data);
             setCookieIsLeftHanded(data);
         });
-        // Handle welcome message
-        const welcomeSub = PubSub.get().subscribeWelcome(() => {
-            setIsWelcomeDialogOpen(true);
+        // Handle tutorial popup
+        const tutorialSub = PubSub.get().subscribeTutorial(() => {
+            setIsTutorialOpen(true); //TODO
         });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
@@ -411,7 +410,7 @@ export function App() {
             PubSub.get().unsubscribe(fontSizeSub);
             PubSub.get().unsubscribe(languageSub);
             PubSub.get().unsubscribe(isLeftHandedSub);
-            PubSub.get().unsubscribe(welcomeSub);
+            PubSub.get().unsubscribe(tutorialSub);
         });
     }, [checkSession, setActiveFocusMode, setThemeAndMeta]);
 
@@ -463,11 +462,6 @@ export function App() {
                         <CommandPalette />
                         {/* Find in page */}
                         <FindInPage />
-                        {/* WelcomeDialog */}
-                        <WelcomeDialog
-                            isOpen={isWelcomeDialogOpen}
-                            onClose={() => setIsWelcomeDialogOpen(false)}
-                        />
                         {/* Celebratory confetti. To be used sparingly */}
                         {isCelebrating && <AsyncConfetti />}
                         <AlertDialog />

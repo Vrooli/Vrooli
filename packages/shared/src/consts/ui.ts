@@ -10,7 +10,6 @@ export const LINKS = {
     Comment: "/comment",
     Create: "/create",
     Example: "/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9", // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
-    FAQ: "/#faq", // FAQ section of home page
     ForgotPassword: "/forgot-password",
     History: "/history",
     Home: "/", // Main dashboard for logged in users
@@ -42,9 +41,7 @@ export const LINKS = {
     Stats: "/stats", // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: "/tag",
     Terms: "/terms", // Terms and conditions
-    Tutorial: "/tutorial",
     User: "/profile",
-    Welcome: "/welcome", // Displays the first time you enter the application (either as guest or as logged in user)
 };
 export type LINKS = ValueOf<typeof LINKS>;
 

@@ -74,5 +74,3 @@ export interface BuildViewProps extends ViewProps<RoutineVersion> {
 export interface ErrorBoundaryProps {
     children: React.ReactNode;
 }
-
-export type WelcomeViewProps = BaseViewProps;

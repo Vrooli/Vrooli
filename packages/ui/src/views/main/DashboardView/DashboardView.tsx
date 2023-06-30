@@ -112,17 +112,13 @@ export const DashboardView = ({
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // If "help" typed, add help and faq shortcuts as first result
+        // If "help" typed
         if (searchString.toLowerCase().startsWith("help")) {
-            firstResults.push({
-                __typename: "Shortcut",
-                label: "Help - Beginner's Guide",
-                id: LINKS.Welcome,
-            }, {
-                __typename: "Shortcut",
-                label: "Help - FAQ",
-                id: LINKS.FAQ,
-            });
+            // firstResults.push({
+            //     __typename: "Shortcut", //TODO
+            //     label: t('Tutorial'),
+            //     id: LINKS.Tutorial,
+            // });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
         const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
