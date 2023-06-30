@@ -1,16 +1,15 @@
-import { emailLogInFormValidation, EmailLogInInput, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
+import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
-import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
-import { useCustomMutation } from "api/hooks";
-import { errorToCode, hasErrorCode, mutationWrapper } from "api/utils";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { CSSProperties, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { LogInFormProps } from "../../types";
@@ -30,7 +29,7 @@ export const LogInForm = ({
         };
     }, []);
 
-    const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
+    const [emailLogIn, { loading }] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -40,9 +39,7 @@ export const LogInForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "LogIn",
-                }}
+                title={t("LogIn")}
             />
             <Formik
                 initialValues={{
@@ -50,9 +47,9 @@ export const LogInForm = ({
                     password: "",
                 }}
                 onSubmit={(values, helpers) => {
-                    mutationWrapper<Session, EmailLogInInput>({
-                        mutation: emailLogIn,
-                        input: { ...values, verificationCode },
+                    fetchLazyWrapper<EmailLogInInput, Session>({
+                        fetch: emailLogIn,
+                        inputs: { ...values, verificationCode },
                         successCondition: (data) => data !== null,
                         onSuccess: (data) => {
                             if (verificationCode) PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
@@ -79,7 +76,7 @@ export const LogInForm = ({
                                     buttonClicked: () => { toSignUp(); },
                                 });
                             } else {
-                                PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: "Error", data: response });
+                                PubSub.get().publishSnack({ message: errorToMessage(response, ["en"]), severity: "Error", data: response });
                             }
                             helpers.setSubmitting(false);
                         },
@@ -89,10 +86,11 @@ export const LogInForm = ({
             >
                 {(formik) => <BaseForm
                     dirty={formik.dirty}
+                    display={"dialog"}
                     isLoading={loading}
                     style={{
-                        display: "block",
                         ...formPaper,
+                        paddingBottom: "unset",
                     }}
                 >
                     <Grid container spacing={2}>
@@ -118,6 +116,7 @@ export const LogInForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant='contained'
                         sx={{ ...formSubmit }}
                     >
                         {t("LogIn")}
@@ -129,7 +128,7 @@ export const LogInForm = ({
                                     sx={{
                                         ...clickSize,
                                         ...formNavLink,
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("ForgotPassword")}
                                 </Typography>
@@ -142,7 +141,7 @@ export const LogInForm = ({
                                         ...clickSize,
                                         ...formNavLink,
                                         flexDirection: "row-reverse",
-                                    } as CSSProperties}
+                                    }}
                                 >
                                     {t("DontHaveAccountSignUp")}
                                 </Typography>

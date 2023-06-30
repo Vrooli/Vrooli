@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType, uuid } from "@local/shared";
+import { InputType, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { hashPassword } from "../../auth";
 import { logger } from "../../events/logger";
@@ -390,7 +390,7 @@ export async function init(prisma: PrismaType) {
         },
     });
     // AI assistant
-    const valyxaId = "4b038f3b-f1f7-1f9b-8f4b-cff4b8f9b20f";
+    const valyxaId = VALYXA_ID;
     const valyxa = await prisma.user.upsert({
         where: {
             id: valyxaId,

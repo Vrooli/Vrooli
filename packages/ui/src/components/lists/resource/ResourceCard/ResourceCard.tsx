@@ -97,7 +97,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 onClick={(e) => e.preventDefault()}
                 sx={{
                     ...noSelect,
-                    boxShadow: 8,
+                    boxShadow: 4,
                     background: palette.primary.light,
                     color: palette.secondary.contrastText,
                     borderRadius: "16px",

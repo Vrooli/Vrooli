@@ -1,16 +1,13 @@
 /**
  * Handles selecting a run from a list of runs.
  */
-import { DeleteIcon, DeleteOneInput, DeleteType, parseSearchParams, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success, uuid } from "@local/shared";
+import { DeleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostRunProject, endpointPostRunRoutine, parseSearchParams, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success, uuid } from "@local/shared";
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { runProjectCreate } from "api/generated/endpoints/runProject_create";
-import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete } from "utils/runUtils";
@@ -45,17 +42,17 @@ export const RunPickerMenu = ({
         }
     }, [runnableObject, onSelect, handleClose]);
 
-    const [createRunProject] = useCustomMutation<RunProject, RunProjectCreateInput>(runProjectCreate);
-    const [createRunRoutine] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
+    const [createRunProject] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
+    const [createRunRoutine] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
             PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (runnableObject.__typename === "ProjectVersion") {
-            mutationWrapper<RunProject, RunProjectCreateInput>({
-                mutation: createRunProject,
-                input: {
+            fetchLazyWrapper<RunProjectCreateInput, RunProject>({
+                fetch: createRunProject,
+                inputs: {
                     id: uuid(),
                     name: getTranslation(runnableObject as ProjectVersion, getUserLanguages(session)).name ?? "Unnamed Project",
                     projectVersionConnect: runnableObject.id,
@@ -72,9 +69,9 @@ export const RunPickerMenu = ({
         }
         else {
             console.log("creating run routine");
-            mutationWrapper<RunRoutine, RunRoutineCreateInput>({
-                mutation: createRunRoutine,
-                input: {
+            fetchLazyWrapper<RunRoutineCreateInput, RunRoutine>({
+                fetch: createRunRoutine,
+                inputs: {
                     id: uuid(),
                     name: getTranslation(runnableObject as RoutineVersion, getUserLanguages(session)).name ?? "Unnamed Routine",
                     routineVersionConnect: runnableObject.id,
@@ -91,11 +88,11 @@ export const RunPickerMenu = ({
         }
     }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
 
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteOne,
-            input: { id: run.id, objectType: run.__typename as DeleteType },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteOne,
+            inputs: { id: run.id, objectType: run.__typename as DeleteType },
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "RunDeleted", messageVariables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {
@@ -139,7 +136,7 @@ export const RunPickerMenu = ({
                 messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
                     { labelKey: "Yes", onClick: () => { deleteRun(run); } },
-                    { labelKey: "Cancel", onClick: () => { } },
+                    { labelKey: "Cancel" },
                 ],
             });
         } else {
@@ -205,6 +202,7 @@ export const RunPickerMenu = ({
                     marginLeft: 2,
                     marginRight: 2,
                 }}
+                variant="contained"
             >New Run</Button>
         </Menu>
     );

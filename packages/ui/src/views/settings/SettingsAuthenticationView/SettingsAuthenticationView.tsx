@@ -1,19 +1,17 @@
-import { DeleteIcon, Email, EmailIcon, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
+import { DeleteIcon, Email, EmailIcon, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { authLogOut } from "api/generated/endpoints/auth_logOut";
-import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { SettingsAuthenticationForm } from "forms/settings";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -31,12 +29,12 @@ export const SettingsAuthenticationView = ({
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
-    const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
+    const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
-        mutationWrapper<Session, LogOutInput>({
-            mutation: logOut,
-            input: { id },
+        fetchLazyWrapper<LogOutInput, Session>({
+            fetch: logOut,
+            inputs: { id },
             onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession); },
@@ -64,7 +62,7 @@ export const SettingsAuthenticationView = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileEmailUpdateInput>(userProfileEmailUpdate);
+    const [update, { loading: isUpdating }] = useLazyFetch<ProfileEmailUpdateInput, User>(endpointPutProfileEmail);
 
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
@@ -81,34 +79,38 @@ export const SettingsAuthenticationView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Authentication",
-                }}
+                title={t("Authentication")}
             />
             <Stack direction="row">
                 <SettingsList />
                 <Box>
-                    <Subheader
+                    <Title
                         help={t("WalletListHelp")}
                         Icon={WalletIcon}
-                        title={t("Wallet", { count: 2 })} />
+                        title={t("Wallet", { count: 2 })}
+                        variant="subheader"
+                    />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
                     />
-                    <Subheader
+                    <Title
                         help={t("EmailListHelp")}
                         Icon={EmailIcon}
-                        title={t("Email", { count: 2 })} />
+                        title={t("Email", { count: 2 })}
+                        variant="subheader"
+                    />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numVerifiedWallets={numVerifiedWallets}
                     />
-                    <Subheader
+                    <Title
                         help={t("PasswordChangeHelp")}
-                        title={t("ChangePassword")} />
+                        title={t("ChangePassword")}
+                        variant="subheader"
+                    />
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
@@ -121,9 +123,9 @@ export const SettingsAuthenticationView = ({
                                 PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
-                            mutationWrapper<User, ProfileEmailUpdateInput>({
-                                mutation,
-                                input: {
+                            fetchLazyWrapper<ProfileEmailUpdateInput, User>({
+                                fetch: update,
+                                inputs: {
                                     currentPassword: values.currentPassword,
                                     newPassword: values.newPassword,
                                 },
@@ -145,6 +147,7 @@ export const SettingsAuthenticationView = ({
                         color="secondary"
                         onClick={onLogOut}
                         startIcon={<LogOutIcon />}
+                        variant="outlined"
                         sx={{
                             display: "flex",
                             width: "min(100%, 400px)",
@@ -158,6 +161,7 @@ export const SettingsAuthenticationView = ({
                     <Button
                         onClick={openDelete}
                         startIcon={<DeleteIcon />}
+                        variant="text"
                         sx={{
                             background: palette.error.main,
                             color: palette.error.contrastText,

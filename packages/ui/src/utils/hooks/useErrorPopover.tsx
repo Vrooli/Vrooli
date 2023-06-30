@@ -1,7 +1,7 @@
 import { exists, uppercaseFirstLetter } from "@local/shared";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
+import { MarkdownDisplay } from "../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 
 interface UsePopoverMenuOptions {
     errors: Record<string, string | string[] | null | undefined> | null | undefined;
@@ -65,7 +65,7 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
                     },
                 }}
             >
-                <Markdown>{errorMessage}</Markdown>
+                <MarkdownDisplay content={errorMessage} />
             </PopoverWithArrow>
         );
     }, [closePopover, errorAnchorEl, errorMessage]);

@@ -1,9 +1,9 @@
-import { exists, getReactionScore, ReactInput, ReactionFor, Success } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
-import { reactionReact } from "api/generated/endpoints/reaction_react";
+import { endpointPostReact, exists, getReactionScore, ReactInput, ReactionFor, Success } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
+import { useLazyFetch } from "./useLazyFetch";
 
 type UseVoterProps = {
     objectId: string | null | undefined;
@@ -17,32 +17,32 @@ type UseVoterProps = {
 export const useVoter = ({
     objectId,
     objectType,
-    onActionComplete
+    onActionComplete,
 }: UseVoterProps) => {
-    const [mutation] = useCustomMutation<Success, ReactInput>(reactionReact);
+    const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
     const hasVotingSupport = exists(ReactionFor[objectType]);
 
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         if (!hasVotingSupport) {
-            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
-        mutationWrapper<Success, ReactInput>({
-            mutation,
-            input: {
+        fetchLazyWrapper<ReactInput, Success>({
+            fetch,
+            inputs: {
                 emoji,
                 forConnect: objectId,
-                reactionFor: ReactionFor[objectType]
+                reactionFor: ReactionFor[objectType],
             },
-            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
-        })
-    }, [hasVotingSupport, mutation, objectId, objectType, onActionComplete]);
+            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data); },
+        });
+    }, [hasVotingSupport, fetch, objectId, objectType, onActionComplete]);
 
     return { handleVote, hasVotingSupport };
-}
+};

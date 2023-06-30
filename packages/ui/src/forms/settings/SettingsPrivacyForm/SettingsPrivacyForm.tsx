@@ -23,14 +23,8 @@ export const SettingsPrivacyForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-                paddingLeft: "env(safe-area-inset-left)",
-                paddingRight: "env(safe-area-inset-right)",
-            }}
         >
             {/* Overall notifications toggle */}
             <ListContainer>

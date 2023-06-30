@@ -1,5 +1,4 @@
-import { PopularSortBy } from "@local/shared";
-import { feedPopular } from "api/generated/endpoints/feed_popular";
+import { endpointGetFeedPopular, PopularSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const popularSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const popularSearchParams = () => toParams(popularSearchSchema(), feedPopular, PopularSortBy, PopularSortBy.StarsDesc);
+export const popularSearchParams = () => toParams(popularSearchSchema(), endpointGetFeedPopular, PopularSortBy, PopularSortBy.StarsDesc);

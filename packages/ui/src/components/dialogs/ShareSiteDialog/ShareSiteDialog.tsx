@@ -94,7 +94,8 @@ export const ShareSiteDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{ titleId, titleKey: "SpreadTheWord" }}
+                title={t("SpreadTheWord")}
+                titleId={titleId}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">

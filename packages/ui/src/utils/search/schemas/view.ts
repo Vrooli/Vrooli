@@ -1,5 +1,4 @@
-import { ViewSortBy } from "@local/shared";
-import { viewFindMany } from "api/generated/endpoints/view_findMany";
+import { endpointGetViews, ViewSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const viewSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const viewSearchParams = () => toParams(viewSearchSchema(), viewFindMany, ViewSortBy, ViewSortBy.LastViewedDesc);
+export const viewSearchParams = () => toParams(viewSearchSchema(), endpointGetViews, ViewSortBy, ViewSortBy.LastViewedDesc);

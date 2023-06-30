@@ -1,5 +1,4 @@
-import { RoutineSortBy } from "@local/shared";
-import { routineFindMany } from "api/generated/endpoints/routine_findMany";
+import { endpointGetRoutines, RoutineSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
@@ -22,4 +21,4 @@ export const routineSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const routineSearchParams = () => toParams(routineSearchSchema(), routineFindMany, RoutineSortBy, RoutineSortBy.ScoreDesc);
+export const routineSearchParams = () => toParams(routineSearchSchema(), endpointGetRoutines, RoutineSortBy, RoutineSortBy.ScoreDesc);

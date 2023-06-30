@@ -1,9 +1,10 @@
 import { InputType } from "@local/shared";
-import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
+import { ChatShape } from "utils/shape/models/chat";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
 import { MeetingShape } from "utils/shape/models/meeting";
@@ -34,8 +35,10 @@ import { ViewDisplayType } from "views/types";
 export interface BaseFormProps {
     children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
     dirty?: boolean;
+    display: ViewDisplayType;
     enableReinitialize?: boolean;
     isLoading?: boolean;
+    maxWidth?: number;
     onClose?: () => any;
     promptBeforeUnload?: boolean;
     ref?: any;
@@ -83,6 +86,7 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
+export type ChatFormProps = BaseObjectFormProps<ChatShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
 export type NodeWithRoutineListShape = NodeShape & { routineList: NodeRoutineListShape };
@@ -128,6 +132,8 @@ export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutin
     canUpdateRoutineVersion: boolean;
     handleViewFull: () => void;
     isEditing: boolean;
+    /** Number of subroutines in parent routine list */
+    numSubroutines: number;
     versions: string[];
 }
 export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {
@@ -170,13 +176,6 @@ export interface DropzoneProps extends Omit<DP, "onUpload" | "zIndex"> {
 } // onUpload handled by form
 
 /**
- * Props for rendering a JSON input component
- */
-export interface JsonProps extends Omit<JP, "id" | "onChange" | "value" | "zIndex"> {
-    defaultValue?: string;
-}
-
-/**
  * Props for rendering a LanguageInput component
  */
 export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
@@ -184,9 +183,9 @@ export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handle
 }
 
 /**
- * Props for rendering a Markdown input component
+ * Props for rendering a language standard input component (e.g. JSON, TypeScript, HTML, etc.)
  */
-export interface MarkdownProps extends Omit<MP, "id" | "onChange" | "value" | "zIndex"> {
+export interface CodeProps extends Omit<CP, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
 
@@ -194,17 +193,11 @@ export interface MarkdownProps extends Omit<MP, "id" | "onChange" | "value" | "z
  * Props for rendering a Radio button input component
  */
 export interface RadioProps {
-    /**
-     * The initial value of the radio button. Must be one of the values in the `options` prop.
-     */
-    defaultValue?: string;
-    /**
-     * Radio button options.
-     */
+    /** The initial value of the radio button. Must be one of the values in the `options` prop. */
+    defaultValue?: string | null;
+    /** Radio button options. */
     options: { label: string; value: string; }[];
-    /**
-     * If true, displays options in a row.
-     */
+    /** If true, displays options in a row. */
     row?: boolean;
 }
 
@@ -243,28 +236,29 @@ export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | 
 }
 
 /**
- * Props for rendering a TextField input component (the most common input component)
+ * Props for rendering a text input component (the most common input component)
  */
-export interface TextFieldProps {
-    /**
-     * Initial value of the text field.
-     */
+export interface TextProps {
+    /** Initial value of the text field. */
     defaultValue?: string;
-    /**
-     * Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')
-     */
+    /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
     autoComplete?: string;
-    /**
-     * Maximum number of rows for the text field. Defaults to 1.
-     */
+    /** If true, displays MarkdownInput instead of TextField */
+    isMarkdown?: boolean;
+    /** Maximum number of characters for the text field. Defaults to 1000 */
+    maxChars?: number;
+    /** Maximum number of rows for the text field. Defaults to 2. */
     maxRows?: number;
+    /** Minimum number of rows for the text field. Defaults to 4. */
+    minRows?: number;
+    placeholder?: string;
 }
 
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, "name"> {
-    defaultValue?: any; // Ignored
+export interface IntegerInputProps extends Omit<QP, "defaultValue" | "name"> {
+    defaultValue?: any; // Ignored, but required by some components
 }
 
 /**
@@ -333,7 +327,7 @@ export interface FieldDataJSON extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: JsonProps
+    props: CodeProps
 }
 
 /**
@@ -348,20 +342,6 @@ export interface FieldDataLanguageInput extends FieldDataBase {
      * Extra props for the input component, depending on the type
      */
     props: LanguageInputProps;
-}
-
-/**
- * Field data type and props for Markdown input components
- */
-export interface FieldDataMarkdown extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Markdown;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: MarkdownProps
 }
 
 /**
@@ -437,15 +417,15 @@ export interface FieldDataTagSelector extends FieldDataBase {
 /**
  * Field data type and props for TextField input components
  */
-export interface FieldDataTextField extends FieldDataBase {
+export interface FieldDataText extends FieldDataBase {
     /**
      * The type of the field
      */
-    type: InputType.TextField;
+    type: InputType.Text;
     /**
      * Extra props for the input component, depending on the type
      */
-    props: TextFieldProps;
+    props: TextProps;
 }
 
 /**
@@ -471,13 +451,12 @@ export type FieldData =
     FieldDataJSON |
     FieldDataLanguageInput |
     FieldDataIntegerInput |
-    FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
     FieldDataTagSelector |
-    FieldDataTextField;
+    FieldDataText;
 
 //==============================================================
 /* #endregion Input Component Data */

@@ -39,6 +39,9 @@ export function RelationshipList(props: RelationshipListProps) {
                 zIndex: props.zIndex,
                 ...noSelect,
                 ...(props.sx ?? {}),
+                "@media print": {
+                    border: `1px solid ${palette.divider}`,
+                },
             }}
         >
             {/* Buttons applicable to main objects (e.g. projects, notes, routines, organizations) */}

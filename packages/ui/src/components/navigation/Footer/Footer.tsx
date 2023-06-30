@@ -33,12 +33,17 @@ export const Footer = () => {
             display={showFooter ? "block" : "none"}
             overflow="hidden"
             position="relative"
-            // safe-area-inset-bottom is the iOS navigation bar
-            paddingBottom='calc(64px + env(safe-area-inset-bottom))'
             sx={{
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,
+                paddingBottom: {
+                    xs: "calc(64px + env(safe-area-inset-bottom))",
+                    md: "env(safe-area-inset-bottom)",
+                },
                 zIndex: 5,
+                "@media print": {
+                    display: "none",
+                },
             }}
         >
             <Grid container justifyContent='center' spacing={1}>

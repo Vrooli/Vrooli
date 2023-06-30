@@ -1,11 +1,10 @@
-import { DeleteIcon, DeleteOneInput, LINKS, Success, useLocation } from "@local/shared";
+import { DeleteIcon, DeleteOneInput, endpointPostDeleteOne, LINKS, Success, useLocation } from "@local/shared";
 import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 
@@ -29,11 +28,11 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
-        mutationWrapper<Success, DeleteOneInput>({
-            mutation: deleteOne,
-            input: { id: objectId, objectType },
+        fetchLazyWrapper<DeleteOneInput, Success>({
+            fetch: deleteOne,
+            inputs: { id: objectId, objectType },
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName } }),
             onSuccess: () => {
@@ -57,9 +56,7 @@ export const DeleteDialog = ({
             <TopBar
                 display="dialog"
                 onClose={() => { close(); }}
-                titleData={{
-                    titleKey: "Delete",
-                }}
+                title={t("Delete")}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>
@@ -80,6 +77,7 @@ export const DeleteDialog = ({
                         color="secondary"
                         onClick={handleDelete}
                         disabled={nameInput.trim() !== objectName.trim()}
+                        variant="contained"
                     >{t("Delete")}</Button>
                 </Stack>
             </DialogContent>

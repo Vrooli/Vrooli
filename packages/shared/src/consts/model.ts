@@ -16,14 +16,12 @@ export enum InputType {
     JSON = "JSON",
     IntegerInput = "IntegerInput",
     LanguageInput = "LanguageInput",
-    Markdown = "Markdown",
-    Prompt = "Prompt",
     Radio = "Radio",
     Selector = "Selector",
     Slider = "Slider",
     Switch = "Switch",
     TagSelector = "TagSelector",
-    TextField = "TextField",
+    Text = "Text",
 }
 
 export enum ViewFor {

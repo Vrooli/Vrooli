@@ -1,5 +1,4 @@
-import { LabelSortBy } from "@local/shared";
-import { labelFindMany } from "api/generated/endpoints/label_findMany";
+import { endpointGetLabels, LabelSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout } from "./common";
@@ -14,4 +13,4 @@ export const labelSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const labelSearchParams = () => toParams(labelSearchSchema(), labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc);
+export const labelSearchParams = () => toParams(labelSearchSchema(), endpointGetLabels, LabelSortBy, LabelSortBy.DateCreatedDesc);

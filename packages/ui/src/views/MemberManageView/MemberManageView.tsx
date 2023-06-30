@@ -69,6 +69,7 @@ export const MemberManageView = ({
                 <Button
                     onClick={onInviteClick}
                     size="large"
+                    variant="contained"
                     sx={{
                         zIndex: 100,
                         minWidth: "min(100%, 200px)",

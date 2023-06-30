@@ -1,5 +1,4 @@
 import { SxProps } from "@mui/material";
-import { CSSProperties } from "@mui/styles";
 import { multiLineEllipsis, textShadow } from "styles";
 
 export const nodeLabel: SxProps = {
@@ -13,7 +12,11 @@ export const nodeLabel: SxProps = {
     transform: "translate(-50%, -50%)",
     width: "100%",
     lineBreak: "anywhere",
-} as CSSProperties;
+    "@media print": {
+        textShadow: "none",
+        color: "black",
+    },
+} as const;
 
 export const routineNodeCheckboxLabel: SxProps = {
     marginLeft: "0",

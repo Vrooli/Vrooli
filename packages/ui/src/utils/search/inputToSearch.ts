@@ -45,14 +45,12 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
-    [InputType.Markdown]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
-    [InputType.Prompt]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
     [InputType.Radio]: (value: string) => radioValueToSearch(value),
     [InputType.Selector]: (value) => value, //TODO
     [InputType.Slider]: (value) => value, //TODO
     [InputType.Switch]: (value) => value, //TODO 
     [InputType.TagSelector]: (value: Tag[]) => arrayConvert(value, ({ tag }) => tag),
-    [InputType.TextField]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
+    [InputType.Text]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
 };
 
 /**
@@ -64,14 +62,12 @@ const searchToInputType: { [key in InputType]: (value: any) => any } = {
     [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
-    [InputType.Markdown]: (value: string) => value,
-    [InputType.Prompt]: (value: string) => value,
     [InputType.Radio]: (value: string) => searchToRadioValue(value),
     [InputType.Selector]: (value) => value, //TODO
     [InputType.Slider]: (value) => value, //TODO
     [InputType.Switch]: (value) => value, //TODO
     [InputType.TagSelector]: (value: string[]) => arrayConvert(value, (tag) => ({ tag })),
-    [InputType.TextField]: (value: string) => value,
+    [InputType.Text]: (value: string) => value,
 };
 
 /**

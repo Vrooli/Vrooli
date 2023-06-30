@@ -2,11 +2,11 @@
 # Locates all Prisma migrations up to the one you specify and applies them.
 # Usage: docker exec -i server sh < $( ./scripts/migrationsApply.sh "<migration_name>" )
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. This may break the script."
 fi

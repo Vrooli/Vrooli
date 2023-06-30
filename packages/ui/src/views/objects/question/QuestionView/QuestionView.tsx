@@ -1,22 +1,23 @@
-import { CommentFor, EditIcon, exists, FindByIdInput, Question, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag, useLocation } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
-import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -32,10 +33,11 @@ export const QuestionView = ({
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
-        query: questionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
+        ...endpointGetQuestion,
         partialData,
     });
 
@@ -85,9 +87,13 @@ export const QuestionView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Question",
-                }}
+                title={firstString(title, t("Question"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <Formik
                 enableReinitialize={true}
@@ -105,15 +111,6 @@ export const QuestionView = ({
                         objectType={"Question"}
                         zIndex={zIndex}
                     />
-                    <ObjectTitle
-                        language={language}
-                        languages={availableLanguages}
-                        loading={isLoading}
-                        title={title}
-                        setLanguage={setLanguage}
-                        translations={existing?.translations ?? []}
-                        zIndex={zIndex}
-                    />
                     {/* Date and tags */}
                     <Stack direction="row" spacing={1} mt={2} mb={1}>
                         {/* Date created */}
@@ -129,7 +126,7 @@ export const QuestionView = ({
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                     </Stack>
-                    <Markdown>{subtitle}</Markdown>
+                    <MarkdownDisplay content={subtitle} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}

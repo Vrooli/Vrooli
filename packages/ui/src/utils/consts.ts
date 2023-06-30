@@ -75,41 +75,47 @@ export enum ResourceType {
     Handle = "Handle",
 }
 
-export type InputTypeOption = { label: string, value: InputType }
+export type InputTypeOption = {
+    label: string,
+    description: string,
+    value: InputType
+}
 /**
  * Supported input types
  */
 export const InputTypeOptions: InputTypeOption[] = [
     {
         label: "Text",
-        value: InputType.TextField,
+        description: "Box for typing in whatever you like",
+        value: InputType.Text,
     },
     {
         label: "JSON",
+        description: "Box for typing in data structured in a special format called JSON",
         value: InputType.JSON,
     },
     {
         label: "Integer",
+        description: "Box for typing in whole numbers",
         value: InputType.IntegerInput,
     },
     {
         label: "Radio (Select One)",
+        description: "Set of options where you can choose only one.",
         value: InputType.Radio,
     },
     {
         label: "Checkbox (Select any)",
+        description: "Set of options where you can choose any number of options.",
         value: InputType.Checkbox,
     },
     {
         label: "Switch (On/Off)",
+        description: "Flip switch for a true/false value.",
         value: InputType.Switch,
     },
     // {
     //     label: 'File Upload',
     //     value: InputType.Dropzone,
     // },
-    {
-        label: "Markdown",
-        value: InputType.Markdown,
-    },
 ];

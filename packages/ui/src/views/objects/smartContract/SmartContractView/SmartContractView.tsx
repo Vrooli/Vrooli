@@ -1,6 +1,5 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindVersionInput, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetSmartContractVersion, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -8,7 +7,10 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -24,11 +26,12 @@ export const SmartContractView = ({
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion, FindVersionInput>({
-        query: smartContractVersionFindOne,
+    const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion>({
+        ...endpointGetSmartContractVersion,
         partialData,
     });
 
@@ -70,18 +73,7 @@ export const SmartContractView = ({
      * Displays name, avatar, description, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Avatar
                 src="/broken-image.jpg" //TODO
                 sx={{
@@ -120,22 +112,15 @@ export const SmartContractView = ({
                         <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit smartContractVersion">
-                                <IconButton
-                                    aria-label="Edit smartContractVersion"
-                                    size="small"
-                                    onClick={() => actionData.onActionStart("Edit")}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
+                    ) : <Title
+                        title={name}
+                        variant="header"
+                        options={permissions.canUpdate ? [{
+                            label: t("Edit"),
+                            Icon: EditIcon,
+                            onClick: () => { actionData.onActionStart("Edit"); },
+                        }] : []}
+                    />
                 }
                 {/* Joined date */}
                 <DateDisplay
@@ -170,17 +155,15 @@ export const SmartContractView = ({
                     />
                 </Stack>
             </Stack>
-        </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, smartContractVersion, description, zIndex, actionData]);
+        </OverviewContainer>
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, smartContractVersion, description, zIndex, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "SmartContract",
-                }}
+                title={t("SmartContract")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

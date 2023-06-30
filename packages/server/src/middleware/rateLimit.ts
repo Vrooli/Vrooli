@@ -1,5 +1,4 @@
 import { Request } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import { getUser } from "../auth";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -28,7 +27,6 @@ export async function checkRateLimit(client: any, key: string, max: number, wind
 }
 
 export interface RateLimitProps {
-    info: GraphQLResolveInfo;
     /**
      * Maximum number of requests allowed per window, tied to API key (if not made from a safe origin)
      */
@@ -51,45 +49,54 @@ export interface RateLimitProps {
  * Throws error if rate limit is exceeded.
  */
 export async function rateLimit({
-    info,
     maxApi,
     maxIp,
     maxUser = 250,
     req,
     window = 60 * 60 * 24,
 }: RateLimitProps): Promise<void> {
-    const keyBase = `rate-limit:${info.path.key}`;
+    // Create key that uniquely identifies the endpoint
+    let keyBase = "rate-limit:";
+    // For GraphQL requests, use the operation name
+    if (req.body?.operationName) {
+        keyBase += `${req.body.operationName}:`;
+    }
+    // For REST requests, use the route path and method
+    else {
+        keyBase += `${req.route.path}:${req.method}:`;
+    }
     // If maxApi not supplied, use maxUser * 1000
     maxApi = maxApi ?? (maxUser * 1000);
     // If maxIp not supplied, use maxUser
     maxIp = maxIp ?? maxUser;
     // Parse request
-    const hasApiToken = req.apiToken === true;
-    const userData = getUser(req);
-    const hasUserData = req.isLoggedIn === true && userData !== null;
+    const hasApiToken = req.session.apiToken === true;
+    const userData = getUser(req.session);
+    const hasUserData = req.session.isLoggedIn === true && userData !== null;
     // Try connecting to redis
     try {
         const client = await initializeRedis();
         // Apply rate limit to API TODO factor in cost of request, instead of just incrementing by 1
         if (hasApiToken) {
-            const key = `${keyBase}:api:${req.apiToken}`;
-            await checkRateLimit(client, key, maxApi, window, req.languages);
+            const key = `${keyBase}:api:${req.session.apiToken}`;
+            await checkRateLimit(client, key, maxApi, window, req.session.languages);
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
-        else if (req.fromSafeOrigin === false) {
-            throw new CustomError("0271", "MustUseApiToken", req.languages);
+        else if (req.session.fromSafeOrigin === false) {
+            throw new CustomError("0271", "MustUseApiToken", req.session.languages);
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
-        await checkRateLimit(client, key, maxIp, window, req.languages);
+        await checkRateLimit(client, key, maxIp, window, req.session.languages);
         // Apply rate limit to user
         if (hasUserData) {
             const key = `${keyBase}:user:${userData.id}`;
-            await checkRateLimit(client, key, maxUser, window, req.languages);
+            await checkRateLimit(client, key, maxUser, window, req.session.languages);
         }
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
         logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
+        throw error;
     }
 }

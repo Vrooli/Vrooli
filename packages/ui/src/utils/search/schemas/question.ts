@@ -1,5 +1,4 @@
-import { QuestionSortBy } from "@local/shared";
-import { questionFindMany } from "api/generated/endpoints/question_findMany";
+import { endpointGetQuestions, QuestionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const questionSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const questionSearchParams = () => toParams(questionSearchSchema(), questionFindMany, QuestionSortBy, QuestionSortBy.ScoreDesc);
+export const questionSearchParams = () => toParams(questionSearchSchema(), endpointGetQuestions, QuestionSortBy, QuestionSortBy.ScoreDesc);

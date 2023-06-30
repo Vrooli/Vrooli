@@ -24,9 +24,9 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
         prisma,
         req,
     });
-    const { format } = getLogic(["format"], objectType, req.languages, "readManyAsFeedHelper");
+    const { format } = getLogic(["format"], objectType, req.session.languages, "readManyAsFeedHelper");
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.languages, true))) as any[];
+        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true))) as any[];
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,

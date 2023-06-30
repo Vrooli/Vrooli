@@ -6,6 +6,7 @@ export * from "./deleteManyHelper";
 export * from "./deleteOneHelper";
 export * from "./readManyAsFeedHelper";
 export * from "./readManyHelper";
+export * from "./readManyWithEmbeddingsHelper";
 export * from "./readOneHelper";
 export * from "./updateHelper";
 

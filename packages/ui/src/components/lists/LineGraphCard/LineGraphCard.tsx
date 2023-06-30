@@ -9,7 +9,7 @@ export const LineGraphCard = ({
     ...lineGraphProps
 }: LineGraphCardProps) => {
     const { palette } = useTheme();
-    const { dimensions, ref } = useDimensions();
+    const { dimensions, ref } = useDimensions<HTMLDivElement>();
 
     return (
         <Card ref={ref} sx={{

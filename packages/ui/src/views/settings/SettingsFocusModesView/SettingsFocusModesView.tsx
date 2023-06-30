@@ -1,16 +1,15 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { mutationWrapper } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
+import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { FocusModeUpsert } from "views/objects/focusMode";
@@ -21,6 +20,7 @@ export const SettingsFocusModesView = ({
     onClose,
     zIndex,
 }: SettingsFocusModesViewProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -39,7 +39,7 @@ export const SettingsFocusModesView = ({
     }, [focusModes.length, session]);
 
     // Handle delete
-    const [deleteMutation] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const [deleteMutation] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
         if (focusModes.length === 1) {
@@ -52,9 +52,9 @@ export const SettingsFocusModesView = ({
             buttons: [
                 {
                     labelKey: "Yes", onClick: () => {
-                        mutationWrapper<Success, DeleteOneInput>({
-                            mutation: deleteMutation,
-                            input: { id: focusMode.id, objectType: DeleteType.FocusMode },
+                        fetchLazyWrapper<DeleteOneInput, Success>({
+                            fetch: deleteMutation,
+                            inputs: { id: focusMode.id, objectType: DeleteType.FocusMode },
                             successCondition: (data) => data.success,
                             successMessage: () => ({ messageKey: "FocusModeDeleted" }),
                             onSuccess: () => {
@@ -171,10 +171,7 @@ export const SettingsFocusModesView = ({
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "FocusMode",
-                    titleVariables: { count: 2 },
-                }}
+                title={t("FocusMode", { count: 2 })}
             />
             <Stack direction="row">
                 <SettingsList />

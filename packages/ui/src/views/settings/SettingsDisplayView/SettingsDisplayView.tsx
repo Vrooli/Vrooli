@@ -1,7 +1,6 @@
-import { ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
+import { endpointPutProfile, ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomMutation } from "api";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
+import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
@@ -9,6 +8,7 @@ import { SettingsDisplayForm } from "forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getSiteLanguage } from "utils/authentication/session";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
@@ -25,17 +25,15 @@ export const SettingsDisplayView = ({
     const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
 
     return (
         <>
             <SettingsTopBar
                 display={display}
+                help={t("DisplaySettingsDescription")}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Display",
-                    helpKey: "DisplaySettingsDescription",
-                }}
+                title={t("Display")}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -53,9 +51,9 @@ export const SettingsDisplayView = ({
                                 PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
-                            mutationWrapper<User, ProfileUpdateInput>({
-                                mutation,
-                                input: {
+                            fetchLazyWrapper<ProfileUpdateInput, User>({
+                                fetch,
+                                inputs: {
                                     ...values,
                                     languages: [getSiteLanguage(session)],
                                 },
@@ -74,10 +72,16 @@ export const SettingsDisplayView = ({
                         />}
                     </Formik>
                     <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session); }} sx={{
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                        }}>{t("ClearSearchHistory")}</Button>
+                        <Button
+                            id="clear-search-history-button"
+                            color="secondary"
+                            startIcon={<SearchIcon />}
+                            onClick={() => { session && clearSearchHistory(session); }}
+                            variant="outlined"
+                            sx={{
+                                marginLeft: "auto",
+                                marginRight: "auto",
+                            }}>{t("ClearSearchHistory")}</Button>
                     </Box>
                 </Stack>
             </Stack>

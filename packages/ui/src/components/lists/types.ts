@@ -43,6 +43,8 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
     onClick?: (dat: T) => void;
+    subtitleOverride?: string;
+    titleOverride?: string;
     toTheRight?: React.ReactNode;
     zIndex: number;
 }

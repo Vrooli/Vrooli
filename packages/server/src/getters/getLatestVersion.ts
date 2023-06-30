@@ -1,6 +1,6 @@
 import { GqlModelType, isOfType } from "@local/shared";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { PrismaType } from "../types";
 
 /**

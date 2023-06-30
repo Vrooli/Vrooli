@@ -1,15 +1,13 @@
-import { CommentFor, EditIcon, exists, FindVersionInput, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -18,8 +16,7 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
@@ -29,7 +26,9 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { PubSub } from "utils/pubsub";
@@ -57,8 +56,8 @@ export const RoutineView = ({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
-        query: routineVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
+        ...endpointGetRoutineVersion,
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
@@ -143,12 +142,12 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
+    const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     const markAsComplete = useCallback(() => {
         if (!existing) return;
-        mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-            mutation: runComplete,
-            input: {
+        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+            fetch: runComplete,
+            inputs: {
                 id: existing.id,
                 exists: false,
                 name: name ?? "Unnamed Routine",
@@ -198,9 +197,13 @@ export const RoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Routine",
-                }}
+                title={firstString(name, t("Routine"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <Formik
                 enableReinitialize={true}
@@ -245,15 +248,6 @@ export const RoutineView = ({
                             zIndex={zIndex + 1}
                         />
                     </Dialog>}
-                    <ObjectTitle
-                        language={language}
-                        languages={availableLanguages}
-                        loading={isLoading}
-                        title={name}
-                        setLanguage={setLanguage}
-                        translations={existing?.translations ?? []}
-                        zIndex={zIndex}
-                    />
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
@@ -298,6 +292,7 @@ export const RoutineView = ({
                                 fullWidth
                                 onClick={markAsComplete}
                                 color="secondary"
+                                variant="outlined"
                                 sx={{ marginTop: 2 }}
                             >{t("MarkAsComplete")}</Button>}
                         </ContentCollapse>
@@ -305,11 +300,18 @@ export const RoutineView = ({
                     {/* "View Graph" button if this is a multi-step routine */}
                     {
                         existing?.nodes?.length ? <Box>
-                            <Subheader
+                            <Title
                                 title={"This is a multi-step routine."}
                                 help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                                variant="subheader"
                             />
-                            <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                            <Button
+                                startIcon={<RoutineIcon />}
+                                fullWidth
+                                onClick={viewGraph}
+                                color="secondary"
+                                variant="outlined"
+                            >View Graph</Button>
                         </Box> : null
                     }
                     {/* Tags */}

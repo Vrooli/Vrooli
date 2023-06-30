@@ -98,7 +98,8 @@ export const ShareObjectDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{ titleId, titleKey: "Share" }}
+                title={t("Share")}
+                titleId={titleId}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">

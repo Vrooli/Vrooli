@@ -1,5 +1,4 @@
-import { RoutineVersionSortBy } from "@local/shared";
-import { routineVersionFindMany } from "api/generated/endpoints/routineVersion_findMany";
+import { endpointGetRoutineVersions, RoutineVersionSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
@@ -28,4 +27,4 @@ export const routineVersionSearchSchema = (): FormSchema => ({
     ],
 });
 
-export const routineVersionSearchParams = () => toParams(routineVersionSearchSchema(), routineVersionFindMany, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc);
+export const routineVersionSearchParams = () => toParams(routineVersionSearchSchema(), endpointGetRoutineVersions, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc);

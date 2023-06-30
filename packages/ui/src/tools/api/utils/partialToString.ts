@@ -89,7 +89,7 @@ ${" ".repeat(indent)}}`;
     // (e.g. if a relation has an omitted field which used a fragment, it could make it here). 
     // Ideally we'd fix this problem earlier in the process, but ¯\_(ツ)_/¯
     if (exists(__define) && Object.keys(__define).length > 0) {
-        let fragmentsString = "";
+        let fragmentsString = "\n";
         fragments = await fragmentsToString(__define);
         // Filter out fragments not found in the tag
         fragments = fragmentsNeeded(fragments, tag); //TODO for morning: commenting this out fixes bookmarklist findMany, but breaks many other things. For example, projectList findOne now adds Api_list fragment (among others), when that's not needed

@@ -1,4 +1,4 @@
-import { ObjectMap } from "../models";
+import { FormatMap } from "../models/format";
 import { GqlRelMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
@@ -36,8 +36,8 @@ export const injectTypenames = <
         // If value is an object, recurse
         // If not union, add the single type to the result
         if (typeof nestedValue === "string") {
-            if (selectValue && ObjectMap[nestedValue!]) {
-                result[selectKey] = injectTypenames(selectValue, ObjectMap[nestedValue!]!.format.gqlRelMap);
+            if (selectValue && FormatMap[nestedValue!]) {
+                result[selectKey] = injectTypenames(selectValue, FormatMap[nestedValue!]!.gqlRelMap);
             }
         }
         // If union, add each possible type to the result
@@ -45,9 +45,9 @@ export const injectTypenames = <
             // Iterate over possible types
             for (const [_, type] of Object.entries(nestedValue)) {
                 // If type is in selectValue, add it to the result
-                if (selectValue[type!] && ObjectMap[type!]) {
+                if (selectValue[type!] && FormatMap[type!]) {
                     if (!result[selectKey]) result[selectKey] = {};
-                    result[selectKey][type!] = injectTypenames(selectValue[type!], ObjectMap[type!]!.format.gqlRelMap);
+                    result[selectKey][type!] = injectTypenames(selectValue[type!], FormatMap[type!]!.gqlRelMap);
                 }
             }
         }

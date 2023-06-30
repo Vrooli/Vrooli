@@ -1,8 +1,6 @@
-import { EmailResetPasswordInput, emailResetPasswordSchema, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
 import { Button, Grid } from "@mui/material";
-import { authEmailResetPassword } from "api/generated/endpoints/auth_emailResetPassword";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -10,6 +8,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResetPasswordFormProps } from "forms/types";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formPaper, formSubmit } from "../../styles";
 
@@ -18,7 +17,7 @@ export const ResetPasswordForm = ({
 }: ResetPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useCustomMutation<Session, EmailResetPasswordInput>(authEmailResetPassword);
+    const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointPostAuthEmailResetPassword);
 
     // Get userId and code from url. Should be set if coming from email link
     const { userId, code } = useMemo(() => {
@@ -34,9 +33,7 @@ export const ResetPasswordForm = ({
             <TopBar
                 display="dialog"
                 onClose={onClose}
-                titleData={{
-                    titleKey: "ResetPassword",
-                }}
+                title={t("ResetPassword")}
             />
             <Formik
                 initialValues={{
@@ -49,9 +46,9 @@ export const ResetPasswordForm = ({
                         PubSub.get().publishSnack({ messageKey: "InvalidResetPasswordUrl", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Session, EmailResetPasswordInput>({
-                        mutation: emailResetPassword,
-                        input: { id: userId, code, newPassword: values.newPassword },
+                    fetchLazyWrapper<EmailResetPasswordInput, Session>({
+                        fetch: emailResetPassword,
+                        inputs: { id: userId, code, newPassword: values.newPassword },
                         onSuccess: (data) => {
                             PubSub.get().publishSession(data);
                             setLocation(LINKS.Home);
@@ -64,10 +61,11 @@ export const ResetPasswordForm = ({
             >
                 {(formik) => <BaseForm
                     dirty={formik.dirty}
+                    display={"dialog"}
                     isLoading={loading}
                     style={{
-                        display: "block",
                         ...formPaper,
+                        paddingBottom: "unset",
                     }}
                 >
                     <Grid container spacing={2}>
@@ -94,6 +92,7 @@ export const ResetPasswordForm = ({
                         disabled={loading}
                         type="submit"
                         color="secondary"
+                        variant="contained"
                         sx={{ ...formSubmit }}
                     >
                         {t("Submit")}

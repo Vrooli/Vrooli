@@ -14,10 +14,9 @@ export const GridActionButtons = ({
         <Grid container spacing={2} sx={{
             padding: 2,
             paddingTop: 0,
-            marginLeft: "auto",
-            marginRight: "auto",
-            maxWidth: "min(700px, 100%)",
-            left: display === "page" ? undefined : 0,
+            marginLeft: display === "page" ? "auto" : 0,
+            marginRight: display === "page" ? "auto" : 0,
+            maxWidth: display === "page" ? "min(700px, 100%)" : "100%",
             zIndex: 1,
             // Position is sticky when used for a page or for large screens, and static when used for a dialog
             position: { xs: display === "page" ? "sticky" : "fixed", sm: "sticky" },
@@ -28,6 +27,9 @@ export const GridActionButtons = ({
             // and a solid color when used for a dialog
             background: display === "page" ? "transparent" : palette.primary.dark,
             backdropFilter: display === "page" ? "blur(5px)" : undefined,
+            "@media print": {
+                display: "none",
+            },
         }}
         >
             {children}

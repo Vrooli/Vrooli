@@ -5,7 +5,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type BookmarkListShape = Pick<BookmarkList, "id" | "label"> & {
     __typename?: "BookmarkList";
-    bookmarks?: { id: string }[] | BookmarkShape[] | null;
+    bookmarks?: BookmarkShape[] | null;
 }
 
 export const shapeBookmarkList: ShapeModel<BookmarkListShape, BookmarkListCreateInput, BookmarkListUpdateInput> = {

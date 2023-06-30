@@ -1,7 +1,8 @@
 import { SearchIcon } from "@local/shared";
-import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +12,7 @@ import { LinkInputProps } from "../types";
 export const LinkInput = ({
     label,
     name = "link",
+    onObjectData,
     zIndex,
 }: LinkInputProps) => {
     const { palette } = useTheme();
@@ -19,11 +21,13 @@ export const LinkInput = ({
     const textFieldRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
-    // Search dialog to find objects. to link to
+    // Search dialog to find objects to link to
+    const hasSelectedObject = useRef(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true); }, []);
     const closeSearch = useCallback((selectedUrl?: string) => {
         setSearchOpen(false);
+        hasSelectedObject.current = !!selectedUrl;
         if (selectedUrl) {
             helpers.setValue(selectedUrl);
         }
@@ -40,9 +44,15 @@ export const LinkInput = ({
             let displayData;
             try {
                 displayData = displayDataJson ? JSON.parse(displayDataJson) : null;
-            } catch (e) { }
+            } catch (e) { /* empty */ }
             if (displayData) {
                 let { title, subtitle } = getDisplay(displayData);
+                // Pass data to parent, in case we want to use it.
+                // Only do this if a new URL was selected, not for the initial value
+                if (hasSelectedObject.current) {
+                    onObjectData?.({ title, subtitle });
+                    hasSelectedObject.current = false;
+                }
                 // Limit subtitle to 100 characters
                 if (subtitle && subtitle.length > 100) {
                     subtitle = subtitle.substring(0, 100) + "...";
@@ -51,7 +61,7 @@ export const LinkInput = ({
             }
         }
         return {};
-    }, [field.value]);
+    }, [field.value, onObjectData]);
 
     return (
         <>
@@ -92,7 +102,7 @@ export const LinkInput = ({
                 {/* Title/Subtitle */}
                 {title && (
                     <Tooltip title={subtitle}>
-                        <Typography variant='body2' ml={1}>{title}{subtitle ? " - " + subtitle : ""}</Typography>
+                        <MarkdownDisplay sx={{ marginLeft: "8px" }} content={`${title}${subtitle ? " - " + subtitle : ""}`} />
                     </Tooltip>
                 )}
             </Box>

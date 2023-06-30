@@ -1,9 +1,9 @@
-import { CommentFor, EditIcon, FindVersionInput, StandardVersion, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetStandardVersion, StandardVersion, useLocation } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -12,11 +12,12 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -44,10 +45,11 @@ export const StandardView = ({
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
-        query: standardVersionFindOne,
+    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
+        ...endpointGetStandardVersion,
         partialData,
     });
 
@@ -88,9 +90,13 @@ export const StandardView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Standard",
-                }}
+                title={firstString(name, t("Standard"))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                    zIndex={zIndex}
+                />}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -123,15 +129,6 @@ export const StandardView = ({
                         </ColorIconButton>
                     ) : null}
                 </Stack>
-                <ObjectTitle
-                    language={language}
-                    languages={availableLanguages}
-                    loading={isLoading}
-                    title={name}
-                    setLanguage={setLanguage}
-                    translations={existing?.translations ?? []}
-                    zIndex={zIndex}
-                />
                 {/* Relationships */}
                 <RelationshipList
                     isEditing={false}
@@ -143,6 +140,7 @@ export const StandardView = ({
                     title={"Resources"}
                     list={resourceList as any}
                     canUpdate={false}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
                     zIndex={zIndex}

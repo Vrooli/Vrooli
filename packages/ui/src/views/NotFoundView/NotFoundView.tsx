@@ -11,9 +11,7 @@ export const NotFoundView = () => {
             <TopBar
                 display="page"
                 onClose={() => { }}
-                titleData={{
-                    title: t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" }),
-                }}
+                title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
             />
             <Box
                 sx={{
@@ -28,7 +26,7 @@ export const NotFoundView = () => {
                 <h3>{t("PageNotFoundDetails", { ns: "error", defaultValue: "PageNotFoundDetails" })}</h3>
                 <br />
                 <Link to={LINKS.Home}>
-                    <Button>{t("GoToHome")}</Button>
+                    <Button variant="contained">{t("GoToHome")}</Button>
                 </Link>
             </Box>
         </>

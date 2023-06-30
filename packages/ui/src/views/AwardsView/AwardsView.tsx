@@ -1,17 +1,16 @@
-import { useQuery } from "@apollo/client";
-import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult } from "@local/shared";
+import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult, endpointPostAwards } from "@local/shared";
 import { Stack } from "@mui/material";
-import { awardFindMany } from "api/generated/endpoints/award_findMany";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { AwardCard } from "components/lists/AwardCard/AwardCard";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AwardDisplay, Wrap } from "types";
+import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useFetch } from "utils/hooks/useFetch";
 import { SessionContext } from "utils/SessionContext";
 import { AwardsViewProps } from "views/types";
 
@@ -40,12 +39,14 @@ export const AwardsView = ({
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
-    const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, "awards">, Wrap<AwardSearchInput, "input">>(awardFindMany, { variables: { input: {} }, errorPolicy: "all" });
-    useDisplayApolloError(error);
+    const { data, refetch, loading, errors } = useFetch<AwardSearchInput, AwardSearchResult>({
+        ...endpointPostAwards,
+    });
+    useDisplayServerError(errors);
     useEffect(() => {
         if (!data) return;
         // Add to awards array, and sort by award category
-        const myAwards = data.awards.edges.map(e => e.node).map(a => awardToDisplay(a, t));
+        const myAwards = data.edges.map(e => e.node).map(a => awardToDisplay(a, t));
         setAwards(a => [...a, ...myAwards].sort((a, b) => categoryList.indexOf(a.category) - categoryList.indexOf(b.category)));
     }, [data, lng, t]);
     console.log(awards);
@@ -55,10 +56,7 @@ export const AwardsView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Award",
-                    titleVariables: { count: 2 },
-                }}
+                title={t("Award", { count: 2 })}
             />
             <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
                 {/* Display earned awards as a list of tags. Press or hover to see description */}

@@ -28,36 +28,41 @@ export type SessionUserToken = Pick<SessionUser, "id" | "handle" | "hasPremium" 
     } | null;
 }
 
+/** All data stored in session */
+export type SessionData = {
+    /** Public API token, if present */
+    apiToken?: boolean;
+    /** True if the request is coming from a safe origin (e.g. our own frontend) */
+    fromSafeOrigin?: boolean;
+    /** True if user is logged in. False if not, or if token is invalid or for an API token */
+    isLoggedIn?: boolean;
+    /**
+     * Preferred languages to display errors, push notifications, etc. in. 
+     * Always has at least one language
+     */
+    languages: string[];
+    /** User's current time zone */
+    timeZone?: string;
+    /** Users logged in with this session (if isLoggedIn is true) */
+    users?: SessionUserToken[];
+    validToken?: boolean;
+}
+
+// Add session to socket
+declare module "socket.io" {
+    export interface Socket {
+        req: {
+            ip: string;
+        };
+        session: SessionData;
+    }
+}
+
 // Request type
 declare global {
     namespace Express {
         interface Request {
-            /**
-             * Public API token, if present
-             */
-            apiToken?: boolean;
-            /**
-             * True if the request is coming from a safe origin (e.g. our own frontend)
-             */
-            fromSafeOrigin?: boolean;
-            /**
-             * True if user is logged in. False if not, or if token is invalid or for an API token
-             */
-            isLoggedIn?: boolean;
-            /**
-             * Preferred languages to display errors, push notifications, etc. in. 
-             * Always has at least one language
-             */
-            languages: string[];
-            /**
-             * User's current time zone
-             */
-            timeZone?: string;
-            /**
-             * Users logged in with this session (if isLoggedIn is true)
-             */
-            users?: SessionUserToken[];
-            validToken?: boolean;
+            session: SessionData;
         }
     }
 }

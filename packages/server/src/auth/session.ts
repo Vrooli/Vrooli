@@ -1,7 +1,7 @@
 import { getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
 import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
-import { PrismaType, SessionUserToken } from "../types";
+import { PrismaType, SessionData, SessionUserToken } from "../types";
 import { getUser } from "./request";
 
 export const focusModeSelect = (startDate: Date, endDate: Date) => ({
@@ -138,7 +138,7 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
  */
 export const toSessionUser = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> => {
     if (!user.id)
-        throw new CustomError("0064", "NotFound", req.languages ?? ["en"]);
+        throw new CustomError("0064", "NotFound", req.session?.languages ?? ["en"]);
     // Create time frame to find schedule data for. 
     const now = new Date();
     const startDate = now;
@@ -183,7 +183,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         },
     });
     // Find active focus mode
-    const currentActiveFocusMode = getUser(req)?.activeFocusMode;
+    const currentActiveFocusMode = getUser(req.session as SessionData)?.activeFocusMode;
     const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
     const activeFocusMode = getActiveFocusMode(
         currentModeData ? {
@@ -195,7 +195,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
     let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];
-    if (req.languages) languages.push(...req.languages);
+    if (req.session?.languages) languages.push(...req.session.languages);
     languages = [...new Set(languages)];
     // Return shaped SessionUser object
     const result = {
@@ -275,6 +275,6 @@ export const toSession = async (user: { id: string }, prisma: PrismaType, req: P
         __typename: "Session" as const,
         isLoggedIn: true,
         // Make sure users are unique by id
-        users: [sessionUser, ...(req.users ?? []).filter((u: SessionUserToken) => u.id !== sessionUser.id).map(sessionUserTokenToUser)],
+        users: [sessionUser, ...(req.session?.users ?? []).filter((u: SessionUserToken) => u.id !== sessionUser.id).map(sessionUserTokenToUser)],
     };
 };

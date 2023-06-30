@@ -1,5 +1,5 @@
 import { DUMMY_ID, nodeTranslationValidation, NodeType, nodeValidation, orDefault, RoutineVersion, Session, uuid } from "@local/shared";
-import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
+import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
@@ -7,6 +7,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -86,19 +87,12 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={500}
                 ref={ref}
-                style={{
-                    display: "block",
-                    minWidth: "400px",
-                    maxWidth: "700px",
-                    marginBottom: "64px",
-                }}
             >
-                <Stack direction="column" spacing={4} sx={{
-                    margin: 2,
-                    marginBottom: 4,
-                }}>
+                <FormContainer>
                     <EditableTextCollapse
                         component='TranslatedTextField'
                         isEditing={isEditing}
@@ -116,6 +110,9 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                         name="description"
                         props={{
                             language,
+                            maxChars: 2048,
+                            minRows: 4,
+                            maxRows: 8,
                             zIndex,
                         }}
                         title={t("Description")}
@@ -136,7 +133,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                             }
                         />
                     </Tooltip>
-                </Stack>
+                </FormContainer>
             </BaseForm>
             <GridSubmitButtons
                 display={display}

@@ -1,4 +1,4 @@
-import { OptionalTranslation } from "types";
+import { TitleProps } from "components/text/types";
 import { ViewDisplayType } from "views/types";
 
 export interface ContactInfoProps {
@@ -7,6 +7,8 @@ export interface ContactInfoProps {
 
 export type NavbarProps = {
     title?: string | undefined;
+    /** Replaces title if provided */
+    titleComponent?: JSX.Element;
     help?: string | undefined;
     below?: JSX.Element | boolean | undefined;
     shouldHideTitle?: boolean;
@@ -25,9 +27,10 @@ export interface HideOnScrollProps {
 
 export type SettingsTopBarProps = Omit<TopBarProps, "below">
 
-export interface TopBarProps {
+export interface TopBarProps extends Omit<TitleProps, "variant"> {
     display: ViewDisplayType
     onClose: () => void,
-    titleData?: OptionalTranslation & { hideOnDesktop?: boolean, titleId?: string },
     below?: JSX.Element | boolean
+    hideTitleOnDesktop?: boolean,
+    titleId?: string
 }

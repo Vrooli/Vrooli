@@ -1,6 +1,6 @@
 import { BUSINESS_NAME, LINKS, useLocation } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
-import { Header } from "components/text/Header/Header";
+import { Title } from "components/text/Title/Title";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
 import { noSelect } from "styles";
 import { useDimensions } from "utils/hooks/useDimensions";
@@ -31,6 +31,7 @@ import { NavbarLogoState, NavbarProps } from "../types";
 export const Navbar = forwardRef(({
     shouldHideTitle = false,
     title,
+    titleComponent,
     help,
     below,
 }: NavbarProps, ref) => {
@@ -45,9 +46,9 @@ export const Navbar = forwardRef(({
     // Determine display texts and states
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const { logoState } = useMemo(() => {
-        const logoState: NavbarLogoState = (isMobile && title) ? "icon" : "full";
+        const logoState: NavbarLogoState = (isMobile && (title || titleComponent)) ? "icon" : "full";
         return { logoState };
-    }, [isMobile, title]);
+    }, [isMobile, title, titleComponent]);
 
     const isLeftHanded = useIsLeftHanded();
 
@@ -76,7 +77,15 @@ export const Navbar = forwardRef(({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box id='navbar' ref={ref} sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box
+            id='navbar'
+            ref={ref}
+            sx={{
+                paddingTop: `${Math.max(dimensions.height, 64)}px`,
+                "@media print": {
+                    display: "none",
+                },
+            }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}
@@ -88,7 +97,6 @@ export const Navbar = forwardRef(({
                         position: "fixed", // Allows items to be displayed below the navbar
                         zIndex: 300,
                     }}>
-                    {/* <Toolbar> */}
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
                         paddingLeft: 1,
                         paddingRight: 1,
@@ -103,7 +111,12 @@ export const Navbar = forwardRef(({
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
-                        {isMobile && title && <Header help={help} title={title} />}
+                        {isMobile && title && !titleComponent && <Title
+                            help={help}
+                            title={title}
+                            variant="header"
+                        />}
+                        {isMobile && titleComponent}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
                             marginLeft: "auto",
                             maxHeight: "100%",
@@ -113,14 +126,15 @@ export const Navbar = forwardRef(({
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}
                     {isMobile && below}
-                    {/* </Toolbar> */}
                 </AppBar>
             </HideOnScroll>
             {/* Title displayed here on desktop */}
-            {!isMobile && title && !shouldHideTitle && <Header
+            {!isMobile && title && !titleComponent && !shouldHideTitle && <Title
                 help={help}
                 title={title}
+                variant="header"
             />}
+            {!isMobile && !shouldHideTitle && titleComponent}
             {/* "below" and title displayered here on desktop */}
             {!isMobile && below}
         </Box>

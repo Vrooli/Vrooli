@@ -1,14 +1,12 @@
-import { FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
-import { organizationCreate } from "api/generated/endpoints/organization_create";
-import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
-import { organizationUpdate } from "api/generated/endpoints/organization_update";
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { endpointGetOrganization, endpointPostOrganization, endpointPutOrganization, FindByIdInput, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -22,28 +20,27 @@ export const OrganizationUpsert = ({
     onCompleted,
     zIndex = 200,
 }: OrganizationUpsertProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Organization, FindByIdInput>(organizationFindOne);
-    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
+    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Organization>(endpointGetOrganization);
+    useEffect(() => { id && getData({ id }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => organizationInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Organization>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useCustomMutation<Organization, OrganizationCreateInput>(organizationCreate);
-    const [update, { loading: isUpdateLoading }] = useCustomMutation<Organization, OrganizationUpdateInput>(organizationUpdate);
-    const mutation = isCreate ? create : update;
+    const [create, { loading: isCreateLoading }] = useLazyFetch<OrganizationCreateInput, Organization>(endpointPostOrganization);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<OrganizationUpdateInput, Organization>(endpointPutOrganization);
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<OrganizationCreateInput | OrganizationUpdateInput, Organization>;
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                titleData={{
-                    titleKey: isCreate ? "CreateOrganization" : "UpdateOrganization",
-                }}
+                title={t(isCreate ? "CreateOrganization" : "UpdateOrganization")}
             />
             <Formik
                 enableReinitialize={true}
@@ -53,9 +50,9 @@ export const OrganizationUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
-                    mutationWrapper<Organization, OrganizationCreateInput | OrganizationUpdateInput>({
-                        mutation,
-                        input: transformOrganizationValues(values, existing),
+                    fetchLazyWrapper<OrganizationCreateInput | OrganizationUpdateInput, Organization>({
+                        fetch,
+                        inputs: transformOrganizationValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });

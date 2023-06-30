@@ -12,7 +12,7 @@
 # -h: Show this help message
 # -g: Generate GraphQL tags for queries/mutations
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Read arguments
 while getopts "v:d:hg:" opt; do
@@ -27,7 +27,7 @@ while getopts "v:d:hg:" opt; do
         GRAPHQL_GENERATE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-g GRAPHQL_GENERATE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
         echo "  -h --help: Show this help message"
@@ -47,7 +47,7 @@ done
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. Exiting..."
     exit 1
@@ -142,7 +142,7 @@ if [ -z "$GRAPHQL_GENERATE" ]; then
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
-    ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
+    NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
         error "Failed to generate query/mutation selectors"
         echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
@@ -240,6 +240,18 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Send docker images to Docker Hub
+prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
+read -n1 -r SEND_TO_DOCKER_HUB
+echo
+if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
+    . "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+    if [ $? -ne 0 ]; then
+        error "Failed to send Docker images to Docker Hub"
+        exit 1
+    fi
+fi
+
 # Copy build to VPS
 if [ -z "$DEPLOY" ]; then
     prompt "Build successful! Would you like to send the build to the production server? (y/N)"
@@ -248,7 +260,7 @@ if [ -z "$DEPLOY" ]; then
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
-    source "${HERE}/keylessSsh.sh"
+    . "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s

@@ -82,6 +82,20 @@ export enum MemberManagePageTabOption {
     MemberInvites = "MemberInvites",
 }
 
+export enum MyStuffPageTabOption {
+    Apis = "Apis",
+    Notes = "Notes",
+    Organizations = "Organizations",
+    Projects = "Projects",
+    Questions = "Questions",
+    Reminders = "Reminders",
+    Routines = "Routines",
+    SmartContracts = "SmartContracts",
+    Schedules = "Schedules",
+    Standards = "Standards",
+    Users = "Users",
+}
+
 export enum SearchPageTabOption {
     Apis = "Apis",
     Notes = "Notes",
@@ -95,6 +109,7 @@ export enum SearchPageTabOption {
 }
 
 export enum CalendarPageTabOption {
+    All = "All",
     FocusModes = "FocusModes",
     Meetings = "Meetings",
     RunProjects = "RunProjects",

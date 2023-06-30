@@ -1,7 +1,7 @@
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, NodeRoutineListItem } from "@local/shared";
 import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
@@ -136,10 +136,9 @@ export const RoutineListNode = ({
         };
     }, [language, node]);
 
-    const minNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale), [scale]);
-    const maxNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale) * 2, [scale]);
+    const nodeSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.RoutineList, scale) * 2}px, 20vw), 500px)`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
-    const addSize = useMemo(() => `max(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 48px)`, [scale]);
+    const addSize = useMemo(() => `max(min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 4}px, 48px), 24px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
         PubSub.get().publishAlertDialog({
@@ -197,7 +196,12 @@ export const RoutineListNode = ({
                     <IconButton
                         id={`${label ?? ""}-edit-option`}
                         size="small"
-                        sx={{ ...routineNodeCheckboxOption }}
+                        sx={{
+                            ...routineNodeCheckboxOption,
+                            "@media print": {
+                                display: "none",
+                            },
+                        }}
                         disabled={!isEditing}
                     >
                         <EditIcon fill={palette.background.textPrimary} />
@@ -245,7 +249,7 @@ export const RoutineListNode = ({
             onTouchStart={handleSubroutineAdd}
             background='#6daf72'
             sx={{
-                boxShadow: 12,
+                boxShadow: 2,
                 width: addSize,
                 height: addSize,
                 position: "relative",
@@ -255,6 +259,9 @@ export const RoutineListNode = ({
                 alignItems: "center",
                 color: "white",
                 borderRadius: "100%",
+                "@media print": {
+                    display: "none",
+                },
             }}
         >
             <AddIcon />
@@ -294,8 +301,7 @@ export const RoutineListNode = ({
                 dragThreshold={DRAG_THRESHOLD}
                 sx={{
                     zIndex: 5,
-                    minWidth: `${minNodeSize}px`,
-                    maxWidth: collapseOpen ? `${maxNodeSize}px` : `${minNodeSize}px`,
+                    width: nodeSize,
                     position: "relative",
                     display: "block",
                     borderRadius: "12px",
@@ -303,6 +309,10 @@ export const RoutineListNode = ({
                     backgroundColor: palette.background.paper,
                     color: palette.background.textPrimary,
                     boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
+                    "@media print": {
+                        border: `1px solid ${palette.mode === "light" ? palette.primary.dark : palette.secondary.dark}`,
+                        boxShadow: "none",
+                    },
                 }}
             >
                 <>
@@ -331,7 +341,7 @@ export const RoutineListNode = ({
                             }}
                         >
                             {
-                                canExpand && minNodeSize > 100 && (
+                                canExpand && scale > -2 && (
                                     <IconButton
                                         id={`toggle-expand-icon-button-${node.id}`}
                                         aria-label={collapseOpen ? "Collapse" : "Expand"}
@@ -353,8 +363,12 @@ export const RoutineListNode = ({
                                     lineBreak: "anywhere" as any,
                                     whiteSpace: "pre" as any,
                                     fontSize,
-                                    display: (calculateNodeSize(NodeWidth.RoutineList, scale) / 8) < 10 ? "none" : "block",
-                                } as CSSProperties}
+                                    display: scale < -2 ? "none" : "block",
+                                    "@media print": {
+                                        textShadow: "none",
+                                        color: "black",
+                                    },
+                                }}
                             >{firstString(label, t("Unlinked"))}</Typography>}
                             {
                                 isEditing && (

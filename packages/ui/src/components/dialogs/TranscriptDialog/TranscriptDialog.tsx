@@ -19,6 +19,7 @@ const waveBarSx = (palette: Palette) => ({
 export const TranscriptDialog = ({
     handleClose,
     isListening,
+    showHint,
     transcript,
 }: TranscriptDialogProps) => {
     const { t } = useTranslation();
@@ -49,7 +50,7 @@ export const TranscriptDialog = ({
                 </Box>
                 {/* Centered transcript */}
                 <Typography align="center" variant="h6">
-                    {transcript}
+                    {transcript.length > 0 ? transcript : showHint ? t("SpeakClearly") : ""}
                 </Typography>
             </DialogContent>
         </Dialog>

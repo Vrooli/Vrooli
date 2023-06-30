@@ -15,7 +15,7 @@
 # -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
 # -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Read arguments
 SETUP_ARGS=()
@@ -160,7 +160,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p -e y
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -190,5 +190,6 @@ docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-pr
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"
 info "- Manually check that the site is working correctly"
+info "- Make sure that all environment variables are correct (e.g. Stripe keys), if you haven't already"
 info "- Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
 info "- Let everyone on social media know that you've deployed a new version of Vrooli!"

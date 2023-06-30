@@ -1,9 +1,9 @@
-import { CopyInput, CopyResult, CopyType, exists } from "@local/shared";
-import { mutationWrapper, useCustomMutation } from "api";
-import { copyCopy } from "api/generated/endpoints/copy_copy";
+import { CopyInput, CopyResult, CopyType, endpointPostCopy, exists } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
+import { useLazyFetch } from "./useLazyFetch";
 
 type UseCopierProps = {
     objectId: string | null | undefined;
@@ -21,7 +21,7 @@ export const useCopier = ({
     objectType,
     onActionComplete,
 }: UseCopierProps) => {
-    const [copy] = useCustomMutation<CopyResult, CopyInput>(copyCopy);
+    const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
 
     const hasCopyingSupport = exists(CopyType[objectType]);
 
@@ -35,9 +35,9 @@ export const useCopier = ({
             PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }
-        mutationWrapper<CopyResult, CopyInput>({
-            mutation: copy,
-            input: { id: objectId, intendToPullRequest: true, objectType: CopyType[objectType] },
+        fetchLazyWrapper<CopyInput, CopyResult>({
+            fetch: copy,
+            inputs: { id: objectId, intendToPullRequest: true, objectType: CopyType[objectType] },
             successMessage: () => ({ messageKey: "CopySuccess", messageVariables: { objectName: objectName ?? "" } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data); },
         });

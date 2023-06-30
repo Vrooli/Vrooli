@@ -1,11 +1,18 @@
 import { exists, isObject } from "@local/shared";
 import fs from "fs";
 import pkg from "lodash";
+import { logger } from "../events";
 import { CustomError } from "../events/error";
 
 const { flatten } = pkg;
 
-const profanity = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`).toString().split("\n");
+let profanity: string[] = [];
+const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
+if (fs.existsSync(profanityFile)) {
+    profanity = fs.readFileSync(profanityFile, "utf8").toString().split("\n");
+} else {
+    logger.error(`Could not find private key at ${profanityFile}`);
+}
 // Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
 const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join("|"), "gi");
 

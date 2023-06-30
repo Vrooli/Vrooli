@@ -5,7 +5,7 @@
 # 2. database is empty
 # NOTE 2: This script should be run from the server's docker container.
 HERE=$(dirname $0)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 PRISMA_SCHEMA_FILE="dist/db/schema.prisma"
 

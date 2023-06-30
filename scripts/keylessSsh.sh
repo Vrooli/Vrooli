@@ -2,14 +2,14 @@
 # This script sets up keyless SSH access to a remote server
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Connection timeout in seconds
 CONN_TIMEOUT=10
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. Exiting..."
     exit 1

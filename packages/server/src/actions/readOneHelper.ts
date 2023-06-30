@@ -3,8 +3,7 @@ import { getUser } from "../auth";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";
 import { getIdFromHandle, getLatestVersion } from "../getters";
-import { ObjectMap } from "../models";
-import { ViewModel } from "../models/view";
+import { ObjectMap, ViewModel } from "../models/base";
 import { RecursivePartial } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { permissionsCheck } from "../validators";
@@ -21,15 +20,15 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     prisma,
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    const userData = getUser(req);
+    const userData = getUser(req.session);
     const model = ObjectMap[objectType];
-    if (!model) throw new CustomError("0350", "InternalError", req.languages, { objectType });
+    if (!model) throw new CustomError("0350", "InternalError", req.session.languages, { objectType });
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
     // Between these, the possible fields are id, idRoot, handle, and handleRoot
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
-        throw new CustomError("0019", "IdOrHandleRequired", userData?.languages ?? req.languages);
+        throw new CustomError("0019", "IdOrHandleRequired", userData?.languages ?? req.session.languages);
     // Partially convert info
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
@@ -45,7 +44,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
         id = input.id;
     }
     if (!id)
-        throw new CustomError("0434", "NotFound", userData?.languages ?? req.languages, { objectType });
+        throw new CustomError("0434", "NotFound", userData?.languages ?? req.session.languages, { objectType });
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     // Check permissions
@@ -55,9 +54,9 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     try {
         object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
         if (!object)
-            throw new CustomError("0022", "NotFound", userData?.languages ?? req.languages, { objectType });
+            throw new CustomError("0022", "NotFound", userData?.languages ?? req.session.languages, { objectType });
     } catch (error) {
-        throw new CustomError("0435", "NotFound", userData?.languages ?? req.languages, { objectType, error });
+        throw new CustomError("0435", "NotFound", userData?.languages ?? req.session.languages, { objectType, error });
     }
     // Return formatted for GraphQL
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;

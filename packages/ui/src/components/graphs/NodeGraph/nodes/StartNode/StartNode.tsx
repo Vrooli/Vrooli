@@ -1,5 +1,5 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
-import { CSSProperties, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import usePress from "utils/hooks/usePress";
@@ -28,20 +28,21 @@ export const StartNode = ({
         return null;
     }, [linksOut.length]);
 
-    const nodeSize = useMemo(() => calculateNodeSize(NodeWidth.Start, scale), [scale]);
+    const nodeSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.Start, scale) * 2}px, 5vw), 150px)`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.Start, scale) / 2}px, 1.5em)`, [scale]);
 
-    const labelObject = useMemo(() => labelVisible && nodeSize > 75 ? (
+    const labelObject = useMemo(() => labelVisible && scale > -2 ? (
         <Typography
             variant="h6"
             sx={{
                 ...noSelect,
                 ...nodeLabel,
-                fontSize: `min(${nodeSize / 5}px, 2em)`,
-            } as CSSProperties}
+                fontSize,
+            }}
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, nodeSize, label]);
+    ) : null, [labelVisible, scale, fontSize, label]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -75,8 +76,8 @@ export const StartNode = ({
                     {...pressEvents}
                     sx={{
                         boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                        width: `max(${nodeSize}px, 48px)`,
-                        height: `max(${nodeSize}px, 48px)`,
+                        width: nodeSize,
+                        height: nodeSize,
                         position: "relative",
                         display: "block",
                         backgroundColor: palette.mode === "light" ? "#259a17" : "#387e30",
@@ -85,6 +86,10 @@ export const StartNode = ({
                         "&:hover": {
                             filter: "brightness(120%)",
                             transition: "filter 0.2s",
+                        },
+                        "@media print": {
+                            border: `1px solid ${palette.mode === "light" ? "#259a17" : "#387e30"}`,
+                            boxShadow: "none",
                         },
                     }}
                 >

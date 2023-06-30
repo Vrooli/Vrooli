@@ -1,5 +1,5 @@
 import { LinearProgress } from "@mui/material";
-import Markdown from "markdown-to-jsx";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useMemo } from "react";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { TextCollapseProps } from "../types";
@@ -35,7 +35,7 @@ export function TextCollapse({
             onOpenChange={onOpenChange}
             title={title}
         >
-            {text ? <Markdown style={{ marginTop: 0 }}>{text}</Markdown> : lines}
+            {text ? <MarkdownDisplay sx={{ marginTop: 0 }} content={text} /> : lines}
         </ContentCollapse>
     );
 }

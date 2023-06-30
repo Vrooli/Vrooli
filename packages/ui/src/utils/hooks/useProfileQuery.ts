@@ -1,16 +1,17 @@
-import { User } from "@local/shared";
-import { useCustomLazyQuery } from "api";
-import { userProfile } from "api/generated/endpoints/user_profile";
+import { endpointGetProfile, User } from "@local/shared";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { SessionContext } from "utils/SessionContext";
+import { useDisplayServerError } from "./useDisplayServerError";
+import { useLazyFetch } from "./useLazyFetch";
 
 export const useProfileQuery = () => {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: 'all' });
+    const [getData, { data, loading: isProfileLoading, errors }] = useLazyFetch<any, User>(endpointGetProfile);
+    useDisplayServerError(errors);
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
-    }, [getData, session])
+    }, [getData, session]);
     const [profile, setProfile] = useState<User | undefined>(undefined);
     useEffect(() => {
         if (data) setProfile(data);
@@ -22,6 +23,6 @@ export const useProfileQuery = () => {
     return {
         onProfileUpdate,
         isProfileLoading,
-        profile
-    }
-}
+        profile,
+    };
+};

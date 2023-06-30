@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { PrismaType } from "../types";
 
 export const DEFAULT_BATCH_SIZE = 100;

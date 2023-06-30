@@ -17,7 +17,7 @@ export async function countHelper<CountInput extends CountInputBase>({
     where,
     visibility = VisibilityType.Public,
 }: CountHelperProps<CountInput>): Promise<number> {
-    const userData = getUser(req);
+    const userData = getUser(req.session);
     // Create query for created metric
     const createdQuery = timeFrameToPrisma("created_at", input.createdTimeFrame);
     // Create query for created metric

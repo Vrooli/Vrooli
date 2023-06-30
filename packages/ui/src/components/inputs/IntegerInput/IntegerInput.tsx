@@ -23,12 +23,14 @@ type HoldRefs = {
 export const IntegerInput = ({
     autoFocus = false,
     disabled = false,
+    fullWidth = false,
     key,
     initial = 0,
     label = "Number",
-    max = 2097151,
-    min = -2097151,
+    max = Number.MAX_SAFE_INTEGER,
+    min = Number.MIN_SAFE_INTEGER,
     name,
+    offset = 0,
     step = 1,
     tooltip = "",
     ...props
@@ -107,8 +109,8 @@ export const IntegerInput = ({
                 </ColorIconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
-                    width: "60%",
-                    maxWidth: "12ch",
+                    width: fullWidth ? "100%" : "60%",
+                    maxWidth: fullWidth ? "100%" : "12ch",
                     height: "100%",
                     display: "grid",
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
@@ -118,7 +120,11 @@ export const IntegerInput = ({
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
                         sx={{
-                            color: palette.background.textSecondary,
+                            color: (field.value < min || field.value > max) ?
+                                palette.error.main :
+                                (field.value === min || field.value === max) ?
+                                    palette.warning.main :
+                                    palette.background.textSecondary,
                             paddingTop: "10px",
                         }}
                     >{label}</InputLabel>
@@ -135,10 +141,11 @@ export const IntegerInput = ({
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={field.value ?? 0}
-                        onChange={(e) => updateValue(e.target.value)}
+                        value={(field.value ?? 0) + offset}
+                        onChange={(e) => updateValue(Number(e.target.value) - offset)}
                         sx={{
                             color: palette.background.textPrimary,
+                            marginLeft: 1,
                         }}
                     />
                     {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
@@ -160,6 +167,6 @@ export const IntegerInput = ({
                     <PlusIcon />
                 </ColorIconButton>
             </Box>
-        </Tooltip>
+        </Tooltip >
     );
 };

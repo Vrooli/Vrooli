@@ -1,12 +1,9 @@
-import { useQuery } from "@apollo/client";
-import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { BookmarkFor, endpointGetTags, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
-import { tagFindMany } from "api/generated/endpoints/tag_findMany";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Wrap } from "types";
-import { useDebounce } from "utils/hooks/useDebounce";
+import { useFetch } from "utils/hooks/useFetch";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
 import { TagSelectorBaseProps } from "../types";
@@ -90,31 +87,29 @@ export const TagSelectorBase = ({
         });
     }, [tags]);
 
-    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, "tags">, Wrap<TagSearchInput, "input">>(tagFindMany, {
-        variables: {
-            input: {
-                // Exclude tags that have already been fully queried, and match the search string
-                // (i.e. in tag map, and have an ID)
-                excludeIds: tagsRef.current !== null ?
-                    Object.values(tagsRef.current)
-                        .filter(t => (t as Tag).id && t.tag.toLowerCase().includes(inputValue.toLowerCase()))
-                        .map(t => (t as Tag).id) as string[] :
-                    [],
-                searchString: inputValue,
-                sortBy: TagSortBy.Top,
-                take: 25,
-            },
+    const { data: autocompleteData } = useFetch<TagSearchInput, TagSearchResult>({
+        ...endpointGetTags,
+        debounceMs: 250,
+        inputs: {
+            // Exclude tags that have already been fully queried, and match the search string
+            // (i.e. in tag map, and have an ID)
+            excludeIds: tagsRef.current !== null ?
+                Object.values(tagsRef.current)
+                    .filter(t => (t as Tag).id && t.tag.toLowerCase().includes(inputValue.toLowerCase()))
+                    .map(t => (t as Tag).id) as string[] :
+                [],
+            searchString: inputValue,
+            sortBy: TagSortBy.Top,
+            take: 25,
         },
-    });
-    const debounceRefetch = useDebounce(() => refetchAutocomplete(), 250);
-    useEffect(() => { debounceRefetch({}); }, [debounceRefetch, inputValue]);
+    }, [inputValue]);
 
     /**
      * Store queried tags in the tag ref
      */
     useEffect(() => {
         if (!autocompleteData) return;
-        const queried = autocompleteData.tags.edges.map(({ node }) => node);
+        const queried = autocompleteData.edges.map(({ node }) => node);
         queried.forEach(tag => {
             if (!tagsRef.current) tagsRef.current = {};
             (tagsRef.current as TagsRef)[tag.tag] = tag;
@@ -124,7 +119,7 @@ export const TagSelectorBase = ({
     const autocompleteOptions: (TagShape | Tag)[] = useMemo(() => {
         if (!autocompleteData) return [];
         // Find queried
-        const queried = autocompleteData.tags.edges.map(({ node }) => node);
+        const queried = autocompleteData.edges.map(({ node }) => node);
         // Find already known, that match the search string
         const known = tagsRef.current ?
             Object.values(tagsRef.current)
@@ -144,6 +139,7 @@ export const TagSelectorBase = ({
         <Autocomplete
             id="tags-input"
             disabled={disabled}
+            disablePortal
             fullWidth
             multiple
             freeSolo={true}

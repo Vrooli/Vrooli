@@ -1,5 +1,5 @@
 import { LINKS, Route, RouteProps, Switch } from "@local/shared";
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
@@ -34,6 +34,7 @@ const { WelcomeView } = lazily(() => import("./views/WelcomeView/WelcomeView"));
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
+const { ChatView } = lazily(() => import("./views/ChatView/ChatView"));
 const { FormView } = lazily(() => import("./views/wrapper/FormView"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
@@ -41,7 +42,7 @@ const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { StartView } = lazily(() => import("./views/StartView/StartView"));
 const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
-const { BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
+const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
 const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
@@ -101,6 +102,7 @@ const viewProps = ({
 });
 
 export const Routes = (props: { sessionChecked: boolean }) => {
+    const { palette } = useTheme();
 
     return (
         <>
@@ -111,6 +113,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <AboutView {...viewProps} />
@@ -127,6 +130,12 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView {...viewProps} />
                 </NavRoute>
+                <NavRoute path={`${LINKS.BookmarkList}/add`} mustBeLoggedIn={true} {...props}>
+                    <BookmarkListUpsert {...viewProps} isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.BookmarkList}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <BookmarkListUpsert {...viewProps} isCreate={false} />
+                </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/:id`} {...props}>
                     <BookmarkListView {...viewProps} />
                 </NavRoute>
@@ -142,6 +151,9 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <CreateView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Chat}/:id`} {...props}>
+                    <ChatView {...viewProps} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}
@@ -170,13 +182,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
                     <MyStuffView {...viewProps} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Note}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <NoteUpsert {...viewProps} isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Note}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <NoteUpsert {...viewProps} isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} {...props}>
+                <NavRoute path={`${LINKS.Note}/:rootId/:versionId?`} excludePageContainer {...props}>
                     <NoteView {...viewProps} />
                 </NavRoute>
                 <NavRoute
@@ -212,6 +224,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <PrivacyPolicyView {...viewProps} />
@@ -294,7 +307,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <SettingsPrivacyView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
-                    <SettingsFocusModesView{...viewProps} />
+                    <SettingsFocusModesView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
                     <SmartContractUpsert {...viewProps} isCreate={true} />
@@ -337,6 +350,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <TermsView {...viewProps} />

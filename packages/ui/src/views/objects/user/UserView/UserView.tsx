@@ -1,11 +1,10 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, BotIcon, CommentIcon, EditIcon, EllipsisIcon, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { useCustomLazyQuery } from "api";
-import { userFindOne } from "api/generated/endpoints/user_findOne";
-import { userProfile } from "api/generated/endpoints/user_profile";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -13,13 +12,16 @@ import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import Markdown from "markdown-to-jsx";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -65,13 +67,13 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userFindOne, { errorPolicy: "all" } as any);
-    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userProfile, { errorPolicy: "all" } as any);
+    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
     const [user, setUser] = useState<User | null | undefined>(null);
-    useDisplayApolloError(userError ?? profileError);
+    useDisplayServerError(userErrors ?? profileErrors);
     useEffect(() => {
-        const urlEnding = getLastUrlPart();
-        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ variables: { id: base36ToUuid(urlEnding) } as any });
+        const urlEnding = getLastUrlPart({});
+        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
         else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
     }, [getUserData, getProfileData]);
@@ -147,18 +149,7 @@ export const UserView = ({
      * Displays name, handle, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Avatar
                 src="/broken-image.jpg" //TODO
                 sx={{
@@ -173,7 +164,15 @@ export const UserView = ({
                     position: "absolute",
                     fontSize: "min(50px, 10vw)",
                 }}
-            />
+            >
+                {user?.isBot ? <BotIcon
+                    width="75%"
+                    height="75%"
+                /> : <UserIcon
+                    width="75%"
+                    height="75%"
+                />}
+            </Avatar>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -196,22 +195,15 @@ export const UserView = ({
                         <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : permissions.canUpdate ? (
-                        <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{name}</Typography>
-                            <Tooltip title="Edit profile">
-                                <IconButton
-                                    aria-label="Edit profile"
-                                    size="small"
-                                    onClick={onEdit}
-                                >
-                                    <EditIcon fill={palette.secondary.main} />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    ) : (
-                        <Typography variant="h4" textAlign="center">{name}</Typography>
-                    )
+                    ) : <Title
+                        title={name}
+                        variant="header"
+                        options={permissions.canUpdate ? [{
+                            label: t("Edit"),
+                            Icon: EditIcon,
+                            onClick: () => { actionData.onActionStart("Edit"); },
+                        }] : []}
+                    />
                 }
                 {/* Handle */}
                 {
@@ -242,7 +234,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Markdown variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? "No bio set"}</Markdown>
+                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -264,8 +256,8 @@ export const UserView = ({
                     <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>
             </Stack>
-        </Box>
-    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
+        </OverviewContainer>
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, handle, user, bio, zIndex, actionData]);
 
     /**
      * Opens add new page
@@ -279,9 +271,6 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "User",
-                }}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
@@ -337,6 +326,18 @@ export const UserView = ({
                     />
                 </Box>
             </Box>
+            <SideActionButtons
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                {/* Message button */}
+                {user?.isBot ? (
+                    <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={() => { }} >
+                        <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+            </SideActionButtons>
         </>
     );
 };

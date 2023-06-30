@@ -1,12 +1,13 @@
-import { AddIcon, CloseIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
-import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
+import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { Field, useField } from "formik";
+import { Title } from "components/text/Title/Title";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
 import { forwardRef } from "react";
@@ -20,8 +21,8 @@ export const scheduleInitialValues = (
 ): ScheduleShape => ({
     __typename: "Schedule" as const,
     id: DUMMY_ID,
-    startTime: null,
-    endTime: null,
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
     // Default to current timezone
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     exceptions: [],
@@ -64,14 +65,6 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
     const [exceptionsField, exceptionsMeta, exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
     const [recurrencesField, recurrencesMeta, recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
 
-    const clearStartTime = () => {
-        props.setFieldValue("startTime", "");
-    };
-
-    const clearEndTime = () => {
-        props.setFieldValue("endTime", "");
-    };
-
     const addNewRecurrence = () => {
         recurrencesHelpers.setValue([...recurrencesField.value, {
             __typename: "ScheduleRecurrence" as const,
@@ -99,16 +92,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     {canSetScheduleFor && <RelationshipList
@@ -117,71 +104,43 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />}
-                    <Subheader
+                    <Title
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
+                        variant="subheader"
                     />
                     <Stack direction="column" spacing={2}>
-                        <Field
-                            fullWidth
+                        <DateInput
                             name="startTime"
-                            label={"Start time (optional)"}
+                            label="Start time"
                             type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={clearStartTime}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            as={TextField}
                         />
-                        <Field
-                            fullWidth
+                        <DateInput
                             name="endTime"
-                            label={"End time (optional)"}
+                            label="End time"
                             type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={clearEndTime}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            as={TextField}
                         />
                         <TimezoneSelector name="timezone" label="Timezone" />
                     </Stack>
                     {/* Set up recurring events */}
-                    <Subheader
+                    <Title
                         title="Recurring events"
                         help="Recurring events are used to set up repeated occurrences of the event in the schedule, such as daily, weekly, monthly, or yearly. *Recurrence type* determines the frequency of the repetition. *Interval* is the number of units between repetitions (e.g., every 2 weeks). Depending on the recurrence type, you may need to specify additional information such as *Day of week*, *Day of month*, or *Month of year*. Optionally, you can set an *End date* for the recurrence."
+                        variant="subheader"
                     />
                     {recurrencesField.value.length ? <Box>
                         {recurrencesField.value.map((recurrence, index) => (
                             <Box sx={{
                                 borderRadius: 2,
-                                border: `2px solid ${palette.divider}`,
                                 marginBottom: 2,
-                                padding: 1,
+                                padding: 2,
+                                boxShadow: 2,
+                                background: palette.background.default,
                             }}>
                                 <Stack
                                     direction="row"
                                     alignItems="flex-start"
                                     spacing={2}
-                                    sx={{ boxShadow: 6 }}
                                 >
                                     <Stack spacing={1} sx={{ width: "100%" }}>
                                         <FormControl fullWidth>
@@ -250,13 +209,10 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                                 getOptionLabel={(option) => option.label}
                                             />
                                         )}
-                                        <TextField
-                                            fullWidth
-                                            label={"End date"}
+                                        <DateInput
+                                            name={`recurrences[${index}].endDate`}
+                                            label="End date"
                                             type="date"
-                                            value={recurrence.endDate ?? ""}
-                                            onChange={(e) => handleRecurrenceChange(index, "endDate", e.target.value)}
-                                            InputLabelProps={{ shrink: true }}
                                         />
                                     </Stack>
                                     <Stack spacing={1} width={32}>
@@ -276,6 +232,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                     <Button
                         onClick={addNewRecurrence}
                         startIcon={<AddIcon />}
+                        variant="outlined"
                         sx={{
                             display: "flex",
                             margin: "auto",

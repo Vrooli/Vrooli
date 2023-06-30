@@ -1,14 +1,16 @@
-import { AddIcon, CloseIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session } from "@local/shared";
-import { Box, Button, IconButton, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
+import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session, uuid } from "@local/shared";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
-import { forwardRef, useCallback } from "react";
+import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
@@ -80,7 +82,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         reminderItemsHelpers.setValue([
             ...reminderItemsField.value,
             {
-                id: Date.now(),
+                id: uuid(),
                 index: reminderItemsField.value.length,
                 name: "",
                 description: "",
@@ -104,77 +106,41 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         reminderItemsHelpers.setValue(newReminderItems);
     };
 
-    const clearDueDate = useCallback((index?: number) => {
-        // If no index is provided, clear the due date for the reminder
-        if (index === undefined) {
-            dueDateHelpers.setValue(null);
-        }
-        // Otherwise, we're clearing the due date for a specific reminder item (step)
-        else {
-            const newReminderItems = [...reminderItemsField.value];
-            newReminderItems[index].dueDate = null;
-            reminderItemsHelpers.setValue(newReminderItems);
-        }
-    }, [dueDateHelpers, reminderItemsField.value, reminderItemsHelpers]);
-
     return (
         <>
             <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
                     dirty={dirty}
+                    display={display}
                     isLoading={isLoading}
+                    maxWidth={600}
                     ref={ref}
-                    style={{
-                        display: "block",
-                        width: "min(500px, 100vw - 16px)",
-                        margin: "auto",
-                        paddingLeft: "env(safe-area-inset-left)",
-                        paddingRight: "env(safe-area-inset-right)",
-                        paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                    }}
                 >
-                    <Stack direction="column" spacing={4} sx={{
-                        margin: 2,
-                        marginBottom: 4,
-                    }}>
-                        <Stack direction="column" spacing={2}>
-                            <Field
-                                fullWidth
-                                name="name"
-                                label={t("Name")}
-                                as={TextField}
-                            />
-                            <MarkdownInput
-                                minRows={4}
-                                name="description"
-                                placeholder="Description (optional)"
-                                zIndex={zIndex}
-                            />
-                        </Stack>
+                    <FormContainer>
                         <Field
                             fullWidth
-                            name="dueDate"
-                            label={"Due date (optional)"}
-                            type="datetime-local"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                        <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={() => { clearDueDate(); }}>
-                                            <CloseIcon fill={palette.background.textPrimary} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
+                            name="name"
+                            label={t("Name")}
                             as={TextField}
                         />
+                        <MarkdownInput
+                            maxChars={2048}
+                            maxRows={10}
+                            minRows={4}
+                            name="description"
+                            placeholder="Description (optional)"
+                            zIndex={zIndex}
+                        />
+                        <DateInput
+                            name="dueDate"
+                            label="Due date (optional)"
+                            type="datetime-local"
+                        />
                         {/* Steps to complete reminder */}
-                        <Subheader
+                        <Title
                             Icon={ListNumberIcon}
                             title="Steps"
+                            variant="subheader"
                         />
                         <Droppable droppableId="reminderItems">
                             {(provided) => (
@@ -188,10 +154,10 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                         {...provided.draggableProps}
                                                         sx={{
                                                             borderRadius: 2,
-                                                            border: `2px solid ${palette.divider}`,
-                                                            boxShadow: 6,
+                                                            boxShadow: 4,
                                                             marginBottom: 2,
                                                             padding: 2,
+                                                            background: palette.background.default,
                                                         }}>
                                                         <Stack
                                                             direction="row"
@@ -205,31 +171,28 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                     label={t("Name")}
                                                                     as={TextField}
                                                                 />
-                                                                <Field
-                                                                    fullWidth
+                                                                <MarkdownInput
+                                                                    maxChars={2048}
+                                                                    maxRows={6}
+                                                                    minRows={2}
                                                                     name={`reminderItems[${i}].description`}
-                                                                    label={t("Description")}
-                                                                    as={TextField}
+                                                                    placeholder={t("Description")}
+                                                                    zIndex={zIndex}
                                                                 />
-                                                                <Field
-                                                                    fullWidth
+                                                                <DateInput
                                                                     name={`reminderItems[${i}].dueDate`}
-                                                                    label={"Due date (optional)"}
+                                                                    label="Due date (optional)"
                                                                     type="datetime-local"
-                                                                    InputProps={{
-                                                                        endAdornment: (
-                                                                            <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                                                                                <input type="hidden" />
-                                                                                <IconButton edge="end" size="small" onClick={() => { clearDueDate(i); }}>
-                                                                                    <CloseIcon fill={palette.background.textPrimary} />
-                                                                                </IconButton>
-                                                                            </InputAdornment>
-                                                                        ),
-                                                                    }}
-                                                                    InputLabelProps={{
-                                                                        shrink: true,
-                                                                    }}
-                                                                    as={TextField}
+                                                                />
+                                                                <FormControlLabel
+                                                                    control={<Field
+                                                                        name={`reminderItems[${i}].isComplete`}
+                                                                        type="checkbox"
+                                                                        as={Checkbox}
+                                                                        size="small"
+                                                                        color="secondary"
+                                                                    />}
+                                                                    label="Complete?"
                                                                 />
                                                             </Stack>
                                                             <Stack spacing={1} width={32}>
@@ -260,11 +223,12 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                         <Button
                             startIcon={<AddIcon />}
                             onClick={handleAddStep}
+                            variant="outlined"
                             sx={{ alignSelf: "center", mt: 1 }}
                         >
                             Add Step
                         </Button>
-                    </Stack>
+                    </FormContainer>
                 </BaseForm>
             </DragDropContext>
             <GridSubmitButtons

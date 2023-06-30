@@ -1,49 +1,45 @@
-import { EditIcon as CustomIcon, LinkIcon } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { AddIcon, CompleteIcon } from "@local/shared";
+import { Button, Checkbox, FormControlLabel, Grid, Tooltip, Typography } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
+import { StandardInput } from "../standards/StandardInput/StandardInput";
 import { StandardVersionSelectSwitchProps } from "../types";
 
-const grey = {
-    400: "#BFC7CF",
-    800: "#2F3A45",
-};
-
 export function StandardVersionSelectSwitch({
+    canUpdateStandardVersion,
     selected,
     onChange,
     disabled,
     zIndex,
-    ...props
 }: StandardVersionSelectSwitchProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
+    console.log("StandardVersionSelectSwitch", selected, onChange, disabled, zIndex);
+
+    const [usingStandard, setUsingStandard] = useState<boolean>(selected !== null);
 
     // Create dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
     const openCreateDialog = useCallback(() => { setIsCreateDialogOpen(true); }, [setIsCreateDialogOpen]);
     const closeCreateDialog = useCallback(() => { setIsCreateDialogOpen(false); }, [setIsCreateDialogOpen]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<any>) => {
-        if (disabled) return;
-        // If using custom data, remove standardVersion data
-        if (selected) {
-            onChange(null);
-        }
-        // Otherwise, open dialog to select standardVersion
-        else {
-            openCreateDialog();
-            ev.preventDefault();
-        }
-    }, [disabled, onChange, openCreateDialog, selected]);
-
-    const Icon = useMemo(() => selected ? LinkIcon : CustomIcon, [selected]);
+    const [isConnecting, setIsConnecting] = useState<boolean | null>(null);
+    const handleConnectClick = useCallback(() => {
+        setIsConnecting(true);
+        openCreateDialog();
+        // Remove create data, if any
+        onChange(null);
+    }, [onChange, openCreateDialog]);
+    const handleCreateClick = useCallback(() => {
+        setIsConnecting(false);
+        closeCreateDialog();
+        // Remove connect data, if any
+        onChange(null);
+    }, [onChange, closeCreateDialog]);
 
     return (
         <>
@@ -57,59 +53,69 @@ export function StandardVersionSelectSwitch({
                 zIndex={zIndex + 1}
             />
             {/* Main component */}
-            <Stack direction="row" spacing={1}>
-                <Typography variant="h6" sx={{ ...noSelect }}>{t("Standard", { count: 1 })}:</Typography>
-                <Box component="span" sx={{
-                    display: "inline-block",
-                    position: "relative",
-                    width: "64px",
-                    height: "36px",
-                    padding: "8px",
-                }}>
-                    {/* Track */}
-                    <Box component="span" sx={{
-                        backgroundColor: palette.mode === "dark" ? grey[800] : grey[400],
-                        borderRadius: "16px",
-                        width: "100%",
-                        height: "65%",
-                        display: "block",
-                    }}>
-                        {/* Thumb */}
-                        <ColorIconButton background={palette.secondary.main} sx={{
-                            display: "inline-flex",
-                            width: "30px",
-                            height: "30px",
-                            position: "absolute",
-                            top: 0,
-                            padding: "4px",
-                            transition: "transform 150ms cubic-bezier(0.4, 0, 0.2, 1)",
-                            transform: `translateX(${selected ? "24" : "0"}px)`,
-                        }}>
-                            <Icon width='30px' height='30px' fill="white" />
-                        </ColorIconButton>
-                    </Box>
-                    {/* Input */}
-                    <input
-                        type="checkbox"
-                        checked={Boolean(selected)}
-                        readOnly
-                        disabled={disabled}
-                        aria-label="custom-standard-toggle"
-                        onClick={handleClick}
-                        style={{
-                            position: "absolute",
-                            width: "100%",
-                            height: "100%",
-                            top: "0",
-                            left: "0",
-                            opacity: "0",
-                            zIndex: "1",
-                            margin: "0",
-                            cursor: "pointer",
-                        }} />
-                </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation(selected, getUserLanguages(session)).name : t("Custom")}</Typography>
-            </Stack>
+            <Grid container spacing={1}>
+                <Grid item xs={12} md={6}>
+                    <Tooltip placement={"right"} title='Should this be in a specific format?'>
+                        <FormControlLabel
+                            disabled={disabled}
+                            label='Use standard'
+                            control={
+                                <Checkbox
+                                    size="small"
+                                    name='usingStandard'
+                                    color='secondary'
+                                    checked={usingStandard}
+                                    onChange={(e) => setUsingStandard(e.target.checked)}
+                                />
+                            }
+                        />
+                    </Tooltip>
+                </Grid>
+                {usingStandard && (
+                    <>
+                        <Grid item xs={6} md={3}>
+                            <Button
+                                fullWidth
+                                color="secondary"
+                                onClick={handleConnectClick}
+                                variant="outlined"
+                                startIcon={isConnecting === true ? <CompleteIcon /> : undefined}
+                            >{t("Connect")}</Button>
+                        </Grid>
+                        <Grid item xs={6} md={3}>
+                            <Button
+                                fullWidth
+                                color="secondary"
+                                onClick={handleCreateClick}
+                                variant="outlined"
+                                startIcon={isConnecting === false ? <CompleteIcon /> : undefined}
+                            >{t("Create")}</Button>
+                        </Grid>
+                    </>
+                )}
+                <Grid item xs={12}>
+                    <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation(selected, getUserLanguages(session)).name : t("Custom")}</Typography>
+                </Grid>
+                {(selected && isConnecting === false) && (
+                    <Grid item xs={12}>
+                        <StandardInput
+                            disabled={!canUpdateStandardVersion}
+                            fieldName="preview"
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                )}
+                {/* Show button to open connect dialog, if closed without selecting a standard */}
+                {!selected && isConnecting === true && (
+                    <Button
+                        fullWidth
+                        color="secondary"
+                        onClick={handleCreateClick}
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                    >{t("Add")}</Button>
+                )}
+            </Grid>
         </>
     );
 }

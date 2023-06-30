@@ -1,5 +1,4 @@
-import { ReputationHistorySortBy } from "@local/shared";
-import { reputationHistoryFindMany } from "api/generated/endpoints/reputationHistory_findMany";
+import { endpointGetReputationHistories, ReputationHistorySortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const reputationHistorySearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc);
+export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), endpointGetReputationHistories, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc);

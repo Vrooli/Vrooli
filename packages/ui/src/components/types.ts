@@ -1,5 +1,24 @@
-import { SvgComponent } from "@local/shared";
+import { ChatMessage, SvgComponent, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
+
+export interface ChatBubbleProps {
+    message: ChatMessage & { isUnsent?: boolean }
+    index: number;
+    isOwn: boolean;
+    onUpdated: (message: ChatMessage & { isUnsent: boolean }) => void;
+    zIndex: number;
+}
+
+export interface ChatBubbleStatusProps {
+    isEditing: boolean;
+    /** Indicates if the message is still sending */
+    isSending: boolean;
+    /** Indicates if there has been an error in sending the message */
+    hasError: boolean;
+    onEdit: () => void;
+    onRetry: () => void;
+}
+
 
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
     isLoading?: boolean;
@@ -31,6 +50,11 @@ export interface PageTabsProps<T> {
     fullWidth?: boolean,
     onChange: (event: React.ChangeEvent<unknown>, value: any) => void,
     tabs: PageTab<T>[],
+}
+
+export interface ProfileGroupProps {
+    sx?: { [key: string]: any };
+    users: User[];
 }
 
 export interface TwinklingStarsProps {

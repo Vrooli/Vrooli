@@ -23,7 +23,11 @@ export function PopupMenu({
     const id = open ? "simple-popover" : undefined;
     return (
         <>
-            <Button aria-describedby={id} {...props} onClick={handleClick}>
+            <Button
+                aria-describedby={id}
+                {...props}
+                onClick={handleClick}
+            >
                 {text}
             </Button>
             <Popover

@@ -2,9 +2,10 @@ import { DUMMY_ID, NoteVersion, noteVersionTranslationValidation, noteVersionVal
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -39,7 +40,7 @@ export const noteInitialValues = (
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: "",
-        name: "",
+        name: "New Note",
         text: "",
     }]),
 });
@@ -83,57 +84,85 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
 
     return (
         <>
-            <SideActionButtons display={display} hasGridActions={true} zIndex={zIndex + 1}>
-                <EllipsisActionButton>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"Note"}
-                        zIndex={zIndex}
-                    />
-                </EllipsisActionButton>
-            </SideActionButtons>
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                title=""
+                titleComponent={<TranslatedTextField
+                    language={language}
+                    name="name"
+                    placeholder={t("Name")}
+                />}
+            />
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: "block",
-                    width: "min(100vw - 16px, 700px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+                    width: "min(800px, 100vw)",
+                    paddingBottom: 0,
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}
-                    minRows={3}
+                    minRows={10}
                     sxs={{
                         bar: {
                             borderRadius: 0,
                             background: palette.primary.main,
+                            position: "sticky",
+                            top: 0,
+                        },
+                        root: {
+                            height: "100%",
+                            position: "relative",
+                            maxWidth: "800px",
+                            ...(display === "page" ? {
+                                marginBottom: 4,
+                                borderRadius: { xs: 0, md: 1 },
+                                overflow: "overlay",
+                            } : {}),
                         },
                         textArea: {
                             borderRadius: 0,
                             resize: "none",
-                            minHeight: "100vh",
+                            height: "100%",
+                            overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
+                            border: "none",
+                            ...(display === "page" ? {
+                                minHeight: "100vh",
+                            } : {}),
                         },
                     }}
                     zIndex={zIndex}
                 />
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                sideActionButtons={{
+                    display,
+                    zIndex: zIndex + 1,
+                    children: (
+                        <EllipsisActionButton>
+                            <RelationshipList
+                                isEditing={true}
+                                objectType={"Note"}
+                                zIndex={zIndex}
+                            />
+                        </EllipsisActionButton>
+                    ),
+                }}
+            />
         </>
     );
 });

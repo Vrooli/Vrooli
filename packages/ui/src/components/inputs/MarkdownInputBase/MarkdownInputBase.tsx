@@ -2,17 +2,98 @@
  * TextField for entering (and previewing) markdown.
  */
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
-import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
-import Markdown from "markdown-to-jsx";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { linkColors } from "styles";
+import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay, ListObjectType } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
+import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { MarkdownInputBaseProps } from "../types";
+
+interface TagItemDropdownPros {
+    anchorEl: HTMLElement | null;
+    focusedIndex: number;
+    handleClose: () => void;
+    handleFocusChange: (index: number) => void;
+    handleSelect: (item: ListObjectType) => void;
+    items: ListObjectType[];
+}
+
+/** When using "@" to tag an object, displays   */
+const TagItemDropdown = ({
+    anchorEl,
+    focusedIndex,
+    handleClose,
+    handleFocusChange,
+    handleSelect,
+    items,
+}: TagItemDropdownPros) => {
+    const [popoverWidth, setPopoverWidth] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (anchorEl) {
+            setPopoverWidth(anchorEl.offsetWidth);
+        }
+    }, [anchorEl]);
+
+    const listItems = items.map((item, index) => (
+        <ListItem
+            key={item.id}
+            selected={focusedIndex === index}
+            onMouseEnter={() => handleFocusChange(index)}
+            onClick={() => handleSelect(item)}
+            sx={{
+                ...noSelect,
+                cursor: "pointer",
+            }}
+        >
+            {item.name}
+        </ListItem>
+    ));
+
+    return (
+        <Popover
+            disableAutoFocus={true}
+            open={Boolean(anchorEl)}
+            anchorEl={anchorEl}
+            onClose={handleClose}
+            anchorOrigin={{
+                vertical: "top",
+                horizontal: "left",
+            }}
+            transformOrigin={{
+                vertical: "bottom",
+                horizontal: "left",
+            }}
+            sx={{
+                "& .MuiPopover-paper": {
+                    width: popoverWidth,
+                },
+            }}
+        >
+            {items.length > 0 ? <List>
+                {listItems}
+            </List> :
+                <Box sx={{
+                    padding: 2,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}>
+                    <CircularProgress size={32} />
+                </Box>
+            }
+        </Popover>
+    );
+};
 
 enum Headers {
     H1 = "h1",
@@ -111,11 +192,15 @@ const getSelection = (id: string): { selectionStart: number, selectionEnd: numbe
 };
 
 export const MarkdownInputBase = ({
+    actionButtons,
     autoFocus = false,
     disabled = false,
     disableAssistant = false,
     error = false,
+    getTaggableItems,
     helperText,
+    maxChars,
+    maxRows,
     minRows = 4,
     name,
     onBlur,
@@ -364,6 +449,57 @@ export const MarkdownInputBase = ({
         // e.preventDefault() 
     }, [isPreviewOn, name]);
 
+    // Handle "@" dropdown for tagging users or any other items
+    const [dropdownAnchorEl, setDropdownAnchorEl] = useState<HTMLElement | null>(null);
+    const [dropdownTabIndex, setDropdownTabIndex] = useState(0); // The index of the currently selected item in the dropdown
+    const [tagString, setTagString] = useState(""); // What has been typed after the "@"
+    const [dropdownList, setDropdownList] = useState<ListObjectType[]>([]); // The list of items currently being displayed
+    const [cachedTags, setCachedTags] = useState<Record<string, ListObjectType[]>>({}); // The cached list of items for each tag string, to prevent unnecessary queries
+    // Callback to parent to get items, or to get cached items if they exist
+    useEffect(() => {
+        if (!dropdownAnchorEl || typeof getTaggableItems !== "function") return;
+
+        const fetchItems = async () => {
+            // Check the cache
+            if (cachedTags[tagString] !== undefined) {
+                setDropdownList(cachedTags[tagString]);
+            }
+            // Fallback to calling the parent
+            else {
+                const items = await getTaggableItems(tagString);
+                // Store the items in the cache
+                setCachedTags(prev => ({ ...prev, [tagString]: items }));
+
+                // If the list is empty, end the query
+                if (items.length === 0) {
+                    setDropdownAnchorEl(null);
+                }
+                // Otherwise, set the list
+                else {
+                    setDropdownList(items);
+                }
+            }
+        };
+
+        fetchItems();
+    }, [cachedTags, dropdownAnchorEl, getTaggableItems, tagString]);
+    const selectDropdownItem = useCallback((item: ListObjectType) => {
+        // Tagged item is inserted as a link
+        const asLink = `[@${getDisplay(item).title}](${window.location.origin}${getObjectUrl(item)})`;
+        // Insert the link, replacing the tag string and the "@" symbol
+        const { textArea } = getSelection(`markdown-input-${name}`);
+        textArea.value = replaceText(
+            textArea.value,
+            asLink,
+            textArea.selectionStart - tagString.length - 1,
+            textArea.selectionEnd,
+        );
+        handleChange(textArea.value);
+        // Close the dropdown
+        setDropdownAnchorEl(null);
+    }, [handleChange, name, tagString]);
+
+
     // Listen for text input changes
     useEffect(() => {
         // Map keyboard shortcuts to their respective functions
@@ -393,6 +529,52 @@ export const MarkdownInputBase = ({
                     e.preventDefault();
                     startDebounce();
                     action();
+                    return;
+                }
+            }
+            // Handle tag dropdown. Triggered by "@" key press
+            if (!dropdownAnchorEl && typeof getTaggableItems === "function" && e.key === "@") {
+                setTagString("");
+                setDropdownList([]);
+                setDropdownAnchorEl(textAreaRef.current);
+            } else if (dropdownAnchorEl) {
+                // Normal characters (e.g. letters, numbers, emojis) are added to the tag string
+                if (e.key.length === 1) {
+                    setTagString(tagString + e.key);
+                }
+                // Backspace removes the last character from the tag string
+                else if (e.key === "Backspace") {
+                    setTagString(tagString.slice(0, -1));
+                }
+                // Escape ends the query
+                else if (e.key === "Escape") {
+                    setDropdownAnchorEl(null);
+                }
+                // Tab and arrow keys cycle through the dropdown items
+                else if (e.key === "Tab" || e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    let newIndex = dropdownTabIndex;
+                    // Increment the index if tab or arrow down is pressed without the shift key
+                    if ((e.key === "Tab" && !e.shiftKey) || e.key === "ArrowDown") {
+                        newIndex = (newIndex + 1) % dropdownList.length;
+                    }
+                    // Decrement the index if shift+tab or arrow up is pressed
+                    else if ((e.key === "Tab" && e.shiftKey) || e.key === "ArrowUp") {
+                        newIndex = (newIndex - 1 + dropdownList.length) % dropdownList.length;
+                    }
+                    setDropdownTabIndex(newIndex);
+                }
+                // Enter selects the first item in the dropdown
+                else if (e.key === "Enter") {
+                    if (dropdownList.length > 0) {
+                        e.preventDefault();
+                        const selectedItem = dropdownTabIndex >= 0 && dropdownTabIndex < dropdownList.length ?
+                            dropdownList[dropdownTabIndex] :
+                            dropdownList[0];
+                        selectDropdownItem(selectedItem);
+                    }
+                    setDropdownAnchorEl(null);
+                    // Return so that the enter key press is not handled by the textarea
                     return;
                 }
             }
@@ -440,12 +622,41 @@ export const MarkdownInputBase = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, startDebounce, strikethrough, togglePreview, togglePreviewDebounce, undo]);
+    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
+
+    // Resize textarea to fit content
+    const MIN_HEIGHT = 50;
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        if (!textAreaRef.current) return;
+        textAreaRef.current.style.height = "inherit";
+        if (maxRows) {
+            textAreaRef.current.style.height = `${Math.min(Math.max(
+                MIN_HEIGHT,
+                textAreaRef.current.scrollHeight),
+                Number.parseInt(maxRows + "") * 20,
+            )}px`;
+        } else {
+            textAreaRef.current.style.height = `${Math.max(
+                MIN_HEIGHT,
+                textAreaRef.current.scrollHeight,
+            )}px`;
+        }
+    }, [maxRows, value]);
 
     return (
         <>
             {/* Assistant dialog for generating text */}
             <AssistantDialog {...assistantDialogProps} />
+            {/* Dropdown for tagging items */}
+            <TagItemDropdown
+                anchorEl={dropdownAnchorEl}
+                focusedIndex={dropdownTabIndex}
+                handleClose={() => setDropdownAnchorEl(null)}
+                handleFocusChange={setDropdownTabIndex}
+                handleSelect={selectDropdownItem}
+                items={dropdownList}
+            />
             <Stack
                 id={`markdown-input-base-${name}`}
                 direction="column"
@@ -458,7 +669,6 @@ export const MarkdownInputBase = ({
                     display: "flex",
                     width: "100%",
                     padding: "0.5rem",
-                    borderBottom: "1px solid #e0e0e0",
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
                     borderRadius: "0.5rem 0.5rem 0 0",
@@ -674,18 +884,21 @@ export const MarkdownInputBase = ({
                                 sx={{
                                     border: `1px solid ${error ? "red" : "black"}`,
                                     borderRadius: "0 0 0.5rem 0.5rem",
-                                    borderTop: "none",
                                     padding: "12px",
                                     wordBreak: "break-word",
+                                    overflow: "auto",
+                                    backgroundColor: palette.background.paper,
+                                    color: palette.text.primary,
                                     ...linkColors(palette),
                                     ...sxs?.textArea,
                                 }}>
-                                <Markdown>{internalValue}</Markdown>
+                                <MarkdownDisplay content={internalValue} />
                             </Box>
                         ) :
                         (
                             <textarea
                                 id={`markdown-input-${name}`}
+                                ref={textAreaRef}
                                 autoFocus={autoFocus}
                                 disabled={disabled}
                                 name={name}
@@ -699,28 +912,64 @@ export const MarkdownInputBase = ({
                                     padding: "16.5px 14px",
                                     minWidth: "-webkit-fill-available",
                                     maxWidth: "-webkit-fill-available",
-                                    minHeight: "50px",
-                                    maxHeight: "800px",
-                                    background: "transparent",
-                                    borderColor: error ? "red" : "unset",
-                                    borderRadius: "0 0 0.5rem 0.5rem",
+                                    outline: "none",
+                                    resize: "none",
+                                    borderColor: error ? "red" : palette.divider,
+                                    borderRadius: "0 0 4px 4px",
                                     borderTop: "none",
                                     fontFamily: "inherit",
                                     fontSize: "inherit",
                                     lineHeight: "inherit",
+                                    backgroundColor: palette.background.paper,
                                     color: palette.text.primary,
                                     ...sxs?.textArea,
                                 }}
                             />
                         )
                 }
-                {/* Helper text label */}
-                {
-                    helperText &&
-                    <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
-                        {helperText}
-                    </Typography>
-                }
+                {/* Help text, characters remaining indicator, and action buttons */}
+                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{
+                        padding: 1,
+                    }}
+                >
+                    {/* Helper text label */}
+                    {
+                        helperText &&
+                        <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
+                            {helperText}
+                        </Typography>
+                    }
+                    <Stack direction="row" ml="auto" spacing={1}>
+                        {/* Characters remaining indicator */}
+                        {
+                            !disabled && maxChars !== undefined &&
+                            <CharLimitIndicator
+                                chars={internalValue.length}
+                                maxChars={maxChars}
+                            />
+                        }
+                        {/* Action buttons */}
+                        {
+                            actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
+                                <Tooltip key={index} title={tooltip} placement="top">
+                                    <ColorIconButton
+                                        background={palette.secondary.main}
+                                        disabled={disabled || buttonDisabled}
+                                        size="small"
+                                        onClick={onClick}
+                                    >
+                                        <Icon fill={palette.primary.contrastText} />
+                                    </ColorIconButton>
+                                </Tooltip>
+                            ))
+                        }
+                    </Stack>
+                </Stack>}
             </Stack>
         </>
     );

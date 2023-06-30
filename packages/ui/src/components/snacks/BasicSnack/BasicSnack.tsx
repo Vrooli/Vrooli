@@ -118,7 +118,7 @@ export const BasicSnack = ({
             {buttonText && buttonClicked && (
                 <Button
                     variant="text"
-                    sx={{ color: "black", marginLeft: "16px", padding: "4px", border: "1px solid black", borderRadius: "8px" }}
+                    sx={{ color: "white", marginLeft: "16px", padding: "4px", border: "1px solid white", borderRadius: "8px" }}
                     onClick={buttonClicked}
                 >
                     {buttonText}
@@ -126,7 +126,7 @@ export const BasicSnack = ({
             )}
             {/* Close icon */}
             <IconButton onClick={handleClose}>
-                <CloseIcon />
+                <CloseIcon fill={palette.error.contrastText} />
             </IconButton>
         </Box>
     );

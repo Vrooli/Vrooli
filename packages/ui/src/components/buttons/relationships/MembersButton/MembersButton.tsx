@@ -1,4 +1,4 @@
-import { AddIcon, BotIcon, LockIcon, User, UserIcon } from "@local/shared";
+import { AddIcon, BotIcon, LockIcon, SvgComponent, User, UserIcon } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -13,7 +13,7 @@ import { MembersButtonProps } from "../types";
 
 const maxIconsDisplayed = 4;
 
-type IconType = typeof UserIcon | typeof AddIcon | string | null;
+type IconType = SvgComponent | string | null;
 
 const renderIcon = (Icon: IconType, key: number) => {
     if (Icon === null) return <Box sx={{ width: 24, height: 24 }} key={key} />;

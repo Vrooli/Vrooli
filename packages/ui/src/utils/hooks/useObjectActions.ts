@@ -129,7 +129,6 @@ export const useObjectActions = ({
         objectType: objectType as ReactionFor,
         onActionComplete,
     });
-    console.log("objectName", getDisplay(object));
 
     // Determine which actions are available    
     const hasDeletingSupport = exists(DeleteType[objectType]);

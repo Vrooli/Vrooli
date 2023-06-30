@@ -1,9 +1,10 @@
-import { EllipsisIcon, FindByIdInput, Reminder, useLocation } from "@local/shared";
+import { EllipsisIcon, endpointGetReminder, Reminder, useLocation } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -16,11 +17,12 @@ export const ReminderView = ({
     zIndex = 200,
 }: ReminderViewProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder, FindByIdInput>({
-        query: reminderFindOne,
+    const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder>({
+        ...endpointGetReminder,
         partialData,
     });
 
@@ -47,18 +49,7 @@ export const ReminderView = ({
      * Displays name, avatar, description, and quick links
      */
     const overviewComponent = useMemo(() => (
-        <Box
-            position="relative"
-            ml='auto'
-            mr='auto'
-            mt={3}
-            bgcolor={palette.background.paper}
-            sx={{
-                borderRadius: { xs: "0", sm: 2 },
-                boxShadow: { xs: "none", sm: 2 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" },
-            }}
-        >
+        <OverviewContainer>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -73,7 +64,7 @@ export const ReminderView = ({
                     <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
-        </Box >
+        </OverviewContainer>
     ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
 
     return (
@@ -81,9 +72,7 @@ export const ReminderView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Reminder",
-                }}
+                title={t("Reminder")}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

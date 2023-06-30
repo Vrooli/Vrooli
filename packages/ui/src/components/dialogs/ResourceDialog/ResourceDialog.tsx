@@ -1,12 +1,10 @@
-import { Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared";
-import { resourceCreate } from "api/generated/endpoints/resource_create";
-import { resourceUpdate } from "api/generated/endpoints/resource_update";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { endpointPostResource, endpointPutResource, Resource, ResourceCreateInput, ResourceUpdateInput } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
 import { useCallback, useContext, useMemo, useRef } from "react";
+import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -33,8 +31,9 @@ export const ResourceDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
-    const [addMutation, { loading: addLoading }] = useCustomMutation<Resource, ResourceCreateInput>(resourceCreate);
-    const [updateMutation, { loading: updateLoading }] = useCustomMutation<Resource, ResourceUpdateInput>(resourceUpdate);
+    const [create, { loading: addLoading }] = useLazyFetch<ResourceCreateInput, Resource>(endpointPostResource);
+    const [update, { loading: updateLoading }] = useLazyFetch<ResourceUpdateInput, Resource>(endpointPutResource);
+    const fetch = (index < 0 ? create : update) as MakeLazyRequest<ResourceCreateInput | ResourceUpdateInput, Resource>;
 
     const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Confirm dialog is dirty and closed by clicking outside
@@ -54,7 +53,7 @@ export const ResourceDialog = ({
                 <DialogTitle
                     id={titleId}
                     title={(index < 0) ? "Add Resource" : "Update Resource"}
-                    helpText={helpText}
+                    help={helpText}
                     onClose={handleClose}
                 />
                 <Formik
@@ -73,9 +72,9 @@ export const ResourceDialog = ({
                                 PubSub.get().publishSnack({ messageKey: "ResourceNotFound", severity: "Error" });
                                 return;
                             }
-                            mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
-                                mutation: isCreating ? addMutation : updateMutation,
-                                input: transformResourceValues(values, partialData as any),
+                            fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
+                                fetch,
+                                inputs: transformResourceValues(values, partialData as any),
                                 successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,

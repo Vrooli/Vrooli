@@ -2,6 +2,7 @@ import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon, SetLocation, useLocation }
 import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TutorialViewProps } from "../types";
 
 type PageProps = {
@@ -11,37 +12,37 @@ type PageProps = {
 
 // const Page0 = () => {
 //     return (<>
-//         <Header title="What is Vrooli?" />
+//         <Title title="What is Vrooli?" variant="header" />
 //     </>)
 // }
 
 // const Page1 = () => {
 //     return (<>
-//         <Header title="How does it work?" />
+//         <Title title="How does it work?" variant="header" />
 //     </>)
 // }
 
 // const Page2 = () => {
 //     return (<>
-//         <Header title="What is a routine?" />
+//         <Title title="What is a routine?" variant="header" />
 //     </>)
 // }
 
 // const Page3 = () => {
 //     return (<>
-//         <Header title="How is work structured?" />
+//         <Title title="How is work structured?" variant="header" />
 //     </>)
 // }
 
 // const Page4 = () => {
 //     return (<>
-//         <Header title="LRD Process" />
+//         <Title title="LRD Process" variant="header" />
 //     </>)
 // }
 
 // const Page5 = () => {
 //     return (<>
-//         <Header title="That's the gist!" />
+//         <Title title="That's the gist!" variant="header" />
 //     </>)
 // }
 
@@ -55,6 +56,7 @@ export const TutorialView = ({
 }: TutorialViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // 0-5
     const [page, setPage] = useState(0);
@@ -81,9 +83,7 @@ export const TutorialView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Tutorial",
-                }}
+                title={t("Tutorial")}
             />
             {currentPage}
             {/* Buttons */}

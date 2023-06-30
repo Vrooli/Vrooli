@@ -1,5 +1,4 @@
-import { TagSortBy } from "@local/shared";
-import { tagFindMany } from "api/generated/endpoints/tag_findMany";
+import { endpointGetTags, TagSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const tagSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const tagSearchParams = () => toParams(tagSearchSchema(), tagFindMany, TagSortBy, TagSortBy.Top);
+export const tagSearchParams = () => toParams(tagSearchSchema(), endpointGetTags, TagSortBy, TagSortBy.Top);

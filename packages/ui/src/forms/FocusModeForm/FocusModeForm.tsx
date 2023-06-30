@@ -5,7 +5,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
@@ -108,16 +108,10 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
             </LargeDialog>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={600}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(600px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
                     <Stack direction="column" spacing={2}>
@@ -143,6 +137,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                                 display: "flex",
                                 margin: "auto",
                             }}
+                            variant="outlined"
                         >{"Add schedule"}</Button>
                     )}
                     {scheduleField.value && <ListContainer
@@ -207,19 +202,21 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Subheader
+                    <Title
                         Icon={HeartFilledIcon}
                         title={t("TopicsFavorite")}
                         help={t("TopicsFavoriteHelp")}
+                        variant="subheader"
                     />
                     <TagSelector
                         name="favorites"
                         zIndex={zIndex}
                     />
-                    <Subheader
+                    <Title
                         Icon={InvisibleIcon}
                         title={t("TopicsHidden")}
                         help={t("TopicsHiddenHelp")}
+                        variant="subheader"
                     />
                     <TagSelector
                         name="hidden"

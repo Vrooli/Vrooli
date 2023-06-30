@@ -50,7 +50,7 @@ export function ContentCollapse({
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
                 <Typography component={titleComponent ?? "h6"} variant="h6">{titleText}</Typography>
-                {helpText && <HelpButton markdown={helpText} />}
+                {helpText && <HelpButton markdown={helpText} sx={sxs?.helpButton ?? {}} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}
                     aria-label={t(internalIsOpen ? "Collapse" : "Expand")}

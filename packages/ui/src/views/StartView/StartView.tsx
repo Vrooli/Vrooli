@@ -4,11 +4,9 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { EmailLogInInput, LINKS, Session, useLocation } from "@local/shared";
+import { EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session, useLocation } from "@local/shared";
 import { Box, SxProps, useTheme } from "@mui/material";
-import { authEmailLogIn } from "api/generated/endpoints/auth_emailLogIn";
-import { useCustomMutation } from "api/hooks";
-import { hasErrorCode, mutationWrapper } from "api/utils";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -16,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
 import { Forms } from "utils/consts";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
@@ -47,7 +46,7 @@ export const StartView = ({
         verificationCode: typeof search.verificationCode === "string" ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
+    const [emailLogIn] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
@@ -74,9 +73,9 @@ export const StartView = ({
         if (verificationCode) {
             // If still logged in, call emailLogIn right away
             if (userId) {
-                mutationWrapper<Session, EmailLogInInput>({
-                    mutation: emailLogIn,
-                    input: { verificationCode },
+                fetchLazyWrapper<EmailLogInInput, Session>({
+                    fetch: emailLogIn,
+                    inputs: { verificationCode },
                     onSuccess: (data) => {
                         PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publishSession(data);
@@ -186,9 +185,8 @@ export const StartView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Start",
-                }}
+                title={t("Start")}
+                hideTitleOnDesktop
             />
             {/* Main content */}
             <Box sx={{
@@ -200,7 +198,7 @@ export const StartView = ({
                 height: "calc(100vh - 128px)", // Minus double the app bar height
             }}>
                 <Box sx={{
-                    width: "min(calc(100vw - 16px), 400px)",
+                    width: "min(calc(100vw - 16px), 600px)",
                     marginTop: 4,
                     background: palette.background.paper,
                     borderRadius: 2,

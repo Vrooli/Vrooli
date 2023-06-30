@@ -5,7 +5,7 @@ import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSel
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { Title } from "components/text/Title/Title";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsDisplayFormProps } from "../types";
@@ -23,23 +23,23 @@ export const SettingsDisplayForm = ({
     return (
         <BaseForm
             dirty={dirty}
+            display={display}
             isLoading={isLoading}
-            style={{
-                width: { xs: "100%", md: "min(100%, 700px)" },
-                margin: "auto",
-                display: "block",
-            }}
         >
-            <Subheader
+            <Title
                 help={t("DisplayAccountHelp")}
-                title={t("DisplayAccount")} />
+                title={t("DisplayAccount")}
+                variant="subheader"
+            />
             <Stack direction="column" spacing={2} p={1}>
                 <LanguageSelector />
                 <FocusModeSelector />
             </Stack>
-            <Subheader
+            <Title
                 help={t("DisplayDeviceHelp")}
-                title={t("DisplayDevice")} />
+                title={t("DisplayDevice")}
+                variant="subheader"
+            />
             <Stack direction="column" spacing={2} p={1}>
                 <ThemeSwitch />
                 <TextSizeButtons />

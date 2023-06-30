@@ -52,7 +52,7 @@ export function TextSizeButtons() {
                             borderRight: `1px solid ${palette.secondary.contrastText}`,
                             height: "48px",
                         }}>
-                        <BumpModerateIcon style={{ transform: "rotate(180deg)" }} />
+                        <BumpModerateIcon fill={palette.secondary.contrastText} style={{ transform: "rotate(180deg)" }} />
                     </ColorIconButton>
                 </Tooltip>
                 <Tooltip placement="top" title="Larger">
@@ -64,7 +64,7 @@ export function TextSizeButtons() {
                             borderRadius: "0 12px 12px 0",
                             height: "48px",
                         }}>
-                        <BumpModerateIcon />
+                        <BumpModerateIcon fill={palette.secondary.contrastText} />
                     </ColorIconButton>
                 </Tooltip>
             </Stack>

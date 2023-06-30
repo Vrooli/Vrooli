@@ -1,5 +1,4 @@
-import { StatsQuizSortBy } from "@local/shared";
-import { statsQuizFindMany } from "api/generated/endpoints/statsQuiz_findMany";
+import { endpointGetStatsQuiz, StatsQuizSortBy } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
@@ -10,4 +9,4 @@ export const statsQuizSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);
+export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), endpointGetStatsQuiz, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);

@@ -1,10 +1,6 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
-import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
-import { projectVersionDirectoryFindMany } from "api/generated/endpoints/projectVersionDirectory_findMany";
-import { routineVersionFindMany } from "api/generated/endpoints/routineVersion_findMany";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
-import { runRoutineUpdate } from "api/generated/endpoints/runRoutine_update";
+import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +9,7 @@ import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, Rou
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -581,8 +578,8 @@ export const RunView = ({
     }, [currStepLocation]);
 
     // Query current subroutine or directory, if needed. Main routine may have the data
-    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useCustomLazyQuery<RoutineVersionSearchResult, RoutineVersionSearchInput>(routineVersionFindMany, { errorPolicy: "all" });
-    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useCustomLazyQuery<ProjectVersionDirectorySearchResult, ProjectVersionDirectorySearchInput>(projectVersionDirectoryFindMany, { errorPolicy: "all" });
+    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>(endpointGetRoutineVersions);
+    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>(endpointGetProjectVersionDirectories);
     const [currentStep, setCurrentStep] = useState<ProjectStep | null>(null);
     useEffect(() => {
         // If no steps, redirect to first step
@@ -619,12 +616,12 @@ export const RunView = ({
         }
         // If current step is a Directory and needs querying, then query the data
         if (currStep.type === ProjectStepType.Directory && stepNeedsQuerying(currStep)) {
-            getDirectories({ variables: { parentDirectoryId: currStep.directoryId } });
+            getDirectories({ parentDirectoryId: currStep.directoryId });
             return;
         }
         // If current step is a Subroutine and needs querying, then query the data
         if (currStep.type === RoutineStepType.Subroutine && stepNeedsQuerying(currStep)) {
-            getSubroutines({ variables: { ids: [currStep.routineVersion.id] } });
+            getSubroutines({ ids: [currStep.routineVersion.id] });
             return;
         }
         // Finally, if we don't need to query, we set the current step.
@@ -763,8 +760,8 @@ export const RunView = ({
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
-    const [logRunUpdate] = useCustomMutation<RunRoutine, RunRoutineUpdateInput>(runRoutineUpdate);
-    const [logRunComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
+    const [logRunUpdate] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const [logRunComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -808,9 +805,9 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
-                mutation: logRunUpdate,
-                input: {
+            fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+                fetch: logRunUpdate,
+                inputs: {
                     id: run.id,
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     stepsCreate,
@@ -830,9 +827,9 @@ export const RunView = ({
             // const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
             // const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
             const wasSuccessful = true; //TODO
-            mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-                mutation: logRunComplete,
-                input: {
+            fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+                fetch: logRunComplete,
+                inputs: {
                     id: run.id,
                     exists: true,
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
@@ -850,7 +847,7 @@ export const RunView = ({
                 },
             });
         }
-    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, session, setLocation, steps, testMode]);
+    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, setLocation, steps, testMode]);
 
     /**
      * End run after reaching an EndStep
@@ -868,9 +865,9 @@ export const RunView = ({
         }
         // Log complete. No step data because this function was called from a decision node, 
         // which we currently don't store data about
-        mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
-            mutation: logRunComplete,
-            input: {
+        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+            fetch: logRunComplete,
+            inputs: {
                 id: run.id,
                 exists: true,
                 name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
@@ -900,9 +897,9 @@ export const RunView = ({
         } : undefined;
         // Send data to server
         //TODO support run projects
-        mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
-            mutation: logRunUpdate,
-            input: {
+        fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+            fetch: logRunUpdate,
+            inputs: {
                 id: run.id,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
@@ -1017,7 +1014,7 @@ export const RunView = ({
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
                             currStep={currStepLocation}
-                            handleLoadSubroutine={(id: string) => { getSubroutines({ variables: { ids: [id] } }); }}
+                            handleLoadSubroutine={(id: string) => { getSubroutines({ ids: [id] }); }}
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}
@@ -1068,6 +1065,7 @@ export const RunView = ({
                                 startIcon={<ArrowLeftIcon />}
                                 onClick={toPrevious}
                                 disabled={unsavedChanges}
+                                variant="outlined"
                             >
                                 {t("Previous")}
                             </Button>}
@@ -1078,6 +1076,7 @@ export const RunView = ({
                                 startIcon={<ArrowRightIcon />}
                                 onClick={toNext} // NOTE: changes are saved on next click
                                 disabled={!subroutineComplete}
+                                variant="contained"
                             >
                                 {t("Next")}
                             </Button>)}
@@ -1085,6 +1084,7 @@ export const RunView = ({
                                 fullWidth
                                 startIcon={<SuccessIcon />}
                                 onClick={toNext}
+                                variant="contained"
                             >
                                 {t("Complete")}
                             </Button>)}

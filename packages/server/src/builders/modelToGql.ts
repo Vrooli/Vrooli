@@ -1,5 +1,5 @@
 import { isObject } from "@local/shared";
-import { ObjectMap } from "../models";
+import { ObjectMap } from "../models/base";
 import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";

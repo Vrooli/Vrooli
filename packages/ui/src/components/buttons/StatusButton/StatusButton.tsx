@@ -3,10 +3,10 @@
  */
 import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "@local/shared";
 import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { Status } from "utils/consts";
+import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { StatusButtonProps } from "../types";
 
 /**
@@ -40,7 +40,7 @@ export const StatusButton = ({
      * If one message, no bullet points. If multiple, bullet points.
      */
     const statusMarkdown = useMemo(() => {
-        if (messages.length === 0) return "Routine is valid.";
+        if (messages.length === 0) return "No errors detected.";
         if (messages.length === 1) {
             return messages[0];
         }
@@ -68,7 +68,7 @@ export const StatusButton = ({
                 </IconButton>
             </Box>
             <Box sx={{ padding: 1 }}>
-                <Markdown>{statusMarkdown}</Markdown>
+                <MarkdownDisplay content={statusMarkdown} />
             </Box>
         </Box>
     ), [statusMarkdown, palette.primary.dark, palette.primary.contrastText]);

@@ -1,12 +1,20 @@
 import { DUMMY_ID, orDefault, Session, SmartContractVersion, smartContractVersionTranslationValidation, smartContractVersionValidation } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
+import { StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { SmartContractFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -96,37 +104,61 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
         <>
             <BaseForm
                 dirty={dirty}
+                display={display}
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    width: "min(700px, 100vw - 16px)",
-                    margin: "auto",
-                    paddingLeft: "env(safe-area-inset-left)",
-                    paddingRight: "env(safe-area-inset-right)",
-                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
-                }}
             >
-                <Stack direction="column" spacing={2} sx={{
-                    borderRadius: 2,
-                    background: palette.mode === "dark" ? palette.background.paper : palette.background.default,
-                    padding: 2,
-                }}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
+                <FormContainer>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={"SmartContract"}
+                        zIndex={zIndex}
                     />
-                </Stack>
-                {/* TODO */}
-                <VersionInput
-                    fullWidth
-                    versions={versions}
-                />
+                    <FormSection>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedMarkdownInput
+                            language={language}
+                            name="description"
+                            maxChars={2048}
+                            minRows={4}
+                            maxRows={8}
+                            placeholder={t("Description")}
+                            zIndex={zIndex}
+                        />
+                    </FormSection>
+                    <CodeInput
+                        disabled={false}
+                        limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
+                        name="content"
+                        zIndex={zIndex}
+                    />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
+                    <TagSelector
+                        name="root.tags"
+                        zIndex={zIndex}
+                    />
+                    <VersionInput
+                        fullWidth
+                        versions={versions}
+                    />
+                </FormContainer>
                 <GridSubmitButtons
                     display={display}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}

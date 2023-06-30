@@ -149,7 +149,12 @@ export function SearchList<DataType extends NavigableObject>({
                 margin: "auto",
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t("AddNew")}</Button>
+                <Button
+                    fullWidth
+                    onClick={handleAdd}
+                    startIcon={<PlusIcon />}
+                    variant="contained"
+                >{t("AddNew")}</Button>
             </Box>}
         </>
     );

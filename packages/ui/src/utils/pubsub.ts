@@ -28,15 +28,15 @@ export type Pubs = "Celebration" |
     "Welcome";
 
 
-export type TranslatedSnackMessage = {
-    messageKey: ErrorKey | CommonKey;
+export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
+    messageKey: KeyList;
     messageVariables?: { [key: string]: string | number };
 }
 export type UntranslatedSnackMessage = {
     message: string;
 }
-export type SnackMessage = TranslatedSnackMessage | UntranslatedSnackMessage;
-export type SnackPub = SnackMessage & {
+export type SnackMessage<KeyList = CommonKey | ErrorKey> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
+export type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
     buttonClicked?: (event?: any) => any;
     buttonKey?: CommonKey;
@@ -63,7 +63,9 @@ export type AlertDialogPub = {
 
 export class PubSub {
     private static instance: PubSub;
+    // eslint-disable-next-line @typescript-eslint/ban-types
     private subscribers: { [key: string]: [symbol, Function][] } = {};
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     static get(): PubSub {
         if (!PubSub.instance) {
@@ -140,6 +142,7 @@ export class PubSub {
         this.publish("Welcome");
     }
 
+    // eslint-disable-next-line @typescript-eslint/ban-types
     subscribe(key: Pubs, subscriber: Function): symbol {
         // Create unique token, so we can unsubscribe later
         const token = Symbol(key);

@@ -37,20 +37,39 @@ export function ListMenu<T>({
                 <HelpButton {...helpData} />
             </IconButton>
         ) : null;
+
+        // Handle Tab and Shift+Tab manually
+        const handleKeyDown = (event) => {
+            if (event.key === "Tab") {
+                event.preventDefault(); // Stop the default behavior
+                const direction = event.shiftKey ? -1 : 1;
+                const nextElement = document.getElementById(`${id}-list-item-${index + direction}`);
+                console.log("key down?", nextElement, (index + direction), event);
+                nextElement && nextElement.focus();
+            }
+        };
+
         return (
-            <ListItem disabled={preview} button onClick={() => { onSelect(value); onClose(); }} key={index}>
+            <ListItem
+                disabled={preview}
+                button
+                onClick={() => { onSelect(value); onClose(); }}
+                onKeyDown={handleKeyDown}
+                key={`list-item-${index}`}
+                id={`${id}-list-item-${index}`}
+                tabIndex={index}
+            >
                 {itemIcon}
                 {itemText}
                 {helpIcon}
             </ListItem>
         );
-    }), [data, onClose, onSelect, palette.background.textSecondary]);
+    }), [data, id, onClose, onSelect, palette.background.textSecondary]);
 
     return (
         <Menu
             id={id}
             disableScrollLock={true}
-            autoFocus={true}
             open={open}
             anchorEl={anchorEl}
             anchorOrigin={{
@@ -61,7 +80,12 @@ export function ListMenu<T>({
                 vertical: "top",
                 horizontal: "center",
             }}
-            onClose={(e) => { onClose(); }}
+            onClose={(e, reason: any) => {
+                if (reason !== "tabKeyDown") {
+                    onClose();
+                }
+            }}
+            tabIndex={-1}
             sx={{
                 zIndex,
                 "& .MuiMenu-paper": {

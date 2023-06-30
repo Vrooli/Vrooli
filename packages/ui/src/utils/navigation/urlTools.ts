@@ -66,12 +66,16 @@ export type SingleItemUrl = {
  * NOTE: This function may sometimes be used for deeper navigation within a single item, 
  * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = (): SingleItemUrl => {
+export const parseSingleItemUrl = ({
+    url,
+}: {
+    url?: string,
+}): SingleItemUrl => {
     // Initialize the return object
     const returnObject: SingleItemUrl = {};
     // Get the last 2 parts of the URL
-    const lastPart = getLastUrlPart();
-    const secondLastPart = getLastUrlPart(1);
+    const lastPart = getLastUrlPart({ url });
+    const secondLastPart = getLastUrlPart({ url, offset: 1 });
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,

@@ -1,6 +1,5 @@
-import { FindByIdInput, RunRoutine, useLocation } from "@local/shared";
+import { endpointGetRunRoutine, RunRoutine, useLocation } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { runRoutineFindOne } from "api/generated/endpoints/runRoutine_findOne";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,8 +18,8 @@ export const RunRoutineView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine, FindByIdInput>({
-        query: runRoutineFindOne,
+    const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
+        ...endpointGetRunRoutine,
         partialData,
     });
 
@@ -42,10 +41,7 @@ export const RunRoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Run",
-                    titleVariables: { count: 1 },
-                }}
+                title={t("Run", { count: 1 })}
             />
             <>
                 {/* TODO */}

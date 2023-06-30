@@ -10,11 +10,17 @@ import { DUMMY_ID, uuid } from "@local/shared";
  */
 export const createPrims = <T, K extends keyof T>(
     object: T,
-    ...fields: K[]
+    ...fields: (K | [K, (val: any) => any])[]
 ): { [F in K]: Exclude<T[F], null | undefined> } => {
     // Create prims
-    const prims = fields.reduce((acc, field) => ({ ...acc, [field]: object[field] !== null ? object[field] : undefined }), {}) as any;
+    const prims = fields.reduce((acc, field) => {
+        const key = Array.isArray(field) ? field[0] : field;
+        const value = Array.isArray(field) ? field[1](object[key]) : object[key];
+        return { ...acc, [key]: value !== null ? value : undefined };
+    }, {}) as any;
+
     // If "id" is defined in fields, make sure it's not DUMMY_ID
-    if (!fields.includes('id' as K)) return prims;
+    if (!fields.some(field => Array.isArray(field) ? field[0] === "id" : field === "id")) return prims;
+
     return { ...prims, id: prims.id === DUMMY_ID ? uuid() : prims.id };
-}
+};

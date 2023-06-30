@@ -1,14 +1,14 @@
-import { DUMMY_ID, ProfileUpdateInput, User, userValidation } from "@local/shared";
+import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
 import { Stack } from "@mui/material";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
+import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsProfileForm } from "forms/settings";
 import { useContext } from "react";
+import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
+import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -20,19 +20,18 @@ export const SettingsProfileView = ({
     onClose,
     zIndex,
 }: SettingsProfileViewProps) => {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
 
     return (
         <>
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
-                titleData={{
-                    titleKey: "Profile",
-                }}
+                title={t("Profile")}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -52,9 +51,9 @@ export const SettingsProfileView = ({
                             PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                             return;
                         }
-                        mutationWrapper<User, ProfileUpdateInput>({
-                            mutation,
-                            input: shapeProfile.update(profile, {
+                        fetchLazyWrapper<ProfileUpdateInput, User>({
+                            fetch,
+                            inputs: shapeProfile.update(profile, {
                                 id: profile.id,
                                 ...values,
                             }),

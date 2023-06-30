@@ -58,16 +58,15 @@ export const CommentDialog = ({
             <TopBar
                 display="dialog"
                 onClose={onCancel}
-                titleData={{ titleId, titleKey: isCreate ? "AddComment" : "EditComment" }}
+                title={t(isCreate ? "AddComment" : "EditComment")}
+                titleId={titleId}
             />
             <BaseForm
                 dirty={dirty}
+                display="dialog"
                 isLoading={isLoading}
+                maxWidth={700}
                 ref={ref}
-                style={{
-                    display: "block",
-                    paddingBottom: "64px",
-                }}
             >
                 <TranslatedMarkdownInput
                     language={language}

@@ -1,7 +1,7 @@
 import { exists, GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { transfer } from "../models";
+import { transfer } from "../models/base";
 import { PrismaType, SessionUserToken } from "../types";
 
 type HasCompleteVersionData = {
@@ -52,7 +52,7 @@ export const preShapeRoot = async ({
     userData,
 }: {
     createList: { [x: string]: any }[],
-    updateList: { where: { id: string }, data: { [x: string]: any } }[],
+    updateList: { [x: string]: any }[],
     deleteList: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     prisma: PrismaType,
@@ -90,20 +90,20 @@ export const preShapeRoot = async ({
     if (updateList.length > 0) {
         // Find original data
         const originalData = await delegate(prisma).findMany({
-            where: { id: { in: updateList.map(u => u.data.id) } },
+            where: { id: { in: updateList.map(u => u.id) } },
             select: originalDataSelect,
         });
         // Loop through updates
         for (const update of updateList) {
             // Find original
-            const original = originalData.find(r => r.id === update.data.id);
-            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: update?.data?.id });
-            const isRootPrivate = update.data.isPrivate ?? original.isPrivate;
+            const original = originalData.find(r => r.id === update.id);
+            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: update?.id });
+            const isRootPrivate = update.isPrivate ?? original.isPrivate;
             // Convert original verions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
             // Combine updated versions with original versions
-            if (update.data.versionsUpdate) {
-                for (const v of update.data.versionsUpdate) {
+            if (update.versionsUpdate) {
+                for (const v of update.versionsUpdate) {
                     updatedWithOriginal[v.id] = {
                         ...updatedWithOriginal[v.id],
                         ...v,
@@ -111,15 +111,15 @@ export const preShapeRoot = async ({
                 }
             }
             // Combine new, updated, and original versions. Then remove deleting versions
-            const allVersions = Object.values(updatedWithOriginal).concat(update.data.versionsCreate ?? []);
-            const versions = allVersions.filter(v => !update.data.versionsDelete?.includes((v as any).id));
+            const allVersions = Object.values(updatedWithOriginal).concat(update.versionsCreate ?? []);
+            const versions = allVersions.filter(v => !update.versionsDelete?.includes((v as any).id));
             // Calculate flags
             const hasCompleteVersion = versions.some(v => (v as any).isComplete);
-            versionMap[update.data.id] = {
+            versionMap[update.id] = {
                 hasCompleteVersion,
                 completedAt: hasCompleteVersion ? new Date() : null,
             };
-            triggerMap[update.data.id] = {
+            triggerMap[update.id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: !isRootPrivate && versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasBeenTransferred: original.hasBeenTransferred,
