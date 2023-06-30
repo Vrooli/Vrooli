@@ -1,14 +1,25 @@
 import { logger } from "../../events";
 
 let texting_client: any = null;
-try {
-    texting_client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-} catch(error) {
-    logger.warning('TWILIO client could not be initialized. Sending SMS will not work', { trace: '0013', error });
-}
+
+/**
+ * Function to setup twilio client. This is needed because 
+ * the auth token is loaded from the secrets location, so it's 
+ * not available at startup.
+ */
+export const setupTextingClient = () => {
+    if (texting_client === null) {
+        try {
+            texting_client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        } catch (error) {
+            logger.warning('TWILIO client could not be initialized. Sending SMS will not work', { trace: '0013', error });
+        }
+    }
+};
 
 export async function smsProcess(job: any) {
-    if(texting_client === null) {
+    setupTextingClient();
+    if (texting_client === null) {
         logger.error('Cannot send SMS. Texting client not initialized', { trace: '0014' });
         return false;
     }

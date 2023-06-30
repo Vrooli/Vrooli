@@ -2,7 +2,7 @@
 # Converts a Docker Compose file to Kubernetes YAML files using Kompose.
 # Installs Kompose if it is not already installed.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 KOMPOSE_VERSION="v1.28.0"
 SECRET_NAME="vrooli-secrets"
@@ -142,11 +142,11 @@ success "Kubernetes secrets set successfully"
 
 # Specify non-sensitive environment variables, which will be replaced with their values in the Docker Compose file.
 # DO NOT INCLUDE VARIABLES FOR PASSWORDS OR OTHER SENSITIVE INFORMATION!!!
-NON_SENSITIVE_VARS=("SERVER_LOCATION" "CREATE_MOCK_DATA" "DB_PULL" "PORT_UI" "PORT_SERVER" "PORT_DB" "PORT_REDIS" "PORT_DOCS" "PORT_TRANSLATE" "PROJECT_DIR" "GENERATE_SOURCEMAP")
+NON_SENSITIVE_VARS=("SERVER_LOCATION" "CREATE_MOCK_DATA" "DB_PULL" "PORT_UI" "PORT_SERVER" "PORT_DB" "PORT_REDIS" "PORT_DOCS" "PORT_TRANSLATE" "PROJECT_DIR" "DB_USER" "SITE_EMAIL_USERNAME" "SITE_EMAIL_FROM" "SITE_EMAIL_ALIAS" "VAPID_PUBLIC_KEY" "STRIPE_PUBLISHABLE_KEY" "LETSENCRYPT_EMAIL" "GENERATE_SOURCEMAP")
 
 # Load environment variables from .env file
 set -a
-source ${ENV_FILE}
+. ${ENV_FILE}
 set +a
 
 # Create a copy of the docker-compose file, which we will prepare for Kompose

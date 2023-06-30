@@ -3,18 +3,31 @@ import { logger } from "../../events";
 
 const HOST = "smtp.gmail.com";
 const PORT = 465;
-const transporter = nodemailer.createTransport({
-    host: HOST,
-    port: PORT,
-    secure: true,
-    auth: {
-        user: process.env.SITE_EMAIL_USERNAME,
-        pass: process.env.SITE_EMAIL_PASSWORD,
-    },
-});
+
+let transporter: nodemailer.Transporter | null = null;
+
+/**
+ * Function to setup transporter. This is needed because 
+ * the password is loaded from the secrets location, so it's 
+ * not available at startup.
+ */
+export const setupTransporter = () => {
+    if (transporter === null) {
+        transporter = nodemailer.createTransport({
+            host: HOST,
+            port: PORT,
+            secure: true,
+            auth: {
+                user: process.env.SITE_EMAIL_USERNAME,
+                pass: process.env.SITE_EMAIL_PASSWORD,
+            },
+        });
+    }
+};
 
 export async function emailProcess(job: any) {
-    transporter.sendMail({
+    setupTransporter();
+    transporter!.sendMail({
         from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,
         to: job.data.to.join(", "),
         subject: job.data.subject,

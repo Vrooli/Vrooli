@@ -1,12 +1,12 @@
 #!/bin/sh
 HERE=$(dirname $0)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # If in development mode
 if [ "${NODE_ENV}" = "development" ]; then
     # Convert shared packages to typescript.
     # In production, this should already be done
-    source "${HERE}/shared.sh"
+    . "${HERE}/shared.sh"
 fi
 
 success 'Prisma schema generated'
@@ -46,6 +46,9 @@ if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
 fi
+
+info 'Getting secrets...'
+. ${HERE}/getSecrets.sh -e ${NODE_ENV} -s VALYXA_API_KEY -s DB_PASSWORD -s ADMIN_WALLET -s ADMIN_PASSWORD -s VALYXA_PASSWORD -s VAPID_PRIVATE_KEY -s STRIPE_SECRET_KEY -s STRIPE_WEBHOOK_SECRET -s SITE_EMAIL_PASSWORD
 
 info 'Starting server...'
 cd ${PROJECT_DIR}/packages/server

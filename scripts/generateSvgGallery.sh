@@ -5,7 +5,7 @@
 # -o: Output file name (default: svgGallery.html)
 # -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Default SVG directory
 DIRECTORY="packages/shared/svgs"

@@ -12,7 +12,7 @@
 # -h: Show this help message
 # -g: Generate GraphQL tags for queries/mutations
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Read arguments
 while getopts "v:d:hg:" opt; do
@@ -47,7 +47,7 @@ done
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. Exiting..."
     exit 1
@@ -245,7 +245,7 @@ prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
 read -n1 -r SEND_TO_DOCKER_HUB
 echo
 if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
-    source "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+    . "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
     if [ $? -ne 0 ]; then
         error "Failed to send Docker images to Docker Hub"
         exit 1
@@ -260,7 +260,7 @@ if [ -z "$DEPLOY" ]; then
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
-    source "${HERE}/keylessSsh.sh"
+    . "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s

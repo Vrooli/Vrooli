@@ -1,8 +1,9 @@
 #!/bin/bash
 # Adds production docker images to the Docker Hub registry
+# TODO NOTE: DO NOT RUN THIS YET. We need to implement a secret manager to store sensitive environment variables
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
-source "${HERE}/../.env"
+. "${HERE}/prettify.sh"
+. "${HERE}/../.env"
 
 # Default values for command line options
 BUILD="y"
