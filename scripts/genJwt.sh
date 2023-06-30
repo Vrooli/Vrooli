@@ -2,7 +2,7 @@
 # This script generates a public/private key pair for JWT signing
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Go to root directory of the project
 cd "${HERE}/.."
@@ -18,7 +18,7 @@ if [ -f "${PUB_KEY_NAME}" ] || [ -f "${PRIV_KEY_NAME}" ]; then
         exit 1
     fi
     info "JWT keys already exist. Delete them first if you want to generate new ones."
-    exit 0
+    return 0
 fi
 
 # Use openssl to generate private key and public key

@@ -6,12 +6,13 @@
 # -f: Force install (y/N) - If set to "y", will delete all node_modules directories and reinstall
 # -r: Run on remote server (y/N) - If set to "y", will run additional commands to set up the remote server
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Read arguments
 REINSTALL_MODULES=""
 ON_REMOTE=""
 ENVIRONMENT="dev"
+ENV_FILES_SET_UP=""
 for arg in "$@"; do
     case $arg in
     -f | --force)
@@ -28,12 +29,18 @@ for arg in "$@"; do
         ENVIRONMENT="prod"
         shift
         ;;
+    -e | --env-setup)
+        ENV_FILES_SET_UP="${2}"
+        shift
+        shift
+        ;;
     -h | --help)
-        echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
+        echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE] [-p PROD] [-e ENV_SETUP]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
         echo "  -p --prod: If set, will skip steps that are only required for development"
+        echo "  -e --env-setup: (Y/n) True if you want to create secret files for the environment variables. If not provided, will prompt."
         exit 0
         ;;
     esac
@@ -97,7 +104,7 @@ fi
 
 header "Installing nvm"
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-source ~/.nvm/nvm.sh
+. ~/.nvm/nvm.sh
 
 header "Installing Node (includes npm)"
 nvm install 16.16.0
@@ -172,7 +179,18 @@ else
 fi
 
 header "Generating JWT key pair for authentication"
-source "${HERE}/genJwt.sh"
+. "${HERE}/genJwt.sh"
+
+if [ "${ENV_FILES_SET_UP}" = "" ]; then
+    prompt "Have you already set up your .env and .env-prod files, and would like to generate secret files? (Y/n)"
+    read -n1 -r ENV_FILES_SET_UP
+    echo
+fi
+if [ "${ENV_FILES_SET_UP}" = "y" ] || [ "${ENV_FILES_SET_UP}" = "Y" ] || [ "${ENV_FILES_SET_UP}" = "yes" ] || [ "${ENV_FILES_SET_UP}" = "Yes" ]; then
+    info "Setting up secrets for development environment..."
+    "${HERE}/setSecrets.sh" -e development
+    info "Setting up secrets for production environment..."
+    "${HERE}/setSecrets.sh" -e production
+fi
 
 info "Done! You may need to restart your editor for syntax highlighting to work correctly."
-info "If you haven't already, copy .env-example to .env and edit it to match your environment."

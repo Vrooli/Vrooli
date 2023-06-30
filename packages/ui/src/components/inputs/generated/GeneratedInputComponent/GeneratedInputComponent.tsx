@@ -22,7 +22,6 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
     [InputType.JSON]: GeneratedCodeInput,
     [InputType.IntegerInput]: GeneratedIntegerInput,
     [InputType.LanguageInput]: GeneratedLanguageInput,
-    [InputType.Prompt]: GeneratedTextInput, //TODO: implement prompt
     [InputType.Radio]: GeneratedRadio,
     [InputType.Selector]: GeneratedSelector,
     [InputType.Slider]: GeneratedSlider,

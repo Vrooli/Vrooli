@@ -7,7 +7,7 @@ import { withPrisma } from "../utils/withPrisma";
 // Disable Stripe if any of the required environment variables are missing 
 // (Publishable key only required for client-side Stripe)
 // NOTE: Make sure to update these are production keys before deploying
-const canUseStripe = Boolean(process.env.STRIPE_SECRET_KEY) && Boolean(process.env.STRIPE_WEBHOOK_SECRET);
+const canUseStripe = () => Boolean(process.env.STRIPE_SECRET_KEY) && Boolean(process.env.STRIPE_WEBHOOK_SECRET);
 
 // Declare price IDs
 // NOTE 1: Make sure to update these are production keys before deploying
@@ -26,7 +26,7 @@ const prices = {
  * @param app - The Express application instance to attach routes to.
  */
 export const setupStripe = (app: Express): void => {
-    if (!canUseStripe) {
+    if (!canUseStripe()) {
         logger.error("Missing one or more Stripe secret keys", { trace: "0489" });
         return;
     }

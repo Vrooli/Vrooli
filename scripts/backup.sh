@@ -1,9 +1,8 @@
 #!/bin/bash
 # This script periodically backs up the database from a remote server
-
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
-source "${HERE}/keylessSsh.sh"
+. "${HERE}/prettify.sh"
+. "${HERE}/keylessSsh.sh"
 
 # Read arguments
 while getopts "c:hi:l:v:" opt; do
@@ -42,7 +41,7 @@ done
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. Exiting..."
     exit 1

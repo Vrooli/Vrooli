@@ -50,27 +50,29 @@ services:
     environment:
       NODE_ENV: "development"
       PROJECT_DIR: "${PROJECT_DIR}"
-      VALYXA_API_KEY: "${VALYXA_API_KEY}"
+      VALYXA_API_KEY: "/run/secrets/vrooli/dev/VALYXA_API_KEY"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: "${PORT_SERVER}"
       REDIS_CONN: "redis:${PORT_REDIS}"
       DB_CONN: "db:${PORT_DB}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       PORT_TRANSLATE: "${PORT_TRANSLATE}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
-      ADMIN_WALLET: "${ADMIN_WALLET}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
-      VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
-      BLOCKFROST_API_KEY: "${BLOCKFROST_API_KEY}"
-      HUGGINGFACE_API_KEY: "${HUGGINGFACE_API_KEY}"
+      ADMIN_WALLET: "/run/secrets/vrooli/dev/ADMIN_WALLET"
+      ADMIN_PASSWORD: "/run/secrets/vrooli/dev/ADMIN_PASSWORD"
+      VALYXA_PASSWORD: "/run/secrets/vrooli/dev/VALYXA_PASSWORD"
+      BLOCKFROST_API_KEY: "/run/secrets/vrooli/dev/BLOCKFROST_API_KEY"
+      HUGGINGFACE_API_KEY: "/run/secrets/vrooli/dev/HUGGINGFACE_API_KEY"
       VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
-      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
-      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
-      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+      VAPID_PRIVATE_KEY: "/run/secrets/vrooli/dev/VAPID_PRIVATE_KEY"
+      STRIPE_SECRET_KEY: "/run/secrets/vrooli/dev/STRIPE_SECRET_KEY"
+      STRIPE_WEBHOOK_SECRET: "/run/secrets/vrooli/dev/STRIPE_WEBHOOK_SECRET"
       SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
-      SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
+      SITE_EMAIL_PASSWORD: "/run/secrets/vrooli/dev/SITE_EMAIL_PASSWORD"
       SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
       SITE_IP: "${SITE_IP}"
       SERVER_URL: "${SERVER_URL}"
@@ -94,6 +96,7 @@ services:
       - ./data/uploads:${PROJECT_DIR}/data/uploads:z
       - ./data/stats:${PROJECT_DIR}/data/stats:z
       - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
+      - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     depends_on:
       - redis
       - db
@@ -103,8 +106,9 @@ services:
     restart: always
     container_name: db
     environment:
+      NODE_ENV: "development"
       POSTGRES_USER: "${DB_USER}"
-      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       PROJECT_DIR: "${PROJECT_DIR}"
     expose:
       - ${PORT_DB}
@@ -113,11 +117,14 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+      - ./scripts:${PROJECT_DIR}/scripts
+      - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "${DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/db.sh"
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -126,9 +133,10 @@ services:
       - app
     volumes:
       - ./data/redis:${PROJECT_DIR}/data/redis:z
+      - ./scripts:${PROJECT_DIR}/scripts
     expose:
       - ${PORT_REDIS}
-    command: /bin/sh -c "mkdir -p ${PROJECT_DIR}/data/redis/appendonlydir && rm -f ${PROJECT_DIR}/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/redis.sh"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -158,11 +166,12 @@ services:
     container_name: adminer
     restart: always
     environment:
+      NODE_ENV: "development"
       ADMINER_PLUGINS: login-env-vars
       ADMINER_DRIVER: pgsql
       ADMINER_SERVER: db
       ADMINER_USERNAME: "${DB_USER}"
-      ADMINER_PASSWORD: "${DB_PASSWORD}"
+      ADMINER_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       ADMINER_DB: "${DB_NAME}"
     networks:
       - app
@@ -170,6 +179,10 @@ services:
       - db
     ports:
       - 8080:8080
+    volumes:
+      - ./scripts:${PROJECT_DIR}/scripts
+      - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/adminer.sh"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9

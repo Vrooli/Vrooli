@@ -3,8 +3,8 @@
 # when one of the error codes you specify appears in the logs. This is useful
 # for catching errors in production
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
-source "${HERE}/keylessSsh.sh"
+. "${HERE}/prettify.sh"
+. "${HERE}/keylessSsh.sh"
 
 # The error codes you want to track
 error_codes='(9999|0192|4200)'
@@ -57,7 +57,7 @@ LATEST_TIMESTAMP=0 #TODO
 
 # Load variables from .env file
 if [ -f "${HERE}/../.env" ]; then
-    source "${HERE}/../.env"
+    . "${HERE}/../.env"
 else
     error "Could not find .env file. Exiting..."
     exit 1

@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import { logger } from "../events";
 
-const canUseValyxa = Boolean(process.env.VALYXA_API_KEY);
+const canUseValyxa = () => Boolean(process.env.VALYXA_API_KEY);
 
 /**
  * Sets up Valyxa-related routes on the provided Express application instance.
@@ -9,7 +9,7 @@ const canUseValyxa = Boolean(process.env.VALYXA_API_KEY);
  * @param app - The Express application instance to attach routes to.
  */
 export const setupValyxa = (app: Express): void => {
-    if (!canUseValyxa) {
+    if (!canUseValyxa()) {
         logger.error("Missing Valyxa API key", { trace: "0490" });
         return;
     }

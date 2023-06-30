@@ -1,0 +1,771 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db
+  name: db
+spec:
+  ports:
+    - name: "5432"
+      port: 5432
+      targetPort: 5432
+  selector:
+    io.kompose.service: db
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs
+  name: docs
+spec:
+  ports:
+    - name: "4000"
+      port: 4000
+      targetPort: 4000
+  selector:
+    io.kompose.service: docs
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis
+  name: redis
+spec:
+  ports:
+    - name: "6379"
+      port: 6379
+      targetPort: 6379
+  selector:
+    io.kompose.service: redis
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server
+  name: server
+spec:
+  ports:
+    - name: "5329"
+      port: 5329
+      targetPort: 5329
+  selector:
+    io.kompose.service: server
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui
+  name: ui
+spec:
+  ports:
+    - name: "3000"
+      port: 3000
+      targetPort: 3000
+  selector:
+    io.kompose.service: ui
+status:
+  loadBalancer: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db
+  name: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: db
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: DB_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: DB_USER
+            - name: PROJECT_DIR
+              value: /srv/app
+          image: ankane/pgvector:v0.4.1
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(DB_USER)
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: db
+          ports:
+            - containerPort: 5432
+          resources: {}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: db-claim0
+            - mountPath: /docker-entrypoint-initdb.d
+              name: db-claim1
+      restartPolicy: Always
+      volumes:
+        - name: db-claim0
+          persistentVolumeClaim:
+            claimName: db-claim0
+        - name: db-claim1
+          persistentVolumeClaim:
+            claimName: db-claim1
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim0
+  name: db-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim1
+  name: db-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  creationTimestamp: null
+  name: vrooli-app
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              io.kompose.network/vrooli-app: "true"
+  podSelector:
+    matchLabels:
+      io.kompose.network/vrooli-app: "true"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs
+  name: docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: docs
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: docs
+    spec:
+      containers:
+        - args:
+            - serve
+            - --dev-addr=0.0.0.0:4000
+          env:
+            - name: LETSENCRYPT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: LETSENCRYPT_EMAIL
+            - name: LETSENCRYPT_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST_DOCS
+            - name: VIRTUAL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST_DOCS
+            - name: VIRTUAL_PORT
+              value: "4000"
+          image: docs
+          name: docs
+          ports:
+            - containerPort: 4000
+          resources: {}
+          volumeMounts:
+            - mountPath: /docs
+              name: docs-claim0
+      restartPolicy: Always
+      volumes:
+        - name: docs-claim0
+          persistentVolumeClaim:
+            claimName: docs-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: docs-claim0
+  name: docs-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  creationTimestamp: null
+  name: nginx-proxy
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              io.kompose.network/nginx-proxy: "true"
+  podSelector:
+    matchLabels:
+      io.kompose.network/nginx-proxy: "true"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: redis
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: redis
+    spec:
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/
+          image: redis:7-alpine
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: redis
+          ports:
+            - containerPort: 6379
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/data/redis
+              name: redis-claim0
+      restartPolicy: Always
+      volumes:
+        - name: redis-claim0
+          persistentVolumeClaim:
+            claimName: redis-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis-claim0
+  name: redis-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server
+  name: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: server
+    spec:
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - chmod +x /srv/app/scripts/* && /srv/app/scripts/server.sh
+          env:
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: ADMIN_PASSWORD
+            - name: ADMIN_WALLET
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: ADMIN_WALLET
+            - name: BLOCKFROST_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: BLOCKFROST_API_KEY
+            - name: CREATE_MOCK_DATA
+              value: "false"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: DB_PASSWORD
+            - name: DB_PULL
+              value: "false"
+            - name: DB_URL
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@db:5432
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: DB_USER
+            - name: HUGGINGFACE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: HUGGINGFACE_API_KEY
+            - name: LETSENCRYPT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: LETSENCRYPT_EMAIL
+            - name: LETSENCRYPT_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST
+            - name: NODE_ENV
+              value: production
+            - name: PROJECT_DIR
+              value: /srv/app
+            - name: REDIS_CONN
+              value: redis:6379
+            - name: SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SERVER_URL
+            - name: SITE_EMAIL_ALIAS
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_EMAIL_ALIAS
+            - name: SITE_EMAIL_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_EMAIL_FROM
+            - name: SITE_EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_EMAIL_PASSWORD
+            - name: SITE_EMAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_EMAIL_USERNAME
+            - name: SITE_IP
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_IP
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: STRIPE_WEBHOOK_SECRET
+            - name: VALYXA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VALYXA_API_KEY
+            - name: VALYXA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VALYXA_PASSWORD
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VAPID_PRIVATE_KEY
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VAPID_PUBLIC_KEY
+            - name: VIRTUAL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST
+            - name: VIRTUAL_PATH
+              value: /api
+            - name: VIRTUAL_PORT
+              value: "5329"
+            - name: VITE_PORT_SERVER
+              value: "5329"
+            - name: VITE_SERVER_LOCATION
+              value: dns
+          image: server:prod
+          name: server
+          ports:
+            - containerPort: 5329
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/data/logs
+              name: server-claim0
+            - mountPath: /srv/app/data/uploads
+              name: server-claim1
+            - mountPath: /srv/app/data/stats
+              name: server-claim2
+            - mountPath: /srv/app/packages/ui/dist
+              name: server-claim3
+      restartPolicy: Always
+      volumes:
+        - name: server-claim0
+          persistentVolumeClaim:
+            claimName: server-claim0
+        - name: server-claim1
+          persistentVolumeClaim:
+            claimName: server-claim1
+        - name: server-claim2
+          persistentVolumeClaim:
+            claimName: server-claim2
+        - name: server-claim3
+          persistentVolumeClaim:
+            claimName: server-claim3
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim0
+  name: server-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim1
+  name: server-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim2
+  name: server-claim2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim3
+  name: server-claim3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui
+  name: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: ui
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f /root/Programming/Vrooli/scripts/../docker-compose-prod.yml.edit -o k8s.yml
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nginx-proxy: "true"
+        io.kompose.network/vrooli-app: "true"
+        io.kompose.service: ui
+    spec:
+      containers:
+        - args:
+            - /bin/sh
+            - -c
+            - chmod +x /srv/app/scripts/* && /srv/app/scripts/ui.sh
+          env:
+            - name: LETSENCRYPT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: LETSENCRYPT_EMAIL
+            - name: LETSENCRYPT_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST
+            - name: NODE_ENV
+              value: production
+            - name: PROJECT_DIR
+              value: /srv/app
+            - name: VIRTUAL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VIRTUAL_HOST
+            - name: VIRTUAL_PATH
+              value: /
+            - name: VIRTUAL_PORT
+              value: "3000"
+            - name: VITE_GOOGLE_ADSENSE_PUBLISHER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: GOOGLE_ADSENSE_PUBLISHER_ID
+            - name: VITE_GOOGLE_TRACKING_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: GOOGLE_TRACKING_ID
+            - name: VITE_PORT_SERVER
+              value: "5329"
+            - name: VITE_SERVER_LOCATION
+              value: dns
+            - name: VITE_SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SERVER_URL
+            - name: VITE_SITE_IP
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: SITE_IP
+            - name: VITE_STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: STRIPE_PUBLISHABLE_KEY
+            - name: VITE_VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vrooli-secrets
+                  key: VAPID_PUBLIC_KEY
+          image: ui:prod
+          name: ui
+          ports:
+            - containerPort: 3000
+          resources: {}
+          volumeMounts:
+            - mountPath: /srv/app/packages/ui/dist
+              name: ui-claim0
+      restartPolicy: Always
+      volumes:
+        - name: ui-claim0
+          persistentVolumeClaim:
+            claimName: ui-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: ui-claim0
+  name: ui-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+

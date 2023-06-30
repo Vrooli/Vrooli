@@ -18,6 +18,7 @@ import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initG
 import { server } from "./server";
 import { setupStripe, setupValyxa } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
+import { loadSecrets } from "./utils/loadSecrets";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -30,6 +31,9 @@ const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
 
 const main = async () => {
     logger.info("Starting server...");
+
+    // Load .env variables from secrets location
+    loadSecrets(process.env.NODE_ENV as "development" | "production");
 
     // Check for required .env variables
     const requiredEnvs = ["PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];

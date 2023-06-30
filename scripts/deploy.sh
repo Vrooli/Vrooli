@@ -15,7 +15,7 @@
 # -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
 # -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/prettify.sh"
+. "${HERE}/prettify.sh"
 
 # Read arguments
 SETUP_ARGS=()
@@ -160,7 +160,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p -e y
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1

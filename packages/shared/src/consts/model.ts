@@ -16,7 +16,6 @@ export enum InputType {
     JSON = "JSON",
     IntegerInput = "IntegerInput",
     LanguageInput = "LanguageInput",
-    Prompt = "Prompt",
     Radio = "Radio",
     Selector = "Selector",
     Slider = "Slider",
