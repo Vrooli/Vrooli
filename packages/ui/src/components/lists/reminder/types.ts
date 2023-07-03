@@ -12,14 +12,6 @@ export interface ReminderListProps {
     zIndex: number;
 }
 
-export interface ReminderListItemProps {
-    handleDelete: (deletedReminder: Reminder) => void;
-    handleOpen: () => void;
-    handleUpdate: (updatedReminder: Reminder) => void;
-    reminder: Reminder;
-    zIndex: number;
-}
-
 export interface ReminderListSubItemProps {
     reminderItem: ReminderItem;
     handleDelete: (deletedReminderItem: ReminderItem) => void;

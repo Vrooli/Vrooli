@@ -184,6 +184,7 @@ export const MyStuffView = ({
                     onClick={onAddClick}
                     size="large"
                     variant="contained"
+                    startIcon={<AddIcon />}
                     sx={{
                         zIndex: 100,
                         minWidth: "min(100%, 200px)",

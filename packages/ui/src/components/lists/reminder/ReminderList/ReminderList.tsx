@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success, useLocation } from "@local/shared";
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
@@ -37,10 +37,12 @@ export const ReminderList = ({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
-    const openUpdateDialog = useCallback((index: number) => {
+    const openUpdateDialog = useCallback((data: Reminder) => {
+        const index = allReminders.findIndex((reminder) => reminder.id === data.id);
+        if (index < 0) return;
         setEditingIndex(index);
         setIsDialogOpen(true);
-    }, []);
+    }, [allReminders]);
 
     const handleCreated = useCallback((reminder: Reminder) => {
         setAllReminders([...allReminders, reminder]);
@@ -68,7 +70,10 @@ export const ReminderList = ({
     // Handle update mutation
     const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
     useDisplayServerError(updateErrors);
-    const saveUpdate = useCallback((index: number, original: Reminder, updated: Reminder) => {
+    const saveUpdate = useCallback((updated: Reminder) => {
+        const index = allReminders.findIndex((reminder) => reminder.id === updated.id);
+        if (index < 0) return;
+        const original = allReminders[index];
         // Don't wait for the mutation to call handleUpdated
         handleUpdated(index, updated);
         // Call the mutation
@@ -78,11 +83,13 @@ export const ReminderList = ({
             successCondition: (data) => !!data.id,
             successMessage: () => ({ messageKey: "ObjectUpdated", messageVariables: { objectName: updated.name } }),
         });
-    }, [updateMutation, handleUpdated]);
+    }, [allReminders, handleUpdated, updateMutation]);
 
     // Handle delete
     const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const handleDelete = useCallback((index: number) => {
+    const handleDelete = useCallback((id: string) => {
+        const index = allReminders.findIndex((reminder) => reminder.id === id);
+        if (index < 0) return;
         const reminder = allReminders[index];
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteMutation,
@@ -120,6 +127,17 @@ export const ReminderList = ({
         });
     }, [addMutation, allReminders, closeDialog, deleteMutation, handleCreated, handleUpdate]);
 
+    const onAction = useCallback((action: "Delete" | "Update", data: any) => {
+        switch (action) {
+            case "Delete":
+                handleDelete(data);
+                break;
+            case "Update":
+                saveUpdate(data);
+                break;
+        }
+    }, [handleDelete, saveUpdate]);
+
     return (
         <>
             {/* Dialog */}
@@ -133,7 +151,7 @@ export const ReminderList = ({
                 <ReminderUpsert
                     display="dialog"
                     partialData={editingIndex >= 0 ? reminders[editingIndex as number] : undefined}
-                    handleDelete={editingIndex >= 0 ? () => handleDelete(editingIndex as number) : () => { }}
+                    handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
                     isCreate={editingIndex < 0}
                     listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
                     onCancel={closeDialog}
@@ -166,10 +184,11 @@ export const ReminderList = ({
                         {reminders.map((reminder, index) => (
                             <ReminderListItem
                                 key={`reminder-${index}`}
-                                handleDelete={() => handleDelete(index)}
-                                handleOpen={() => openUpdateDialog(index)}
-                                handleUpdate={(updated) => saveUpdate(index, reminder, updated)}
-                                reminder={reminder}
+                                data={reminder}
+                                loading={false}
+                                objectType={GqlModelType.Reminder}
+                                onAction={onAction}
+                                onClick={openUpdateDialog}
                                 zIndex={zIndex}
                             />
                         ))}
