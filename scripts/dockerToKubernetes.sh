@@ -118,15 +118,33 @@ fi
 # Set Kubernetes secrets using .env file
 # NOTE: To check the secrets, run `kubectl get secrets` and `kubectl describe secret <SECRET_NAME>`
 info "Setting Kubernetes secrets using .env file: ${ENV_FILE}"
+
+# Define the array of environment variables to include (i.e. data that is not included in the vault)
+# NOTE: This should not include passwords or other sensitive data. This is because
+# we need to deploy the Docker images to Docker Hub, which means these are environment variables in
+# docker-compose, which means they can be found in the image. The best way to keep them secret
+# is using a vault, which we'll do later.
+INCLUDE_ENV=("GOOGLE_ADSENSE_PUBLISHER_ID" "GOOGLE_TRACKING_ID" "LETSENCRYPT_EMAIL" "SERVER_URL" "SITE_EMAIL_ALIAS" "SITE_EMAIL_FROM" "SITE_EMAIL_USERNAME" "SITE_IP" "STRIPE_PUBLISHABLE_KEY" "VAPID_PUBLIC_KEY" "VIRTUAL_HOST" "VIRTUAL_HOST_DOCS")
+
+# Convert the array to an associative array (i.e., a hash map) for efficient lookups
+declare -A INCLUDE_ENV_MAP
+for KEY in "${INCLUDE_ENV[@]}"; do
+    INCLUDE_ENV_MAP["$KEY"]=1
+done
+
 SECRET_DATA=""
 while IFS= read -r line || [ -n "$line" ]; do
     # Ignore lines that start with '#' or are blank
     if echo "$line" | grep -q -v '^#' && [ -n "$line" ]; then
         KEY=$(echo "$line" | cut -d '=' -f 1)
         VALUE=$(echo "$line" | cut -d '=' -f 2-)
-        SECRET_DATA+=" --from-literal=${KEY}=${VALUE}"
+        # Only add the key-value pair to the secret data if the key is in the include array
+        if [[ -n "${INCLUDE_ENV_MAP[$KEY]}" ]]; then
+            SECRET_DATA+=" --from-literal=${KEY}=${VALUE}"
+        fi
     fi
 done <"$ENV_FILE"
+
 if [ -n "$SECRET_DATA" ]; then
     echo "Setting secrets..."
     kubectl create secret generic "${SECRET_NAME}" $SECRET_DATA --dry-run=client -o yaml | kubectl apply -f -
@@ -134,7 +152,6 @@ if [ -n "$SECRET_DATA" ]; then
         error "Failed to set Kubernetes secrets"
         exit 1
     fi
-    success "Kubernetes secrets set successfully"
 else
     error "No secrets to set"
 fi
@@ -142,7 +159,8 @@ success "Kubernetes secrets set successfully"
 
 # Specify non-sensitive environment variables, which will be replaced with their values in the Docker Compose file.
 # DO NOT INCLUDE VARIABLES FOR PASSWORDS OR OTHER SENSITIVE INFORMATION!!!
-NON_SENSITIVE_VARS=("SERVER_LOCATION" "CREATE_MOCK_DATA" "DB_PULL" "PORT_UI" "PORT_SERVER" "PORT_DB" "PORT_REDIS" "PORT_DOCS" "PORT_TRANSLATE" "PROJECT_DIR" "DB_USER" "SITE_EMAIL_USERNAME" "SITE_EMAIL_FROM" "SITE_EMAIL_ALIAS" "VAPID_PUBLIC_KEY" "STRIPE_PUBLISHABLE_KEY" "LETSENCRYPT_EMAIL" "GENERATE_SOURCEMAP")
+# NOTE: Variables used in ports must be included here, because Kompose doesn't support environment variables in ports.
+NON_SENSITIVE_VARS=("CREATE_MOCK_DATA" "DB_PULL" "DB_USER" "GENERATE_SOURCEMAP" "PORT_DB" "PORT_DOCS" "PORT_REDIS" "PORT_SERVER" "PORT_TRANSLATE" "PORT_UI" "PROJECT_DIR" "SERVER_LOCATION")
 
 # Load environment variables from .env file
 set -a
@@ -194,6 +212,9 @@ if [ $? -ne 0 ]; then
 else
     success "Angle brackets within strings replaced with Kubernetes variable references successfully"
 fi
+
+# Set up the Vault for sensitive environment variables, as well as jwt keys
+# TODO
 
 # Dry run the generated Kubernetes YAML file to check for errors
 kubectl apply -f k8s.yml --dry-run=client
