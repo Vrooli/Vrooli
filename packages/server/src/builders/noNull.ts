@@ -14,4 +14,4 @@ export const noNull = <T>(...args: (T | undefined | null)[]): T | undefined => {
         }
     }
     return undefined;
-}
+};

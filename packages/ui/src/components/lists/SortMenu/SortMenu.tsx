@@ -1,5 +1,3 @@
-// Menu for selecting 
-
 import { CommonKey } from "@local/shared";
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo } from "react";
@@ -15,9 +13,9 @@ export function SortMenu({
     const open = Boolean(anchorEl);
 
     const menuItems = useMemo(() => {
-        let menuItems: JSX.Element[] = [];
+        const menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = t(`${option.value}` as CommonKey)
+            const optionLabel = t(`${option.value}` as CommonKey);
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem
@@ -26,12 +24,12 @@ export function SortMenu({
                         onClick={() => onClose(optionLabel, option.value)}
                     >
                         {optionLabel}
-                    </MenuItem>
+                    </MenuItem>,
                 );
             }
         });
         return menuItems;
-    }, [sortOptions, t, onClose])
+    }, [sortOptions, t, onClose]);
 
     return (
         <Menu
@@ -40,9 +38,9 @@ export function SortMenu({
             anchorEl={anchorEl}
             open={open}
             onClose={() => onClose()}
-            MenuListProps={{ 'aria-labelledby': 'sort-results-menu-list' }}
+            MenuListProps={{ "aria-labelledby": "sort-results-menu-list" }}
         >
             {menuItems}
         </Menu>
-    )
+    );
 }

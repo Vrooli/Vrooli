@@ -12,21 +12,21 @@ import { PartialGraphQLInfo } from "./types";
 export const addJoinTables = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
     if (!map) return partialInfo;
     // Create result object
-    let result: any = {};
+    const result: any = {};
     // Iterate over join map
     for (const [key, value] of Object.entries(map)) {
         // If the key is in the object, 
         if (partialInfo[key]) {
             // Skip if already padded with join table name
             if (isRelationshipArray(partialInfo[key])) {
-                if ((partialInfo[key] as any).every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== 'id')) {
+                if ((partialInfo[key] as any).every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== "id")) {
                     result[key] = partialInfo[key];
                     continue;
                 }
             } else if (isRelationshipObject(partialInfo[key])) {
-                if (Object.keys(partialInfo[key] as any).length === 1 && Object.keys(partialInfo[key] as any)[0] !== 'id') {
+                if (Object.keys(partialInfo[key] as any).length === 1 && Object.keys(partialInfo[key] as any)[0] !== "id") {
                     result[key] = partialInfo[key];
-                    continue
+                    continue;
                 }
             }
             // Otherwise, pad with the join table name
@@ -35,6 +35,6 @@ export const addJoinTables = (partialInfo: PartialGraphQLInfo, map: JoinMap | un
     }
     return {
         ...partialInfo,
-        ...result
-    }
-}
+        ...result,
+    };
+};

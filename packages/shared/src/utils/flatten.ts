@@ -3,6 +3,6 @@
  * @param array The array to flatten
  * @returns The flattened array.
  */
-export function flatten(array: any[]): any[] {
-    return array.reduce((acc, item) => acc.concat(item), []);
+export function flatten<T>(array: T[]): T[] {
+    return array.reduce((acc, item) => acc.concat(item), [] as T[]);
 }

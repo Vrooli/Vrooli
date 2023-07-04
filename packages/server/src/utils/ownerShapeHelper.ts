@@ -32,7 +32,7 @@ export const ownerShapeHelper = async <
     ...rest
 }: OwnerShapeHelperProps<FieldName>): Promise<
     (ShapeHelperOutput<true, false, Types[number], `${FieldName}Organization`, "id"> &
-        ShapeHelperOutput<true, false, Types[number], `${FieldName}User`, "id">) | {}
+        ShapeHelperOutput<true, false, Types[number], `${FieldName}User`, "id">) | object
 > => {
     // Check preMap to see if we're allowed to set the owner
     const requiresTransfer = rest.preMap[objectType].transferMap[data.id];

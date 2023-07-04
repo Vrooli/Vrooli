@@ -24,7 +24,7 @@ export type ExtractRouteParams<PathType extends string> =
     ? ParamWithOptionalRegExp extends `${infer Param}(${infer _RegExp})`
     ? ExtractRouteOptionalParam<Param>
     : ExtractRouteOptionalParam<ParamWithOptionalRegExp>
-    : {};
+    : object;
 
 export interface RouterProps {
     hook: LocationHook;

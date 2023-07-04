@@ -1,4 +1,4 @@
-import { Reminder, ReminderItem } from "@local/shared";
+import { Reminder } from "@local/shared";
 
 export interface ReminderListProps {
     handleUpdate?: (updatedList: Reminder[]) => void;
@@ -10,10 +10,4 @@ export interface ReminderListProps {
     loading: boolean;
     reminders: Reminder[];
     zIndex: number;
-}
-
-export interface ReminderListSubItemProps {
-    reminderItem: ReminderItem;
-    handleDelete: (deletedReminderItem: ReminderItem) => void;
-    handleUpdate: (updatedReminderItem: ReminderItem) => void;
 }
