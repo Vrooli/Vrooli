@@ -21,8 +21,8 @@ export type HookNavigationOptions =
     SetLocation extends (path: Path, options: infer R, ...rest: any[]) => any
     ? R extends { [k: string]: any }
     ? R
-    : {}
-    : {};
+    : object
+    : object;
 
 // Returns the type of the navigation options that hook's push function accepts.
 export type LocationHook = (options?: {
@@ -44,65 +44,7 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
     })); // @see https://reactjs.org/docs/hooks-reference.html#lazy-initial-state
     const prevHash = useRef(path + search);
 
-    // // When path changes, store last path in session storage.
-    // // This can be useful for components like dialogs that have 
-    // // conditional logic based on if the user navigated back to the page
-    // useEffect(() => {
-    //     // Get last stored data in sessionStorage
-    //     const lastPath = sessionStorage.getItem("currentPath");
-    //     console.log("LAST PATH", lastPath);
-    //     console.log('CURRENT PATH', path)
-    //     // Store last data in sessionStorage
-    //     if (lastPath) sessionStorage.setItem("lastPath", lastPath);
-    //     // Store current data in sessionStorage
-    //     sessionStorage.setItem("currentPath", path);
-    // }, [path]);
-
-    // // Also store search params in sessionStorage
-    // useEffect(() => {
-    //     // Get last stored data in sessionStorage
-    //     const lastSearchParams = sessionStorage.getItem("currentSearchParams");
-    //     console.log("LAST SEARCH PARAMS", lastSearchParams);
-    //     console.log('CURRENT SEARCH PARAMS', search)
-    //     // Store last data in sessionStorage
-    //     if (lastSearchParams) sessionStorage.setItem("lastSearchParams", lastSearchParams);
-    //     // Store current data in sessionStorage
-    //     sessionStorage.setItem("currentSearchParams", search);
-    // }, [search]);
-
     useEffect(() => {
-        // this function checks if the location has been changed since the
-        // last render and updates the state only when needed.
-        // unfortunately, we can't rely on `path` value here, since it can be stale,
-        // that's why we store the last pathname in a ref.
-        // const checkForUpdates = () => {
-        //     const pathname = currentPathname(base);
-        //     const search = location.search;
-        //     // If previous path is different from current path, update sessionStorage
-        //     let hasPrevPathChanged = prevPath.current !== pathname;
-        //     if (hasPrevPathChanged) {
-        //         console.log("PREV PATH", prevPath.current, "CURRENT PATH", pathname);
-        //         prevPath.current = pathname;
-        //         // Update last path in sessionStorage
-        //         sessionStorage.setItem("lastPath", prevPath.current);
-        //         // Update current path in sessionStorage
-        //         sessionStorage.setItem("currentPath", pathname);
-        //     }
-        //     // If previous search params are different from current search params, update sessionStorage
-        //     let hasPrevSearchChanged = prevSearch.current !== search;
-        //     if (hasPrevSearchChanged) {
-        //         console.log("PREV SEARCH PARAMS", prevSearch.current, "CURRENT SEARCH PARAMS", search);
-        //         prevSearch.current = search;
-        //         // Update last search params in sessionStorage
-        //         sessionStorage.setItem("lastSearchParams", prevSearch.current);
-        //         // Update current search params in sessionStorage
-        //         sessionStorage.setItem("currentSearchParams", search);
-        //     }
-        //     // If either path or search params have changed, update the state
-        //     if (hasPrevPathChanged || hasPrevSearchChanged) {
-        //         update({ path: pathname, search });
-        //     }
-        // };
         const checkForUpdates = () => {
             const pathname = currentPathname(base);
             const search = location.search;
@@ -130,7 +72,6 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
     const setLocation = useCallback((to: Path, { replace = false, searchParams = {} } = {}) => {
-        console.log("calling setLocation", to, replace, searchParams);
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");
@@ -143,18 +84,15 @@ export default ({ base = "" } = {}): [Path, SetLocation] => {
         else if (Object.keys(searchParams).length > 0) currSearchParams = stringifySearchParams(searchParams);
         // Store last data in sessionStorage
         if (lastPath && lastPath !== currPath) {
-            console.log("USELOCATION: changing last path", lastPath, currPath);
             sessionStorage.setItem("lastPath", lastPath);
         }
         if (lastSearchParams && lastSearchParams !== currSearchParams) {
-            console.log("USELOCATION: changing last search params", lastSearchParams, currSearchParams);
             sessionStorage.setItem("lastSearchParams", lastSearchParams);
         }
         // Store current data in sessionStorage
         sessionStorage.setItem("currentPath", currPath);
         sessionStorage.setItem("currentSearchParams", currSearchParams ?? JSON.stringify({}));
         // Update history
-        console.log("USELOCATION: updating history", currSearchParams ? `${currPath}${currSearchParams}` : currPath);
         history[replace ? eventReplaceState : eventPushState](
             null,
             "",

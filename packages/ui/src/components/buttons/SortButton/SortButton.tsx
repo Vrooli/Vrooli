@@ -40,7 +40,7 @@ export const SortButton = ({
                 anchorEl={sortAnchorEl}
                 onClose={handleSortClose}
             />
-            <Tooltip title={t(`SortBy`)} placement="top">
+            <Tooltip title={t("SortBy")} placement="top">
                 <Box
                     onClick={handleSortOpen}
                     sx={searchButtonStyle(palette)}
@@ -50,5 +50,5 @@ export const SortButton = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

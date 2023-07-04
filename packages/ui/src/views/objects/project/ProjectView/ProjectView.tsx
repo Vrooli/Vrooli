@@ -172,7 +172,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
 
     return (
         <>

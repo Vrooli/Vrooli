@@ -1,4 +1,4 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -42,7 +42,7 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
     loading: boolean;
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
-    onClick?: (dat: T) => void;
+    onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
@@ -58,6 +58,11 @@ export type NotificationListItemActions = {
     MarkAsRead: (id: string) => void;
     Delete: (id: string) => void;
 };
+export type ReminderListItemActions = {
+    Delete: (id: string) => void;
+    Update: (data: Reminder) => void;
+};
+
 /**
  * Maps object types to their list item's custom actions.
  * Not all object types have custom actions.
@@ -65,6 +70,7 @@ export type NotificationListItemActions = {
 export interface ListActions {
     Chat: ChatListItemActions;
     Notification: NotificationListItemActions;
+    Reminder: ReminderListItemActions;
 }
 
 
@@ -72,8 +78,9 @@ export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
 
 export type MemberListItemProps = ObjectListItemProps<Member>
 
-
 export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
+
+export type ReminderListItemProps = ObjectListItemProps<Reminder, ReminderListItemActions>
 
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 

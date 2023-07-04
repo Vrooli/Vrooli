@@ -29,11 +29,12 @@ import { NavbarLogoState, NavbarProps } from "../types";
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
 export const Navbar = forwardRef(({
+    below,
+    help,
+    options,
     shouldHideTitle = false,
     title,
     titleComponent,
-    help,
-    below,
 }: NavbarProps, ref) => {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -113,6 +114,7 @@ export const Navbar = forwardRef(({
                         {/* Title displayed here on mobile */}
                         {isMobile && title && !titleComponent && <Title
                             help={help}
+                            options={options}
                             title={title}
                             variant="header"
                         />}
@@ -131,6 +133,7 @@ export const Navbar = forwardRef(({
             {/* Title displayed here on desktop */}
             {!isMobile && title && !titleComponent && !shouldHideTitle && <Title
                 help={help}
+                options={options}
                 title={title}
                 variant="header"
             />}

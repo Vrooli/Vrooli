@@ -1,4 +1,4 @@
-import { adaHandleRegex, getLastUrlPart, LINKS, uuidValidate } from "@local/shared";
+import { adaHandleRegex, getLastUrlPart, LINKS, SetLocation, uuidValidate } from "@local/shared";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -117,4 +117,22 @@ export const parseSingleItemUrl = ({
     }
     // Return the object
     return returnObject;
+};
+
+/**
+ * If onClose is a function, call it. Otherwise, 
+ * try to navigate back if previous url is this site. 
+ * Otherwise, navigate to the home page.
+ */
+export const tryOnClose = (
+    onClose: (() => void) | null | undefined,
+    setLocation: SetLocation,
+) => {
+    if (typeof onClose === "function") {
+        onClose();
+        return;
+    }
+    const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
+    if (hasPreviousPage) window.history.back();
+    else setLocation(LINKS.Home);
 };

@@ -1,5 +1,5 @@
 import { Question } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
-export interface QuestionUpsertProps extends UpsertProps<Question> { }
-export interface QuestionViewProps extends ViewProps<Question> { }
+export type QuestionUpsertProps = UpsertProps<Question>
+export type QuestionViewProps = ViewProps<Question>

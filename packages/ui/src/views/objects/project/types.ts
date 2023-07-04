@@ -1,5 +1,5 @@
 import { ProjectVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
-export interface ProjectUpsertProps extends UpsertProps<ProjectVersion> { }
-export interface ProjectViewProps extends ViewProps<ProjectVersion> { }
+export type ProjectUpsertProps = UpsertProps<ProjectVersion>
+export type ProjectViewProps = ViewProps<ProjectVersion>

@@ -67,19 +67,19 @@ export interface FormProps {
 }
 
 export interface ForgotPasswordFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => any;
 }
 
 export interface LogInFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => any;
 }
 
 export interface ResetPasswordFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => any;
 }
 
 export interface SignUpFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => any;
 }
 
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {

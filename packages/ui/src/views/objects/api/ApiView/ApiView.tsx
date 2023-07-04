@@ -179,7 +179,7 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
 
     return (
         <>

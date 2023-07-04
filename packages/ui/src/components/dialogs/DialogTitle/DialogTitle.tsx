@@ -1,8 +1,9 @@
-import { CloseIcon } from "@local/shared";
+import { CloseIcon, useLocation } from "@local/shared";
 import { Box, DialogTitle as MuiDialogTitle, IconButton, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { forwardRef } from "react";
 import { noSelect } from "styles";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { DialogTitleProps } from "../types";
 
 export const DialogTitle = forwardRef(({
@@ -12,6 +13,7 @@ export const DialogTitle = forwardRef(({
     ...titleData
 }: DialogTitleProps, ref) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
 
     return (
         <Box ref={ref} sx={{
@@ -39,7 +41,7 @@ export const DialogTitle = forwardRef(({
                 <IconButton
                     aria-label="close"
                     edge="end"
-                    onClick={() => { onClose(); }}
+                    onClick={() => { tryOnClose(onClose, setLocation); }}
                     sx={{ marginLeft: "auto" }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} />

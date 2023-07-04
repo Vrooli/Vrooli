@@ -13,7 +13,7 @@ import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
@@ -236,12 +236,12 @@ export const ChatView = ({
                             PubSub.get().publishAlertDialog({
                                 messageKey: "UnsavedChangesBeforeCancel",
                                 buttons: [
-                                    { labelKey: "Yes", onClick: () => { onClose(); } },
+                                    { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
                                     { labelKey: "No" },
                                 ],
                             });
                         } else {
-                            onClose();
+                            tryOnClose(onClose, setLocation);
                         }
                     }}
                     title={firstString(title, botSettings ? "AI Chat" : "Chat")}

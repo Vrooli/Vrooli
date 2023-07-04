@@ -11,7 +11,7 @@ import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete, locationArraysMatch, routineVersionHasSubroutines, runInputsUpdate } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
@@ -843,7 +843,7 @@ export const RunView = ({
                 onSuccess: () => {
                     PubSub.get().publishCelebration();
                     removeSearchParams(setLocation, ["run", "step"]);
-                    onClose();
+                    tryOnClose(onClose, setLocation);
                 },
             });
         }
@@ -860,7 +860,7 @@ export const RunView = ({
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
             removeSearchParams(setLocation, ["run", "step"]);
-            onClose();
+            tryOnClose(onClose, setLocation);
             return;
         }
         // Log complete. No step data because this function was called from a decision node, 
@@ -878,7 +878,7 @@ export const RunView = ({
             onSuccess: () => {
                 PubSub.get().publishCelebration();
                 removeSearchParams(setLocation, ["run", "step"]);
-                onClose();
+                tryOnClose(onClose, setLocation);
             },
         });
     }, [testMode, run, runnableObject, logRunComplete, setLocation, onClose]);
@@ -916,7 +916,7 @@ export const RunView = ({
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
         removeSearchParams(setLocation, ["run", "step"]);
-        onClose();
+        tryOnClose(onClose, setLocation);
     }, [onClose, saveProgress, setLocation]);
 
     /**

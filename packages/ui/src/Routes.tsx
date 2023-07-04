@@ -94,8 +94,6 @@ const noSidePadding = {
 
 const viewProps = ({
     display: "page" as const,
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    onClose: () => { },
     zIndex: 200,
 });
 
@@ -161,7 +159,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <FormView title="Forgot Password" maxWidth="700px" {...props}>
-                        <ForgotPasswordForm onClose={() => { }} />
+                        <ForgotPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
@@ -249,10 +247,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <QuestionView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} handleDelete={() => { }} isCreate={true} />
+                    <ReminderUpsert {...viewProps} isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} handleDelete={() => { }} isCreate={false} />
+                    <ReminderUpsert {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderView {...viewProps} />
@@ -265,7 +263,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <FormView title="Reset Password" maxWidth="700px" {...props}>
-                        <ResetPasswordForm onClose={() => { }} />
+                        <ResetPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>

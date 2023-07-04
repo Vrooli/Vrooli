@@ -23,7 +23,6 @@ export const FormView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => { }}
                 title={title}
             />
             <Box sx={{

@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { BuildAction, Status } from "utils/consts";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useStableObject } from "utils/hooks/useStableObject";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
@@ -306,7 +307,7 @@ export const BuildView = ({
         } else {
             keepSearchParams(setLocation, []);
             if (!uuidValidate(id)) window.history.back();
-            else onClose();
+            else tryOnClose(onClose, setLocation);
         }
     }, [onClose, id, isEditing, setLocation, revertChanges]);
 

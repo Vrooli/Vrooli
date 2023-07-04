@@ -10,7 +10,6 @@ export const NotFoundView = () => {
         <>
             <TopBar
                 display="page"
-                onClose={() => { }}
                 title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
             />
             <Box

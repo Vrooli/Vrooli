@@ -10,7 +10,7 @@ export type ViewDisplayType = "dialog" | "page";
 
 export type BaseViewProps = {
     display?: ViewDisplayType;
-    onClose: () => void;
+    onClose?: () => void;
     zIndex: number;
 }
 

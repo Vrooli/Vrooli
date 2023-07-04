@@ -1,5 +1,5 @@
 import { SmartContractVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
-export interface SmartContractUpsertProps extends UpsertProps<SmartContractVersion> { }
-export interface SmartContractViewProps extends ViewProps<SmartContractVersion> { }
+export type SmartContractUpsertProps = UpsertProps<SmartContractVersion>
+export type SmartContractViewProps = ViewProps<SmartContractVersion>

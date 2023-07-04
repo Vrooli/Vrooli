@@ -65,7 +65,7 @@ export interface DeleteDialogProps {
 export interface DialogTitleProps extends Omit<TitleProps, "variant"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
-    onClose: () => void;
+    onClose?: () => void;
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |

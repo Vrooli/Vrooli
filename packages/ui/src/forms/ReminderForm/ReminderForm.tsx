@@ -23,11 +23,9 @@ export const reminderInitialValues = (
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,
-    description: "",
     dueDate: null,
     index: 0,
     isComplete: false,
-    name: "",
     reminderList: {
         __typename: "ReminderList" as const,
         id: reminderListId ?? DUMMY_ID,
@@ -38,6 +36,8 @@ export const reminderInitialValues = (
     },
     reminderItems: [],
     ...existing,
+    description: existing?.description ?? "",
+    name: existing?.name ?? "",
 });
 
 export function transformReminderValues(values: ReminderShape, existing?: ReminderShape) {

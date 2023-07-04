@@ -156,7 +156,7 @@ export const SmartContractView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, smartContractVersion, description, zIndex, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, smartContractVersion, description, zIndex, actionData]);
 
     return (
         <>
