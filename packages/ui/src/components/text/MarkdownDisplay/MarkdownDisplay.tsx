@@ -204,7 +204,6 @@ const CustomLink = ({ children, href }) => {
 /** Custom checkbox component editable checkboxes */
 const CustomCheckbox = ({ checked, onChange, ...otherProps }) => {
     const id = useMemo(() => uuid(), []);
-    console.log("chicken in CustomCheckbox", checked, id);
     return <Checkbox checked={checked} id={id} onChange={() => { onChange(id, !checked); }} {...otherProps} />;
 };
 
@@ -218,11 +217,10 @@ const withCustomCheckboxProps = (additionalProps) => {
     };
 };
 
-/** State machine to locate checkboxes */ //TODO quote blocks are displaying checkboxes
+/** State machine to locate checkboxes */
 function parseMarkdownCheckboxes(content: string) {
     const STATE_NORMAL = 0;
-    const STATE_QUOTE = 1;
-    const STATE_CODE_BLOCK = 2;
+    const STATE_CODE_BLOCK = 1;
 
     let state = STATE_NORMAL;
     const checkboxIndices: number[] = [];
@@ -235,20 +233,12 @@ function parseMarkdownCheckboxes(content: string) {
         const char = content[i];
 
         // update state based on buffer content
-        if (buffer.endsWith("```") && state !== STATE_QUOTE) {
+        if (buffer.endsWith("```")) {
             state = state === STATE_CODE_BLOCK ? STATE_NORMAL : STATE_CODE_BLOCK;
             buffer = ""; // reset buffer
             if (state === STATE_NORMAL) {
                 potentialCheckboxIndices.length = 0; // clear the list of potential checkboxes
             }
-        }
-        // if we find a quote indicator and we are not in a code block
-        else if ((buffer.endsWith("\n>") || (char === ">" && i === 0)) && state !== STATE_CODE_BLOCK) {
-            state = STATE_QUOTE; // enter quote state
-        }
-        // if we find a newline that is not followed by a quote indicator, or if we're at the end of the content and in a quote
-        else if ((char === "\n" && state === STATE_QUOTE && content[i + 1] !== ">") || (i === content.length - 1 && state === STATE_QUOTE)) {
-            state = STATE_NORMAL; // exit quote state
         }
 
         // update buffer
@@ -269,7 +259,6 @@ function parseMarkdownCheckboxes(content: string) {
 
     // if the text ends while still inside a block, consider the potential checkboxes as actual ones
     if (state !== STATE_NORMAL) {
-        console.log("chicken state is not normal", checkboxIndices, potentialCheckboxIndices);
         checkboxIndices.push(...potentialCheckboxIndices);
     }
 
@@ -278,10 +267,6 @@ function parseMarkdownCheckboxes(content: string) {
 
 
 
-//TODO for morning: 1) Finish implementing checkbox 2) Update references to this component to handle updating 3) Add checkbox option to list insert for MarkdownInputBase
-// Use this for testing:
-// [x] A checkbox!  
-// [ ] Another checkbox!
 export const MarkdownDisplay = ({
     content,
     isEditable,
@@ -300,8 +285,7 @@ export const MarkdownDisplay = ({
             a: CustomLink,
             input: withCustomCheckboxProps({
                 onChange: (checkboxId: string, updatedState: boolean) => {
-                    if (!content) return;
-                    console.log("chicken in onChange 1", checkboxId, updatedState, content);
+                    if (!content || !onChange) return;
                     // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
                     const markdownComponent = document.getElementById(id);
                     if (!markdownComponent) return;
@@ -324,20 +308,21 @@ export const MarkdownDisplay = ({
                     while (treeWalker.nextNode()) {
                         checkboxes.push(treeWalker.currentNode);
                     }
-                    console.log("chicken in onChange 3", checkboxes);
                     // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
                     const checkboxIds = checkboxes.map(checkbox => checkbox.id);
                     // Find the index of the checkbox that was clicked
                     const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
-                    console.log("chicken in onChange 4", checkboxIds, checkboxIndex);
                     // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
                     const checkboxLocations = parseMarkdownCheckboxes(content);
-                    console.log("chicken in onChange 5", checkboxLocations);
-                    // const contentRegex = /\[( |x)\]/g; //TODO this won't work. Need state machine to parse content, making sure to omit quotes, code, escaped characters, etc.
-                    // const contentMatches = content.match(contentRegex);
-                    // console.log("chicken in onChange 5", contentMatches);
-                    // if (!contentMatches) return;
-                    // //TODO complete
+                    if (checkboxIndex >= checkboxLocations.length) {
+                        console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
+                        return;
+                    }
+                    // Replace the checkbox in the content with the updated checkbox
+                    const checkboxStart = checkboxLocations[checkboxIndex];
+                    const newCheckbox = updatedState ? "[x]" : "[ ]";
+                    const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
+                    onChange(newContent);
                 },
             }),
         },

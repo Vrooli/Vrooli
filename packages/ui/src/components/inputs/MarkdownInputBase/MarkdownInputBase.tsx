@@ -1,7 +1,7 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
@@ -428,6 +428,16 @@ export const MarkdownInputBase = ({
         closeList();
     }, [checkIfCanEdit, handleChange, name]);
 
+    const insertCheckboxList = useCallback(() => {
+        if (!checkIfCanEdit()) return;
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
+        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
+        const newValue = replaceText(textArea.value, lines.map(line => `- [ ] ${line}`).join("\n"), linesStart, linesEnd);
+        textArea.value = newValue;
+        handleChange(newValue);
+        closeList();
+    }, [checkIfCanEdit, handleChange, name]);
+
     // Prevents the textArea from removing its highlight when one 
     // of the buttons is clicked
     const handleMouseDown = useCallback((e) => {
@@ -503,7 +513,8 @@ export const MarkdownInputBase = ({
             "3": () => insertHeader(Headers.H3), // ALT + 3 - Insert header 3
             "4": () => insertBulletList(), // ALT + 4 - Bullet list
             "5": () => insertNumberList(), // ALT + 5 - Number list
-            "6": () => togglePreview(), // ALT + 6 - Toggle preview
+            "6": () => insertCheckboxList(), // ALT + 6 - Checkbox list
+            "7": () => togglePreview(), // ALT + 7 - Toggle preview
             "b": () => bold(), // CTRL + B - Bold
             "i": () => italic(), // CTRL + I - Italic
             "k": () => insertLink(), // CTRL + K - Insert link
@@ -577,13 +588,25 @@ export const MarkdownInputBase = ({
                 const { selectionStart, selectionEnd, value } = e.target;
                 let [trimmedLine] = getLineAtIndex(value, selectionStart);
                 trimmedLine = trimmedLine.trimStart();
-                const isBullet = trimmedLine.startsWith("* ") || trimmedLine.trim()?.startsWith("- ");
-                const isNumber = /^\d+\.\s/.test(trimmedLine);
-                // If the current line is a bullet or numbered list
-                if (isBullet || isNumber) {
+                const isNumberList = /^\d+\.\s/.test(trimmedLine);
+                const isCheckboxList = trimmedLine.startsWith("- [ ] ") || trimmedLine.startsWith("- [x] ");
+                const isBulletDashList = trimmedLine.startsWith("- ");
+                const isBulletStarList = trimmedLine.startsWith("* ");
+                // If the current line is a list
+                if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
                     const { textArea } = getSelection(`markdown-input-${name}`);
-                    const textToInsert = isBullet ? "\n* " : `\n${Number(trimmedLine.match(/^\d+/)![0]) + 1}. `;
+                    let textToInsert = "\n";
+                    if (isNumberList) {
+                        const number = Number(trimmedLine.match(/^\d+/)![0]) + 1;
+                        textToInsert += `${number}. `;
+                    } else if (isCheckboxList) {
+                        textToInsert += "- [ ] ";
+                    } else if (isBulletDashList) {
+                        textToInsert += "- ";
+                    } else if (isBulletStarList) {
+                        textToInsert += "* ";
+                    }
                     textArea.value = replaceText(value, textToInsert, selectionStart, selectionEnd);
                     handleChange(textArea.value);
                 }
@@ -616,7 +639,7 @@ export const MarkdownInputBase = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
+    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
 
     // Resize textarea to fit content
     const LINE_HEIGHT_MULTIPLIER = 1.5;
@@ -802,6 +825,14 @@ export const MarkdownInputBase = ({
                                         <ListNumberIcon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
+                                <Tooltip title="Checkbox list (ALT + 6)" placement="top">
+                                    <IconButton
+                                        onClick={insertCheckboxList}
+                                        sx={dropDownButtonProps}
+                                    >
+                                        <ListCheckIcon fill={palette.primary.contrastText} />
+                                    </IconButton>
+                                </Tooltip>
                             </Stack>
                         </Popover>
                         {/* Button for inserting link */}
@@ -845,7 +876,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Preview */}
-                        <Tooltip title={isPreviewOn ? "Press to edit (ALT + 6)" : "Press to preview (ALT + 6)"} placement="top">
+                        <Tooltip title={isPreviewOn ? "Press to edit (ALT + 7)" : "Press to preview (ALT + 7)"} placement="top">
                             <IconButton
                                 size="small"
                                 onClick={togglePreview}
