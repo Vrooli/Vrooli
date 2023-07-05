@@ -11,6 +11,8 @@ export interface DateDisplayProps extends BoxProps {
 
 export interface MarkdownDisplayProps {
     content: string | undefined;
+    isEditable?: boolean;
+    onChange?: (content: string) => void;
     sx?: { [x: string]: any; };
     variant?: TypographyProps["variant"];
 }

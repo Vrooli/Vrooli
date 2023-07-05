@@ -299,7 +299,6 @@ export const MarkdownInputBase = ({
      * Adds, to change stack, and removes anything from the change stack after the current index
      */
     const handleChange = useCallback((updatedText: string) => {
-        if (!checkIfCanEdit()) return;
         const newChangeStack = [...changeStack.current];
         newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
         newChangeStack.push(updatedText);
@@ -307,7 +306,7 @@ export const MarkdownInputBase = ({
         setChangeStackIndex(newChangeStack.length - 1);
         setInternalValue(updatedText);
         onChangeDebounced(updatedText);
-    }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
+    }, [changeStackIndex, onChangeDebounced]);
 
     const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
         context: undefined,
@@ -624,12 +623,13 @@ export const MarkdownInputBase = ({
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
         if (!textAreaRef.current) return;
-        const newLines = value.match(/\n/g)?.length || 0;
+        const lines = (value.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
         const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
-        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : newLines;
-        const linesShown = Math.max(minRowsNum, Math.min(newLines, maxRowsNum));
-        textAreaRef.current.style.height = `${linesShown * lineHeight}px`;
+        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : lines;
+        const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
+        const padding = 34;
+        textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
     }, [isPreviewOn, minRows, maxRows, typography, value]);
 
     return (
@@ -880,7 +880,11 @@ export const MarkdownInputBase = ({
                                     ...linkColors(palette),
                                     ...sxs?.textArea,
                                 }}>
-                                <MarkdownDisplay content={internalValue} />
+                                <MarkdownDisplay
+                                    content={internalValue}
+                                    isEditable={!disabled}
+                                    onChange={handleChange}
+                                />
                             </Box>
                         ) :
                         (
