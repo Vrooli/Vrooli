@@ -34,7 +34,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
         }
         // If value is an object, recursively convert it
         else if (isRelationshipObject(value)) {
-            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value);
+            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value as any);
         }
         // If value is a string, convert it to a Prisma query
         else if (typeof value === "string" && SearchStringMap[value]) {

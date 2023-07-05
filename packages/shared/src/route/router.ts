@@ -24,7 +24,8 @@ export type ExtractRouteParams<PathType extends string> =
     ? ParamWithOptionalRegExp extends `${infer Param}(${infer _RegExp})`
     ? ExtractRouteOptionalParam<Param>
     : ExtractRouteOptionalParam<ParamWithOptionalRegExp>
-    : object;
+    // eslint-disable-next-line @typescript-eslint/ban-types
+    : {};
 
 export interface RouterProps {
     hook: LocationHook;
@@ -180,7 +181,6 @@ export const Link = (props: LinkProps) => {
             }
         },
         // navRef is a ref so it never changes
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [onClick],
     );
 
@@ -258,7 +258,7 @@ export const Redirect = (props: any): ReactElement<any, any> | null => {
     // empty array means running the effect once, navRef is a ref so it never changes
     useLayoutEffect(() => {
         navRef.current();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     return null;
 };

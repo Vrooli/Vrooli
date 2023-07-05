@@ -27,7 +27,7 @@ interface TagItemDropdownPros {
     items: ListObjectType[];
 }
 
-/** When using "@" to tag an object, displays   */
+/** When using "@" to tag an object, displays options */
 const TagItemDropdown = ({
     anchorEl,
     focusedIndex,
@@ -211,7 +211,7 @@ export const MarkdownInputBase = ({
     sxs,
     zIndex,
 }: MarkdownInputBaseProps) => {
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const session = useContext(SessionContext);
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -277,9 +277,7 @@ export const MarkdownInputBase = ({
         else document.getElementById(`markdown-input-${name}`)?.focus();
     }, [isPreviewOn, name]);
 
-    /**
-     * Moves back one in the change stack
-     */
+    /** Moves back one in the change stack */
     const undo = useCallback(() => {
         if (checkIfCanEdit() && changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
@@ -288,9 +286,7 @@ export const MarkdownInputBase = ({
         }
     }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
     const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.current.length > 0, [changeStackIndex]);
-    /**
-     * Moves forward one in the change stack
-     */
+    /** Moves forward one in the change stack */
     const redo = useCallback(() => {
         if (checkIfCanEdit() && changeStackIndex < changeStack.current.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
@@ -499,7 +495,6 @@ export const MarkdownInputBase = ({
         setDropdownAnchorEl(null);
     }, [handleChange, name, tagString]);
 
-
     // Listen for text input changes
     useEffect(() => {
         // Map keyboard shortcuts to their respective functions
@@ -625,24 +620,17 @@ export const MarkdownInputBase = ({
     }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
 
     // Resize textarea to fit content
-    const MIN_HEIGHT = 50;
+    const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
         if (!textAreaRef.current) return;
-        textAreaRef.current.style.height = "inherit";
-        if (maxRows) {
-            textAreaRef.current.style.height = `${Math.min(Math.max(
-                MIN_HEIGHT,
-                textAreaRef.current.scrollHeight),
-                Number.parseInt(maxRows + "") * 20,
-            )}px`;
-        } else {
-            textAreaRef.current.style.height = `${Math.max(
-                MIN_HEIGHT,
-                textAreaRef.current.scrollHeight,
-            )}px`;
-        }
-    }, [maxRows, value]);
+        const newLines = value.match(/\n/g)?.length || 0;
+        const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
+        const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
+        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : newLines;
+        const linesShown = Math.max(minRowsNum, Math.min(newLines, maxRowsNum));
+        textAreaRef.current.style.height = `${linesShown * lineHeight}px`;
+    }, [isPreviewOn, minRows, maxRows, typography, value]);
 
     return (
         <>
@@ -917,9 +905,9 @@ export const MarkdownInputBase = ({
                                     borderColor: error ? "red" : palette.divider,
                                     borderRadius: "0 0 4px 4px",
                                     borderTop: "none",
-                                    fontFamily: "inherit",
-                                    fontSize: "inherit",
-                                    lineHeight: "inherit",
+                                    fontFamily: typography.fontFamily,
+                                    fontSize: typography.fontSize,
+                                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
                                     backgroundColor: palette.background.paper,
                                     color: palette.text.primary,
                                     ...sxs?.textArea,

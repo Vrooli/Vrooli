@@ -1,5 +1,5 @@
 import { CopyIcon, endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS } from "@local/shared";
-import { Box, CircularProgress, IconButton, Link } from "@mui/material";
+import { Box, CircularProgress, IconButton, Link, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
@@ -203,6 +203,8 @@ export const MarkdownDisplay = ({
     sx,
     variant, //TODO
 }: MarkdownDisplayProps) => {
+    const { typography } = useTheme();
+
     // Add overrides for custom components
     const options = {
         overrides: {
@@ -215,7 +217,12 @@ export const MarkdownDisplay = ({
     const processedContent = processMarkdown(content ?? "");
 
     return (
-        <Markdown options={options} style={{ ...sx }}>
+        <Markdown options={options} style={{
+            fontFamily: typography.fontFamily,
+            fontSize: typography.fontSize,
+            lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
+            ...sx,
+        }}>
             {processedContent}
         </Markdown>
     );
