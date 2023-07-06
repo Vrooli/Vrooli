@@ -195,22 +195,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
      * Update params when search conditions change
      */
     useEffect(() => {
-        const fetchParams = async () => {
-            const newParams = searchTypeToParams[searchType];
-            if (!newParams) return;
-            const resolvedParams = await newParams();
-            const sortBy = updateSortBy(resolvedParams, params.current.sortBy);
-            after.current = {};
-            params.current = {
-                ...params.current,
-                ...resolvedParams,
-                sortBy,
-                hasMore: true,
-            };
-            updateUrl();
-            if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
+        const newParams = searchTypeToParams[searchType]();
+        if (!newParams) return;
+        const sortBy = updateSortBy(newParams, params.current.sortBy);
+        after.current = {};
+        params.current = {
+            ...params.current,
+            ...newParams,
+            sortBy,
+            hasMore: true,
         };
-        fetchParams();
+        updateUrl();
+        if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
     }, [stableCanSearch, debouncedGetPageData, updateUrl, searchType]);
 
     // Fetch more data by setting "after"

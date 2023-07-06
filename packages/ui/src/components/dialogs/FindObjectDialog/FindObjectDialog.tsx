@@ -209,12 +209,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     // Info for querying full object data
     const [{ advancedSearchSchema, endpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
-        const fetchParams = async () => {
-            const params = searchTypeToParams[createObjectType!];
-            if (!params) return;
-            setSearchParams(await params());
-        };
-        createObjectType !== null && fetchParams();
+        if (createObjectType !== null && createObjectType in searchTypeToParams) setSearchParams(searchTypeToParams[createObjectType]());
     }, [createObjectType]);
     /**
      * Before closing, remove all URL search params for advanced search
