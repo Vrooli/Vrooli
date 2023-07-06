@@ -60,14 +60,14 @@ export const ResourceDialog = ({
                     enableReinitialize={true}
                     initialValues={initialValues}
                     onSubmit={(values, helpers) => {
+                        console.log("resource dialog onsubmit", mutate, index, values, partialData);
+                        const isCreating = index < 0;
                         if (mutate) {
                             const onSuccess = (data: Resource) => {
                                 (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                                 helpers.resetForm();
                                 onClose();
                             };
-                            // If index is negative, create
-                            const isCreating = index < 0;
                             if (!isCreating && (!partialData || !partialData.id)) {
                                 PubSub.get().publishSnack({ messageKey: "ResourceNotFound", severity: "Error" });
                                 return;
@@ -81,11 +81,15 @@ export const ResourceDialog = ({
                                 onError: () => { helpers.setSubmitting(false); },
                             });
                         } else {
-                            onCreated({
-                                ...values,
-                                created_at: partialData?.created_at ?? new Date().toISOString(),
-                                updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                            } as Resource);
+                            if (isCreating) {
+                                onCreated({
+                                    ...values,
+                                    created_at: partialData?.created_at ?? new Date().toISOString(),
+                                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                                } as Resource);
+                            } else {
+                                onUpdated(index ?? 0, values as Resource);
+                            }
                             helpers.resetForm();
                             onClose();
                         }

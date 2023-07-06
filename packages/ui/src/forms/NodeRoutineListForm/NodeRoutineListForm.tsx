@@ -3,7 +3,7 @@ import { Checkbox, FormControlLabel } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListFormProps, NodeWithRoutineListShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,7 +59,7 @@ export const validateNodeRoutineListValues = async (values: NodeWithRoutineListS
     return result;
 };
 
-export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
+export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRoutineListFormProps>(({
     display,
     dirty,
     isCreate,

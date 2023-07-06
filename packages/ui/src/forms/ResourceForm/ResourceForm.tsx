@@ -6,7 +6,7 @@ import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,7 +54,7 @@ export const validateResourceValues = async (values: ResourceShape, existing?: R
     return result;
 };
 
-export const ResourceForm = forwardRef<any, ResourceFormProps>(({
+export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProps>(({
     display,
     dirty,
     isCreate,
@@ -67,6 +67,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
 }, ref) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    console.log("resource form", isCreate, values);
 
     // Handle translations
     const {

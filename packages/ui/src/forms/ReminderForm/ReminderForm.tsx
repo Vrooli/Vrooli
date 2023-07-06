@@ -5,7 +5,7 @@ import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
 import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
@@ -53,7 +53,7 @@ export const validateReminderValues = async (values: ReminderShape, existing?: R
     return result;
 };
 
-export const ReminderForm = forwardRef<any, ReminderFormProps>(({
+export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProps>(({
     display,
     dirty,
     index,

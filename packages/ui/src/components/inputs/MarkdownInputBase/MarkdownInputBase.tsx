@@ -941,7 +941,7 @@ export const MarkdownInputBase = ({
                                     borderRadius: "0 0 4px 4px",
                                     borderTop: "none",
                                     fontFamily: typography.fontFamily,
-                                    fontSize: typography.fontSize,
+                                    fontSize: typography.fontSize + 2,
                                     lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
                                     backgroundColor: palette.background.paper,
                                     color: palette.text.primary,

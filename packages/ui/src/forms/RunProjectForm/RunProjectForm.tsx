@@ -4,7 +4,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,7 +45,7 @@ export const validateRunProjectValues = async (values: RunProjectShape, existing
     return result;
 };
 
-export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
+export const RunProjectForm = forwardRef<BaseFormRef | undefined, RunProjectFormProps>(({
     display,
     dirty,
     isCreate,

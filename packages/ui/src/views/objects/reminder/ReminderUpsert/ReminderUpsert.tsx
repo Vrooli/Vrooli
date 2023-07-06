@@ -48,7 +48,7 @@ export const ReminderUpsert = ({
                 options={!isCreate ? [{
                     Icon: DeleteIcon,
                     label: t("Delete"),
-                    onClick: handleDelete,
+                    onClick: handleDelete as () => void,
                 }] : []}
             />
             <Formik

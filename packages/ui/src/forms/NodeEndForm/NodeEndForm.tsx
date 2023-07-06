@@ -3,7 +3,7 @@ import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,7 +56,7 @@ export const validateNodeEndValues = async (values: NodeWithEndShape, existing?:
     return result;
 };
 
-export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
+export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>(({
     display,
     dirty,
     isCreate,

@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
@@ -319,6 +319,8 @@ export async function permissionsCheck(
         const ids = idsByAction[action];
         // Loop through each ID and validate permissions
         for (const id of ids) {
+            // Skip placeholder IDs
+            if (id === DUMMY_ID) continue;
             // Get permissions for this ID
             const permissions = permissionsById[id];
             // Make sure permissions exists. If not, and not create, something went wrong.

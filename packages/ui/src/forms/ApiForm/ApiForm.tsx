@@ -1,5 +1,5 @@
 import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, CompleteIcon, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Button, Grid, Stack, TextField, useTheme } from "@mui/material";
+import { Button, Grid, Stack, TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -11,7 +11,7 @@ import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { Field } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -69,7 +69,7 @@ export const validateApiValues = async (values: ApiVersionShape, existing?: ApiV
     return result;
 };
 
-export const ApiForm = forwardRef<any, ApiFormProps>(({
+export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
     display,
     dirty,
     isCreate,
@@ -82,7 +82,6 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // useEffect(() => {

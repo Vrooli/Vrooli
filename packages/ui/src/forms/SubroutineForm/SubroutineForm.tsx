@@ -14,7 +14,7 @@ import { TagList } from "components/lists/TagList/TagList";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
@@ -61,7 +61,7 @@ export const validateSubroutineValues = async (values: NodeRoutineListItemShape,
     return result;
 };
 
-export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
+export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineFormProps>(({
     canUpdateRoutineVersion,
     dirty,
     handleViewFull,

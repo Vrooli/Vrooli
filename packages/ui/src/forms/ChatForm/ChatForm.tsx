@@ -1,7 +1,7 @@
 import { Chat, chatTranslationValidation, chatValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,7 +46,7 @@ export const validateChatValues = async (values: ChatShape, existing?: ChatShape
     return result;
 };
 
-export const ChatForm = forwardRef<any, ChatFormProps>(({
+export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
     display,
     dirty,
     isCreate,

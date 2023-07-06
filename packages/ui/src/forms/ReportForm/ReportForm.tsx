@@ -4,7 +4,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
 import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,7 +44,7 @@ export const reportInitialValues = (
 });
 
 
-export const ReportForm = forwardRef<any, ReportFormProps>(({
+export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>(({
     display,
     dirty,
     isCreate,

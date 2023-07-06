@@ -4,7 +4,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MeetingFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,7 @@ export const validateMeetingValues = async (values: MeetingShape, existing?: Mee
     return result;
 };
 
-export const MeetingForm = forwardRef<any, MeetingFormProps>(({
+export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>(({
     display,
     dirty,
     isCreate,

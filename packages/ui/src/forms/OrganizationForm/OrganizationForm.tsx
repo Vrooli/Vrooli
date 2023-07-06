@@ -7,7 +7,7 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,7 +50,7 @@ export const validateOrganizationValues = async (values: OrganizationShape, exis
     return result;
 };
 
-export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
+export const OrganizationForm = forwardRef<BaseFormRef | undefined, OrganizationFormProps>(({
     display,
     dirty,
     isCreate,

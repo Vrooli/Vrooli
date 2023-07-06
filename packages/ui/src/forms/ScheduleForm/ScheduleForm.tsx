@@ -8,7 +8,7 @@ import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSel
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,7 +45,7 @@ export const validateScheduleValues = async (values: ScheduleShape, existing?: S
 };
 
 
-export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
+export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProps>(({
     canSetScheduleFor,
     display,
     dirty,

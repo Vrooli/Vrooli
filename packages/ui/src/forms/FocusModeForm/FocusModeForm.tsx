@@ -7,7 +7,7 @@ import { ResourceListHorizontalInput } from "components/inputs/ResourceListHoriz
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -52,7 +52,7 @@ export const validateFocusModeValues = async (values: FocusModeShape, existing?:
     return result;
 };
 
-export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
+export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormProps>(({
     display,
     dirty,
     isCreate,

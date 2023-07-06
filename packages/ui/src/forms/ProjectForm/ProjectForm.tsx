@@ -8,7 +8,7 @@ import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryListHorizontal } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -76,7 +76,7 @@ export const validateProjectValues = async (values: ProjectVersionShape, existin
     return result;
 };
 
-export const ProjectForm = forwardRef<any, ProjectFormProps>(({
+export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>(({
     display,
     dirty,
     isCreate,

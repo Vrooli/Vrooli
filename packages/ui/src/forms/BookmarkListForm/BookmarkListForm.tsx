@@ -4,7 +4,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListFormProps } from "forms/types";
 import { forwardRef, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +39,7 @@ export const validateBookmarkListValues = async (values: BookmarkListShape, exis
     return result;
 };
 
-export const BookmarkListForm = forwardRef<any, BookmarkListFormProps>(({
+export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormProps>(({
     display,
     dirty,
     isCreate,

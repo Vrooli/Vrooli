@@ -9,7 +9,7 @@ import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInp
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -75,7 +75,7 @@ export const validateStandardValues = async (values: StandardVersionShape, exist
     return result;
 };
 
-export const StandardForm = forwardRef<any, StandardFormProps>(({
+export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProps>(({
     display,
     dirty,
     isCreate,

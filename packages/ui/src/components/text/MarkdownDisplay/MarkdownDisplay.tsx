@@ -334,7 +334,7 @@ export const MarkdownDisplay = ({
     return (
         <Markdown id={id} options={options} style={{
             fontFamily: typography.fontFamily,
-            fontSize: typography.fontSize,
+            fontSize: typography.fontSize + 2,
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
             ...sx,
         }}>

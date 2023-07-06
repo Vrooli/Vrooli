@@ -4,7 +4,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineFormProps } from "forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,7 +45,7 @@ export const validateRunRoutineValues = async (values: RunRoutineShape, existing
     return result;
 };
 
-export const RunRoutineForm = forwardRef<any, RunRoutineFormProps>(({
+export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineFormProps>(({
     display,
     dirty,
     isCreate,

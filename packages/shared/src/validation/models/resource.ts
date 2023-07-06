@@ -39,7 +39,7 @@ export const resourceValidation: YupModel = {
         link: opt(link),
         usedFor: opt(usedFor),
     }, [
-        ["list", ["Connect"], "one", "req", resourceListValidation, ["resources"]],
+        ["list", ["Connect"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceTranslationValidation],
     ], [], o),
 };
