@@ -391,6 +391,7 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
     children: React.ReactNode;
     disableScrollLock?: boolean;
     handleClose?: () => any;
+    placement?: "top" | "right" | "bottom" | "left";
     sxs?: {
         root?: { [x: string]: any };
         content?: { [x: string]: any };

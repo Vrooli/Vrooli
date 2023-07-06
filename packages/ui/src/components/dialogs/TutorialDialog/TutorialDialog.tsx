@@ -38,7 +38,7 @@ const sections: TutorialSection[] = [
             {
                 text: "Step 2.1",
                 page: "Page 2",
-                element: "create-routine-card",
+                element: "create-project-card",
             },
             {
                 text: "Step 2.2",

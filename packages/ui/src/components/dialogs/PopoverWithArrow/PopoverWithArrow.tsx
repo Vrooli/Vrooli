@@ -1,21 +1,29 @@
-import { Box, ClickAwayListener, Popper, useTheme } from "@mui/material";
+import { Box, ClickAwayListener, Popper, PopperPlacementType, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PopoverWithArrowProps } from "../types";
 
-/**
- * Popover with arrow on the bottom
- */
 export const PopoverWithArrow = ({
     anchorEl,
     children,
     disableScrollLock = false,
     handleClose,
+    placement = "top",
     sxs,
     ...props
 }: PopoverWithArrowProps) => {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
     const [canTouch, setCanTouch] = useState(false);
+    const [actualPlacement, setActualPlacement] = useState(placement);
+
+    const handlePopperState = useCallback((popperState: { placement: PopperPlacementType }) => {
+        console.log("popperState", popperState);
+        if (popperState) {
+            const { placement } = popperState;
+            // Limit to top, bottom, left, right
+            setActualPlacement(placement.split("-")[0] as "top" | "bottom" | "left" | "right");
+        }
+    }, []);
 
     // Timeout to prevent pressing the popover when it was just opened. 
     // This is useful for mobile devices which can trigger multiple events on press.
@@ -61,15 +69,83 @@ export const PopoverWithArrow = ({
         };
     }, [isOpen, handleEscape]);
 
+    let arrowStyles;
+    switch (actualPlacement) {
+        case "top":
+            arrowStyles = {
+                borderLeft: "10px solid transparent",
+                borderRight: "10px solid transparent",
+                borderTop: `10px solid ${palette.background.paper}`,
+                bottom: "-10px",
+                left: "50%",
+                transform: "translateX(-50%)",
+            };
+            break;
+        case "bottom":
+            arrowStyles = {
+                borderLeft: "10px solid transparent",
+                borderRight: "10px solid transparent",
+                borderBottom: `10px solid ${palette.background.paper}`,
+                top: "-10px",
+                left: "50%",
+                transform: "translateX(-50%)",
+            };
+            break;
+        case "left":
+            arrowStyles = {
+                borderTop: "10px solid transparent",
+                borderBottom: "10px solid transparent",
+                borderLeft: `10px solid ${palette.background.paper}`,
+                right: "-10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+            };
+            break;
+        case "right":
+            arrowStyles = {
+                borderTop: "10px solid transparent",
+                borderBottom: "10px solid transparent",
+                borderRight: `10px solid ${palette.background.paper}`,
+                left: "-10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+            };
+            break;
+        default:
+            throw new Error(`Unknown placement: ${placement}`);
+    }
+
     return (
         <Popper
             {...props}
             open={isOpen}
             anchorEl={anchorEl}
-            placement="top"
+            placement={placement}
+            popperOptions={{
+                modifiers: [
+                    {
+                        name: "flip",
+                        options: {
+                            altBoundary: true,
+                            fallbackPlacements: ["top", "right", "bottom", "left"],
+                        },
+                    },
+                    {
+                        name: "onUpdate",
+                        enabled: true,
+                        phase: "write",
+                        fn: ({ state }) => handlePopperState(state),
+                    },
+                ],
+            }}
         >
             <ClickAwayListener onClickAway={onClose}>
-                <Box sx={{ paddingBottom: "10px" }}>
+                <Box sx={{
+                    paddingTop: actualPlacement === "bottom" ? "10px" : undefined,
+                    paddingBottom: actualPlacement === "top" ? "10px" : undefined,
+                    paddingLeft: actualPlacement === "right" ? "10px" : undefined,
+                    paddingRight: actualPlacement === "left" ? "10px" : undefined,
+                }}>
                     <Box sx={{
                         ...(sxs?.content ?? {}),
                         overflow: "auto",
@@ -85,18 +161,13 @@ export const PopoverWithArrow = ({
                     }}>
                         {children}
                     </Box>
-                    {/* Triangle placed below popper */}
+                    {/* Triangle placed accordingly to the popper */}
                     <Box sx={{
                         width: "0",
                         height: "0",
-                        borderLeft: "10px solid transparent",
-                        borderRight: "10px solid transparent",
-                        borderTop: `10px solid ${palette.background.paper}`,
+                        ...arrowStyles,
                         position: "absolute",
-                        bottom: "-9px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        marginBottom: "10px",
+                        margin: "10px",
                     }} />
                 </Box>
             </ClickAwayListener>
