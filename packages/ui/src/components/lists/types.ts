@@ -255,6 +255,7 @@ export interface TIDCardProps {
     description: string;
     key: string | number;
     Icon: SvgComponent | null | undefined;
+    id?: string;
     onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
     title: string;
 }

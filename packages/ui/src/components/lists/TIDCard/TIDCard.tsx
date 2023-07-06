@@ -9,6 +9,7 @@ export const TIDCard = ({
     description,
     key,
     Icon,
+    id,
     onClick,
     title,
 }: TIDCardProps) => {
@@ -17,6 +18,7 @@ export const TIDCard = ({
     return (
         <Box
             key={key}
+            id={id}
             onClick={onClick}
             sx={{
                 width: "100%",

@@ -66,6 +66,7 @@ export interface DialogTitleProps extends Omit<TitleProps, "variant"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
     onClose?: () => void;
+    variant?: TitleProps["variant"];
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |
@@ -388,9 +389,17 @@ export interface WalletSelectDialogProps {
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
     anchorEl: HTMLElement | null;
     children: React.ReactNode;
-    handleClose: () => any;
+    disableScrollLock?: boolean;
+    handleClose?: () => any;
     sxs?: {
         root?: { [x: string]: any };
         content?: { [x: string]: any };
+        paper?: { [x: string]: any };
     }
+}
+
+
+export interface TutorialDialogProps {
+    isOpen: boolean;
+    onClose: () => any;
 }

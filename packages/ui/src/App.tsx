@@ -6,6 +6,7 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
+import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
@@ -398,7 +399,7 @@ export function App() {
         });
         // Handle tutorial popup
         const tutorialSub = PubSub.get().subscribeTutorial(() => {
-            setIsTutorialOpen(true); //TODO
+            setIsTutorialOpen(true);
         });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
@@ -466,6 +467,7 @@ export function App() {
                         {isCelebrating && <AsyncConfetti />}
                         <AlertDialog />
                         <SnackStack />
+                        <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
                         <Box id="content-wrap" sx={{
                             background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                             minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },

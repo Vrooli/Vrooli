@@ -59,6 +59,8 @@ export const SignUpForm = ({
                                         setLocation(LINKS.Home);
                                         // Set up push notifications
                                         setupPush();
+                                        // Start the tutorial
+                                        PubSub.get().publishTutorial();
                                     },
                                 }],
                             });

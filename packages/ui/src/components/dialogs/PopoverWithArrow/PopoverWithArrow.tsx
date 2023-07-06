@@ -1,4 +1,4 @@
-import { Box, Popover, useTheme } from "@mui/material";
+import { Box, ClickAwayListener, Popper, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PopoverWithArrowProps } from "../types";
 
@@ -8,6 +8,7 @@ import { PopoverWithArrowProps } from "../types";
 export const PopoverWithArrow = ({
     anchorEl,
     children,
+    disableScrollLock = false,
     handleClose,
     sxs,
     ...props
@@ -38,58 +39,67 @@ export const PopoverWithArrow = ({
     }, [isOpen]);
 
     const onClose = useCallback(() => {
-        setCanTouch(false);
-        handleClose();
+        if (handleClose) {
+            setCanTouch(false);
+            handleClose();
+        }
     }, [handleClose]);
 
+    const handleEscape = useCallback((event) => {
+        if (event.key === "Escape") {
+            onClose();
+        }
+    }, [onClose]);
+    useEffect(() => {
+        if (isOpen) {
+            document.addEventListener("keydown", handleEscape);
+        } else {
+            document.removeEventListener("keydown", handleEscape);
+        }
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [isOpen, handleEscape]);
+
     return (
-        <Popover
+        <Popper
             {...props}
             open={isOpen}
             anchorEl={anchorEl}
-            onClose={onClose}
-            anchorOrigin={{
-                vertical: "top",
-                horizontal: "center",
-            }}
-            transformOrigin={{
-                vertical: "bottom",
-                horizontal: "center",
-            }}
-            sx={{
-                ...(sxs?.root ?? {}),
-                "& .MuiPopover-paper": {
-                    ...(sxs?.root?.["& .MuiPopover-paper"] ?? {}),
-                    padding: 1,
-                    overflow: "unset",
-                    minWidth: "50px",
-                    minHeight: "25px",
-                    background: palette.background.paper,
-                    color: palette.background.textPrimary,
-                    boxShadow: 12,
-                },
-            }}
+            placement="top"
         >
-            <Box sx={{
-                ...(sxs?.content ?? {}),
-                overflow: "auto",
-                // Disable touch while timeout is active
-                pointerEvents: canTouch ? "auto" : "none",
-            }}>
-                {children}
-            </Box>
-            {/* Triangle placed below popper */}
-            <Box sx={{
-                width: "0",
-                height: "0",
-                borderLeft: "10px solid transparent",
-                borderRight: "10px solid transparent",
-                borderTop: `10px solid ${palette.background.paper}`,
-                position: "absolute",
-                bottom: "-9px",
-                left: "50%",
-                transform: "translateX(-50%)",
-            }} />
-        </Popover>
+            <ClickAwayListener onClickAway={onClose}>
+                <Box sx={{ paddingBottom: "10px" }}>
+                    <Box sx={{
+                        ...(sxs?.content ?? {}),
+                        overflow: "auto",
+                        padding: 1,
+                        minWidth: "50px",
+                        minHeight: "25px",
+                        // Disable touch while timeout is active
+                        pointerEvents: canTouch ? "auto" : "none",
+                        background: palette.background.paper,
+                        boxShadow: 12,
+                        borderRadius: 2,
+                        ...(sxs?.paper ?? {}),
+                    }}>
+                        {children}
+                    </Box>
+                    {/* Triangle placed below popper */}
+                    <Box sx={{
+                        width: "0",
+                        height: "0",
+                        borderLeft: "10px solid transparent",
+                        borderRight: "10px solid transparent",
+                        borderTop: `10px solid ${palette.background.paper}`,
+                        position: "absolute",
+                        bottom: "-9px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        marginBottom: "10px",
+                    }} />
+                </Box>
+            </ClickAwayListener>
+        </Popper>
     );
 };

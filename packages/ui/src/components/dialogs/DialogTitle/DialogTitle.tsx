@@ -32,11 +32,11 @@ export const DialogTitle = forwardRef(({
                 }}
             >
                 <Title
+                    variant="header"
                     {...titleData}
                     sxs={{
                         stack: { marginLeft: "auto", padding: 0 },
                     }}
-                    variant="header"
                 />
                 <IconButton
                     aria-label="close"
