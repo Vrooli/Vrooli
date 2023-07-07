@@ -19,6 +19,7 @@ export const DialogTitle = forwardRef(({
         <Box ref={ref} sx={{
             background: palette.primary.dark,
             color: palette.primary.contrastText,
+            ...titleData.sxs?.root,
         }}>
             <MuiDialogTitle
                 id={id}

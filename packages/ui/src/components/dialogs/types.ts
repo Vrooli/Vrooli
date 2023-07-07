@@ -62,10 +62,11 @@ export interface DeleteDialogProps {
     zIndex: number;
 }
 
-export interface DialogTitleProps extends Omit<TitleProps, "variant"> {
+export interface DialogTitleProps extends Omit<TitleProps, "sxs" | "variant"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
     onClose?: () => void;
+    sxs?: TitleProps["sxs"] & { root?: { [key: string]: any } };
     variant?: TitleProps["variant"];
 }
 

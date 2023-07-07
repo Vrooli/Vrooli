@@ -1,7 +1,8 @@
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "@local/shared";
-import { Dialog, IconButton, MobileStepper, Typography, useTheme } from "@mui/material";
+import { Dialog, IconButton, MobileStepper, Paper, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Draggable from "react-draggable";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
 
@@ -49,6 +50,18 @@ const sections: TutorialSection[] = [
 ];
 
 const titleId = "tutorial-dialog-title";
+
+/** Draggable paper for dialog */
+const PaperComponent = (props) => {
+    return (
+        <Draggable
+            handle={`#${titleId}`}
+            cancel={"[class*=\"MuiDialogContent-root\"]"}
+        >
+            <Paper {...props} />
+        </Draggable>
+    );
+};
 
 export const TutorialDialog = ({
     isOpen,
@@ -121,6 +134,9 @@ export const TutorialDialog = ({
                 title={`${sections[section].title} (${section + 1} of ${sections.length})`}
                 onClose={onClose}
                 variant="subheader"
+                sxs={{
+                    root: { cursor: "move" },
+                }}
             />
             <Typography variant="body1" sx={{ padding: 2, paddingBottom: 0 }}>
                 {sections[section].steps[step].text}
@@ -171,12 +187,14 @@ export const TutorialDialog = ({
             open={isOpen}
             scroll="paper"
             aria-labelledby={titleId}
+            PaperComponent={PaperComponent}
             sx={{
                 zIndex: 100000,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
                         zIndex: 100000,
                         borderRadius: 2,
+                        margin: 2,
                         background: palette.background.paper,
                         position: "absolute",
                         top: "0",
