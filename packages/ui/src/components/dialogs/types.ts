@@ -13,7 +13,7 @@ import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 
-export interface AccountMenuProps {
+export interface SideMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (event: React.MouseEvent<HTMLElement>) => void;
 }

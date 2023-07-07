@@ -20,16 +20,16 @@ import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
-import { AccountMenuProps } from "../types";
+import { SideMenuProps } from "../types";
 
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
 const MAX_ACCOUNTS = 10;
 
-export const AccountMenu = ({
+export const SideMenu = ({
     anchorEl,
     onClose,
-}: AccountMenuProps) => {
+}: SideMenuProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -227,7 +227,7 @@ export const AccountMenu = ({
                 </IconButton>
             </Stack>
             {/* List of logged/in accounts and authentication-related actions */}
-            <List sx={{ paddingTop: 0, paddingBottom: 0 }}>
+            <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {profileListItems}
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Buttons to add account and log out */}
@@ -262,7 +262,7 @@ export const AccountMenu = ({
                 {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
             <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                <Stack direction="column" spacing={2} sx={{
+                <Stack id="side-menu-display-settings" direction="column" spacing={2} sx={{
                     minWidth: "fit-content",
                     height: "fit-content",
                     padding: 1,
@@ -276,7 +276,7 @@ export const AccountMenu = ({
             </Collapse>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* List of quick links */}
-            <List>
+            <List id="side-menu-quick-links">
                 {/* Settings page */}
                 <ListItem button onClick={handleOpenSettings}>
                     <ListItemIcon>
