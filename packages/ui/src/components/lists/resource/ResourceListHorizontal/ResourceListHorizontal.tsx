@@ -14,12 +14,13 @@ import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/Reso
 import { ResourceListHorizontalProps } from "../types";
 
 export const ResourceListHorizontal = ({
-    title,
     canUpdate = true,
     handleUpdate,
-    mutate = true,
+    id,
     list,
     loading = false,
+    mutate = true,
+    title,
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
@@ -160,6 +161,7 @@ export const ResourceListHorizontal = ({
                     {(provided) => (
                         <Stack
                             ref={provided.innerRef}
+                            id={id}
                             {...provided.droppableProps}
                             direction="row"
                             justifyContent="center"

@@ -48,6 +48,7 @@ export interface PageTabsProps<T> {
     ariaLabel: string,
     currTab: PageTab<T>,
     fullWidth?: boolean,
+    id?: string,
     onChange: (event: React.ChangeEvent<unknown>, value: any) => void,
     tabs: PageTab<T>[],
 }

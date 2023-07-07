@@ -18,6 +18,7 @@ import { ReminderListProps } from "../types";
 
 export const ReminderList = ({
     handleUpdate,
+    id,
     listId,
     loading,
     reminders,
@@ -162,6 +163,7 @@ export const ReminderList = ({
             {/* List */}
             <TitleContainer
                 Icon={ReminderIcon}
+                id={id}
                 title={t("ToDo")}
                 options={[{
                     Icon: OpenInNewIcon,

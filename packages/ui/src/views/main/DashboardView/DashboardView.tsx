@@ -266,6 +266,7 @@ export const DashboardView = ({
                 below={showTabs && (
                     <PageTabs
                         ariaLabel="home-tabs"
+                        id="home-tabs"
                         currTab={currTab!}
                         fullWidth
                         onChange={handleTabChange}
@@ -293,6 +294,7 @@ export const DashboardView = ({
             <Stack spacing={10} direction="column" mt={10}>
                 {/* Resources */}
                 <ResourceListHorizontal
+                    id="main-resource-list"
                     list={resourceList}
                     canUpdate={true}
                     handleUpdate={setResourceList}
@@ -303,6 +305,7 @@ export const DashboardView = ({
                 {/* Events */}
                 <ListTitleContainer
                     Icon={MonthIcon}
+                    id="main-event-list"
                     isEmpty={upcomingEvents.length === 0}
                     title={t("Schedule")}
                     options={[{
@@ -316,6 +319,7 @@ export const DashboardView = ({
                 {/* Reminders */}
                 <ReminderList
                     handleUpdate={handleReminderUpdate}
+                    id="main-reminder-list"
                     loading={loading}
                     listId={reminderListId}
                     reminders={reminders}
@@ -324,6 +328,7 @@ export const DashboardView = ({
                 {/* Notes */}
                 <ListTitleContainer
                     Icon={NoteIcon}
+                    id="main-note-list"
                     isEmpty={noteItems.length === 0}
                     title={t("Note", { count: 2 })}
                     options={[{

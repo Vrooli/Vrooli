@@ -11,6 +11,7 @@ export const PageTabs = <T extends any>({
     ariaLabel,
     currTab,
     fullWidth = false,
+    id,
     onChange,
     tabs,
 }: PageTabsProps<T>) => {
@@ -22,7 +23,7 @@ export const PageTabs = <T extends any>({
     }, [onChange, tabs]);
 
     return (
-        <Box display="flex" justifyContent="center" width="100%">
+        <Box display="flex" id={id} justifyContent="center" width="100%">
             <Tabs
                 value={currTab.index}
                 onChange={handleTabChange}
