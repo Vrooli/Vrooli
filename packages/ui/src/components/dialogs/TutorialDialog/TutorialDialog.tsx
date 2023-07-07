@@ -1,14 +1,17 @@
-import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "@local/shared";
-import { Dialog, IconButton, MobileStepper, Paper, Typography, useTheme } from "@mui/material";
+import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon, LINKS } from "@local/shared";
+import { Box, Dialog, IconButton, MobileStepper, Paper, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";
+import { getCurrentUser } from "utils/authentication/session";
+import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
 
 type TutorialStep = {
     text: string;
-    page: string;
+    page: LINKS;
     element?: string;
 }
 
@@ -20,21 +23,100 @@ type TutorialSection = {
 // Sections of the tutorial
 const sections: TutorialSection[] = [
     {
-        title: "Section 1",
+        title: "Welcome to Vrooli!",
         steps: [
             {
-                text: "Step 1.1",
-                page: "Page 1",
-                element: "Element 1.1",
-            },
-            {
-                text: "Step 1.2",
-                page: "Page 1",
+                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.",
+                page: LINKS.Home,
             },
         ],
     },
     {
-        title: "Section 2",
+        title: "The Home Page",
+        steps: [
+            {
+                text: "The home page shows the most important information for you.",
+                page: LINKS.Home,
+            },
+            {
+                text: "The first thing you'll see is a search bar. Use this to filter the home page, or to enter quick commands.",
+                page: LINKS.Home,
+                element: "main-search",
+            },
+        ],
+    },
+    {
+        title: "The Side Menu",
+        steps: [
+            {
+                text: "Step 2.1",
+                page: "Page 2",
+                element: "create-project-card",
+            },
+            {
+                text: "Step 2.2",
+                page: "Page 2",
+            },
+        ],
+    },
+    {
+        title: "Searching Objects",
+        steps: [
+            {
+                text: "Step 2.1",
+                page: "Page 2",
+                element: "create-project-card",
+            },
+            {
+                text: "Step 2.2",
+                page: "Page 2",
+            },
+        ],
+    },
+    {
+        title: "Creating Objects",
+        steps: [
+            {
+                text: "Step 2.1",
+                page: "Page 2",
+                element: "create-project-card",
+            },
+            {
+                text: "Step 2.2",
+                page: "Page 2",
+            },
+        ],
+    },
+    {
+        title: "Messages and Notifications",
+        steps: [
+            {
+                text: "Step 2.1",
+                page: "Page 2",
+                element: "create-project-card",
+            },
+            {
+                text: "Step 2.2",
+                page: "Page 2",
+            },
+        ],
+    },
+    {
+        title: "Your Stuff",
+        steps: [
+            {
+                text: "Step 2.1",
+                page: "Page 2",
+                element: "create-project-card",
+            },
+            {
+                text: "Step 2.2",
+                page: "Page 2",
+            },
+        ],
+    },
+    {
+        title: "That's it!",
         steps: [
             {
                 text: "Step 2.1",
@@ -68,11 +150,13 @@ export const TutorialDialog = ({
     onClose,
 }: TutorialDialogProps) => {
     const { palette } = useTheme();
+    const session = useContext(SessionContext);
+    const user = useMemo(() => getCurrentUser(session), [session]);
 
     const [step, setStep] = useState(0);
     const [section, setSection] = useState(0);
-    const anchorEl = useRef<HTMLElement | null>(null);
 
+    // Reset when dialog is closed
     useEffect(() => {
         if (!isOpen) {
             setStep(0);
@@ -80,15 +164,13 @@ export const TutorialDialog = ({
         }
     }, [isOpen]);
 
-    // Get current element to anchor to, if any
+    // Close if user logs out
     useEffect(() => {
-        const elementId = sections[section].steps[step].element;
-        if (elementId) {
-            anchorEl.current = document.getElementById(elementId);
-        } else {
-            anchorEl.current = null;
+        console.log("user", user);
+        if (!user.id) {
+            onClose();
         }
-    }, [section, step]);
+    }, [onClose, user]);
 
     const {
         isFinalStep,
@@ -127,6 +209,11 @@ export const TutorialDialog = ({
         }
     }, [isFirstSection, isFirstStepInSection, section, step]);
 
+    const getCurrentElement = useCallback(() => {
+        const elementId = sections[section].steps[step].element;
+        return elementId ? document.getElementById(elementId) : null;
+    }, [section, step]);
+
     const content = useMemo(() => (
         <>
             <DialogTitle
@@ -135,12 +222,13 @@ export const TutorialDialog = ({
                 onClose={onClose}
                 variant="subheader"
                 sxs={{
-                    root: { cursor: "move" },
+                    // Can move dialog, but not popper
+                    root: { cursor: getCurrentElement() ? "auto" : "move" },
                 }}
             />
-            <Typography variant="body1" sx={{ padding: 2, paddingBottom: 0 }}>
-                {sections[section].steps[step].text}
-            </Typography>
+            <Box sx={{ padding: "16px", paddingBottom: 0 }}>
+                <MarkdownDisplay variant="body1" content={sections[section].steps[step].text} />
+            </Box>
             <MobileStepper
                 variant="dots"
                 steps={sections[section].steps.length}
@@ -163,18 +251,17 @@ export const TutorialDialog = ({
                 }
             />
         </>
-    ), [handleNext, handlePrev, isFinalStep, isFinalStepInSection, onClose, section, step]);
+    ), [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, onClose, section, step]);
 
     // If there's an anchor, use a popper
-    if (anchorEl.current) {
+    if (getCurrentElement()) {
         return (
             <PopoverWithArrow
-                anchorEl={anchorEl.current}
+                anchorEl={getCurrentElement()}
                 disableScrollLock={true}
                 sxs={{
-                    paper: {
-                        padding: 0,
-                    },
+                    root: { zIndex: 100000 },
+                    content: { padding: 0 },
                 }}
             >
                 {content}
@@ -186,13 +273,16 @@ export const TutorialDialog = ({
         <Dialog
             open={isOpen}
             scroll="paper"
+            disableScrollLock={true}
             aria-labelledby={titleId}
             PaperComponent={PaperComponent}
             sx={{
                 zIndex: 100000,
+                pointerEvents: "none",
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
                         zIndex: 100000,
+                        pointerEvents: "auto",
                         borderRadius: 2,
                         margin: 2,
                         background: palette.background.paper,

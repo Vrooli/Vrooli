@@ -195,7 +195,7 @@ export const actions: ActionItem[] = [
     {
         label: "Tutorial",
         id: "tutorial",
-        canPerform: () => true,
+        canPerform: (session: Session) => session.isLoggedIn,
     },
 ];
 
@@ -245,7 +245,11 @@ export const performAction = async (option: ActionOption, session: Session | nul
             else PubSub.get().publishTheme("light");
             break;
         case "tutorial":
-            PubSub.get().publishTutorial();
+            if (session?.isLoggedIn) {
+                PubSub.get().publishTutorial();
+            } else {
+                PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
+            }
             break;
     }
 };

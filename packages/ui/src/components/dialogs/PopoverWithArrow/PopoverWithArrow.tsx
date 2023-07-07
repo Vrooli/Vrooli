@@ -131,12 +131,24 @@ export const PopoverWithArrow = ({
                         },
                     },
                     {
+                        name: "preventOverflow",
+                        options: {
+                            altAxis: true,
+                            tether: false,
+                            padding: 10,
+                            boundary: "viewport",
+                        },
+                    },
+                    {
                         name: "onUpdate",
                         enabled: true,
                         phase: "write",
                         fn: ({ state }) => handlePopperState(state),
                     },
                 ],
+            }}
+            style={{
+                ...sxs?.root,
             }}
         >
             <ClickAwayListener onClickAway={onClose}>
@@ -145,9 +157,9 @@ export const PopoverWithArrow = ({
                     paddingBottom: actualPlacement === "top" ? "10px" : undefined,
                     paddingLeft: actualPlacement === "right" ? "10px" : undefined,
                     paddingRight: actualPlacement === "left" ? "10px" : undefined,
+                    ...(sxs?.paper ?? {}),
                 }}>
                     <Box sx={{
-                        ...(sxs?.content ?? {}),
                         overflow: "auto",
                         padding: 1,
                         minWidth: "50px",
@@ -157,7 +169,7 @@ export const PopoverWithArrow = ({
                         background: palette.background.paper,
                         boxShadow: 12,
                         borderRadius: 2,
-                        ...(sxs?.paper ?? {}),
+                        ...(sxs?.content ?? {}),
                     }}>
                         {children}
                     </Box>

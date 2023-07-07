@@ -137,7 +137,7 @@ export const AboutView = ({
                     </Typography>
                 </Box>
             </Stack>
-            <Typography variant='h2' component="h1" pb={4} mt={5} sx={{ ...slideTitle }}>The Team</Typography>
+            <Typography variant='h4' pb={4} mt={5} sx={{ ...slideTitle }}>The Team</Typography>
             {/* Vertical stack of cards, one for each member */}
             <Stack id="members-stack" direction="column" spacing={10}>
                 {teamMembers.map((member, key) => (
@@ -166,27 +166,27 @@ export const AboutView = ({
                             width: "min(300px, 50%)",
                             height: "fit-content",
                         }}>
-                            <Typography variant='h4' mb={1} sx={{ ...textPop }}>{member.fullName}</Typography>
-                            <Typography variant='h6' mb={2} sx={{ ...textPop }}>{member.role}</Typography>
+                            <Typography variant='h4' component="h5" mb={1} sx={{ ...textPop }}>{member.fullName}</Typography>
+                            <Typography variant='body1' mb={2} sx={{ ...textPop }}>{member.role}</Typography>
                             <Stack direction="row" alignItems="center" justifyContent="center">
                                 {member.socials.website && (
                                     <Tooltip title="Personal website" placement="bottom">
                                         <IconButton onClick={() => openLink(setLocation, member.socials.website as string)} sx={memberButtonProps}>
-                                            <WebsiteIcon fill={palette.secondary.light} width="50px" height="50px" />
+                                            <WebsiteIcon fill={palette.secondary.light} width="42px" height="42px" />
                                         </IconButton>
                                     </Tooltip>
                                 )}
                                 {member.socials.twitter && (
                                     <Tooltip title="Twitter" placement="bottom">
                                         <IconButton onClick={() => openLink(setLocation, member.socials.twitter as string)} sx={memberButtonProps}>
-                                            <TwitterIcon fill={palette.secondary.light} width="42px" height="42px" />
+                                            <TwitterIcon fill={palette.secondary.light} width="36px" height="36px" />
                                         </IconButton>
                                     </Tooltip>
                                 )}
                                 {member.socials.github && (
                                     <Tooltip title="GitHub" placement="bottom">
                                         <IconButton onClick={() => openLink(setLocation, member.socials.github as string)} sx={memberButtonProps}>
-                                            <GitHubIcon fill={palette.secondary.light} width="42px" height="42px" />
+                                            <GitHubIcon fill={palette.secondary.light} width="36px" height="36px" />
                                         </IconButton>
                                     </Tooltip>
                                 )}
@@ -194,7 +194,7 @@ export const AboutView = ({
                         </Box>
                     </Box>
                 ))}
-                <Stack direction="row" justifyContent="center" alignItems="center" pt={4} spacing={2}>
+                <Stack direction="row" justifyContent="center" alignItems="center">
                     <Button
                         size="large"
                         color="secondary"
