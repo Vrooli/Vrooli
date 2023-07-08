@@ -188,6 +188,7 @@ export const SearchView = ({
                 title={t("Search")}
                 below={<PageTabs
                     ariaLabel="search-tabs"
+                    id="search-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}

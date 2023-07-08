@@ -92,40 +92,23 @@ const sections: TutorialSection[] = [
         title: "Searching Objects",
         steps: [
             {
-                text: "Step 2.1",
+                text: "This page allows you to search public objects on Vrooli.",
                 page: LINKS.Search,
             },
             {
-                text: "Step 2.2",
-                page: "Page 2",
+                text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nWe'll cover routines and other objects in more detail later.",
+                page: LINKS.Search,
+                element: "search-tabs",
             },
+            // TODO add step that links to a specific routine to run, then steps about each section, then steps about running it. Then steps to explain some other object types
         ],
     },
     {
         title: "Creating Objects",
         steps: [
             {
-                text: "Step 2.1",
-                page: "Page 2",
-                element: "create-project-card",
-            },
-            {
-                text: "Step 2.2",
-                page: "Page 2",
-            },
-        ],
-    },
-    {
-        title: "Messages and Notifications",
-        steps: [
-            {
-                text: "Step 2.1",
-                page: "Page 2",
-                element: "create-project-card",
-            },
-            {
-                text: "Step 2.2",
-                page: "Page 2",
+                text: "This page allows you to create new objects on Vrooli.",
+                page: LINKS.Create,
             },
         ],
     },
@@ -133,13 +116,22 @@ const sections: TutorialSection[] = [
         title: "Your Stuff",
         steps: [
             {
-                text: "Step 2.1",
-                page: "Page 2",
-                element: "create-project-card",
+                text: "After you've created an object, you can find it here.",
+                page: LINKS.MyStuff,
             },
             {
-                text: "Step 2.2",
-                page: "Page 2",
+                text: "Just like the search page, you can use these tabs to switch between different types of objects.",
+                page: LINKS.MyStuff,
+                element: "my-stuff-tabs",
+            },
+        ],
+    },
+    {
+        title: "Messages and Notifications",
+        steps: [
+            {
+                text: "This page allows you to view your messages and notifications.\n\nIf you have a premium account, you can message bots and have them run tasks and perform other actions for you.",
+                page: LINKS.Inbox,
             },
         ],
     },
@@ -147,13 +139,7 @@ const sections: TutorialSection[] = [
         title: "That's it!",
         steps: [
             {
-                text: "Step 2.1",
-                page: "Page 2",
-                element: "create-project-card",
-            },
-            {
-                text: "Step 2.2",
-                page: "Page 2",
+                text: "Now you know the basics of Vrooli. Have fun!",
             },
         ],
     },
@@ -206,6 +192,7 @@ export const TutorialDialog = ({
         isFinalStepInSection,
         isFirstSection,
         isFirstStepInSection,
+        nextStep,
     } = useMemo(() => {
         const isFinalStepInSection = step === sections[section].steps.length - 1;
         const isFinalSection = section === sections.length - 1;
@@ -214,7 +201,9 @@ export const TutorialDialog = ({
         const isFirstStepInSection = step === 0;
         const isFirstSection = section === 0;
 
-        return { isFinalStep, isFinalSection, isFinalStepInSection, isFirstSection, isFirstStepInSection };
+        const nextStep = isFinalStep ? null : isFinalStepInSection ? sections[section + 1].steps[0] : sections[section].steps[step + 1];
+
+        return { isFinalStep, isFinalSection, isFinalStepInSection, isFirstSection, isFirstStepInSection, nextStep };
     }, [section, step]);
 
     const handleNext = useCallback(() => {
@@ -324,6 +313,20 @@ export const TutorialDialog = ({
             </>
         );
     }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, section, setLocation, step]);
+
+    // If the user navigates to the page for the next step, automatically advance
+    useEffect(() => {
+        // Find current step's page
+        const currPage = sections[section].steps[step].page;
+        // If already on the correct page, return
+        if (currPage && currPage === location) return;
+        // Find next step's page
+        const nextPage = nextStep?.page;
+        // If next step has a page and it's the current page, advance
+        if (nextPage && nextPage === location) {
+            handleNext();
+        }
+    }, [handleNext, location, nextStep?.page, section, setLocation, step]);
 
     // If there's an anchor, use a popper
     if (getCurrentElement()) {
