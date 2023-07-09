@@ -64,6 +64,7 @@ export const Navbar = forwardRef(({
             onClick={toHome}
             sx={{
                 padding: 0,
+                paddingTop: "4px",
                 display: "flex",
                 alignItems: "center",
                 marginRight: isMobile && isLeftHanded ? 1 : "auto",
