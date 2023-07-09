@@ -21,6 +21,7 @@ export type Pubs = "Celebration" |
     "LogOut" |
     "AlertDialog" |
     "Session" |
+    "SideMenu" |
     "Snack" |
     "Theme" |
     "Tutorial" |
@@ -131,6 +132,9 @@ export class PubSub {
         localStorage.setItem("isLoggedIn", session?.isLoggedIn === true ? "true" : "false");
         this.publish("Session", session);
     }
+    publishSideMenu(open?: boolean) {
+        this.publish("SideMenu", open);
+    }
     publishSnack(data: SnackPub) {
         this.publish("Snack", data);
     }
@@ -195,6 +199,9 @@ export class PubSub {
     }
     subscribeSession(subscriber: (session: Session | undefined) => void) {
         return this.subscribe("Session", subscriber);
+    }
+    subscribeSideMenu(subscriber: (open?: boolean) => void) {
+        return this.subscribe("SideMenu", subscriber);
     }
     subscribeSnack(subscriber: (data: SnackPub) => void) {
         return this.subscribe("Snack", subscriber);

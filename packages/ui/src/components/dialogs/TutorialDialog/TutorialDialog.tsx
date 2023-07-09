@@ -5,6 +5,7 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";
 import { getCurrentUser } from "utils/authentication/session";
+import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
@@ -13,6 +14,7 @@ type TutorialStep = {
     text: string;
     page?: LINKS;
     element?: string;
+    action?: () => void;
 }
 
 type TutorialSection = {
@@ -76,15 +78,19 @@ const sections: TutorialSection[] = [
             {
                 text: "The side menu has many useful features. Open it by pressing on your profile picture.",
                 element: "side-menu-profile-icon",
+                action: () => { PubSub.get().publishSideMenu(false); },
             },
             {
                 text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
+                action: () => { PubSub.get().publishSideMenu(true); },
             },
             {
                 text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
+                action: () => { PubSub.get().publishSideMenu(true); },
             },
             {
                 text: "The third section displays a list of pages not listed in the main navigation bar.",
+                action: () => { PubSub.get().publishSideMenu(true); },
             },
         ],
     },
@@ -94,6 +100,7 @@ const sections: TutorialSection[] = [
             {
                 text: "This page allows you to search public objects on Vrooli.",
                 page: LINKS.Search,
+                action: () => { PubSub.get().publishSideMenu(false); },
             },
             {
                 text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nWe'll cover routines and other objects in more detail later.",
@@ -168,14 +175,12 @@ export const TutorialDialog = ({
     const session = useContext(SessionContext);
     const user = useMemo(() => getCurrentUser(session), [session]);
 
-    const [step, setStep] = useState(0);
-    const [section, setSection] = useState(0);
+    const [place, setPlace] = useState({ section: 0, step: 0 });
 
     // Reset when dialog is closed
     useEffect(() => {
         if (!isOpen) {
-            setStep(0);
-            setSection(0);
+            setPlace({ section: 0, step: 0 });
         }
     }, [isOpen]);
 
@@ -186,6 +191,14 @@ export const TutorialDialog = ({
         }
     }, [onClose, user]);
 
+    // Call action if it exists
+    useEffect(() => {
+        const action = sections[place.section].steps[place.step].action;
+        if (action) {
+            action();
+        }
+    }, [place]);
+
     const {
         isFinalStep,
         isFinalSection,
@@ -194,62 +207,60 @@ export const TutorialDialog = ({
         isFirstStepInSection,
         nextStep,
     } = useMemo(() => {
-        const isFinalStepInSection = step === sections[section].steps.length - 1;
-        const isFinalSection = section === sections.length - 1;
+        const isFinalStepInSection = place.step === sections[place.section].steps.length - 1;
+        const isFinalSection = place.section === sections.length - 1;
         const isFinalStep = isFinalStepInSection && isFinalSection;
 
-        const isFirstStepInSection = step === 0;
-        const isFirstSection = section === 0;
+        const isFirstStepInSection = place.step === 0;
+        const isFirstSection = place.section === 0;
 
-        const nextStep = isFinalStep ? null : isFinalStepInSection ? sections[section + 1].steps[0] : sections[section].steps[step + 1];
+        const nextStep = isFinalStep ? null : isFinalStepInSection ? sections[place.section + 1].steps[0] : sections[place.section].steps[place.step + 1];
 
         return { isFinalStep, isFinalSection, isFinalStepInSection, isFirstSection, isFirstStepInSection, nextStep };
-    }, [section, step]);
+    }, [place]);
 
     const handleNext = useCallback(() => {
         if (!isFinalStepInSection) {
-            const nextPage = sections[section].steps[step + 1].page;
+            const nextPage = sections[place.section].steps[place.step + 1].page;
             if (nextPage && nextPage !== location) {
                 setLocation(nextPage);
             }
-            setStep(step + 1);
+            setPlace({ section: place.section, step: place.step + 1 });
         } else if (!isFinalSection) {
-            const nextPage = sections[section + 1].steps[0].page;
+            const nextPage = sections[place.section + 1].steps[0].page;
             if (nextPage && nextPage !== location) {
                 setLocation(nextPage);
             }
-            setSection(section + 1);
-            setStep(0);
+            setPlace({ section: place.section + 1, step: 0 });
         } else {
             onClose();
         }
-    }, [isFinalSection, isFinalStepInSection, location, onClose, section, setLocation, step]);
+    }, [isFinalSection, isFinalStepInSection, location, onClose, place, setLocation]);
 
     const handlePrev = useCallback(() => {
         if (!isFirstStepInSection) {
-            const prevPage = sections[section].steps[step - 1].page;
+            const prevPage = sections[place.section].steps[place.step - 1].page;
             if (prevPage && prevPage !== location) {
                 setLocation(prevPage);
             }
-            setStep(step - 1);
+            setPlace({ section: place.section, step: place.step - 1 });
         } else if (!isFirstSection) {
-            const prevPage = sections[section - 1].steps[sections[section - 1].steps.length - 1].page;
+            const prevPage = sections[place.section - 1].steps[sections[place.section - 1].steps.length - 1].page;
             if (prevPage && prevPage !== location) {
                 setLocation(prevPage);
             }
-            setSection(section - 1);
-            setStep(sections[section - 1].steps.length - 1);
+            setPlace({ section: place.section - 1, step: sections[place.section - 1].steps.length - 1 });
         }
-    }, [isFirstSection, isFirstStepInSection, location, section, setLocation, step]);
+    }, [isFirstSection, isFirstStepInSection, location, place, setLocation]);
 
     const getCurrentElement = useCallback(() => {
-        const elementId = sections[section].steps[step].element;
+        const elementId = sections[place.section].steps[place.step].element;
         return elementId ? document.getElementById(elementId) : null;
-    }, [section, step]);
+    }, [place]);
 
     const content = useMemo(() => {
         // Guide user to correct page if they're on the wrong one
-        const correctPage = sections[section].steps[step].page;
+        const correctPage = sections[place.section].steps[place.step].page;
         if (correctPage && correctPage !== location) {
             return (
                 <>
@@ -278,7 +289,7 @@ export const TutorialDialog = ({
             <>
                 <DialogTitle
                     id={titleId}
-                    title={`${sections[section].title} (${section + 1} of ${sections.length})`}
+                    title={`${sections[place.section].title} (${place.section + 1} of ${sections.length})`}
                     onClose={onClose}
                     variant="subheader"
                     sxs={{
@@ -287,17 +298,17 @@ export const TutorialDialog = ({
                     }}
                 />
                 <Box sx={{ padding: "16px" }}>
-                    <MarkdownDisplay variant="body1" content={sections[section].steps[step].text} />
+                    <MarkdownDisplay variant="body1" content={sections[place.section].steps[place.step].text} />
                 </Box>
                 <MobileStepper
                     variant="dots"
-                    steps={sections[section].steps.length}
+                    steps={sections[place.section].steps.length}
                     position="static"
-                    activeStep={step}
+                    activeStep={place.step}
                     backButton={
                         <IconButton
                             onClick={handlePrev}
-                            disabled={section === 0 && step === 0}
+                            disabled={place.section === 0 && place.step === 0}
                         >
                             <ArrowLeftIcon />
                         </IconButton>
@@ -312,21 +323,23 @@ export const TutorialDialog = ({
                 />
             </>
         );
-    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, section, setLocation, step]);
+    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, place, setLocation]);
 
-    // If the user navigates to the page for the next step, automatically advance
+    // If the user navigates to the page for the next step, automatically advance. 
+    // This is temporarily disabled after the previous/next buttons are pressed.
     useEffect(() => {
         // Find current step's page
-        const currPage = sections[section].steps[step].page;
+        const currPage = sections[place.section].steps[place.step].page;
         // If already on the correct page, return
         if (currPage && currPage === location) return;
         // Find next step's page
         const nextPage = nextStep?.page;
         // If next step has a page and it's the current page, advance
-        if (nextPage && nextPage === location) {
+        if (currPage && nextPage && nextPage === location) {
+            console.log("handling next", currPage, nextPage);
             handleNext();
         }
-    }, [handleNext, location, nextStep?.page, section, setLocation, step]);
+    }, [handleNext, location, nextStep?.page, place, setLocation]);
 
     // If there's an anchor, use a popper
     if (getCurrentElement()) {

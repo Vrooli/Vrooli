@@ -9,7 +9,7 @@ import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButto
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
 import { useFormik } from "formik";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
@@ -20,16 +20,12 @@ import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
-import { SideMenuProps } from "../types";
 
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
 const MAX_ACCOUNTS = 10;
 
-export const SideMenu = ({
-    anchorEl,
-    onClose,
-}: SideMenuProps) => {
+export const SideMenu = () => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -38,7 +34,18 @@ export const SideMenu = ({
     const isLeftHanded = useIsLeftHanded();
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    const open = Boolean(anchorEl);
+
+    // Handle opening and closing
+    const [isOpen, setIsOpen] = useState(false);
+    useEffect(() => {
+        const sideMenuSub = PubSub.get().subscribeSideMenu((open) => {
+            setIsOpen(o => open ?? !o);
+        });
+        return (() => {
+            PubSub.get().unsubscribe(sideMenuSub);
+        });
+    }, []);
+    const close = useCallback(() => { setIsOpen(false); }, []);
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -87,10 +94,10 @@ export const SideMenu = ({
 
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         formik.handleSubmit();
-        onClose(event);
+        close();
         closeAdditionalResources();
         closeDisplaySettings();
-    }, [closeAdditionalResources, closeDisplaySettings, formik, onClose]);
+    }, [close, closeAdditionalResources, closeDisplaySettings, formik]);
 
     const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointPostAuthSwitchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
@@ -183,7 +190,7 @@ export const SideMenu = ({
     return (
         <SwipeableDrawer
             anchor={(isMobile && isLeftHanded) ? "left" : "right"}
-            open={open}
+            open={isOpen}
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             onOpen={() => { }}
             onClose={handleClose}

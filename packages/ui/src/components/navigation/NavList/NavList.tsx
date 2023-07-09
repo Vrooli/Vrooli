@@ -2,11 +2,12 @@ import { LINKS, LogInIcon, openLink, ProfileIcon, useLocation } from "@local/sha
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
+import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { ContactInfo } from "../ContactInfo/ContactInfo";
 
@@ -27,19 +28,9 @@ export const NavList = () => {
     const [, setLocation] = useLocation();
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
-    // Handle account menu
-    const [sideMenuAnchor, setSideMenuAnchor] = useState<any>(null);
-    const openSideMenu = useCallback((ev: React.MouseEvent<any>) => {
-        ev.stopPropagation();
-        setSideMenuAnchor(ev.currentTarget);
-    }, [setSideMenuAnchor]);
-    const closeSideMenu = useCallback((ev: React.MouseEvent<any>) => {
-        ev.stopPropagation();
-        setSideMenuAnchor(null);
-    }, []);
+    const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu(); }, []);
 
     return (
         <Container sx={{
@@ -59,10 +50,7 @@ export const NavList = () => {
                 <ContactInfo />
             </PopupMenu>}
             {/* Side menu */}
-            <SideMenu
-                anchorEl={sideMenuAnchor}
-                onClose={closeSideMenu}
-            />
+            <SideMenu />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
                 actions: nav_actions,
@@ -94,7 +82,7 @@ export const NavList = () => {
                 <Avatar
                     id="side-menu-profile-icon"
                     src="/broken-image.jpg" //TODO
-                    onClick={openSideMenu}
+                    onClick={toggleSideMenu}
                     sx={{
                         background: palette.primary.contrastText,
                         width: "40px",
