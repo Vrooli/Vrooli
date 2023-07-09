@@ -274,7 +274,7 @@ export const MarkdownDisplay = ({
     sx,
     variant, //TODO
 }: MarkdownDisplayProps) => {
-    const { typography } = useTheme();
+    const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
 
     // Add overrides for custom components
@@ -336,6 +336,7 @@ export const MarkdownDisplay = ({
             fontFamily: typography.fontFamily,
             fontSize: typography.fontSize + 2,
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
+            color: palette.background.textPrimary,
             ...sx,
         }}>
             {processedContent}

@@ -127,7 +127,7 @@ const sections: TutorialSection[] = [
         ],
     },
     {
-        title: "Messages and Notifications",
+        title: "Inbox",
         steps: [
             {
                 text: "This page allows you to view your messages and notifications.\n\nIf you have a premium account, you can message bots and have them run tasks and perform other actions for you.",
@@ -286,7 +286,7 @@ export const TutorialDialog = ({
                         root: { cursor: getCurrentElement() ? "auto" : "move" },
                     }}
                 />
-                <Box sx={{ padding: "16px", paddingBottom: 0 }}>
+                <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay variant="body1" content={sections[section].steps[step].text} />
                 </Box>
                 <MobileStepper
@@ -335,7 +335,10 @@ export const TutorialDialog = ({
                 anchorEl={getCurrentElement()}
                 disableScrollLock={true}
                 sxs={{
-                    root: { zIndex: 100000 },
+                    root: {
+                        zIndex: 100000,
+                        maxWidth: "500px",
+                    },
                     content: { padding: 0 },
                 }}
             >
@@ -360,6 +363,7 @@ export const TutorialDialog = ({
                         pointerEvents: "auto",
                         borderRadius: 2,
                         margin: 2,
+                        maxWidth: "500px",
                         background: palette.background.paper,
                         position: "absolute",
                         top: "0",
