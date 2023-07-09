@@ -161,6 +161,7 @@ export * from "./UpvoteTallIcon";
 export * from "./UpvoteWideIcon";
 export * from "./UserIcon";
 export * from "./VisibleIcon";
+export * from "./VrooliIcon";
 export * from "./WalletIcon";
 export * from "./WarningIcon";
 export * from "./WebsiteIcon";
