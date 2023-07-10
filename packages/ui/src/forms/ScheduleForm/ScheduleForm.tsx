@@ -121,7 +121,7 @@ export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProp
                             label="End time"
                             type="datetime-local"
                         />
-                        <TimezoneSelector name="timezone" label="Timezone" />
+                        <TimezoneSelector name="timezone" label="Timezone" zIndex={zIndex} />
                     </Stack>
                     {/* Set up recurring events */}
                     <Title

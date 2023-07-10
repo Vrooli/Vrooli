@@ -11,7 +11,7 @@ export const buttonSx = (background: string, disabled: boolean | undefined) => (
         background,
         filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
     },
-});
+} as const);
 
 /**
  * IconButton with a custom color
@@ -33,7 +33,7 @@ export const ColorIconButton = forwardRef<HTMLButtonElement | HTMLAnchorElement,
             onClick={onClick}
             sx={{
                 ...buttonSx(background, disabled),
-                ...(sx ?? {}),
+                ...sx,
             }}
         >
             {children}
@@ -46,7 +46,7 @@ export const ColorIconButton = forwardRef<HTMLButtonElement | HTMLAnchorElement,
             onClick={onClick}
             sx={{
                 ...buttonSx(background, disabled),
-                ...(sx ?? {}),
+                ...sx,
             }}
         >
             {children}

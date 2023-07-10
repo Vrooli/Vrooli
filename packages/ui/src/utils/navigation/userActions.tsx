@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import { CommonKey, CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, LINKS, NotificationsAllIcon, openLink, PremiumIcon, SearchIcon, Session, SetLocation, SvgComponent } from "@local/shared";
-import { Badge, BottomNavigationAction, Button, IconButton } from "@mui/material";
+import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
 import { checkIfLoggedIn } from "utils/authentication/session";
 
@@ -72,7 +72,7 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 interface ActionsToMenuProps {
     actions: Action[];
     setLocation: SetLocation;
-    sx?: { [key: string]: any };
+    sx?: SxProps<Theme>;
 }
 export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuProps) => {
     return actions.map(({ label, value, link }) => (

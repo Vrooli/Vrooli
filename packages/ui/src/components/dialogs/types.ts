@@ -4,7 +4,7 @@ import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject, TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
-import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep } from "types";
+import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObjectType } from "utils/display/listTools";
@@ -19,20 +19,9 @@ export interface SideMenuProps { }
 export interface AssistantDialogProps {
     context?: string;
     task?: AssistantTask;
-    handleClose: () => void;
-    handleComplete: (data: any) => void;
+    handleClose: () => unknown;
+    handleComplete: (data: any) => unknown;
     isOpen: boolean;
-    zIndex: number;
-}
-
-export interface BaseObjectDialogProps extends DialogProps {
-    children: ReactNode;
-    /**
-     * Callback when option button or close button is pressed
-     */
-    onAction: (state: ObjectDialogAction) => any;
-    open: boolean;
-    title?: string;
     zIndex: number;
 }
 
@@ -41,18 +30,18 @@ export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShap
 }
 
 export interface CookieSettingsDialogProps {
-    handleClose: (preferences?: CookiePreferences) => void;
+    handleClose: (preferences?: CookiePreferences) => unknown;
     isOpen: boolean;
 }
 
 export interface DeleteAccountDialogProps {
-    handleClose: (wasDeleted: boolean) => void;
+    handleClose: (wasDeleted: boolean) => unknown;
     isOpen: boolean;
     zIndex: number;
 }
 
 export interface DeleteDialogProps {
-    handleClose: (wasDeleted: boolean) => void;
+    handleClose: (wasDeleted: boolean) => unknown;
     isOpen: boolean;
     objectId: string;
     objectName: string;
@@ -63,8 +52,8 @@ export interface DeleteDialogProps {
 export interface DialogTitleProps extends Omit<TitleProps, "sxs" | "variant"> {
     below?: JSX.Element | boolean | undefined;
     id: string;
-    onClose?: () => void;
-    sxs?: TitleProps["sxs"] & { root?: { [key: string]: any } };
+    onClose?: () => unknown;
+    sxs?: TitleProps["sxs"] & { root?: SxType; };
     variant?: TitleProps["variant"];
 }
 
@@ -104,8 +93,8 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
      * Determines the type of data returned when an object is selected
      */
     find: Find;
-    handleCancel: () => any;
-    handleComplete: (data: Find extends "Url" ? string : ObjectType) => any;
+    handleCancel: () => unknown;
+    handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
     limitTo?: SelectOrCreateObjectType[];
     /**
@@ -119,8 +108,8 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
 }
 
 export interface FindSubroutineDialogProps {
-    handleCancel: () => any;
-    handleComplete: (nodeId: string, subroutine: RoutineVersion) => any;
+    handleCancel: () => unknown;
+    handleComplete: (nodeId: string, subroutine: RoutineVersion) => unknown;
     isOpen: boolean;
     nodeId: string;
     routineVersionId: string | null | undefined;
@@ -128,37 +117,25 @@ export interface FindSubroutineDialogProps {
 }
 
 export interface ListMenuItemData<T> {
-    /**
-     * Displays help button with data
-     */
+    /** Displays help button with data */
     helpData?: HelpButtonProps;
-    /**
-     * Icon to display
-     */
+    /** Icon to display */
     Icon?: SvgComponent;
-    /**
-     * Color of Icon, if different than text
-     */
+    /** Color of Icon, if different than text */
     iconColor?: string;
-    /**
-     * Text to display
-     */
+    /** Text to display */
     label: string;
-    /**
-     * Determines if the item is a preview (i.e. not selectable, coming soon)
-     */
-    preview?: boolean; // Determines if the item is a preview (i.e. not selectable, coming soon)
-    /**
-     * Value to pass back when selected
-     */
+    /** Determines if the item is a preview (i.e. not selectable, coming soon) */
+    preview?: boolean;
+    /** Value to pass back when selected */
     value: T;
 }
 export interface ListMenuProps<T> {
     anchorEl: HTMLElement | null;
     data?: ListMenuItemData<T>[];
     id: string;
-    onSelect: (value: T) => void;
-    onClose: () => void;
+    onSelect: (value: T) => unknown;
+    onClose: () => unknown;
     title?: string;
     zIndex: number;
 }
@@ -166,7 +143,7 @@ export interface ListMenuProps<T> {
 export interface MenuTitleProps {
     ariaLabel?: string;
     helpText?: string;
-    onClose: () => void;
+    onClose: () => unknown;
     title?: string;
     zIndex: number;
 }
@@ -191,7 +168,7 @@ export interface ReorderInputDialogProps {
 
 export interface ReportDialogProps extends DialogProps {
     forId: string;
-    onClose: () => any;
+    onClose: () => unknown;
     open: boolean;
     reportFor: ReportFor;
     title?: string;
@@ -209,9 +186,9 @@ export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
      * Determines if add resource should be called by this dialog, or is handled later
      */
     mutate: boolean;
-    onClose: () => any;
-    onCreated: (resource: Resource) => any;
-    onUpdated: (index: number, resource: Resource) => any;
+    onClose: () => unknown;
+    onCreated: (resource: Resource) => unknown;
+    onUpdated: (index: number, resource: Resource) => unknown;
     partialData?: Partial<Resource>;
     zIndex: number;
 }
@@ -219,13 +196,13 @@ export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
 export interface ShareObjectDialogProps extends DialogProps {
     object: NavigableObject | null | undefined;
     open: boolean;
-    onClose: () => any;
+    onClose: () => unknown;
     zIndex: number;
 }
 
 export interface ShareSiteDialogProps extends DialogProps {
     open: boolean;
-    onClose: () => any;
+    onClose: () => unknown;
     zIndex: number;
 }
 
@@ -246,7 +223,7 @@ export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
     exclude?: ObjectAction[];
     object: ListObjectType | null | undefined;
-    onClose: () => any;
+    onClose: () => unknown;
     zIndex: number;
 }
 
@@ -266,21 +243,19 @@ export interface LinkDialogProps {
 export interface SubroutineInfoDialogProps {
     data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
     defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => any;
-    handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;
-    handleViewFull: () => any;
+    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
+    handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => unknown;
+    handleViewFull: () => unknown;
     isEditing: boolean;
     open: boolean;
-    onClose: () => any;
+    onClose: () => unknown;
     zIndex: number;
 }
 
 export interface UnlinkedNodesDialogProps {
-    handleNodeDelete: (nodeId: string) => any;
-    /**
-     * Expand/shrink dialog
-     */
-    handleToggleOpen: () => any;
+    handleNodeDelete: (nodeId: string) => unknown;
+    /** Expand/shrink dialog */
+    handleToggleOpen: () => unknown;
     language: string;
     nodes: Node[];
     open: boolean;
@@ -289,12 +264,10 @@ export interface UnlinkedNodesDialogProps {
 
 export interface RunStepsDialogProps {
     currStep: number[] | null;
-    handleLoadSubroutine: (id: string) => any;
-    handleCurrStepLocationUpdate: (step: number[]) => any;
+    handleLoadSubroutine: (id: string) => unknown;
+    handleCurrStepLocationUpdate: (step: number[]) => unknown;
     history: number[][];
-    /**
-     * Out of 100
-     */
+    /** Out of 100 */
     percentComplete: number;
     rootStep: RoutineListStep | DirectoryStep | null;
     zIndex: number;
@@ -302,15 +275,15 @@ export interface RunStepsDialogProps {
 
 export interface DeleteBookmarkListDialogProps {
     bookmarkDeleteOptions: Bookmark[];
-    onClose: () => any;
-    onDelete: (bookmarks: Bookmark[]) => any;
+    onClose: () => unknown;
+    onDelete: (bookmarks: Bookmark[]) => unknown;
     zIndex: number;
 }
 
 export interface SelectBookmarkListDialogProps {
     objectId: string | null;
     objectType: BookmarkFor | `${BookmarkFor}`;
-    onClose: (inList: boolean) => any;
+    onClose: (inList: boolean) => unknown;
     isCreate: boolean;
     isOpen: boolean;
     zIndex: number;
@@ -322,31 +295,27 @@ export interface SelectLanguageMenuProps {
      * there is only ever one current language
      */
     currentLanguage: string;
-    handleDelete?: (language: string) => any;
-    /**
-     * Callback when new current language is selected
-     */
-    handleCurrent: (language: string) => any;
+    handleDelete?: (language: string) => unknown;
+    /** Callback when new current language is selected */
+    handleCurrent: (language: string) => unknown;
     isEditing?: boolean;
-    /**
-     * Languages that currently have a translation
-     */
+    /** Languages that currently have a translation */
     languages: string[];
-    sxs?: { root: any };
+    sxs?: { root: SxType; };
     zIndex: number;
 }
 
 export interface StatsDialogProps<T extends StatsCompactPropsObject> {
-    handleObjectUpdate: (object: T) => void;
+    handleObjectUpdate: (object: T) => unknown;
     isOpen: boolean;
     object: T | null | undefined;
-    onClose: () => void;
+    onClose: () => unknown;
     zIndex: number;
 }
 
 export interface AdvancedSearchDialogProps {
-    handleClose: () => any;
-    handleSearch: (searchQuery: { [x: string]: any }) => any;
+    handleClose: () => unknown;
+    handleSearch: (searchQuery: { [x: string]: any }) => unknown;
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
     zIndex: number;
@@ -354,10 +323,10 @@ export interface AdvancedSearchDialogProps {
 
 export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
-    handleClose: () => any;
-    onAdd: (run: RunProject | RunRoutine) => any;
-    onDelete: (run: RunProject | RunRoutine) => any;
-    onSelect: (run: RunProject | RunRoutine | null) => any;
+    handleClose: () => unknown;
+    onAdd: (run: RunProject | RunRoutine) => unknown;
+    onDelete: (run: RunProject | RunRoutine) => unknown;
+    onSelect: (run: RunProject | RunRoutine | null) => unknown;
     runnableObject?: RoutineVersion | ProjectVersion | null;
     zIndex: number;
 }
@@ -366,23 +335,21 @@ export interface LargeDialogProps {
     children: ReactNode;
     id: string;
     isOpen: boolean;
-    onClose: () => any;
+    onClose: () => unknown;
     titleId?: string;
     zIndex: number;
-    sxs?: {
-        paper?: { [x: string]: any };
-    }
+    sxs?: { paper?: SxType; }
 }
 
 export interface WalletInstallDialogProps {
-    onClose: () => any;
+    onClose: () => unknown;
     open: boolean;
     zIndex: number;
 }
 
 export interface WalletSelectDialogProps {
-    handleOpenInstall: () => any;
-    onClose: (selectedKey: string | null) => any;
+    handleOpenInstall: () => unknown;
+    onClose: (selectedKey: string | null) => unknown;
     open: boolean;
     zIndex: number;
 }
@@ -391,12 +358,12 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
     anchorEl: HTMLElement | null;
     children: ReactNode;
     disableScrollLock?: boolean;
-    handleClose?: () => any;
+    handleClose?: () => unknown;
     placement?: "top" | "right" | "bottom" | "left";
     sxs?: {
-        root?: { [x: string]: any };
-        content?: { [x: string]: any };
-        paper?: { [x: string]: any };
+        root?: Record<string, unknown>;
+        content?: SxType;
+        paper?: SxType;
     }
     zIndex: number;
 }
@@ -404,5 +371,5 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
 
 export interface TutorialDialogProps {
     isOpen: boolean;
-    onClose: () => any;
+    onClose: () => unknown;
 }

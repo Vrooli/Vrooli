@@ -1,19 +1,22 @@
 import { CommonKey } from "@local/shared";
 import { InputProps } from "@mui/material";
-import { AutocompleteOption } from "types";
+import { AutocompleteOption, SxType } from "types";
 import { SearchItem } from "utils/search/siteToSearch";
 
 export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> & {
     debounce?: number;
     id?: string;
     loading?: boolean;
-    onChange: (updatedText: string) => any;
-    onInputChange: (newValue: AutocompleteOption) => any;
+    onChange: (updatedText: string) => unknown;
+    onInputChange: (newValue: AutocompleteOption) => unknown;
     options?: AutocompleteOption[];
     placeholder?: CommonKey;
     showSecondaryLabel?: boolean;
     value: string;
-    sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
+    sxs?: {
+        paper?: SxType;
+        root?: SxType;
+    };
     zIndex: number;
 }
 
@@ -21,8 +24,8 @@ export type SettingsSearchBarProps = InputProps & {
     debounce?: number;
     id?: string;
     options?: SearchItem[];
-    onChange: (updatedText: string) => any;
-    onInputChange: (newValue: SearchItem) => any;
+    onChange: (updatedText: string) => unknown;
+    onInputChange: (newValue: SearchItem) => unknown;
     placeholder?: string;
     value: string;
 }

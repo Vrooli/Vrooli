@@ -1,11 +1,12 @@
 import { ChatMessage, SvgComponent, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
+import { SxType } from "types";
 
 export interface ChatBubbleProps {
     message: ChatMessage & { isUnsent?: boolean }
     index: number;
     isOwn: boolean;
-    onUpdated: (message: ChatMessage & { isUnsent: boolean }) => void;
+    onUpdated: (message: ChatMessage & { isUnsent: boolean }) => unknown;
     zIndex: number;
 }
 
@@ -15,8 +16,8 @@ export interface ChatBubbleStatusProps {
     isSending: boolean;
     /** Indicates if there has been an error in sending the message */
     hasError: boolean;
-    onEdit: () => void;
-    onRetry: () => void;
+    onEdit: () => unknown;
+    onRetry: () => unknown;
 }
 
 
@@ -29,7 +30,7 @@ export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {
 export interface DiagonalWaveLoaderProps {
     size?: number;
     color?: string;
-    sx?: { [key: string]: any };
+    sx?: SxType;
 }
 
 export type PageTab<T> = {
@@ -49,12 +50,12 @@ export interface PageTabsProps<T> {
     currTab: PageTab<T>,
     fullWidth?: boolean,
     id?: string,
-    onChange: (event: React.ChangeEvent<unknown>, value: any) => void,
+    onChange: (event: React.ChangeEvent<unknown>, value: any) => unknown,
     tabs: PageTab<T>[],
 }
 
 export interface ProfileGroupProps {
-    sx?: { [key: string]: any };
+    sx?: SxType;
     users: User[];
 }
 
@@ -63,5 +64,5 @@ export interface TwinklingStarsProps {
     size?: number;
     color?: string;
     speed?: number;
-    sx?: { [key: string]: any };
+    sx?: SxType;
 }

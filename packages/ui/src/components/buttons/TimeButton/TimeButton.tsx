@@ -9,6 +9,7 @@ import { TimeButtonProps } from "../types";
 export const TimeButton = ({
     setTimeFrame,
     timeFrame,
+    zIndex,
 }: TimeButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -28,6 +29,7 @@ export const TimeButton = ({
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
+                zIndex={zIndex + 1}
             />
             <Tooltip title={t("TimeCreated")} placement="top">
                 <Box

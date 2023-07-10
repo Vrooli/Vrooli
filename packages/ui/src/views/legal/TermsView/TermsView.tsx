@@ -5,7 +5,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { PageTab } from "components/types";
-import { useCallback, useMemo } from "react";
+import { ChangeEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdown } from "utils/hooks/useMarkdown";
 import { TermsViewProps } from "../types";
@@ -31,7 +31,7 @@ export const TermsView = ({
         value: option as TabOptions,
     })), [t]);
     const currTab = useMemo(() => tabs[1], [tabs]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
+    const handleTabChange = useCallback((e: ChangeEvent<unknown>, tab: PageTab<TabOptions>) => {
         e.preventDefault();
         setLocation(LINKS[tab.value], { replace: true });
     }, [setLocation]);

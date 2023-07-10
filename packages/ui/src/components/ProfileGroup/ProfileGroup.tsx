@@ -42,7 +42,7 @@ export const ProfileGroup = ({
         // Add null icons to fill the remaining space up to the max
         while (newIcons.length < maxIconsDisplayed) newIcons.push(null);
         return newIcons as [IconType, IconType, IconType, IconType];
-    }, [users]);
+    }, [session, users]);
 
     return (
         <Box

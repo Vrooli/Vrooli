@@ -1,5 +1,6 @@
 import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, SvgComponent, User } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
+import { SxType } from "types";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
@@ -14,7 +15,7 @@ export interface MarkdownDisplayProps {
     content: string | undefined;
     isEditable?: boolean;
     onChange?: (content: string) => void;
-    sx?: { [x: string]: any; };
+    sx?: SxType;
     variant?: TypographyProps["variant"];
     zIndex: number;
 }
@@ -25,7 +26,7 @@ export interface OwnerLabelProps {
     objectType: ObjectType;
     owner: Routine["owner"] | null | undefined
     sxs?: {
-        label?: { [x: string]: any };
+        label?: SxType;
     }
 }
 
@@ -51,8 +52,8 @@ export interface TitleProps {
         onClick: (e?: any) => void;
     }[];
     sxs?: {
-        stack?: { [x: string]: any; };
-        text?: { [x: string]: any; };
+        stack?: SxType;
+        text?: SxType;
     }
     title?: string;
     /** Replaces title if provided */

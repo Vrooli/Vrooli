@@ -1,3 +1,4 @@
+import { SxType } from "types";
 
 export interface PageProps {
     children: JSX.Element;
@@ -5,5 +6,5 @@ export interface PageProps {
     mustBeLoggedIn?: boolean;
     sessionChecked: boolean;
     redirect?: string;
-    sx?: { [key: string]: any };
+    sx?: SxType;
 }

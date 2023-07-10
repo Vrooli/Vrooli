@@ -1,14 +1,15 @@
 import { ReactNode } from "react";
+import { SxType } from "types";
 
 export interface SlideProps {
     id: string;
     children: ReactNode;
-    sx?: object;
+    sx?: SxType;
 }
 
 export interface SlideContainerNeonProps {
     id: string;
     children: ReactNode;
     show?: boolean;
-    sx?: object;
+    sx?: SxType;
 }

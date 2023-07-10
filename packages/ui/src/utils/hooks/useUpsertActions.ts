@@ -64,7 +64,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
                 }
                 break;
         }
-    }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, onCancel]);
+    }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, t, onCancel]);
 
     const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const handleCompleted = useCallback((data: T) => {

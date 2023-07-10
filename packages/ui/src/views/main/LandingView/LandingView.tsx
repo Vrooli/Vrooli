@@ -20,7 +20,6 @@ const slide3Id = "routines";
 const slide4Id = "organizations";
 const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
-const slideContentIds = [slide1Id, slide2Id, slide3Id, slide4Id, slide5Id, slide6Id];
 
 const externalLinks: [string, string, SvgComponent][] = [
     ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],

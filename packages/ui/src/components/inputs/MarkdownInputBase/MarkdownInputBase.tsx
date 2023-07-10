@@ -947,7 +947,7 @@ export const MarkdownInputBase = ({
                                     backgroundColor: palette.background.paper,
                                     color: palette.text.primary,
                                     ...sxs?.textArea,
-                                }}
+                                } as const}
                             />
                         )
                 }

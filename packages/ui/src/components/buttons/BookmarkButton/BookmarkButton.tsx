@@ -54,7 +54,7 @@ export const BookmarkButton = ({
             }
             // When bookmark is removed, we don't need to do anything
         }
-    }, []);
+    }, [openSelect]);
 
     const {
         isBookmarkDialogOpen,

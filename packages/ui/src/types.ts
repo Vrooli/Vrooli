@@ -1,5 +1,7 @@
 // Defines common props
 import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
+import { Theme } from "@mui/material";
+import { SystemStyleObject } from "@mui/system";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 
 export type CalendarEvent = {
@@ -25,20 +27,14 @@ export type OptionalTranslation = {
     titleVariables?: { [x: string]: string | number };
 }
 
-/**
- * Wraps an object with a field
- */
+/** Wraps an object with a field */
 export type Wrap<T, K extends string> = { [P in K]: T };
 
-/**
- * Wrapper for GraphQL input types
- */
+/** Wrapper for GraphQL input types */
 export type IWrap<T> = { input: T }
 
 
-/**
- * An object connected to routing
- */
+/** An object connected to routing */
 export type NavigableObject = {
     __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
@@ -241,22 +237,18 @@ declare module "@mui/material/styles" {
     }
 }
 
-/**
- * Makes a value nullable. Mimics the Maybe type in GraphQL.
- */
+/** Makes a value nullable. Mimics the Maybe type in GraphQL. */
 export type Maybe<T> = T | null;
 
-/**
- * Recursively removes the Maybe type from all fields in a type, and makes them required.
- */
+/** Recursively removes the Maybe type from all fields in a type, and makes them required. */
 export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
 
-/**
- * Makes a value lazy or not
- */
+/** Makes a value lazy or not */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
 
-/**
- * A task mode supported by Valyxa
- */
+/** A task mode supported by Valyxa */
 export type AssistantTask = "start" | "note" | "standard";
+
+export type SxType = NonNullable<SystemStyleObject<Theme>> & {
+    color?: string;
+}

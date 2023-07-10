@@ -96,6 +96,7 @@ export const SettingsAuthenticationView = ({
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
+                        zIndex={zIndex}
                     />
                     <Title
                         help={t("EmailListHelp")}

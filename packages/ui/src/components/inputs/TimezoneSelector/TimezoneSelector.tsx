@@ -30,6 +30,7 @@ const getTimezoneOffset = (timezone) => {
 
 export const TimezoneSelector = ({
     onChange,
+    zIndex,
     ...props
 }: TimezoneSelectorProps) => {
     const { palette } = useTheme();
@@ -93,7 +94,7 @@ export const TimezoneSelector = ({
                     ariaLabel={""}
                     title={"Select Timezone"}
                     onClose={onClose}
-                    zIndex={props.zIndex}
+                    zIndex={zIndex + 1}
                 />
                 <Stack direction="column" spacing={2} p={2}>
                     <TextField

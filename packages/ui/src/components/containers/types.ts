@@ -1,7 +1,8 @@
-import { CommentFor, CommonKey, SvgComponent } from "@local/shared";
+import { CommentFor, CommonKey, SvgComponent, SvgProps } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 import { ReactNode } from "react";
+import { SxType } from "types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
@@ -9,7 +10,7 @@ export interface CommentContainerProps {
     language: string;
     objectId: string;
     objectType: CommentFor;
-    onAddCommentClose?: () => void;
+    onAddCommentClose?: () => unknown;
     zIndex: number;
 }
 
@@ -21,16 +22,14 @@ export interface TitleContainerProps {
     title: string;
     id?: string;
     loading?: boolean;
-    onClick?: (event: React.MouseEvent) => void;
+    onClick?: (event: React.MouseEvent) => unknown;
     options?: {
-        /**
-         * If set, adds icon for option to the right of the title
-         */
+        /** Adds icon for option to the right of the title */
         Icon?: SvgComponent;
         label: string;
-        onClick: (e?: any) => void;
+        onClick: (e?: any) => unknown;
     }[];
-    sx?: object;
+    sx?: SxType;
     zIndex: number;
 }
 
@@ -38,7 +37,7 @@ export interface ListContainerProps {
     children: ReactNode;
     emptyText?: string;
     isEmpty?: boolean;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 export interface ListTitleContainerProps extends TitleContainerProps {
@@ -46,19 +45,19 @@ export interface ListTitleContainerProps extends TitleContainerProps {
     isEmpty: boolean;
 }
 
-// label, Icon, disabled, isSubmit, onClick
-export type DialogActionItem = [string, any, boolean, boolean, () => void,]
+/** Array of label, Icon, disabled, isSubmit, onClick */
+export type DialogActionItem = [string, SvgComponent, boolean, boolean, () => unknown]
 
 export interface ContentCollapseProps {
     children?: React.ReactNode;
     helpText?: string;
     id?: string;
     isOpen?: boolean;
-    onOpenChange?: (isOpen: boolean) => void;
+    onOpenChange?: (isOpen: boolean) => unknown;
     sxs?: {
-        titleContainer?: { [x: string]: any };
-        root?: { [x: string]: any };
-        helpButton?: { [x: string]: any };
+        titleContainer?: SxType;
+        root?: SxType;
+        helpButton?: SvgProps;
     }
     title?: string | null;
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
@@ -72,7 +71,7 @@ export interface TextCollapseProps {
     isOpen?: boolean;
     loading?: boolean;
     loadingLines?: number;
-    onOpenChange?: (isOpen: boolean) => void;
+    onOpenChange?: (isOpen: boolean) => unknown;
     title?: string | null;
     text?: string | null;
     zIndex: number;
@@ -92,7 +91,7 @@ interface BaseEditableTextProps<T extends EditTextComponent> {
 interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {
     helpText?: string;
     isOpen?: boolean;
-    onOpenChange?: (isOpen: boolean) => void;
+    onOpenChange?: (isOpen: boolean) => unknown;
     title?: string | null;
 }
 
@@ -112,5 +111,5 @@ export type EditableTextCollapseProps<T extends EditTextComponent> = BaseEditabl
 
 export interface PageContainerProps {
     children: ReactNode;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }

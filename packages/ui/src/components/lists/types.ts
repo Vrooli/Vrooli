@@ -1,7 +1,7 @@
 import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject } from "types";
+import { AwardDisplay, NavigableObject, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObjectType } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
@@ -97,6 +97,7 @@ export interface SortMenuProps {
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
+    zIndex: number;
 }
 
 export interface DateRangeMenuProps {
@@ -160,13 +161,13 @@ export interface RelationshipListProps {
     isFormDirty?: boolean;
     objectType: ObjectType;
     zIndex: number;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 export interface RoleListProps {
     maxCharacters?: number;
     roles: Role[];
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 /**
@@ -191,7 +192,7 @@ export interface SearchListProps {
      * an annoying grow/shrink effect.
      */
     dummyLength?: number;
-    handleAdd?: (event?: any) => void; // Not shown if not passed
+    handleAdd?: (event?: any) => unknown; // Not shown if not passed
     /**
      * True if update button should be hidden
      */
@@ -199,13 +200,13 @@ export interface SearchListProps {
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    resolve?: (data: any) => any;
+    resolve?: (data: any) => unknown;
     searchType: SearchType | `${SearchType}`;
     sxs?: {
-        search?: { [x: string]: any };
+        search?: SxType;
     }
-    onItemClick?: (item: any) => void;
-    onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
+    onItemClick?: (item: any) => unknown;
+    onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     zIndex: number;
 }
@@ -231,7 +232,7 @@ export interface TagListProps {
      */
     maxCharacters?: number;
     parentId: string;
-    sx?: { [x: string]: any };
+    sx?: SxType;
     tags: Partial<Tag>[];
 }
 
@@ -244,7 +245,7 @@ export interface CardGridProps {
     children: ReactNode;
     disableMargin?: boolean;
     minWidth: number;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {

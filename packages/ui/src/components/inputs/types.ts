@@ -2,6 +2,7 @@ import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
+import { SxType } from "types";
 import { ListObjectType } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
@@ -21,8 +22,8 @@ export interface CommentUpsertInputProps {
     language: string;
     objectId: string;
     objectType: CommentFor;
-    onCancel: () => void;
-    onCompleted: (comment: Comment) => any;
+    onCancel: () => unknown;
+    onCompleted: (comment: Comment) => unknown;
     parent: Comment | null;
     zIndex: number;
 }
@@ -104,7 +105,7 @@ export interface DropzoneProps {
     disabled?: boolean;
     dropzoneText?: string;
     maxFiles?: number;
-    onUpload: (files: any[]) => any;
+    onUpload: (files: any[]) => unknown;
     showThumbs?: boolean;
     uploadText?: string;
 }
@@ -117,9 +118,9 @@ export interface LanguageInputProps {
      * for an advanced search, for example.
      */
     currentLanguage: string;
-    handleAdd: (language: string) => any;
-    handleDelete: (language: string) => void;
-    handleCurrent: (language: string) => void;
+    handleAdd: (language: string) => unknown;
+    handleDelete: (language: string) => unknown;
+    handleCurrent: (language: string) => unknown;
     /**
      * All languages that currently have translations for the object being edited.
      */
@@ -130,7 +131,7 @@ export interface LanguageInputProps {
 export interface LinkInputProps {
     label?: string;
     name?: string;
-    onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => void;
+    onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
     zIndex: number;
 }
 
@@ -138,7 +139,7 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
-        onClick: () => void;
+        onClick: () => unknown;
         tooltip?: string;
     }>;
     autoFocus?: boolean;
@@ -155,15 +156,15 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
     maxRows?: number;
     minRows?: number;
     name: string;
-    onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
-    onChange: (newText: string) => any;
+    onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
+    onChange: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
     value: string;
     sxs?: {
-        bar?: { [x: string]: any };
-        root?: { [x: string]: any };
-        textArea?: { [x: string]: any };
+        bar?: SxType;
+        root?: SxType;
+        textArea?: Record<string, unknown>;
     };
     zIndex: number;
 }
@@ -181,7 +182,7 @@ export type PasswordTextFieldProps = TextFieldProps & {
 export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
     disabled?: boolean;
     isPreviewOn: boolean;
-    onChange: (isPreviewOn: boolean) => void;
+    onChange: (isPreviewOn: boolean) => unknown;
 }
 
 export interface IntegerInputProps extends BoxProps {
@@ -209,7 +210,7 @@ export interface ResourceListHorizontalInputProps {
 export interface SelectorProps<T extends string | number | { [x: string]: any }> {
     addOption?: {
         label: string;
-        onSelect: () => void;
+        onSelect: () => unknown;
     };
     autoFocus?: boolean;
     disabled?: boolean;
@@ -222,18 +223,18 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     multiple?: false;
     name: string;
     noneOption?: boolean;
-    onChange?: (value: T | null) => any;
+    onChange?: (value: T | null) => unknown;
     options: T[];
     required?: boolean;
-    sx?: { [x: string]: any };
+    sx?: SxType;
     tabIndex?: number;
 }
 
 export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange"> {
     error?: boolean;
     helperText?: string | boolean | null | undefined;
-    onBlur?: (event: React.FocusEvent<any>) => void;
-    onChange: (value: T) => any;
+    onBlur?: (event: React.FocusEvent<any>) => unknown;
+    onChange: (value: T) => unknown;
     value: T | null;
 }
 
@@ -243,7 +244,7 @@ export type StandardVersionSelectSwitchProps = {
     selected: {
         translations: StandardVersion["translations"];
     } | null;
-    onChange: (value: StandardVersion | null) => any;
+    onChange: (value: StandardVersion | null) => unknown;
     disabled?: boolean;
     zIndex: number;
 }
@@ -257,31 +258,33 @@ export interface TagSelectorProps {
 
 export interface TagSelectorBaseProps {
     disabled?: boolean;
-    handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
+    handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
     placeholder?: string;
     tags: (TagShape | Tag)[];
     zIndex: number
 }
 
-export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
+export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, "getOptionLabel" | "options"> {
+    zIndex: number;
+}
 
 export interface ToggleSwitchProps {
     checked: boolean;
     name?: string;
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => unknown;
     OffIcon?: SvgComponent;
     OnIcon?: SvgComponent;
     label?: string;
     tooltip?: string;
     disabled?: boolean;
-    sx?: object;
+    sx?: SxType;
 }
 
 export interface TranslatedMarkdownInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
-        onClick: () => void;
+        onClick: () => unknown;
         tooltip?: string;
     }>;
     disabled?: boolean;
@@ -292,9 +295,9 @@ export interface TranslatedMarkdownInputProps {
     name: string;
     placeholder?: string;
     sxs?: {
-        bar?: { [x: string]: any };
-        root?: { [x: string]: any };
-        textArea?: { [x: string]: any };
+        bar?: SxType;
+        root?: SxType;
+        textArea?: Record<string, unknown>;
     };
     zIndex: number;
 }

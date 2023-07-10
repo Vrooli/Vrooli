@@ -40,7 +40,7 @@ export interface BaseFormProps {
     enableReinitialize?: boolean;
     isLoading?: boolean;
     maxWidth?: number;
-    onClose?: () => any;
+    onClose?: () => unknown;
     promptBeforeUnload?: boolean;
     ref?: any;
     style?: { [key: string]: any };
@@ -52,36 +52,36 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     isCreate: boolean;
     isLoading: boolean;
     isOpen: boolean;
-    onCancel: () => void;
+    onCancel: () => unknown;
     ref: React.RefObject<any>;
     zIndex: number;
 }
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    onSubmit: (values: any) => any;
+    onSubmit: (values: any) => void;
     zIndex: number;
 }
 
 export interface FormProps {
-    onFormChange?: (form: Forms) => any;
+    onFormChange?: (form: Forms) => unknown;
     zIndex: number;
 }
 
 export interface ForgotPasswordFormProps extends FormProps {
-    onClose?: () => any;
+    onClose?: () => unknown;
 }
 
 export interface LogInFormProps extends FormProps {
-    onClose?: () => any;
+    onClose?: () => unknown;
 }
 
 export interface ResetPasswordFormProps extends FormProps {
-    onClose?: () => any;
+    onClose?: () => unknown;
 }
 
 export interface SignUpFormProps extends FormProps {
-    onClose?: () => any;
+    onClose?: () => unknown;
 }
 
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {

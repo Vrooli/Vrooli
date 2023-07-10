@@ -93,6 +93,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                     name="name"
                     placeholder={t("Name")}
                 />}
+                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}

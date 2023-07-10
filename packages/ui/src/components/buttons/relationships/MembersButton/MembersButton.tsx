@@ -41,7 +41,7 @@ export const MembersButton = ({
     const handleMemberSelect = useCallback((member: RelationshipItemUser) => {
         membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
         closeDialog();
-    }, [membersFieldHelpers, closeDialog]);
+    }, [membersFieldHelpers, membersField.value, closeDialog]);
 
     const searchData = useMemo(() => ({
         searchType: "User" as const,
