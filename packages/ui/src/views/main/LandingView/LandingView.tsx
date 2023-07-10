@@ -35,6 +35,7 @@ const externalLinks: [string, string, SvgComponent][] = [
 export const LandingView = ({
     display = "page",
     onClose,
+    zIndex,
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -89,6 +90,7 @@ export const LandingView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>

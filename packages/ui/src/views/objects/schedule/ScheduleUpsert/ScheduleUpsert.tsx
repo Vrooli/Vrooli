@@ -31,7 +31,7 @@ export const ScheduleUpsert = ({
     onCancel,
     onCompleted,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -107,6 +107,7 @@ export const ScheduleUpsert = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

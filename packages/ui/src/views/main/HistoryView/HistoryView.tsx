@@ -56,6 +56,7 @@ export const HistoryView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             {searchType && <SearchList
                 id="history-page-list"

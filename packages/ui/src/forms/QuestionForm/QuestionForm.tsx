@@ -144,6 +144,7 @@ export const QuestionForm = forwardRef<BaseFormRef | undefined, QuestionFormProp
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

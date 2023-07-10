@@ -13,7 +13,7 @@ export const ScheduleView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -63,7 +63,7 @@ export const ScheduleView = ({
                 </IconButton>
             </Tooltip>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
+    ), [palette.background.textSecondary, openMoreMenu]);
 
     return (
         <>
@@ -71,6 +71,7 @@ export const ScheduleView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Schedule")}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

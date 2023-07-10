@@ -84,9 +84,9 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     );
 };
 
-/**
- * Style for pages that don't use left/right padding
- */
+const zIndex = 200;
+
+/** Style for pages that don't use left/right padding */
 const noSidePadding = {
     paddingLeft: 0,
     paddingRight: 0,
@@ -94,7 +94,7 @@ const noSidePadding = {
 
 const viewProps = ({
     display: "page" as const,
-    zIndex: 200,
+    zIndex,
 });
 
 export const Routes = (props: { sessionChecked: boolean }) => {
@@ -158,8 +158,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
-                        <ForgotPasswordForm />
+                    <FormView title="Forgot Password" maxWidth="700px" zIndex={zIndex} {...props}>
+                        <ForgotPasswordForm zIndex={zIndex} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
@@ -262,8 +262,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Reset Password" maxWidth="700px" {...props}>
-                        <ResetPasswordForm />
+                    <FormView title="Reset Password" maxWidth="700px" zIndex={zIndex} {...props}>
+                        <ResetPasswordForm zIndex={zIndex} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>

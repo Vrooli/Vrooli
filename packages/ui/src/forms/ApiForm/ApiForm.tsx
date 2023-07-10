@@ -170,6 +170,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                                 title="Use URL for schema?"
                                 help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -232,6 +233,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

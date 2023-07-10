@@ -1,6 +1,7 @@
 import { CommentFor, CommonKey, SvgComponent } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
+import { ReactNode } from "react";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
@@ -13,11 +14,9 @@ export interface CommentContainerProps {
 }
 
 export interface TitleContainerProps {
-    children: JSX.Element | JSX.Element[] | boolean | null | undefined;
+    children: ReactNode;
     help?: string;
-    /**
-     * Icon displayed to the left of the title
-     */
+    /** Icon displayed to the left of the title */
     Icon?: SvgComponent;
     title: string;
     id?: string;
@@ -32,10 +31,11 @@ export interface TitleContainerProps {
         onClick: (e?: any) => void;
     }[];
     sx?: object;
+    zIndex: number;
 }
 
 export interface ListContainerProps {
-    children: JSX.Element | JSX.Element[];
+    children: ReactNode;
     emptyText?: string;
     isEmpty?: boolean;
     sx?: { [x: string]: any };
@@ -50,6 +50,7 @@ export interface ListTitleContainerProps extends TitleContainerProps {
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
 export interface ContentCollapseProps {
+    children?: React.ReactNode;
     helpText?: string;
     id?: string;
     isOpen?: boolean;
@@ -63,7 +64,7 @@ export interface ContentCollapseProps {
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
-    children?: React.ReactNode;
+    zIndex: number;
 }
 
 export interface TextCollapseProps {
@@ -74,6 +75,7 @@ export interface TextCollapseProps {
     onOpenChange?: (isOpen: boolean) => void;
     title?: string | null;
     text?: string | null;
+    zIndex: number;
 }
 
 export type EditTextComponent = "Markdown" | "TranslatedMarkdown" | "TranslatedTextField" | "TextField";
@@ -84,6 +86,7 @@ interface BaseEditableTextProps<T extends EditTextComponent> {
     name: string;
     showOnNoText?: boolean;
     variant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2";
+    zIndex: number;
 }
 
 interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {
@@ -94,8 +97,8 @@ interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends Bas
 }
 
 export type PropsByComponentType = {
-    Markdown: Omit<MarkdownInputProps, "name">;
-    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, "name">;
+    Markdown: Omit<MarkdownInputProps, "name" | "zIndex">;
+    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, "name" | "zIndex">;
     TranslatedTextField: Omit<TranslatedTextFieldProps, "name">;
     TextField: Omit<TextFieldProps, "error" | "helpText" | "name" | "onBlur" | "onChange" | "value">;
 };
@@ -108,6 +111,6 @@ export type EditableTextCollapseProps<T extends EditTextComponent> = BaseEditabl
 }
 
 export interface PageContainerProps {
-    children: boolean | null | undefined | JSX.Element | (boolean | null | undefined | JSX.Element)[];
+    children: ReactNode;
     sx?: { [x: string]: any };
 }

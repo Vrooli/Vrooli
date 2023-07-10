@@ -18,7 +18,7 @@ export const ChatUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: ChatUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const ChatUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateChat" : "UpdateChat")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

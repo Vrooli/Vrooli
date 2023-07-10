@@ -43,7 +43,7 @@ export const GeneratedInputComponentWithLabel = ({
                         </IconButton>
                     </Tooltip>
                     <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`Input`)}</Typography>
-                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
+                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} zIndex={zIndex} />}
                 </Stack>
                 {inputComponent}
             </>

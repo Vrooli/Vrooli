@@ -53,6 +53,7 @@ export const displaySettingsData: SettingsData[] = [
 export const SettingsView = ({
     display = "page",
     onClose,
+    zIndex,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -68,8 +69,13 @@ export const SettingsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Settings")}
+                zIndex={zIndex}
             />
-            <Title title={t("Account")} variant="header" />
+            <Title
+                title={t("Account")}
+                variant="header"
+                zIndex={zIndex}
+            />
             <CardGrid minWidth={300}>
                 {accountSettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard
@@ -82,7 +88,12 @@ export const SettingsView = ({
                     />
                 ))}
             </CardGrid>
-            <Title title={t("Display")} sxs={{ text: { paddingTop: 2 } }} variant="header" />
+            <Title
+                title={t("Display")}
+                sxs={{ text: { paddingTop: 2 } }}
+                variant="header"
+                zIndex={zIndex}
+            />
             <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
                 {displaySettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard

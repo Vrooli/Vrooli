@@ -21,11 +21,12 @@ export const GridSubmitButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
+    zIndex,
 }: GridSubmitButtonsProps) => {
     const { t } = useTranslation();
 
     // Errors popup
-    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
+    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting, zIndex });
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
     const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);

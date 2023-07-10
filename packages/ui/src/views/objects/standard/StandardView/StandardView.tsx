@@ -41,7 +41,7 @@ export const StandardView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -97,6 +97,7 @@ export const StandardView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -147,7 +148,13 @@ export const StandardView = ({
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
-                    <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    <TextCollapse
+                        title="Description"
+                        text={description}
+                        loading={isLoading}
+                        loadingLines={2}
+                        zIndex={zIndex}
+                    />
                 </Box>
                 {/* Box with standard */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -171,11 +178,13 @@ export const StandardView = ({
                         loading={isLoading}
                         showIcon={true}
                         timestamp={existing?.created_at}
+                        zIndex={zIndex}
                     />
                     <VersionDisplay
                         currentVersion={existing}
                         prefix={" - "}
                         versions={existing?.root?.versions}
+                        zIndex={zIndex}
                     />
                 </Stack>
                 {/* Votes, reports, and other basic stats */}

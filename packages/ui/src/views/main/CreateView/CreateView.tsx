@@ -76,6 +76,7 @@ const createCards: CreateInfo[] = [
 export const CreateView = ({
     display = "page",
     onClose,
+    zIndex,
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -90,6 +91,7 @@ export const CreateView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Create")}
+                zIndex={zIndex}
             />
             <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon, id }, index) => (

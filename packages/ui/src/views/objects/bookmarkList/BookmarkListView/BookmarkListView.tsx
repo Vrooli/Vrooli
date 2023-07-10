@@ -24,7 +24,7 @@ export const BookmarkListView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -92,7 +92,7 @@ export const BookmarkListView = ({
         console.log("onBookmarkSelect", data);
     }, []);
 
-    const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [existing?.bookmarks, session]);
+    const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [bookmarks, session]);
     const bookmarkListItems = useMemo(() => (
         listToListItems({
             dummyItems: new Array(5).fill("Routine"),
@@ -136,6 +136,7 @@ export const BookmarkListView = ({
                         zIndex={zIndex}
                     />
                 </Box>}
+                zIndex={zIndex}
             />
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>

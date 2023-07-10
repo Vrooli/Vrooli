@@ -60,7 +60,7 @@ export const OrganizationView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -205,6 +205,7 @@ export const OrganizationView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -227,6 +228,7 @@ export const OrganizationView = ({
                     textBeforeDate="Joined"
                     timestamp={organization?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -236,7 +238,12 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
+                        <MarkdownDisplay
+                            variant="body1"
+                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                            content={bio ?? "No bio set"}
+                            zIndex={zIndex}
+                        />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -275,6 +282,7 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

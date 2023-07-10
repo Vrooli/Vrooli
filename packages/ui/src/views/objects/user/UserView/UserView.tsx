@@ -58,7 +58,7 @@ export const UserView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -203,6 +203,7 @@ export const UserView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -225,6 +226,7 @@ export const UserView = ({
                     textBeforeDate="Joined"
                     timestamp={user?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -234,7 +236,12 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
+                        <MarkdownDisplay
+                            variant="body1"
+                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                            content={bio ?? "No bio set"}
+                            zIndex={zIndex}
+                        />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -271,6 +278,7 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

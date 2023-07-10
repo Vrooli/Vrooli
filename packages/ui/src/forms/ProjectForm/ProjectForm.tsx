@@ -172,6 +172,7 @@ export const ProjectForm = forwardRef<BaseFormRef | undefined, ProjectFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

@@ -193,6 +193,7 @@ export const SearchView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             {/* Invite dialog for organizations and users */}
             <ShareSiteDialog

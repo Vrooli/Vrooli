@@ -24,6 +24,7 @@ export const RunPickerMenu = ({
     onDelete,
     onSelect,
     runnableObject,
+    zIndex,
 }: RunPickerMenuProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -188,6 +189,7 @@ export const RunPickerMenu = ({
                 ariaLabel={titleId}
                 onClose={handleClose}
                 title={"Continue Existing Run?"}
+                zIndex={zIndex}
             />
             <List>
                 {items}

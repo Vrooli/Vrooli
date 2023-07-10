@@ -28,9 +28,7 @@ import { SessionContext } from "utils/SessionContext";
 import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
 
-/**
- * View displayed for Home page when logged in
- */
+/** View displayed for Home page when logged in */
 export const DashboardView = ({
     display = "page",
     onClose,
@@ -76,9 +74,10 @@ export const DashboardView = ({
     }, [searchString, activeFocusMode]);
     useDisplayServerError(errors);
 
-    // Only show tabs if:
-    // 1. The user is logged in 
-    // 2. The user has at least two focusModes
+    /** Only show tabs if:
+    * 1. The user is logged in 
+    * 2. The user has at least two focusModes
+    **/
     const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab]);
 
     // Converts resources to a resource list
@@ -255,7 +254,7 @@ export const DashboardView = ({
                     isCreate={true}
                     onCancel={closeCreateNote}
                     onCompleted={onNoteCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main content */}
@@ -273,6 +272,7 @@ export const DashboardView = ({
                         tabs={tabs}
                     />
                 )}
+                zIndex={zIndex}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
@@ -313,6 +313,7 @@ export const DashboardView = ({
                         label: t("Open"),
                         onClick: openSchedule,
                     }]}
+                    zIndex={zIndex}
                 >
                     {upcomingEvents}
                 </ListTitleContainer>
@@ -340,6 +341,7 @@ export const DashboardView = ({
                         label: t("Create"),
                         onClick: openCreateNote,
                     }]}
+                    zIndex={zIndex}
                 >
                     {noteItems}
                 </ListTitleContainer>

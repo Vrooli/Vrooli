@@ -42,6 +42,7 @@ const rows = [
 export const PremiumView = ({
     display = "page",
     onClose,
+    zIndex,
 }: PremiumViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -135,6 +136,7 @@ export const PremiumView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Premium")}
+                zIndex={zIndex}
             />
             <Stack direction="column" spacing={4} mt={2} mb={2} justifyContent="center" alignItems="center">
                 {/* Introduction to premium */}

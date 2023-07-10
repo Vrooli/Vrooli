@@ -1,5 +1,5 @@
 import { Chat, RoutineVersion } from "@local/shared";
-import React from "react";
+import { ReactNode } from "react";
 import { AssistantTask } from "types";
 import { ViewProps } from "./objects/types";
 
@@ -72,5 +72,5 @@ export interface BuildViewProps extends ViewProps<RoutineVersion> {
 }
 
 export interface ErrorBoundaryProps {
-    children: React.ReactNode;
+    children: ReactNode;
 }

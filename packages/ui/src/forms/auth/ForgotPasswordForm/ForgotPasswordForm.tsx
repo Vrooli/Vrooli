@@ -14,6 +14,7 @@ import { ForgotPasswordFormProps } from "../../types";
 export const ForgotPasswordForm = ({
     onClose,
     onFormChange = () => { },
+    zIndex,
 }: ForgotPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -28,6 +29,7 @@ export const ForgotPasswordForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("ForgotPassword")}
+                zIndex={zIndex}
             />
             <Formik
                 initialValues={{

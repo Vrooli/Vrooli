@@ -112,6 +112,7 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

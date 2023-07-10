@@ -49,7 +49,7 @@ export const RoutineView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: RoutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -208,6 +208,7 @@ export const RoutineView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -270,15 +271,28 @@ export const RoutineView = ({
                     {/* Box with description and instructions */}
                     {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                         {/* Description */}
-                        <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
+                        <TextCollapse
+                            title="Description"
+                            text={description}
+                            loading={isLoading}
+                            loadingLines={2}
+                            zIndex={zIndex}
+                        />
                         {/* Instructions */}
-                        <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
+                        <TextCollapse
+                            title="Instructions"
+                            text={instructions}
+                            loading={isLoading}
+                            loadingLines={4}
+                            zIndex={zIndex}
+                        />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
                     {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
+                            zIndex={zIndex}
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
                                 <GeneratedInputComponentWithLabel
@@ -308,6 +322,7 @@ export const RoutineView = ({
                                 title={"This is a multi-step routine."}
                                 help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             <Button
                                 startIcon={<RoutineIcon />}
@@ -332,11 +347,13 @@ export const RoutineView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
+                            zIndex={zIndex}
                         />
                         <VersionDisplay
                             currentVersion={existing}
                             prefix={" - "}
                             versions={existing?.root?.versions}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     {/* Votes, reports, and other basic stats */}

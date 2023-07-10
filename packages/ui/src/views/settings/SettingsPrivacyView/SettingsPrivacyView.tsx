@@ -27,6 +27,7 @@ export const SettingsPrivacyView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

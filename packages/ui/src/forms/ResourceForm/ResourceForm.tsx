@@ -150,6 +150,7 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

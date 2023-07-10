@@ -278,6 +278,7 @@ export const RunStepsDialog = ({
                 <MenuTitle
                     onClose={closeDialog}
                     title={`Steps (${Math.floor(percentComplete)}% Complete)`}
+                    zIndex={zIndex}
                 />
                 {/* Tree display of steps */}
                 <TreeView

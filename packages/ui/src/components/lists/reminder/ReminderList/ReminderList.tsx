@@ -147,7 +147,7 @@ export const ReminderList = ({
                 onClose={closeDialog}
                 isOpen={isDialogOpen}
                 titleId={""}
-                zIndex={zIndex + 1}
+                zIndex={zIndex}
             >
                 <ReminderUpsert
                     display="dialog"
@@ -157,7 +157,7 @@ export const ReminderList = ({
                     listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
                     onCancel={closeDialog}
                     onCompleted={handleCompleted}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1000}
                 />
             </LargeDialog>
             {/* List */}
@@ -174,6 +174,7 @@ export const ReminderList = ({
                     label: t("Create"),
                     onClick: openDialog,
                 }]}
+                zIndex={zIndex}
             >
                 <>
                     {/* Empty text */}

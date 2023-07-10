@@ -1,5 +1,6 @@
 import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
+import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObjectType } from "utils/display/listTools";
@@ -110,6 +111,7 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
+    zIndex: number;
 }
 
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
@@ -239,7 +241,7 @@ export interface AwardCardProps {
 }
 
 export interface CardGridProps {
-    children: JSX.Element | (JSX.Element | null)[] | null;
+    children: ReactNode;
     disableMargin?: boolean;
     minWidth: number;
     sx?: { [x: string]: any };

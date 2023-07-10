@@ -11,6 +11,8 @@ import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavList } from "../NavList/NavList";
 import { NavbarLogoState, NavbarProps } from "../types";
 
+const zIndex = 300;
+
 /**
  * Navbar displayed at the top of the page. Has a few different 
  * looks depending on data passed to it.
@@ -97,7 +99,7 @@ export const Navbar = forwardRef(({
                         background: palette.primary.dark,
                         minHeight: "64px!important",
                         position: "fixed", // Allows items to be displayed below the navbar
-                        zIndex: 300,
+                        zIndex,
                     }}>
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
                         paddingLeft: 1,
@@ -118,6 +120,7 @@ export const Navbar = forwardRef(({
                             options={options}
                             title={title}
                             variant="header"
+                            zIndex={zIndex}
                         />}
                         {isMobile && titleComponent}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
@@ -137,6 +140,7 @@ export const Navbar = forwardRef(({
                 options={options}
                 title={title}
                 variant="header"
+                zIndex={zIndex}
             />}
             {!isMobile && !shouldHideTitle && titleComponent}
             {/* "below" and title displayered here on desktop */}

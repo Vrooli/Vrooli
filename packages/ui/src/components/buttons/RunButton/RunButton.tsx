@@ -118,6 +118,7 @@ export const RunButton = ({
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
                 handleClose={closeError}
+                zIndex={zIndex + 1}
             >
                 Routine cannot be run because it is invalid.
             </PopoverWithArrow>
@@ -132,7 +133,7 @@ export const RunButton = ({
                 {runnableObject && <RunView
                     onClose={runStop}
                     runnableObject={runnableObject}
-                    zIndex={zIndex + 3}
+                    zIndex={zIndex + 1003}
                 />}
             </LargeDialog>
             {/* Chooses which run to use */}
@@ -143,6 +144,7 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
+                zIndex={zIndex + 2}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

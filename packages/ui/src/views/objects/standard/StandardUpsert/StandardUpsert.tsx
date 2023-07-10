@@ -18,7 +18,7 @@ export const StandardUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: StandardUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const StandardUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateStandard" : "UpdateStandard")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

@@ -96,6 +96,7 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

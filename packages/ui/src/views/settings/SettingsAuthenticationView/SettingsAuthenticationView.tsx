@@ -80,6 +80,7 @@ export const SettingsAuthenticationView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
@@ -89,6 +90,7 @@ export const SettingsAuthenticationView = ({
                         Icon={WalletIcon}
                         title={t("Wallet", { count: 2 })}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <WalletList
                         handleUpdate={updateWallets}
@@ -100,6 +102,7 @@ export const SettingsAuthenticationView = ({
                         Icon={EmailIcon}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <EmailList
                         handleUpdate={updateEmails}
@@ -110,6 +113,7 @@ export const SettingsAuthenticationView = ({
                         help={t("PasswordChangeHelp")}
                         title={t("ChangePassword")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <Formik
                         enableReinitialize={true}

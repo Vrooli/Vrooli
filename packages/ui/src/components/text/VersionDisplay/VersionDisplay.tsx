@@ -17,6 +17,7 @@ export const VersionDisplay = ({
     loading = false,
     prefix = "",
     versions = [],
+    zIndex,
     ...props
 }: VersionDisplayProps) => {
     const [, setLocation] = useLocation();
@@ -94,6 +95,7 @@ export const VersionDisplay = ({
                         maxHeight: "120px",
                     },
                 }}
+                zIndex={zIndex + 1}
             >
                 {/* Versions list */}
                 <List>

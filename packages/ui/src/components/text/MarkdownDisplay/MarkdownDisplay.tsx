@@ -123,13 +123,12 @@ const routeToEndpoint = {
 };
 
 /** Creates custom links for Vrooli objects, and normal links otherwise */
-const CustomLink = ({ children, href }) => {
+const CustomLink = ({ children, href, zIndex }) => {
     // Check if this is a special link
     let linkUrl, windowUrl;
     try {
         linkUrl = new URL(href);
         windowUrl = new URL(window.location.href);
-        console.log("CustomLink got url", linkUrl, windowUrl);
     } catch (_) {
         console.error("CustomLink failed to parse url", href);
     }
@@ -182,6 +181,7 @@ const CustomLink = ({ children, href }) => {
                 <PopoverWithArrow
                     anchorEl={anchorEl}
                     handleClose={close}
+                    zIndex={zIndex + 1}
                 >
                     <Box p={2}>
                         {isLoading
@@ -189,7 +189,7 @@ const CustomLink = ({ children, href }) => {
                             : <>
                                 <Link href={href}><strong>{title}</strong></Link>
                                 <br />
-                                <MarkdownDisplay content={subtitle} />
+                                <MarkdownDisplay content={subtitle} zIndex={zIndex + 1} />
                             </>
                         }
                     </Box>
@@ -199,6 +199,13 @@ const CustomLink = ({ children, href }) => {
     } else {
         return <Link href={href}>{children}</Link>;
     }
+};
+
+/** HOC for rendering links. Required so we can pass zIndex */
+const withCustomLinkProps = (additionalProps) => {
+    return ({ href, children }) => {
+        return <CustomLink href={href} {...additionalProps}>{children}</CustomLink>;
+    };
 };
 
 /** Custom checkbox component editable checkboxes */
@@ -273,6 +280,7 @@ export const MarkdownDisplay = ({
     onChange,
     sx,
     variant, //TODO
+    zIndex,
 }: MarkdownDisplayProps) => {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
@@ -282,7 +290,7 @@ export const MarkdownDisplay = ({
         overrides: {
             code: CodeBlock,
             blockquote: Blockquote,
-            a: CustomLink,
+            a: withCustomLinkProps({ zIndex }),
             input: withCustomCheckboxProps({
                 onChange: (checkboxId: string, updatedState: boolean) => {
                     if (!content || !onChange) return;

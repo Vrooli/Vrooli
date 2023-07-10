@@ -34,6 +34,7 @@ export const SettingsDisplayView = ({
                 help={t("DisplaySettingsDescription")}
                 onClose={onClose}
                 title={t("Display")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

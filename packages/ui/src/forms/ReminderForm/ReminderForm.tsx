@@ -141,6 +141,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             Icon={ListNumberIcon}
                             title="Steps"
                             variant="subheader"
+                            zIndex={zIndex}
                         />
                         <Droppable droppableId="reminderItems">
                             {(provided) => (
@@ -239,6 +240,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

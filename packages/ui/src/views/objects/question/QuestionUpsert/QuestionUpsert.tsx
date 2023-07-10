@@ -18,7 +18,7 @@ export const QuestionUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: QuestionUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const QuestionUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateQuestion" : "UpdateQuestion")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

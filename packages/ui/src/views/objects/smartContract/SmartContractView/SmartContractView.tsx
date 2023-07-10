@@ -22,7 +22,7 @@ export const SmartContractView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -120,6 +120,7 @@ export const SmartContractView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -129,6 +130,7 @@ export const SmartContractView = ({
                     textBeforeDate="Joined"
                     timestamp={smartContractVersion?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -164,6 +166,7 @@ export const SmartContractView = ({
                 display={display}
                 onClose={onClose}
                 title={t("SmartContract")}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

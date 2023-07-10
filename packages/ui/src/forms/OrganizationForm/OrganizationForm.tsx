@@ -136,6 +136,7 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

@@ -1,6 +1,6 @@
-import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
+import { GqlModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
-import { SessionUserToken, SingleOrArray } from "../types";
+import { SessionUserToken } from "../types";
 
 /**
  * Recursively pads object with "select" fields
@@ -53,10 +53,10 @@ export type PrismaSearch = {
 }
 
 type PrismaCreateInside = {
-    create?: SingleOrArray<{
+    create?: OrArray<{
         [x: string]: boolean | string | number | PrismaCreateInside
     }>;
-    connect?: SingleOrArray<{
+    connect?: OrArray<{
         [x: string]: boolean | string | number | PrismaCreateInside
     }>;
 }
@@ -66,19 +66,19 @@ export type PrismaCreate = {
 }
 
 type PrismaUpdateInside = {
-    create?: SingleOrArray<{
+    create?: OrArray<{
         [x: string]: boolean | string | number | PrismaUpdateInside
     }>;
     connect?: {
         where: any;
     };
-    update?: SingleOrArray<{
+    update?: OrArray<{
         [x: string]: boolean | string | number | PrismaUpdateInside
     }>;
-    delete?: SingleOrArray<{
+    delete?: OrArray<{
         where: any;
     }>;
-    disconnect?: SingleOrArray<{
+    disconnect?: OrArray<{
         where: any;
     }>;
 }

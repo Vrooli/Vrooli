@@ -388,7 +388,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     isCreate={true}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />}
             </LargeDialog>
             {/* Menu for selecting create object type */}
@@ -432,6 +432,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
+                    zIndex={zIndex + 1000}
                 />
                 <Box sx={{
                     minHeight: "500px",
@@ -440,7 +441,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 }}>
                     {/* Create object button. Convenient for when you can't find 
                 what you're looking for */}
-                    <SideActionButtons display="dialog" zIndex={zIndex + 1}>
+                    <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
                         <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
                             <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                         </ColorIconButton>
@@ -471,7 +472,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                             return result;
                         }}
                         searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
-                        zIndex={zIndex}
+                        zIndex={zIndex + 1000}
                         where={searchData?.where ?? { ...(where ?? {}) }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}

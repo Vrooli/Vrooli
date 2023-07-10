@@ -76,7 +76,7 @@ export const MembersButton = ({
                 id="members-dialog"
                 onClose={closeDialog}
                 isOpen={isDialogOpen}
-                zIndex={zIndex + 1}
+                zIndex={zIndex}
                 sxs={{
                     paper: {
                         minHeight: "min(100vh - 64px, 600px)",
@@ -86,7 +86,7 @@ export const MembersButton = ({
                 <MemberManageView
                     onClose={closeDialog}
                     organizationId={idField.value ?? ""}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1000}
                 />
             </LargeDialog>
             <Stack

@@ -915,6 +915,7 @@ export const MarkdownInputBase = ({
                                     content={internalValue}
                                     isEditable={!disabled}
                                     onChange={handleChange}
+                                    zIndex={zIndex}
                                 />
                             </Box>
                         ) :

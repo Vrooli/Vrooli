@@ -142,12 +142,17 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 padding: 1,
             }}>
                 {/* Subroutine name */}
-                <Title variant="header" title={nameField.value} />
+                <Title
+                    variant="header"
+                    title={nameField.value}
+                    zIndex={zIndex}
+                />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
+                    zIndex={zIndex}
                 />
                 {/* Position */}
                 {isEditing ? <Box sx={{ margin: "auto" }}>
@@ -238,6 +243,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         language,
                                     }}
                                     title={t("Name")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Description */}
@@ -252,9 +258,9 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         maxRows: 4,
                                         minRows: 4,
                                         placeholder: "Description",
-                                        zIndex,
                                     }}
                                     title={t("Description")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Instructions */}
@@ -269,9 +275,9 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                         maxChars: 8192,
                                         maxRows: 10,
                                         minRows: 4,
-                                        zIndex,
                                     }}
                                     title={t("Instructions")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
@@ -325,6 +331,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />}
         </>
     );

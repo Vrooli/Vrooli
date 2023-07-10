@@ -37,6 +37,7 @@ enum TabOptions {
 export const PrivacyPolicyView = ({
     display = "page",
     onClose,
+    zIndex,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -70,9 +71,10 @@ export const PrivacyPolicyView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
+            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={privacy} />
+            <MarkdownDisplay content={privacy} zIndex={zIndex} />
         </Box>
     </>;
 };

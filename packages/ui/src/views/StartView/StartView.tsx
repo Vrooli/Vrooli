@@ -33,6 +33,7 @@ const emailTitleId = "email-login-dialog-title";
 export const StartView = ({
     display = "page",
     onClose,
+    zIndex,
 }: StartViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -187,6 +188,7 @@ export const StartView = ({
                 onClose={onClose}
                 title={t("Start")}
                 hideTitleOnDesktop
+                zIndex={zIndex}
             />
             {/* Main content */}
             <Box sx={{
@@ -240,6 +242,7 @@ export const StartView = ({
                     <Form
                         onClose={closeEmailPopup}
                         onFormChange={handleFormChange}
+                        zIndex={zIndex}
                     />
                 </Box>
             </Box>

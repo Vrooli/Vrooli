@@ -167,6 +167,7 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

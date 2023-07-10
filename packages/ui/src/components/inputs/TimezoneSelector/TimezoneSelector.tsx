@@ -93,6 +93,7 @@ export const TimezoneSelector = ({
                     ariaLabel={""}
                     title={"Select Timezone"}
                     onClose={onClose}
+                    zIndex={props.zIndex}
                 />
                 <Stack direction="column" spacing={2} p={2}>
                     <TextField

@@ -1009,7 +1009,7 @@ export const RunView = ({
                                 <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                 : null}
                             {/* Help icon */}
-                            {instructions && <HelpButton markdown={instructions} />}
+                            {instructions && <HelpButton markdown={instructions} zIndex={zIndex} />}
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog

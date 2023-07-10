@@ -100,6 +100,7 @@ export function ListMenu<T>({
                 ariaLabel={titleId}
                 title={title}
                 onClose={() => { onClose(); }}
+                zIndex={zIndex}
             />}
             <List>
                 {items}

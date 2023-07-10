@@ -299,6 +299,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     {loading ? <TextLoading /> : <MarkdownDisplay
                         content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                        zIndex={zIndex}
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}

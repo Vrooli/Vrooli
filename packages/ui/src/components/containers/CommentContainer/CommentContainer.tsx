@@ -97,7 +97,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title="Comments">
+        <ContentCollapse isOpen={isOpen} title="Comments" zIndex={zIndex}>
             {/* Add comment */}
             {
                 isAddCommentOpen && <CommentUpsertInput

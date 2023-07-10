@@ -37,6 +37,7 @@ export const WalletSelectDialog = ({
                 help={helpText}
                 title={"Installed Wallets"}
                 onClose={handleClose}
+                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} paddingTop={2}>

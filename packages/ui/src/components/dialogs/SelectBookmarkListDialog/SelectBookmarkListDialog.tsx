@@ -134,7 +134,7 @@ export const SelectBookmarkListDialog = ({
                     isCreate={true}
                     onCancel={closeCreate}
                     onCompleted={onCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main dialog */}
@@ -173,6 +173,7 @@ export const SelectBookmarkListDialog = ({
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}
                     onCancel={onCancel}
                     onSubmit={handleSubmit}
+                    zIndex={zIndex + 1000}
                 />
             </LargeDialog>
         </>

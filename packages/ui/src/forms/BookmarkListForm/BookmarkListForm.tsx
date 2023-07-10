@@ -142,6 +142,7 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                                     <MarkdownDisplay
                                         content={getDisplay(bookmark as Bookmark).subtitle}
                                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                                        zIndex={zIndex}
                                     />
                                 </Stack>
                                 <IconButton
@@ -173,6 +174,7 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

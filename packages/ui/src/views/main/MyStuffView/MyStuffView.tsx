@@ -216,6 +216,7 @@ export const MyStuffView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>

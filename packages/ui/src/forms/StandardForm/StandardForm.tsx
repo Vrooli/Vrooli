@@ -170,6 +170,7 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

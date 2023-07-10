@@ -212,6 +212,7 @@ export const SelectLanguageMenu = ({
                     ariaLabel={titleId}
                     title={"Select Language"}
                     onClose={onClose}
+                    zIndex={zIndex + 1}
                 />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{

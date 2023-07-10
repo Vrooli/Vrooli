@@ -23,6 +23,7 @@ const objectTypeToIdField = {
 export const ReportsView = ({
     display = "page",
     onClose,
+    zIndex,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -46,6 +47,7 @@ export const ReportsView = ({
                 help={t("ReportsHelp")}
                 onClose={onClose}
                 title={t("Reports")}
+                zIndex={zIndex}
             />
             {reports.map((report, i) => {
                 return <Box

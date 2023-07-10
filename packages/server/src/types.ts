@@ -67,14 +67,10 @@ declare global {
     }
 }
 
-/**
- * Prisma type shorthand
- */
+/** Prisma type shorthand */
 export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
 
-/**
- * Wrapper for GraphQL input types
- */
+/** Wrapper for GraphQL input types */
 export type IWrap<T> = { input: T }
 
 /**
@@ -89,14 +85,10 @@ export type RecursivePartial<T> = {
     : T[P]
 };
 
-/**
- * Return type of find one queries
- */
+/** Return type of find one queries */
 export type FindOneResult<T> = RecursivePartial<T> | null
 
-/**
- * Return type of find many queries
- */
+/** Return type of find many queries */
 export type FindManyResult<T> = {
     pageInfo: {
         hasNextPage: boolean,
@@ -105,30 +97,20 @@ export type FindManyResult<T> = {
     edges: Array<{ cursor: string, node: RecursivePartial<T> }>
 }
 
-/**
- * Return type of create one mutations
- */
+/** Return type of create one mutations */
 export type CreateOneResult<T> = FindOneResult<T>
 
-/**
- * Return type of update one mutations
- */
+/** Return type of update one mutations */
 export type UpdateOneResult<T> = FindOneResult<T>
 
 export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
 
 export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
 
-export type SingleOrArray<T> = T | T[];
-
-/**
- * Either a promise or a value
- */
+/** Either a promise or a value */
 export type PromiseOrValue<T> = Promise<T> | T;
 
-/**
- * Type for replacing one type with another in a nested object
- */
+/** Type for replacing one type with another in a nested object */
 export type ReplaceTypes<ObjType extends object, FromType, ToType> = {
     [KeyType in keyof ObjType]: ObjType[KeyType] extends object
     ? ReplaceTypes<ObjType[KeyType], FromType, ToType>

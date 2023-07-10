@@ -24,6 +24,7 @@ import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { CI_MODE } from "./i18n";
 
 /**
  * Adds font size to theme
@@ -120,7 +121,8 @@ export function App() {
 
     // Applies language change
     useEffect(() => {
-        i18next.changeLanguage(language);
+        // Ignore if cimode (for testing) is enabled
+        if (!CI_MODE) i18next.changeLanguage(language);
     }, [language]);
     useEffect(() => {
         if (!session) return;

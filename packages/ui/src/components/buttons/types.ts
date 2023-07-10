@@ -1,12 +1,11 @@
 import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine, SvgProps } from "@local/shared";
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
-import React from "react";
+import React, { ReactNode } from "react";
 import { NavigableObject } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
-import { SingleOrArray } from "../../../../server/src/types";
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
@@ -27,6 +26,7 @@ export interface BuildEditButtonsProps {
     isEditing: boolean;
     loading: boolean;
     scale: number;
+    zIndex: number;
 }
 
 export type CameraButtonProps = {
@@ -36,7 +36,7 @@ export type CameraButtonProps = {
 
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
-    children: JSX.Element | null | undefined;
+    children: ReactNode;
     disabled?: boolean;
     href?: string;
     onClick?: (event: React.MouseEvent<any>) => void;
@@ -50,11 +50,11 @@ export interface CommentsButtonProps {
 }
 
 export interface EllipsisActionButtonProps {
-    children: SingleOrArray<JSX.Element | null>;
+    children: ReactNode;
 }
 
 export interface GridActionButtonsProps {
-    children: SingleOrArray<JSX.Element | null>;
+    children: ReactNode;
     display: ViewDisplayType;
 }
 
@@ -69,26 +69,20 @@ export interface GridSubmitButtonsProps {
     onSetSubmitting?: (isSubmitting: boolean) => void;
     onSubmit?: () => void;
     sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
+    zIndex: number;
 }
 
 export interface HelpButtonProps extends ButtonProps {
     id?: string;
-    /**
-     * Markdown displayed in the popup menu
-     */
+    /** Markdown displayed in the popup menu */
     markdown: string;
-    /**
-     * On click event. Not needed to open the menu
-     */
+    /** On click event. Not needed to open the menu */
     onClick?: (event: React.MouseEvent) => void;
-    /**
-     * Style applied to the root element
-     */
+    /** Style applied to the root element */
     sxRoot?: object;
-    /**
-     * Style applied to the question mark icon
-     */
+    /** Style applied to the question mark icon */
     sx?: SvgProps;
+    zIndex: number;
 }
 
 export type MicrophoneButtonProps = {
@@ -98,7 +92,7 @@ export type MicrophoneButtonProps = {
 
 export interface PopupMenuProps extends ButtonProps {
     text?: string;
-    children: any
+    children: ReactNode;
 }
 
 export interface ReportButtonProps {
@@ -145,9 +139,10 @@ export interface ShareButtonProps {
 }
 
 export interface SideActionButtonsProps {
-    children: JSX.Element | null | boolean | undefined | (JSX.Element | null | boolean | undefined)[];
+    children: ReactNode;
     display: ViewDisplayType;
-    hasGridActions?: boolean; // If to, displays higher up
+    /** If true, displays higher up */
+    hasGridActions?: boolean;
     isLeftHanded?: boolean;
     sx?: { [key: string]: any };
     zIndex: number;
@@ -179,6 +174,7 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
+    zIndex: number;
 }
 
 export type TimeFrame = {

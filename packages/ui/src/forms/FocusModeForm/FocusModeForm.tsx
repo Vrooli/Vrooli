@@ -103,7 +103,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -207,6 +207,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                         title={t("TopicsFavorite")}
                         help={t("TopicsFavoriteHelp")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <TagSelector
                         name="favorites"
@@ -217,6 +218,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                         title={t("TopicsHidden")}
                         help={t("TopicsHiddenHelp")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <TagSelector
                         name="hidden"
@@ -232,6 +234,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

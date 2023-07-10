@@ -12,7 +12,7 @@ export const RunProjectView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: RunProjectViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -42,6 +42,7 @@ export const RunProjectView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Run", { count: 1 })}
+                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

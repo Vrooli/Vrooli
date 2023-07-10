@@ -107,6 +107,7 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                             multiline: true,
                         }}
                         title={t("Label")}
+                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -117,9 +118,9 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                             maxChars: 2048,
                             minRows: 4,
                             maxRows: 8,
-                            zIndex,
                         }}
                         title={t("Description")}
+                        zIndex={zIndex}
                     />
                     <FormControlLabel
                         disabled={!isEditing}
@@ -157,6 +158,7 @@ export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRouti
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

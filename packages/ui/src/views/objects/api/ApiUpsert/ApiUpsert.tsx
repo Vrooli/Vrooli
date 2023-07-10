@@ -18,7 +18,7 @@ export const ApiUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: ApiUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const ApiUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateApi" : "UpdateApi")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

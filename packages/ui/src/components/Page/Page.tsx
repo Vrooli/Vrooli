@@ -1,5 +1,4 @@
 import { LINKS, Redirect, useLocation } from "@local/shared";
-import { useTheme } from "@mui/material";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { useContext } from "react";
 import { PubSub } from "utils/pubsub";
@@ -14,7 +13,6 @@ export const Page = ({
     sessionChecked,
     sx,
 }: PageProps) => {
-    const { palette } = useTheme();
     const session = useContext(SessionContext);
     const [location] = useLocation();
 

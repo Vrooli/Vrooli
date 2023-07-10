@@ -23,7 +23,7 @@ export const ApiView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -143,6 +143,7 @@ export const ApiView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -152,6 +153,7 @@ export const ApiView = ({
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -186,6 +188,7 @@ export const ApiView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

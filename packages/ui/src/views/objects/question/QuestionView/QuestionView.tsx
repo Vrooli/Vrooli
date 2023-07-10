@@ -29,7 +29,7 @@ export const QuestionView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -94,6 +94,7 @@ export const QuestionView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -118,6 +119,7 @@ export const QuestionView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
+                            zIndex={zIndex}
                         />
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
@@ -126,7 +128,7 @@ export const QuestionView = ({
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                     </Stack>
-                    <MarkdownDisplay content={subtitle} />
+                    <MarkdownDisplay content={subtitle} zIndex={zIndex} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}

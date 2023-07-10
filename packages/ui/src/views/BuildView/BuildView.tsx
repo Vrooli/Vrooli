@@ -54,7 +54,7 @@ export const BuildView = ({
     onClose,
     routineVersion,
     translationData,
-    zIndex = 200,
+    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -1103,11 +1103,11 @@ export const BuildView = ({
                     },
                 }}
             >
-                <StatusButton status={status.status} messages={status.messages} />
+                <StatusButton status={status.status} messages={status.messages} zIndex={zIndex} />
                 {/* Language */}
                 {languageComponent}
                 {/* Help button */}
-                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
+                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} zIndex={zIndex} />
                 {/* Close Icon */}
                 <IconButton
                     edge="start"
@@ -1178,6 +1178,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 loading={loading}
                 scale={scale}
+                zIndex={zIndex}
             />
         </Box>
     );

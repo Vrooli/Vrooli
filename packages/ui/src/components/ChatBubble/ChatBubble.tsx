@@ -138,6 +138,7 @@ export const ChatBubble = ({
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
                         }}
+                        zIndex={zIndex}
                     /> : <>
                         <MarkdownInputBase
                             fullWidth
@@ -161,6 +162,7 @@ export const ChatBubble = ({
                                 onSubmit={() => {
                                     finishEditing();
                                 }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                     </>

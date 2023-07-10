@@ -657,6 +657,7 @@ export const CodeInputBase = ({
                             <HelpButton
                                 markdown={t(help, { ns: "langs" })}
                                 sx={{ fill: palette.secondary.contrastText }}
+                                zIndex={zIndex}
                             />
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
@@ -665,6 +666,7 @@ export const CodeInputBase = ({
                                     marginRight: "auto",
                                     height: "fit-content",
                                 }}
+                                zIndex={zIndex}
                             />}
                         </Box>
                     </Grid>

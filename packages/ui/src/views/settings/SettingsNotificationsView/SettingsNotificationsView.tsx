@@ -30,6 +30,7 @@ export const SettingsNotificationsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Notification", { count: 2 })}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

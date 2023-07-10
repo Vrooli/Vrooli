@@ -100,6 +100,7 @@ export const ShareObjectDialog = ({
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">

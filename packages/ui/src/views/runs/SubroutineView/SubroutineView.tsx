@@ -17,6 +17,7 @@ import { useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -52,6 +53,7 @@ export const SubroutineView = ({
 }: SubroutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
@@ -224,6 +226,7 @@ export const SubroutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -265,12 +268,24 @@ export const SubroutineView = ({
                 {/* Box with description and instructions */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                     {/* Description */}
-                    <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                    <TextCollapse
+                        title="Description"
+                        text={description}
+                        loading={loading}
+                        loadingLines={2}
+                        zIndex={zIndex}
+                    />
                     {/* Instructions */}
-                    <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                    <TextCollapse
+                        title="Instructions"
+                        text={instructions}
+                        loading={loading}
+                        loadingLines={4}
+                        zIndex={zIndex}
+                    />
                 </Stack>
                 <Box sx={containerProps(palette)}>
-                    <ContentCollapse title="Inputs">
+                    <ContentCollapse title="Inputs" zIndex={zIndex}>
                         {inputComponents}
                         <Button
                             startIcon={<SuccessIcon />}
@@ -279,7 +294,7 @@ export const SubroutineView = ({
                             color="secondary"
                             sx={{ marginTop: 2 }}
                             variant="contained"
-                        >Submit</Button>
+                        >{t("Submit")}</Button>
                     </ContentCollapse>
                 </Box>
                 {/* Action buttons */}
@@ -290,7 +305,11 @@ export const SubroutineView = ({
                     zIndex={zIndex}
                 />
                 <Box sx={containerProps(palette)}>
-                    <ContentCollapse isOpen={false} title="Additional Information">
+                    <ContentCollapse
+                        isOpen={false}
+                        title="Additional Information"
+                        zIndex={zIndex}
+                    >
                         {/* Relationships */}
                         <RelationshipList
                             isEditing={false}
@@ -311,11 +330,13 @@ export const SubroutineView = ({
                                 loading={loading}
                                 showIcon={true}
                                 timestamp={internalRoutineVersion?.created_at}
+                                zIndex={zIndex}
                             />
                             <VersionDisplay
                                 currentVersion={internalRoutineVersion}
                                 prefix={" - "}
                                 versions={internalRoutineVersion?.root?.versions}
+                                zIndex={zIndex}
                             />
                         </Stack>
                         {/* Votes, reports, and other basic stats */}

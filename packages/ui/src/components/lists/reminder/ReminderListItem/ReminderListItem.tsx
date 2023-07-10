@@ -105,7 +105,6 @@ export function ReminderListItem({
                     )}
                 </Stack>
             }
-            zIndex={201}
         />
     );
 }

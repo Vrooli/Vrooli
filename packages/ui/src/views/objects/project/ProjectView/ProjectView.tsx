@@ -22,7 +22,7 @@ export const ProjectView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ProjectViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -118,6 +118,7 @@ export const ProjectView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -140,6 +141,7 @@ export const ProjectView = ({
                     textBeforeDate="Created"
                     timestamp={existing?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Description */}
                 {
@@ -179,6 +181,7 @@ export const ProjectView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

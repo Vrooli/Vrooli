@@ -18,6 +18,7 @@ enum TabOptions {
 export const TermsView = ({
     display = "page",
     onClose,
+    zIndex,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -47,9 +48,10 @@ export const TermsView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
+            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={terms} />
+            <MarkdownDisplay content={terms} zIndex={zIndex} />
         </Box>
     </>;
 };

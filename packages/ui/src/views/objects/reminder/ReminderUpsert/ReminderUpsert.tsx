@@ -21,7 +21,7 @@ export const ReminderUpsert = ({
     onCancel,
     onCompleted,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ReminderUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -50,6 +50,7 @@ export const ReminderUpsert = ({
                     label: t("Delete"),
                     onClick: handleDelete as () => void,
                 }] : []}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

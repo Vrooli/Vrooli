@@ -154,8 +154,8 @@ export const InboxView = ({
         loading,
         onAction,
         onClick: (item) => onClick(item as InboxObject),
-        zIndex: 200,
-    }), [allData, searchType, loading, onAction, onClick]);
+        zIndex,
+    }), [searchType, allData, loading, onAction, zIndex, onClick]);
 
     // If near the bottom of the page, load more data
     const handleScroll = useCallback(() => {
@@ -187,7 +187,7 @@ export const InboxView = ({
                     isCreate={true}
                     onCancel={closeCreateChat}
                     onCompleted={onChatCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main content */}
@@ -201,6 +201,7 @@ export const InboxView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}

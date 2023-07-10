@@ -15,6 +15,7 @@ export const BuildEditButtons = ({
     isEditing,
     loading,
     scale,
+    zIndex,
 }: BuildEditButtonsProps) => {
 
     const handleSliderChangeThrottled = useThrottle((delta) => {
@@ -71,6 +72,7 @@ export const BuildEditButtons = ({
                     isCreate={isAdding}
                     onCancel={handleCancel}
                     onSubmit={handleSubmit}
+                    zIndex={zIndex}
                 />
             </Grid>
         </Box>

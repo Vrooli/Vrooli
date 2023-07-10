@@ -9,6 +9,7 @@ export const PopoverWithArrow = ({
     handleClose,
     placement = "top",
     sxs,
+    zIndex,
     ...props
 }: PopoverWithArrowProps) => {
     const { palette } = useTheme();
@@ -149,6 +150,7 @@ export const PopoverWithArrow = ({
             }}
             style={{
                 ...sxs?.root,
+                zIndex,
             }}
         >
             <ClickAwayListener onClickAway={onClose}>

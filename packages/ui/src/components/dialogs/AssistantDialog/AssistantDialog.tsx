@@ -43,7 +43,7 @@ export const AssistantDialog = ({
                 display="dialog"
                 onClose={handleClose}
                 task={task}
-                zIndex={zIndex}
+                zIndex={zIndex + 1000}
             />
         </LargeDialog>
     );

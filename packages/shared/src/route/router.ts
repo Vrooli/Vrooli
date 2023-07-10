@@ -1,4 +1,4 @@
-import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
+import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
 import { parseSearchParams } from "./searchParams";
 import locationHook, { HookNavigationOptions, LocationHook, Path, SetLocation } from "./useLocation";
@@ -116,7 +116,7 @@ export type RouteProps = {
      * If sitemapIndex is true, this specifies the change frequency of the page 
      */
     changeFreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
-    children: JSX.Element | ((params: any) => JSX.Element);
+    children: ReactNode;
     component?: any;
     match?: any;
     path?: string;
@@ -152,7 +152,7 @@ export const Route = ({ path, match, component, children }: RouteProps) => {
     if (component) return createElement(component, { params });
 
     // support render prop or plain children
-    return typeof children === "function" ? children(params) : children;
+    return typeof children === "function" ? (children as any)(params) : children;
 };
 
 export const Link = (props: LinkProps) => {
@@ -252,7 +252,7 @@ export const Switch = ({ children, location, fallback }: SwitchProps) => {
     return null;
 };
 
-export const Redirect = (props: any): ReactElement<any, any> | null => {
+export const Redirect = (props: any): JSX.Element | null => {
     const navRef = useNavigate(props);
 
     // empty array means running the effect once, navRef is a ref so it never changes

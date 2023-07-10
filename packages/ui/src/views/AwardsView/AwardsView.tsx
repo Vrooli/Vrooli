@@ -23,6 +23,7 @@ const categoryList = Object.values(AwardCategory);
 export const AwardsView = ({
     display = "page",
     onClose,
+    zIndex,
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -57,6 +58,7 @@ export const AwardsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Award", { count: 2 })}
+                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
                 {/* Display earned awards as a list of tags. Press or hover to see description */}
@@ -64,6 +66,7 @@ export const AwardsView = ({
                     isOpen={true}
                     title={t("Earned") + "🏆"}
                     sxs={{ titleContainer: { marginBottom: 2 } }}
+                    zIndex={zIndex}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
@@ -80,6 +83,7 @@ export const AwardsView = ({
                     isOpen={true}
                     title={t("InProgress") + "🏃‍♂️"}
                     sxs={{ titleContainer: { marginBottom: 2 } }}
+                    zIndex={zIndex}
                 >
                     <CardGrid minWidth={200} disableMargin={true}>
                         {awards.map((award) => (

@@ -16,7 +16,7 @@ export const MeetingView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -35,7 +35,7 @@ export const MeetingView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing]);
+    const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -60,6 +60,7 @@ export const MeetingView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

@@ -32,6 +32,7 @@ export const SettingsProfileView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Profile")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

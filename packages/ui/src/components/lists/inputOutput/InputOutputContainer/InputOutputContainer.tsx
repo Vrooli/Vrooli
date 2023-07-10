@@ -116,6 +116,7 @@ export const InputOutputContainer = ({
                             fill: palette.mode === "light" ? palette.secondary.light : palette.secondary.dark,
                         },
                     }}
+                    zIndex={zIndex}
                 >
                     <Droppable droppableId="inputOutputItems">
                         {(provided) => (

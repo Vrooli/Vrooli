@@ -18,7 +18,7 @@ export const ReminderView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ReminderViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -80,6 +80,7 @@ export const ReminderView = ({
                     label: t("Delete"),
                     onClick: handleDelete,
                 }]}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

@@ -88,6 +88,7 @@ export const AdvancedSearchDialog = ({
                             label: t("Reset"),
                             onClick: () => { formik.resetForm(); },
                         }]}
+                        zIndex={zIndex + 1000}
                     />
                     <Box sx={{
                         margin: "auto",
@@ -104,7 +105,7 @@ export const AdvancedSearchDialog = ({
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
                             onUpload={() => { }}
                             theme={theme}
-                            zIndex={zIndex}
+                            zIndex={zIndex + 1000}
                         />}
                     </Box>
                     {/* Search/Cancel buttons */}

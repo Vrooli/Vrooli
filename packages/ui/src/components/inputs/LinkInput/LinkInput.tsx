@@ -103,7 +103,11 @@ export const LinkInput = ({
                 {/* Title/Subtitle */}
                 {title && (
                     <Tooltip title={subtitle}>
-                        <MarkdownDisplay sx={{ marginLeft: "8px" }} content={`${title}${subtitle ? " - " + subtitle : ""}`} />
+                        <MarkdownDisplay
+                            sx={{ marginLeft: "8px" }}
+                            content={`${title}${subtitle ? " - " + subtitle : ""}`}
+                            zIndex={zIndex}
+                        />
                     </Tooltip>
                 )}
             </Box>

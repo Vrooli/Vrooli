@@ -94,6 +94,7 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

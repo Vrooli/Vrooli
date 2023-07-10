@@ -15,6 +15,7 @@ export const DateDisplay = ({
     showIcon = true,
     textBeforeDate = "",
     timestamp,
+    zIndex,
     ...props
 }: DateDisplayProps) => {
     const { palette } = useTheme();
@@ -44,6 +45,7 @@ export const DateDisplay = ({
             <PopoverWithArrow
                 anchorEl={anchorEl}
                 handleClose={close}
+                zIndex={(zIndex ?? 100000) + 1}
             >
                 <Typography variant="body2" color={palette.background.textPrimary}>
                     {displayDate(timestamp, true)}

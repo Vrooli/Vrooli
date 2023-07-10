@@ -12,7 +12,7 @@ export const RunRoutineView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: RunRoutineViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -42,6 +42,7 @@ export const RunRoutineView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Run", { count: 1 })}
+                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

@@ -96,7 +96,7 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -189,6 +189,7 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

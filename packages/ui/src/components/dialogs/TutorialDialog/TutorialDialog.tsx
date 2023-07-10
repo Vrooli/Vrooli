@@ -153,6 +153,7 @@ const sections: TutorialSection[] = [
 ];
 
 const titleId = "tutorial-dialog-title";
+const zIndex = 100000;
 
 /** Draggable paper for dialog */
 const PaperComponent = (props) => {
@@ -269,9 +270,14 @@ export const TutorialDialog = ({
                         title={"Wrong Page"}
                         onClose={onClose}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2} p={2}>
-                        <MarkdownDisplay variant="body1" content={"Please return to the correct page to continue the tutorial."} />
+                        <MarkdownDisplay
+                            variant="body1"
+                            content={"Please return to the correct page to continue the tutorial."}
+                            zIndex={zIndex}
+                        />
                         <Button
                             fullWidth
                             variant="contained"
@@ -296,9 +302,14 @@ export const TutorialDialog = ({
                         // Can move dialog, but not popper
                         root: { cursor: getCurrentElement() ? "auto" : "move" },
                     }}
+                    zIndex={zIndex}
                 />
                 <Box sx={{ padding: "16px" }}>
-                    <MarkdownDisplay variant="body1" content={sections[place.section].steps[place.step].text} />
+                    <MarkdownDisplay
+                        variant="body1"
+                        content={sections[place.section].steps[place.step].text}
+                        zIndex={zIndex}
+                    />
                 </Box>
                 <MobileStepper
                     variant="dots"
@@ -349,11 +360,12 @@ export const TutorialDialog = ({
                 disableScrollLock={true}
                 sxs={{
                     root: {
-                        zIndex: 100000,
+                        zIndex,
                         maxWidth: "500px",
                     },
                     content: { padding: 0 },
                 }}
+                zIndex={zIndex}
             >
                 {content}
             </PopoverWithArrow>
@@ -368,11 +380,11 @@ export const TutorialDialog = ({
             aria-labelledby={titleId}
             PaperComponent={PaperComponent}
             sx={{
-                zIndex: 100000,
+                zIndex,
                 pointerEvents: "none",
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: 100000,
+                        zIndex,
                         pointerEvents: "auto",
                         borderRadius: 2,
                         margin: 2,

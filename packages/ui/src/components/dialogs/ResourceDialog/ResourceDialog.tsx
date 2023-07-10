@@ -55,6 +55,7 @@ export const ResourceDialog = ({
                     title={(index < 0) ? "Add Resource" : "Update Resource"}
                     help={helpText}
                     onClose={handleClose}
+                    zIndex={zIndex + 1000}
                 />
                 <Formik
                     enableReinitialize={true}
@@ -103,7 +104,7 @@ export const ResourceDialog = ({
                         isOpen={isOpen}
                         onCancel={handleClose}
                         ref={formRef}
-                        zIndex={zIndex}
+                        zIndex={zIndex + 1000}
                         {...formik}
                     />}
                 </Formik>

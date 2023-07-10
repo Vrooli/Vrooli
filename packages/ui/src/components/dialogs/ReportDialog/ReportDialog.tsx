@@ -56,6 +56,7 @@ export const ReportDialog = ({
                 title={title}
                 help={t("ReportsHelp")}
                 onClose={handleCancel}
+                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 <Link onClick={toExistingReports}>
@@ -100,7 +101,7 @@ export const ReportDialog = ({
                         isOpen={true}
                         onCancel={handleCancel}
                         ref={formRef}
-                        zIndex={zIndex}
+                        zIndex={zIndex + 1000}
                         {...formik}
                     />}
                 </Formik>

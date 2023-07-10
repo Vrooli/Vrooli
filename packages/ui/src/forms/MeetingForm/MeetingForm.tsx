@@ -104,7 +104,7 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -197,6 +197,7 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

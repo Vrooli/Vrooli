@@ -17,6 +17,7 @@ import { SignUpFormProps } from "../../types";
 export const SignUpForm = ({
     onClose,
     onFormChange = () => { },
+    zIndex,
 }: SignUpFormProps) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -32,6 +33,7 @@ export const SignUpForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("SignUp")}
+                zIndex={zIndex}
             />
             <Formik
                 initialValues={{

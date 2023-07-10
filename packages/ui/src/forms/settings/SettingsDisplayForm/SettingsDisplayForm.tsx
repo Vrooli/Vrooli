@@ -16,6 +16,7 @@ export const SettingsDisplayForm = ({
     isLoading,
     onCancel,
     values,
+    zIndex,
     ...props
 }: SettingsDisplayFormProps) => {
     const { t } = useTranslation();
@@ -30,6 +31,7 @@ export const SettingsDisplayForm = ({
                 help={t("DisplayAccountHelp")}
                 title={t("DisplayAccount")}
                 variant="subheader"
+                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} p={1}>
                 <LanguageSelector />
@@ -39,6 +41,7 @@ export const SettingsDisplayForm = ({
                 help={t("DisplayDeviceHelp")}
                 title={t("DisplayDevice")}
                 variant="subheader"
+                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} p={1}>
                 <ThemeSwitch />
@@ -53,6 +56,7 @@ export const SettingsDisplayForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </BaseForm>
     );

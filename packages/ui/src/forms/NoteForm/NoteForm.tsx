@@ -162,6 +162,7 @@ export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
                         </EllipsisActionButton>
                     ),
                 }}
+                zIndex={zIndex}
             />
         </>
     );

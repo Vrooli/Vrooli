@@ -339,7 +339,7 @@ export const CalendarView = ({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />
             </LargeDialog>
             {/* Add event button */}
@@ -373,6 +373,7 @@ export const CalendarView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <Calendar
                 localizer={localizer}

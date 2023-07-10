@@ -163,6 +163,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='name'
                                 props={{ label: t("Identifier"), fullWidth: true }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -176,6 +177,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     language,
                                     fullWidth: true,
                                 }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -183,7 +185,8 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedMarkdown'
                                 isEditing={isEditing}
                                 name='helpText'
-                                props={{ placeholder: t("DetailsOptional"), language, zIndex }}
+                                props={{ placeholder: t("DetailsOptional"), language }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         {isInput && <Grid item xs={12}>

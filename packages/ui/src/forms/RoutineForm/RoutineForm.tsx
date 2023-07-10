@@ -264,6 +264,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -314,7 +315,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                                                 handleDeleteLanguage,
                                                 languages,
                                             }}
-                                            zIndex={zIndex + 1300}
+                                            zIndex={zIndex + 2300}
                                         />
                                     </LargeDialog>
                                     {/* Button to display graph */}
@@ -369,6 +370,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

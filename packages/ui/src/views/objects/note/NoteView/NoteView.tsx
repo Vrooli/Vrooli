@@ -19,7 +19,7 @@ export const NoteView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -70,6 +70,7 @@ export const NoteView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>

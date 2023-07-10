@@ -245,6 +245,7 @@ export const ChatView = ({
                         }
                     }}
                     title={firstString(title, botSettings ? "AI Chat" : "Chat")}
+                    zIndex={zIndex}
                 />
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>

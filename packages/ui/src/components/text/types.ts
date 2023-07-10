@@ -2,11 +2,12 @@ import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, Svg
 import { BoxProps, TypographyProps } from "@mui/material";
 import { ObjectType } from "utils/navigation/openObject";
 
-export interface DateDisplayProps extends BoxProps {
+export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;
+    zIndex: number;
 }
 
 export interface MarkdownDisplayProps {
@@ -15,6 +16,7 @@ export interface MarkdownDisplayProps {
     onChange?: (content: string) => void;
     sx?: { [x: string]: any; };
     variant?: TypographyProps["variant"];
+    zIndex: number;
 }
 
 export interface OwnerLabelProps {
@@ -57,6 +59,7 @@ export interface TitleProps {
     titleComponent?: JSX.Element;
     /** Determines size */
     variant: "header" | "subheader";
+    zIndex: number;
 }
 
 export interface VersionDisplayProps extends BoxProps {
@@ -65,6 +68,7 @@ export interface VersionDisplayProps extends BoxProps {
     loading?: boolean;
     prefix?: string;
     versions?: { versionLabel: string }[];
+    zIndex: number;
 }
 
 export interface ViewsDisplayProps {

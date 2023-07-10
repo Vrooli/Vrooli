@@ -1,6 +1,5 @@
-import { GqlModelType, isObject } from "@local/shared";
+import { GqlModelType, isObject, OrArray } from "@local/shared";
 import pkg from "lodash";
-import { SingleOrArray } from "../types";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
 
@@ -45,8 +44,8 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  * @param partialInfo PartialGraphQLInfo object
  */
 export const groupPrismaData = (
-    data: SingleOrArray<{ [x: string]: any }>,
-    partialInfo: SingleOrArray<PartialGraphQLInfo>,
+    data: OrArray<{ [x: string]: any }>,
+    partialInfo: OrArray<PartialGraphQLInfo>,
 ): GroupPrismaDataReturn => {
     // Check for valid input
     if (!data || !partialInfo) return {

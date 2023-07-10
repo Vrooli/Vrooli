@@ -1,13 +1,15 @@
 import { Box, Container, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ReactNode } from "react";
 import { ViewDisplayType } from "views/types";
 
 interface Props {
     autocomplete?: string;
-    children: JSX.Element;
+    children: ReactNode;
     display?: ViewDisplayType;
     maxWidth?: string | number;
     title: string;
+    zIndex: number;
 }
 
 export const FormView = ({
@@ -16,6 +18,7 @@ export const FormView = ({
     display = "page",
     maxWidth = "90%",
     title,
+    zIndex,
 }: Props) => {
     const { palette } = useTheme();
 
@@ -24,6 +27,7 @@ export const FormView = ({
             <TopBar
                 display={display}
                 title={title}
+                zIndex={zIndex}
             />
             <Box sx={{
                 backgroundColor: palette.background.paper,

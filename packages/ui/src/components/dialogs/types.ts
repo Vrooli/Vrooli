@@ -3,6 +3,7 @@ import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject, TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
+import { ReactNode } from "react";
 import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
@@ -25,7 +26,7 @@ export interface AssistantDialogProps {
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
-    children: JSX.Element | JSX.Element[];
+    children: ReactNode;
     /**
      * Callback when option button or close button is pressed
      */
@@ -167,6 +168,7 @@ export interface MenuTitleProps {
     helpText?: string;
     onClose: () => void;
     title?: string;
+    zIndex: number;
 }
 
 export enum ObjectDialogAction {
@@ -357,10 +359,11 @@ export interface RunPickerMenuProps {
     onDelete: (run: RunProject | RunRoutine) => any;
     onSelect: (run: RunProject | RunRoutine | null) => any;
     runnableObject?: RoutineVersion | ProjectVersion | null;
+    zIndex: number;
 }
 
 export interface LargeDialogProps {
-    children: JSX.Element | null | undefined | (JSX.Element | null | undefined)[];
+    children: ReactNode;
     id: string;
     isOpen: boolean;
     onClose: () => any;
@@ -386,7 +389,7 @@ export interface WalletSelectDialogProps {
 
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
     anchorEl: HTMLElement | null;
-    children: React.ReactNode;
+    children: ReactNode;
     disableScrollLock?: boolean;
     handleClose?: () => any;
     placement?: "top" | "right" | "bottom" | "left";
@@ -395,6 +398,7 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
         content?: { [x: string]: any };
         paper?: { [x: string]: any };
     }
+    zIndex: number;
 }
 
 

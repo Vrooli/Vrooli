@@ -37,6 +37,7 @@ const stripUrl = (url: string) => {
 };
 
 const titleId = "command-palette-dialog-title";
+const zIndex = 10000;
 
 export const CommandPalette = () => {
     const session = useContext(SessionContext);
@@ -118,13 +119,14 @@ export const CommandPalette = () => {
             isOpen={open}
             onClose={close}
             titleId={titleId}
-            zIndex={10000}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 help={t("CommandPaletteHelp")}
                 title={t("CommandPaletteTitle")}
                 onClose={close}
+                zIndex={zIndex + 1000}
             />
             <DialogContent sx={{
                 background: palette.background.default,
@@ -149,7 +151,7 @@ export const CommandPalette = () => {
                         },
                         paper: { background: palette.background.paper },
                     }}
-                    zIndex={1000}
+                    zIndex={zIndex + 1000}
                 />
             </DialogContent>
         </LargeDialog>

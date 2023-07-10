@@ -1,6 +1,7 @@
 import { InputType } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
+import { ReactNode } from "react";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
@@ -33,7 +34,7 @@ import { ViewDisplayType } from "views/types";
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
-    children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
+    children: ReactNode;
     dirty?: boolean;
     display: ViewDisplayType;
     enableReinitialize?: boolean;
@@ -64,6 +65,7 @@ export interface BaseGeneratedFormProps {
 
 export interface FormProps {
     onFormChange?: (form: Forms) => any;
+    zIndex: number;
 }
 
 export interface ForgotPasswordFormProps extends FormProps {

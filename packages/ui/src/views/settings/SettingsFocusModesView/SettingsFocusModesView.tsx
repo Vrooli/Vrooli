@@ -165,13 +165,14 @@ export const SettingsFocusModesView = ({
                     onCancel={handleCloseDialog}
                     onCompleted={handleCompleted}
                     partialData={editingFocusMode ?? undefined}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />
             </LargeDialog>
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />

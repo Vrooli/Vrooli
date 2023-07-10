@@ -21,6 +21,7 @@ const timeOptions = {
 export function TimeMenu({
     anchorEl,
     onClose,
+    zIndex,
 }: TimeMenuProps) {
     const { t } = useTranslation();
 
@@ -66,6 +67,7 @@ export function TimeMenu({
                 anchorEl={customRangeAnchorEl}
                 onClose={handleTimeClose}
                 onSubmit={(after, before) => onClose("Custom", { after, before })}
+                zIndex={zIndex + 1}
             />
         </Menu>
     );

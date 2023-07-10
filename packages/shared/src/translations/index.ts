@@ -20,7 +20,15 @@ const resources = {
     },
 } as const;
 
-export const i18nConfig = (debug: boolean) => ({
+/**
+ * Configuration for i18next.
+ * @param debug Whether to enable debug mode, which logs to the console when
+ * translations are missing.
+ * @param appendNS Appends the namespace to the key (e.g. "common:hello") instead 
+ * of translating the key directly (e.g. "hello"). Useful for finding strings 
+ * that are missing from the translation files.
+ */
+export const i18nConfig = (debug: boolean, appendNS = true) => ({
     debug,
     partialBundledLanguages: true,
     defaultNS,
@@ -31,4 +39,5 @@ export const i18nConfig = (debug: boolean) => ({
     backend: {
         loadPath: "./locales/{{lng}}/{{ns}}.json",
     },
+    appendNamespaceToCIMode: appendNS,
 });

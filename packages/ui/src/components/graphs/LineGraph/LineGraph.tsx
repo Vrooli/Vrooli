@@ -113,6 +113,7 @@ export const LineGraph = ({
     lineColor = "#000",
     lineWidth = 2,
     yAxisLabel,
+    zIndex,
 }: LineGraphProps) => {
     // Find the maximum and minimum value in the data array
     const maxData = Math.max(...data.map(toValue));
@@ -308,6 +309,7 @@ export const LineGraph = ({
                             setAnchorEl(null);
                         }
                     }}
+                    zIndex={zIndex + 1}
                 >
                     <Typography variant="body2" color="textPrimary">
                         {tooltipText}

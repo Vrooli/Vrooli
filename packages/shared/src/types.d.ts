@@ -42,3 +42,5 @@ export interface SvgProps {
 }
 
 export type SvgComponent = (props: SvgProps) => JSX.Element;
+
+export type OrArray<T> = T | T[];

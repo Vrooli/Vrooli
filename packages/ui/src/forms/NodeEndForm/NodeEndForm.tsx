@@ -103,6 +103,7 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             multiline: true,
                         }}
                         title={t("Label")}
+                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -113,9 +114,9 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                             maxChars: 2048,
                             minRows: 4,
                             maxRows: 8,
-                            zIndex,
                         }}
                         title={t("Description")}
+                        zIndex={zIndex}
                     />
                     <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
                         <FormControlLabel
@@ -143,6 +144,7 @@ export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );
