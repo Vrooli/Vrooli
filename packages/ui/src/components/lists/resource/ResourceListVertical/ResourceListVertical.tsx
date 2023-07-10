@@ -5,6 +5,7 @@ import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
@@ -19,6 +20,7 @@ export const ResourceListVertical = ({
     loading,
     zIndex,
 }: ResourceListVerticalProps) => {
+    const { t } = useTranslation();
 
     const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
@@ -156,7 +158,7 @@ export const ResourceListVertical = ({
                     fullWidth onClick={openDialog}
                     startIcon={<AddIcon />}
                     variant="outlined"
-                >Add Resource</Button>
+                >{t("CreateResource")}</Button>
             </Box>}
         </>
     );

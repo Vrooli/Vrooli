@@ -9,8 +9,10 @@ import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDia
 import { AssistantDialogProps } from "components/dialogs/types";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { keyComboToString } from "utils/display/device";
 import { getDisplay, ListObjectType } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -213,6 +215,7 @@ export const MarkdownInputBase = ({
 }: MarkdownInputBaseProps) => {
     const { palette, typography } = useTheme();
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
@@ -692,7 +695,7 @@ export const MarkdownInputBase = ({
                         sx={{ marginRight: "auto" }}
                     >
                         {/* AI assistant */}
-                        {hasPremium && !disableAssistant && <Tooltip title="AI assistant" placement="top">
+                        {hasPremium && !disableAssistant && <Tooltip title={t("AIAssistant")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-assistant-popover-${name}`}
                                 disabled={disabled}
@@ -703,7 +706,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Insert header selector */}
-                        <Tooltip title="Insert header (Title)" placement="top">
+                        <Tooltip title={t("HeaderInsert")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-header-popover-${name}`}
                                 disabled={disabled}
@@ -728,7 +731,7 @@ export const MarkdownInputBase = ({
                                 background: palette.primary.light,
                                 color: palette.primary.contrastText,
                             }}>
-                                <Tooltip title="Header 1 (ALT + 1)" placement="top">
+                                <Tooltip title={`${t("Header1")} (${keyComboToString("Alt", "1")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H1)}
                                         sx={dropDownButtonProps}
@@ -736,7 +739,7 @@ export const MarkdownInputBase = ({
                                         <Header1Icon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Header 2 (ALT + 2)" placement="top">
+                                <Tooltip title={`${t("Header2")} (${keyComboToString("Alt", "2")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H2)}
                                         sx={dropDownButtonProps}
@@ -744,7 +747,7 @@ export const MarkdownInputBase = ({
                                         <Header2Icon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Header 3 (ALT + 3)" placement="top">
+                                <Tooltip title={`${t("Header3")} (${keyComboToString("Alt", "3")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H3)}
                                         sx={dropDownButtonProps}
@@ -755,7 +758,7 @@ export const MarkdownInputBase = ({
                             </Stack>
                         </Popover>
                         {/* Button for bold */}
-                        <Tooltip title="Bold (CTRL + B)" placement="top">
+                        <Tooltip title={`${t("Bold")} (${keyComboToString("Ctrl", "B")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -765,7 +768,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Button for italic */}
-                        <Tooltip title="Italic (CTRL + I)" placement="top">
+                        <Tooltip title={`${t("Italic")} (${keyComboToString("Ctrl", "I")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -775,7 +778,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Button for strikethrough */}
-                        <Tooltip title="Strikethrough (CTRL + SHIFT + S)" placement="top">
+                        <Tooltip title={`${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -785,7 +788,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Insert bulleted or numbered list selector */}
-                        <Tooltip title="Insert list" placement="top">
+                        <Tooltip title={t("ListInsert")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-list-popover-${name}`}
                                 disabled={disabled}
@@ -809,7 +812,7 @@ export const MarkdownInputBase = ({
                                 background: palette.primary.light,
                                 color: palette.primary.contrastText,
                             }}>
-                                <Tooltip title="Bulleted list (ALT + 4)" placement="top">
+                                <Tooltip title={`${t("ListBulleted")} (${keyComboToString("Alt", "4")})`} placement="top">
                                     <IconButton
                                         onClick={insertBulletList}
                                         sx={dropDownButtonProps}
@@ -817,7 +820,7 @@ export const MarkdownInputBase = ({
                                         <ListBulletIcon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Numbered list (ALT + 5)" placement="top">
+                                <Tooltip title={`${t("ListNumbered")} (${keyComboToString("Alt", "5")})`} placement="top">
                                     <IconButton
                                         onClick={insertNumberList}
                                         sx={dropDownButtonProps}
@@ -825,7 +828,7 @@ export const MarkdownInputBase = ({
                                         <ListNumberIcon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Checkbox list (ALT + 6)" placement="top">
+                                <Tooltip title={`${t("ListCheckbox")} (${keyComboToString("Alt", "6")})`} placement="top">
                                     <IconButton
                                         onClick={insertCheckboxList}
                                         sx={dropDownButtonProps}
@@ -836,7 +839,7 @@ export const MarkdownInputBase = ({
                             </Stack>
                         </Popover>
                         {/* Button for inserting link */}
-                        <Tooltip title="Insert link (CTRL + K)" placement="top">
+                        <Tooltip title={`${t("LinkInsert")} (${keyComboToString("Ctrl", "K")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -852,7 +855,7 @@ export const MarkdownInputBase = ({
                         spacing={{ xs: 0, sm: 0.5, md: 1 }}
                     >
                         {/* Undo */}
-                        {(canUndo || canRedo) && <Tooltip title={canUndo ? "Undo (CTRL + Z)" : ""}>
+                        {(canUndo || canRedo) && <Tooltip title={canUndo ? `${t("Undo")} (${keyComboToString("Ctrl", "Z")})` : ""}>
                             <IconButton
                                 id="undo-button"
                                 disabled={!canUndo}
@@ -864,7 +867,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Redo */}
-                        {(canUndo || canRedo) && <Tooltip title={canRedo ? "Redo (CTRL + Y)" : ""}>
+                        {(canUndo || canRedo) && <Tooltip title={canRedo ? `${t("Redo")} (${keyComboToString("Ctrl", "Y")})` : ""}>
                             <IconButton
                                 id="redo-button"
                                 disabled={!canRedo}
@@ -876,7 +879,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Preview */}
-                        <Tooltip title={isPreviewOn ? "Press to edit (ALT + 7)" : "Press to preview (ALT + 7)"} placement="top">
+                        <Tooltip title={isPreviewOn ? `${t("PressToEdit")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
                             <IconButton
                                 size="small"
                                 onClick={togglePreview}

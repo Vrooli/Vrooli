@@ -7,6 +7,7 @@ import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog
 import { cardRoot } from "components/lists/styles";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceCard } from "../ResourceCard/ResourceCard";
@@ -24,6 +25,7 @@ export const ResourceListHorizontal = ({
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
@@ -218,10 +220,10 @@ export const ResourceListHorizontal = ({
                                 )
                             }
                             {/* Add resource button */}
-                            {canUpdate ? <Tooltip placement="top" title="Add resource">
+                            {canUpdate ? <Tooltip placement="top" title={t("CreateResource")}>
                                 <Box
                                     onClick={openDialog}
-                                    aria-label="Add resource"
+                                    aria-label={t("CreateResource")}
                                     sx={{
                                         ...cardRoot,
                                         background: palette.primary.light,

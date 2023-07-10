@@ -1,14 +1,15 @@
-import { DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
+import { CommonKey, DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDeviceInfo } from "utils/display/device";
 
-const contactLinks: [string, string, string, string, SvgComponent][] = [
-    ["contact-twitter", "Find us on Twitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
-    ["contact-discord", "Have a question or feedback? Post it on our Discord!", SOCIALS.Discord, "Join our Discord", DiscordIcon],
-    ["contact-github", "Check out the source code, or contribute :)", SOCIALS.GitHub, "Source Code", GitHubIcon],
+/** aria-label, tooltip, link, displayed text, icon */
+const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
+    ["contact-twitter", "ContactHelpTwitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
+    ["contact-discord", "ContactHelpDiscord", SOCIALS.Discord, "Discord", DiscordIcon],
+    ["contact-github", "ContactHelpCode", SOCIALS.GitHub, "SourceCode", GitHubIcon],
 ];
 
 const aboutUsLink = LINKS.About;
@@ -82,7 +83,7 @@ export const Footer = () => {
                             <ListItemText primary={t("Contact")} sx={{ textTransform: "uppercase" }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
-                            <Tooltip key={key} title={tooltip} placement="left">
+                            <Tooltip key={key} title={t(tooltip)} placement="left">
                                 <ListItem
                                     aria-label={label}
                                     component="a"
@@ -93,7 +94,7 @@ export const Footer = () => {
                                     <ListItemIcon>
                                         <Icon fill={palette.primary.contrastText} />
                                     </ListItemIcon>
-                                    <ListItemText primary={text} sx={{ color: palette.primary.contrastText }} />
+                                    <ListItemText primary={t(text)} sx={{ color: palette.primary.contrastText }} />
                                 </ListItem>
                             </Tooltip>
                         ))}

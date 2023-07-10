@@ -18,10 +18,10 @@ export const TimeButton = ({
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
     const handleTimeOpen = (event: any) => setTimeAnchorEl(event.currentTarget);
-    const handleTimeClose = (label?: string, frame?: TimeFrame) => {
+    const handleTimeClose = (labelKey?: CommonKey, frame?: TimeFrame) => {
         setTimeAnchorEl(null);
         setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label === "All Time" ? "" : label);
+        if (labelKey) setTimeFrameLabel(t(labelKey));
     };
 
     return (

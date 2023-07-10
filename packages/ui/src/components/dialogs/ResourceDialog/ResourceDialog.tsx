@@ -4,6 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
 import { useCallback, useContext, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -28,6 +29,7 @@ export const ResourceDialog = ({
     zIndex,
 }: ResourceDialogProps) => {
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
@@ -52,7 +54,7 @@ export const ResourceDialog = ({
             >
                 <DialogTitle
                     id={titleId}
-                    title={(index < 0) ? "Add Resource" : "Update Resource"}
+                    title={(index < 0) ? t("CreateResource") : t("UpdateResource")}
                     help={helpText}
                     onClose={handleClose}
                     zIndex={zIndex + 1000}

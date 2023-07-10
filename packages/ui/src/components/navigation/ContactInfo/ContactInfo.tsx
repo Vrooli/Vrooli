@@ -20,14 +20,14 @@ export const ContactInfo = ({
     const { additionalInfo, contactInfo } = useMemo(() => {
         return {
             additionalInfo: [
-                [t("AboutUs"), "About", LINKS.About, InfoIcon],
-                [t("DocumentationShort"), "Docs", "https://docs.vrooli.com", ArticleIcon],
-                [t("StatisticsShort"), "Stats", LINKS.Stats, StatsIcon],
+                [t("AboutUs"), t("About"), LINKS.About, InfoIcon],
+                [t("DocumentationShort"), t("DocumentationShort"), "https://docs.vrooli.com", ArticleIcon],
+                [t("StatisticsShort"), t("StatisticsShort"), LINKS.Stats, StatsIcon],
             ] as NavActionListData[],
             contactInfo: [
-                [t("ContactHelpTwitter"), "Twitter", SOCIALS.Twitter, TwitterIcon],
-                [t("ContactHelpDiscord"), "Discord", SOCIALS.Discord, DiscordIcon],
-                [t("ContactHelpCode"), "Code", SOCIALS.GitHub, GitHubIcon],
+                [t("ContactHelpTwitter"), t("Twitter"), SOCIALS.Twitter, TwitterIcon],
+                [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
+                [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
         };
     }, [t]);

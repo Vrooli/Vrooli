@@ -423,7 +423,7 @@ export function SiteSearchBar({
                             // }
                         }}
                     />
-                    <MicrophoneButton onTranscriptChange={handleChange} />
+                    <MicrophoneButton onTranscriptChange={handleChange} zIndex={zIndex} />
                     <IconButton sx={{
                         width: "48px",
                         height: "48px",

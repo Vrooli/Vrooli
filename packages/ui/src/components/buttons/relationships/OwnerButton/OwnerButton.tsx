@@ -9,6 +9,7 @@ import { RelationshipItemOrganization, RelationshipItemUser } from "components/l
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -21,13 +22,11 @@ import { OwnerButtonProps } from "../types";
 enum OwnerTypesEnum {
     Self = "Self",
     Organization = "Organization",
-    AnotherUser = "AnotherUser",
 }
 
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { label: "Self", value: OwnerTypesEnum.Self },
     { label: "Organization", value: OwnerTypesEnum.Organization },
-    // { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
 ];
 
 export function OwnerButton({
@@ -37,6 +36,7 @@ export function OwnerButton({
 }: OwnerButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -49,17 +49,13 @@ export function OwnerButton({
     const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
     const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true); }, [setOrganizationDialogOpen]);
     const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
-    const [isAnotherUserDialogOpen, setAnotherUserDialogOpen] = useState<boolean>(false);
-    const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true); }, [setAnotherUserDialogOpen]);
-    const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
     const handleOwnerSelect = useCallback((owner: OwnerShape) => {
         const ownerId = versionField?.value?.id ?? rootField?.value?.id;
         if (owner?.id === ownerId) return;
         exists(versionHelpers) && versionHelpers.setValue(owner);
         exists(rootHelpers) && rootHelpers.setValue(owner);
         closeOrganizationDialog();
-        closeAnotherUserDialog();
-    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog, closeAnotherUserDialog]);
+    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog]);
 
     // Owner list dialog (select self, organization, or another user)
     const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
@@ -78,22 +74,19 @@ export function OwnerButton({
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
         if (ownerType === OwnerTypesEnum.Organization) {
             openOrganizationDialog();
-        } else if (ownerType === OwnerTypesEnum.AnotherUser) {
-            openAnotherUserDialog();
         } else {
             const owner = session ? userFromSession(session) : undefined;
             exists(versionHelpers) && versionHelpers.setValue(owner);
             exists(rootHelpers) && rootHelpers.setValue(owner);
         }
         closeOwnerDialog();
-    }, [closeOwnerDialog, openOrganizationDialog, openAnotherUserDialog, session, versionHelpers, rootHelpers]);
+    }, [closeOwnerDialog, openOrganizationDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
         if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
-        else if (isAnotherUserDialogOpen) return ["User", handleOwnerSelect, closeAnotherUserDialog];
         return [null, () => { }, () => { }];
-    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog, isAnotherUserDialogOpen, closeAnotherUserDialog]);
+    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
         const owner = versionField?.value ?? rootField?.value;
@@ -130,7 +123,7 @@ export function OwnerButton({
             <ListMenu
                 id={"select-owner-type-menu"}
                 anchorEl={ownerDialogAnchor}
-                title='Owner Type'
+                title={t("Owner")}
                 data={ownerTypes}
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}

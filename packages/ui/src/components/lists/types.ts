@@ -96,7 +96,7 @@ export interface SortMenuProps {
 
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
+    onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => void;
     zIndex: number;
 }
 

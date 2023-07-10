@@ -17,7 +17,9 @@ const HINT_AFTER_MILLI = 3000;
 export const MicrophoneButton = ({
     disabled = false,
     onTranscriptChange,
+    zIndex,
 }: MicrophoneButtonProps) => {
+    console.log("MicrophoneButton", zIndex);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -90,6 +92,7 @@ export const MicrophoneButton = ({
                 isListening={status === "On"}
                 showHint={showHint}
                 transcript={transcript}
+                zIndex={zIndex + 1}
             />
         </Box>
     );

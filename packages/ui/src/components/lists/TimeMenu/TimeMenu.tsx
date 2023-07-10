@@ -1,5 +1,6 @@
 // Menu for selecting the time contrainsts for a search
 
+import { CommonKey } from "@local/shared";
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,12 +11,12 @@ import { TimeMenuProps } from "../types";
  * Map time selections to time length in milliseconds
  */
 const timeOptions = {
-    "All Time": undefined,
-    "Past Year": 31536000000,
-    "Past Month": 2592000000,
-    "Past Week": 604800000,
-    "Past 24 Hours": 86400000,
-    "Past Hour": 3600000,
+    "TimeAll": undefined,
+    "TimeYear": 31536000000,
+    "TimeMonth": 2592000000,
+    "TimeWeek": 604800000,
+    "TimeDay": 86400000,
+    "TimeHour": 3600000,
 };
 
 export function TimeMenu({
@@ -33,18 +34,20 @@ export function TimeMenu({
         setCustomRangeAnchorEl(null);
     };
 
-    const menuItems = useMemo(() => Object.keys(timeOptions).map((label: string) => (
+    const menuItems = useMemo(() => Object.keys(timeOptions).map((labelKey: CommonKey) => (
         <MenuItem
-            key={label}
-            value={timeOptions[label]}
+            key={labelKey}
+            value={timeOptions[labelKey]}
             onClick={() => {
-                if (!timeOptions[label]) onClose(label);
-                else onClose(label.replace("Past ", ""), { after: new Date(Date.now() - timeOptions[label]) });
+                // If All is selected, pass undefined to onClose
+                if (!timeOptions[labelKey]) onClose(labelKey);
+                // Otherwise, pass the time as object with "after"
+                else onClose(labelKey, { after: new Date(Date.now() - timeOptions[labelKey]) });
             }}
         >
-            {label}
+            {t(labelKey)}
         </MenuItem>
-    )), [onClose]);
+    )), [onClose, t]);
 
     return (
         <Menu

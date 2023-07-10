@@ -89,6 +89,7 @@ export interface HelpButtonProps extends ButtonProps {
 export type MicrophoneButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => unknown;
+    zIndex: number;
 }
 
 export interface PopupMenuProps extends ButtonProps {

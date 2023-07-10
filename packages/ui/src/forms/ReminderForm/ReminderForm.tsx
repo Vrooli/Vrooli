@@ -128,18 +128,18 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             maxRows={10}
                             minRows={4}
                             name="description"
-                            placeholder="Description (optional)"
+                            placeholder={t("DescriptionOptional")}
                             zIndex={zIndex}
                         />
                         <DateInput
                             name="dueDate"
-                            label="Due date (optional)"
+                            label={t("DueDateOptional")}
                             type="datetime-local"
                         />
                         {/* Steps to complete reminder */}
                         <Title
                             Icon={ListNumberIcon}
-                            title="Steps"
+                            title={t("Step", { count: 2 })}
                             variant="subheader"
                             zIndex={zIndex}
                         />
@@ -182,7 +182,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                                                 />
                                                                 <DateInput
                                                                     name={`reminderItems[${i}].dueDate`}
-                                                                    label="Due date (optional)"
+                                                                    label={t("DueDateOptional")}
                                                                     type="datetime-local"
                                                                 />
                                                                 <FormControlLabel
@@ -193,7 +193,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                                                                         size="small"
                                                                         color="secondary"
                                                                     />}
-                                                                    label="Complete?"
+                                                                    label={t("CompleteQuestion")}
                                                                 />
                                                             </Stack>
                                                             <Stack spacing={1} width={32}>
@@ -227,7 +227,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             variant="outlined"
                             sx={{ alignSelf: "center", mt: 1 }}
                         >
-                            Add Step
+                            {t("StepAdd")}
                         </Button>
                     </FormContainer>
                 </BaseForm>

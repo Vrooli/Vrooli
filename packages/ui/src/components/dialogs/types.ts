@@ -211,6 +211,7 @@ export interface TranscriptDialogProps {
     isListening: boolean;
     showHint: boolean;
     transcript: string;
+    zIndex: number;
 }
 
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
