@@ -267,13 +267,10 @@ async function main() {
                                     });
                                 });
                                 // Append endpoint/method pairs to pairs file
-                                const fileContent = endpointMethodPairs.map(pair => {
-                                    console.log("pair", pair);
-                                    return `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
+                                const fileContent = endpointMethodPairs.map(pair => `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
     endpoint: "${pair.endpoint}",
     method: "${pair.method}",
-} as const;\n\n`;
-                                }).join("");
+} as const;\n\n`).join("");
                                 fs.appendFileSync(pairFilePath, fileContent);
                             }
                         });

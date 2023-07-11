@@ -130,7 +130,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            invitedByUser: "User", // If a bot, this is the user who created the bot
+            invitedByUser: ["User", ["invitedByUser"]], // If a bot, this is the user who created the bot
             isBot: true,
             isPrivate: true,
             languages: { select: { language: true } },

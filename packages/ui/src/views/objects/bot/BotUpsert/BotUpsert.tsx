@@ -1,8 +1,8 @@
-import { endpointGetUser, FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput, User } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, endpointGetUser, endpointPostBot, endpointPutBot, FindVersionInput, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { botInitialValues, NoteForm, transformBotValues, validateBotValues } from "forms/BotForm/BotForm";
+import { BotForm, botInitialValues, transformBotValues, validateBotValues } from "forms/BotForm/BotForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
@@ -27,10 +27,10 @@ export const BotUpsert = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => botInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<NoteVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<NoteVersionCreateInput, NoteVersion>(endpointPostBot);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<NoteVersionUpdateInput, NoteVersion>(endpointPutBot);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>;
+    const { handleCancel, handleCompleted } = useUpsertActions<User>(display, isCreate, onCancel, onCompleted);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<BotCreateInput, User>(endpointPostBot);
+    const [update, { loading: isUpdateLoading }] = useLazyFetch<BotUpdateInput, User>(endpointPutBot);
+    const fetch = (isCreate ? create : update) as MakeLazyRequest<BotCreateInput | BotUpdateInput, User>;
 
     return (
         <Formik
@@ -41,24 +41,23 @@ export const BotUpsert = ({
                     PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                     return;
                 }
-                fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+                fetchLazyWrapper<BotCreateInput | BotUpdateInput, User>({
                     fetch,
-                    inputs: transformBotValues(values, existing),
+                    inputs: transformBotValues(session, values, existing),
                     onSuccess: (data) => { handleCompleted(data); },
                     onError: () => { helpers.setSubmitting(false); },
                 });
             }}
-            validate={async (values) => await validateBotValues(values, existing)}
+            validate={async (values) => await validateBotValues(session, values, existing)}
         >
             {(formik) =>
-                <NoteForm
+                <BotForm
                     display={display}
                     isCreate={isCreate}
                     isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    versions={[]}
                     zIndex={zIndex}
                     {...formik}
                 />

@@ -1,4 +1,4 @@
-import { HistoryIcon as TimeIcon, TimeFrame } from "@local/shared";
+import { CommonKey, HistoryIcon as TimeIcon, TimeFrame } from "@local/shared";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { TimeMenu } from "components/lists/TimeMenu/TimeMenu";
 import { useState } from "react";

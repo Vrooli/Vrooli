@@ -16,7 +16,7 @@ export type BotTranslationShape = {
 }
 
 export type BotShape = Pick<User, "id" | "isPrivate" | "name"> & {
-    __typename?: "Bot";
+    __typename?: "User";
     creativity?: number | null;
     isBot?: true;
     translations?: BotTranslationShape[] | null;

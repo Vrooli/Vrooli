@@ -36,7 +36,7 @@ type FullSearchParams = Partial<SearchParams> & {
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
  */
-export const parseData = (data: any, resolve?: (data: any) => any) => {
+export const parseData = (data: any, resolve?: (data: any) => object[]) => {
     if (!data) return [];
     // query result is always returned as an object with a single key (the endpoint name), where 
     // the value is the actual data. If this is not the case, then (hopefully) it was already 
@@ -181,6 +181,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
         return [];
     });
 
+    useEffect(() => {
+        console.log("all data", allData, [...new Set(allData.map((d) => d.id))]);
+    }, [allData]);
+
     // On search filters/sort change, reset the page
     useEffect(() => {
         // Reset the pagination cursor and hasMore
@@ -238,9 +242,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
             setAllData([]);
             return;
         }
+        // If there is "after" data, append it to the existing data
         if (Object.keys(after.current).length > 0) {
-            setAllData(curr => [...curr, ...parsedData]);
-        } else {
+            setAllData(curr => {
+                // If the last item in each array is the same, then this probably means 
+                // it has already been appended. So don't append it again.
+                if (curr.length > 0 && parsedData.length > 0 && curr[curr.length - 1].id === parsedData[parsedData.length - 1].id) return curr;
+                // Otherwise, append it
+                return [...curr, ...parsedData];
+            });
+        }
+        // Otherwise, assume this is a new search and replace the existing data
+        else {
             setAllData(parsedData);
         }
     }, [pageData, stableResolve]);

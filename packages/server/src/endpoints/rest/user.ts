@@ -1,8 +1,14 @@
-import { user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
+import { user_botCreate, user_botUpdate, user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
 import { UserEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 
 export const UserRest = setupRoutes({
+    "/bot/:id": {
+        put: [UserEndpoints.Mutation.botUpdate, user_botUpdate],
+    },
+    "/bot": {
+        post: [UserEndpoints.Mutation.botCreate, user_botCreate],
+    },
     "/profile": {
         get: [UserEndpoints.Query.profile, user_profile],
         put: [UserEndpoints.Mutation.profileUpdate, user_profileUpdate],

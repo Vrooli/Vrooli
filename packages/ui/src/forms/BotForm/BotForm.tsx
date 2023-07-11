@@ -1,4 +1,4 @@
-import { botTranslationValidation, botValidation, DUMMY_ID, orDefault, Session, User } from "@local/shared";
+import { botTranslationValidation, botValidation, DUMMY_ID, Session, User } from "@local/shared";
 import { Slider, Stack, Typography } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -15,36 +15,62 @@ import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/t
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { shapeBot, UserShape } from "utils/shape/models/bot";
+import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 
 export const botInitialValues = (
     session: Session | undefined,
     existing?: User | null | undefined,
-): UserShape => ({
-    __typename: "User" as const,
-    id: DUMMY_ID,
-    creativity: 0.5,
-    isPrivate: false,
-    name: "Bot Name",
-    verbosity: 0.5,
-    ...existing,
-    translations: orDefault(existing?.translations, [{
+): BotShape => {
+    // Try to parse stringified settings
+    let settings: Record<string, string | number> = {};
+    try {
+        settings = JSON.parse(existing?.botSettings ?? "{}");
+    } catch (error) {
+        console.error("Failed to parse settings", error);
+    }
+    // Inject string settings into translations
+    const translations: BotTranslationShape[] = existing?.translations?.map((translation) => ({
+        ...settings.translations?.[translation.language],
+        bias: "",
+        domainKnowledge: "",
+        keyPhrases: "",
+        occupation: "",
+        persona: "",
+        tone: "",
+        ...translation,
+    })) ?? [{
         __typename: "UserTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         bio: "",
-        // TODO other bot fields
-    }]),
-});
+        bias: "",
+        domainKnowledge: "",
+        keyPhrases: "",
+        occupation: "",
+        persona: "",
+        tone: "",
+    }];
+    return {
+        __typename: "User" as const,
+        id: DUMMY_ID,
+        creativity: 0.5,
+        isPrivate: false,
+        name: "Bot Name",
+        verbosity: 0.5,
+        ...existing,
+        isBot: true,
+        translations,
+    };
+};
 
-export function transformBotValues(values: UserShape, existing?: UserShape) {
+export function transformBotValues(session: Session | undefined, values: BotShape, existing?: User | null | undefined) {
     return existing === undefined
         ? shapeBot.create(values)
-        : shapeBot.update(existing, values);
+        : shapeBot.update(botInitialValues(session, existing), values);
 }
 
-export const validateBotValues = async (values: UserShape, existing?: UserShape) => {
-    const transformedValues = transformBotValues(values, existing);
+export const validateBotValues = async (session: Session | undefined, values: BotShape, existing?: User | null | undefined) => {
+    const transformedValues = transformBotValues(session, values, existing);
     const validationSchema = botValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;

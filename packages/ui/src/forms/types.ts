@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
+import { BotShape } from "utils/shape/models/bot";
 import { ChatShape } from "utils/shape/models/chat";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
@@ -88,6 +89,7 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
+export type BotFormProps = BaseObjectFormProps<BotShape>
 export type ChatFormProps = BaseObjectFormProps<ChatShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };

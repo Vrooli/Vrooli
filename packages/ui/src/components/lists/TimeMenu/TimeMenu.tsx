@@ -17,7 +17,7 @@ const timeOptions = {
     "TimeWeek": 604800000,
     "TimeDay": 86400000,
     "TimeHour": 3600000,
-};
+} as const;
 
 export function TimeMenu({
     anchorEl,
@@ -34,18 +34,18 @@ export function TimeMenu({
         setCustomRangeAnchorEl(null);
     };
 
-    const menuItems = useMemo(() => Object.keys(timeOptions).map((labelKey: CommonKey) => (
+    const menuItems = useMemo(() => Object.keys(timeOptions).map((labelKey) => (
         <MenuItem
             key={labelKey}
             value={timeOptions[labelKey]}
             onClick={() => {
                 // If All is selected, pass undefined to onClose
-                if (!timeOptions[labelKey]) onClose(labelKey);
+                if (!timeOptions[labelKey]) onClose(labelKey as CommonKey);
                 // Otherwise, pass the time as object with "after"
-                else onClose(labelKey, { after: new Date(Date.now() - timeOptions[labelKey]) });
+                else onClose(labelKey as CommonKey, { after: new Date(Date.now() - timeOptions[labelKey]) });
             }}
         >
-            {t(labelKey)}
+            {t(labelKey as CommonKey)}
         </MenuItem>
     )), [onClose, t]);
 
