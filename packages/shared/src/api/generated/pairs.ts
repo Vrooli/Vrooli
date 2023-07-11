@@ -1323,6 +1323,16 @@ export const endpointGetUnionsRunProjectOrRunRoutines = {
     method: "GET",
 } as const;
 
+export const endpointPutBot = {
+    endpoint: "/bot/:id",
+    method: "PUT",
+} as const;
+
+export const endpointPostBot = {
+    endpoint: "/bot",
+    method: "POST",
+} as const;
+
 export const endpointGetProfile = {
     endpoint: "/profile",
     method: "GET",
@@ -1367,3 +1377,4 @@ export const endpointPutWallet = {
     endpoint: "/wallet/:id",
     method: "PUT",
 } as const;
+

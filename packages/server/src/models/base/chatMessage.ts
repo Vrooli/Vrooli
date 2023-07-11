@@ -1,7 +1,7 @@
 import { chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
-import { SERVER_URL } from "../..";
 import { shapeHelper } from "../../builders";
 import { Trigger } from "../../events";
+import { SERVER_URL } from "../../server";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatMessageFormat } from "../format/chatMessage";

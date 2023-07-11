@@ -15,19 +15,13 @@ import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
-import { server } from "./server";
+import { server, SERVER_URL } from "./server";
 import { setupStripe, setupValyxa } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { loadSecrets } from "./utils/loadSecrets";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
-
-export const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
-    "http://localhost:5329/api" :
-    process.env.SERVER_URL ?
-        process.env.SERVER_URL :
-        `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
     logger.info("Starting server...");
