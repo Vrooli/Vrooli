@@ -1,7 +1,8 @@
-import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, ReactionFor, ReportFor, setDotNotationValue, SetLocation } from "@local/shared";
+import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, LINKS, ReactionFor, ReportFor, setDotNotationValue, SetLocation } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
+import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -176,7 +177,8 @@ export const useObjectActions = ({
             case ObjectAction.Edit:
                 if (onClick) onClick(object);
                 if (canNavigate && !canNavigate(object)) return;
-                openObjectEdit(object, setLocation);
+                if (object.__typename === "User" && getCurrentUser(session).id === object.id) setLocation(LINKS.SettingsProfile);
+                else openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
                 PubSub.get().publishFindInPage();
@@ -203,7 +205,7 @@ export const useObjectActions = ({
                 handleVote(action === ObjectAction.VoteUp ? "👍" : "👎");
                 break;
         }
-    }, [canNavigate, handleBookmark, handleCopy, handleVote, object, onClick, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, setLocation]);
+    }, [canNavigate, handleBookmark, handleCopy, handleVote, object, onClick, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, session, setLocation]);
 
     return {
         availableActions,

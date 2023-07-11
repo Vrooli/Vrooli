@@ -181,10 +181,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         return [];
     });
 
-    useEffect(() => {
-        console.log("all data", allData, [...new Set(allData.map((d) => d.id))]);
-    }, [allData]);
-
     // On search filters/sort change, reset the page
     useEffect(() => {
         // Reset the pagination cursor and hasMore

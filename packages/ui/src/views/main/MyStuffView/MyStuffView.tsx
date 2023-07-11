@@ -25,7 +25,7 @@ type BaseParams = {
     where: (userId: string) => { [x: string]: any };
 }
 
-// Data for each tab
+// Data for each tab TODO add bot tab
 const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
     searchType: SearchType.Routine,

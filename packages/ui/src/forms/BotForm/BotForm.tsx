@@ -1,11 +1,11 @@
 import { botTranslationValidation, botValidation, DUMMY_ID, Session, User } from "@local/shared";
-import { Slider, Stack, Typography } from "@mui/material";
+import { Slider, Stack, TextField, Typography } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { useField } from "formik";
+import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BotFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -123,7 +123,9 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
                     />
-                    <FormSection>
+                    <FormSection sx={{
+                        overflowX: "hidden",
+                    }}>
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
@@ -132,11 +134,11 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             languages={languages}
                             zIndex={zIndex + 1}
                         />
-                        <TranslatedTextField
+                        <Field
                             fullWidth
-                            label={t("Name")}
-                            language={language}
                             name="name"
+                            label={t("Name")}
+                            as={TextField}
                         />
                         <TranslatedMarkdownInput
                             language={language}
@@ -193,6 +195,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                 valueLabelDisplay="auto"
                                 min={0.1}
                                 max={1}
+                                step={0.1}
                                 marks={[
                                     {
                                         value: 0.1,
@@ -204,8 +207,14 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                     },
                                 ]}
                                 sx={{
-                                    marginLeft: 1.5,
-                                    marginRight: 1.5,
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
                                 }}
                             />
                         </Stack>
@@ -220,6 +229,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                 valueLabelDisplay="auto"
                                 min={0.1}
                                 max={1}
+                                step={0.1}
                                 marks={[
                                     {
                                         value: 0.1,
@@ -231,8 +241,14 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                                     },
                                 ]}
                                 sx={{
-                                    marginLeft: 1.5,
-                                    marginRight: 1.5,
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
                                 }}
                             />
                         </Stack>

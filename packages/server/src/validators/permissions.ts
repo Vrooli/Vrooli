@@ -270,18 +270,21 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getSingleTypePermissions");
     // Get auth data for all objects
     let select: any;
-    let authData: any = [];
+    let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-        authData = await delegate(prisma).findMany({
+        const authData = await delegate(prisma).findMany({
             where: { id: { in: ids } },
             select,
         });
+        dataById = Object.fromEntries(authData.map(item => [item.id, item]));
     } catch (error) {
         throw new CustomError("0388", "InternalError", userData?.languages ?? ["en"], { ids, select, objectType: type });
     }
-    // Loop through each object and calculate permissions
-    for (const authDataItem of authData) {
+    // Loop through each id and calculate permissions
+    for (const id of ids) {
+        // Get permissions object for this ID
+        const authDataItem = dataById[id];
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;

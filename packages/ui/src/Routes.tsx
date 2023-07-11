@@ -5,6 +5,7 @@ import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
 import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
 import { lazily } from "react-lazily";
+import { BotUpsert } from "views/objects/bot";
 import { PageProps } from "views/wrapper/types";
 import { Page } from "./components/Page/Page";
 
@@ -224,6 +225,12 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <PrivacyPolicyView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/add`} mustBeLoggedIn={true} {...props}>
+                    <BotUpsert {...viewProps} isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <BotUpsert {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView {...viewProps} />

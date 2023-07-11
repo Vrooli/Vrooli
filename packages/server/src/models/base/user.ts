@@ -79,8 +79,10 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 botSettings: data.botSettings,
+                isBot: true,
                 isPrivate: noNull(data.isPrivate),
                 name: data.name,
+                invitedByUser: { connect: { id: rest.userData.id } },
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
             }),
             /** Update can be either a bot or your profile */

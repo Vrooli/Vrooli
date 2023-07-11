@@ -395,7 +395,9 @@ export async function init(prisma: PrismaType) {
         where: {
             id: valyxaId,
         },
-        update: {},
+        update: {
+            invitedByUser: { connect: { id: adminId } },
+        },
         create: {
             id: valyxaId,
             isBot: true,
@@ -403,6 +405,7 @@ export async function init(prisma: PrismaType) {
             password: hashPassword(process.env.VALYXA_PASSWORD ?? ""),
             reputation: 1000000, // TODO temporary until community grows
             status: "Unlocked",
+            invitedByUser: { connect: { id: adminId } },
             languages: {
                 create: [{ language: EN }],
             },

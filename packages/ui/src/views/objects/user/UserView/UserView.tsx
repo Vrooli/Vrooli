@@ -81,6 +81,7 @@ export const UserView = ({
         setUser(userData ?? profileData ?? partialData as any);
     }, [userData, profileData, partialData]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
+    console.log("permissions", permissions, user);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
@@ -119,15 +120,12 @@ export const UserView = ({
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
-    const onEdit = useCallback(() => {
-        setLocation(LINKS.SettingsProfile);
-    }, [setLocation]);
-
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
+        if (!user?.id) return { searchType: SearchType.Project, placeholder: "SearchProject", where: {} };
         if (currTab.value === TabOptions.Organization)
-            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user?.id!], visibility: VisibilityType.All });
-        return toSearchListData("Project", "SearchProject", { ownedByUserId: user?.id!, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
+            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
+        return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab.value, user?.id, permissions.canUpdate]);
 
     // More menu

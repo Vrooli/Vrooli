@@ -1,4 +1,4 @@
-import { ApiIcon, CommonKey, HelpIcon, LINKS, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation } from "@local/shared";
+import { ApiIcon, BotIcon, CommonKey, HelpIcon, LINKS, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation } from "@local/shared";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CreateViewProps } from "../types";
 
-type CreateType = "Api" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
+type CreateType = "Api" | "Bot" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
 
 type CreateInfo = {
     objectType: CreateType;
@@ -48,6 +48,12 @@ const createCards: CreateInfo[] = [
         id: "create-organization-card",
     },
     {
+        objectType: "Bot",
+        description: "CreateBotDescription",
+        Icon: BotIcon,
+        id: "create-bot-card",
+    },
+    {
         objectType: "Question",
         description: "CreateQuestionDescription",
         Icon: HelpIcon,
@@ -82,7 +88,7 @@ export const CreateView = ({
     const { t } = useTranslation();
 
     const onSelect = useCallback((objectType: CreateType) => {
-        setLocation(`${LINKS[objectType]}/add`);
+        setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);
     }, [setLocation]);
 
     return (
