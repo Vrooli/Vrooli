@@ -17,15 +17,15 @@ export const ChatModel: ModelLogic<ChatModelLogic, typeof suppFields> = ({
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: ({ translations }, languages) => bestTranslation(translations, languages).name ?? "",
+            get: ({ translations }, languages) => bestTranslation(translations, languages)?.name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
+                    description: trans?.description,
+                    name: trans?.name,
                 }, languages[0]);
             },
         },

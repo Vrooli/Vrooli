@@ -136,6 +136,24 @@ export const typeDef = gql`
         bio: String
     }
 
+    input BotCreateInput {
+        id: ID!
+        botSettings: String!
+        isPrivate: Boolean
+        name: String!
+        translationsCreate: [UserTranslationCreateInput!]
+    }
+
+    input BotUpdateInput {
+        id: ID!
+        botSettings: String
+        isPrivate: Boolean
+        name: String
+        translationsDelete: [ID!]
+        translationsCreate: [UserTranslationCreateInput!]
+        translationsUpdate: [UserTranslationUpdateInput!]
+    }
+
     input ProfileUpdateInput {
         handle: String
         name: String
@@ -219,6 +237,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
+        botCreate(input: BotCreateInput!): User!
+        botUpdate(input: BotUpdateInput!): User!
         profileUpdate(input: ProfileUpdateInput!): User!
         profileEmailUpdate(input: ProfileEmailUpdateInput!): User!
         userDeleteOne(input: UserDeleteInput!): Success!

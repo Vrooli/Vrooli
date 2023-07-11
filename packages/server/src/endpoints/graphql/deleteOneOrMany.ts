@@ -44,6 +44,7 @@ export const typeDef = gql`
         Standard
         StandardVersion
         Transfer
+        User # Should only delete bots this way, not your account. Doing so won't allow you to select what happens to your data.
         Wallet
     }   
 

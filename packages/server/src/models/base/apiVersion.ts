@@ -18,7 +18,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
                 // Return name if exists, or callLink host
-                const name = bestTranslation(translations, languages).name ?? "";
+                const name = bestTranslation(translations, languages)?.name ?? "";
                 if (name.length > 0) return name;
                 const url = new URL(callLink);
                 return url.host;
@@ -35,8 +35,8 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
                     callLink,
-                    name: trans.name,
-                    summary: trans.summary,
+                    name: trans?.name,
+                    summary: trans?.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
                 }, languages[0]);
             },

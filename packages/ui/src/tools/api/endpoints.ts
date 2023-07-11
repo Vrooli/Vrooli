@@ -700,6 +700,8 @@ export const endpoints = {
             profile: toQuery("profile", null, profilePartial, "full"),
             findOne: toQuery("user", "FindByIdOrHandleInput", userPartial, "full"),
             findMany: toQuery("users", "UserSearchInput", ...(await toSearch(userPartial))),
+            botCreate: toMutation("botCreate", "BotCreateInput", userPartial, "full"),
+            botUpdate: toMutation("botUpdate", "BotUpdateInput", userPartial, "full"),
             profileUpdate: toMutation("profileUpdate", "ProfileUpdateInput", profilePartial, "full"),
             profileEmailUpdate: toMutation("profileEmailUpdate", "ProfileEmailUpdateInput", profilePartial, "full"),
             deleteOne: toMutation("userDeleteOne", "UserDeleteInput", successPartial, "full"),

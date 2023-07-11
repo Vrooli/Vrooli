@@ -22,8 +22,8 @@ export const PostModel: ModelLogic<PostModelLogic, typeof suppFields> = ({
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
+                    description: trans?.description,
+                    name: trans?.name,
                 }, languages[0]);
             },
         },

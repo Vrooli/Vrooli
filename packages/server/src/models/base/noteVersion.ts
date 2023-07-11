@@ -27,9 +27,9 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    text: trans.text?.slice(0, 512),
+                    text: trans?.text?.slice(0, 512),
                 }, languages[0]);
             },
         },

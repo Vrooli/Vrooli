@@ -27,8 +27,8 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    bio: trans.bio,
-                    name: trans.name,
+                    bio: trans?.bio,
+                    name: trans?.name,
                 }, languages[0]);
             },
         },

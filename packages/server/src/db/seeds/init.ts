@@ -446,10 +446,6 @@ export async function init(prisma: PrismaType) {
     //==============================================================
 
     //==============================================================
-    /* #endregion Create Resources */
-    //==============================================================
-
-    //==============================================================
     /* #region Create Organizations */
     //==============================================================
     let vrooli = await prisma.organization.findFirst({
@@ -683,7 +679,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Routines */
     //==============================================================
-    const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9"; // <- DO NOT CHANGE. This is used as a reference routine
+    const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9";
     let mintToken: any = await prisma.routine.findFirst({
         where: { id: mintTokenId },
     });

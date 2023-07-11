@@ -107,9 +107,9 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans.description,
+                    description: trans?.description,
                 }, languages[0]);
             },
         },

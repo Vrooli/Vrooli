@@ -23,7 +23,7 @@ import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
 
-const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
+export const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
     "http://localhost:5329/api" :
     process.env.SERVER_URL ?
         process.env.SERVER_URL :

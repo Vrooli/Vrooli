@@ -1,5 +1,5 @@
-import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
-import { readManyHelper, readOneHelper, updateHelper } from "../../actions";
+import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
 import { assertRequestFrom } from "../../auth";
 import { CustomError } from "../../events";
 import { rateLimit } from "../../middleware";
@@ -13,6 +13,8 @@ export type EndpointsUser = {
         users: GQLEndpoint<UserSearchInput, FindManyResult<User>>;
     },
     Mutation: {
+        botCreate: GQLEndpoint<BotCreateInput, UpdateOneResult<User>>;
+        botUpdate: GQLEndpoint<BotUpdateInput, UpdateOneResult<User>>;
         profileUpdate: GQLEndpoint<ProfileUpdateInput, UpdateOneResult<User>>;
         profileEmailUpdate: GQLEndpoint<ProfileEmailUpdateInput, UpdateOneResult<User>>;
         userDeleteOne: GQLEndpoint<UserDeleteInput, Success>;
@@ -40,6 +42,14 @@ export const UserEndpoints: EndpointsUser = {
         },
     },
     Mutation: {
+        botCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ maxUser: 500, req });
+            return createHelper({ info, input, objectType, prisma, req });
+        },
+        botUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ maxUser: 1000, req });
+            return updateHelper({ info, input, objectType, prisma, req });
+        },
         profileUpdate: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ maxUser: 250, req });
             // Add user id to input, since IDs are required for validation checks

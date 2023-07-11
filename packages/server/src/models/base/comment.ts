@@ -23,7 +23,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages).text ?? "",
+            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
     },
     format: CommentFormat,

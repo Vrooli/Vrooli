@@ -1,4 +1,5 @@
-import { chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, MaxObjects, uuidValidate } from "@local/shared";
+import { chatInviteValidation, ChatMessageCreateInput, ChatMessageSortBy, ChatMessageUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { SERVER_URL } from "../..";
 import { shapeHelper } from "../../builders";
 import { Trigger } from "../../events";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
@@ -9,6 +10,38 @@ import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
 import { ChatMessageModelLogic } from "./types";
 import { UserModel } from "./user";
+
+/** Information for a message, collected in mutate.shape.pre */
+type MessageData = {
+    /** IDs of bots in this message's chat */
+    botIds: string[];
+    /** ID of the chat this message belongs to */
+    chatId: string | null;
+    /** Content in user's preferred (or closest to preferred) language */
+    content: string;
+    /** Language code for message content */
+    language: string;
+    /** Total number of participants in the chat, including bots, users, and the current user */
+    participantsCount: number | null;
+    /** ID of the user who sent this message */
+    userId: string;
+}
+
+/** 
+ * Fields that we'll use to set up bot context. 
+ * Taken by combining parsed bot settings wiht other information 
+ * from the user object.
+ * */
+type BotData = {
+    name: string;
+    /** Taken from bio */
+    description: string;
+    /** 
+     * If bot data has translated information.
+     * Numbers represent scales from 0 to 1 (e.g. creativity, verbosity)
+     **/
+    translations: { [languageCode: string]: string | number };
+} & { [key: string]: string };
 
 const __typename = "ChatMessage" as const;
 const suppFields = ["you"] as const;
@@ -31,30 +64,30 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 // Collect bot information for bots to respond to messages.
                 // Collect chatIds and userIds to send notifications and trigger web socket events.
                 const botData: Record<string, string> = {};
-                const messageData: Record<string, {
-                    botData: string[] | null; // IDs of bots in this message's chat
-                    chatId: string | null; // ID of the chat this message belongs to
-                    participantsCount: number | null; // Total number of participants in the chat, including bots, users, and the current user
-                    userId: string // ID of the user who sent this message
-                }> = {};
-                // Find known information, which overrides information we'll query later
+                const messageData: Record<string, MessageData> = {};
+                // Find known information. We'll query for the rest later.
                 for (const d of [...createList, ...updateList]) {
+                    const best = bestTranslation([...((d as ChatMessageCreateInput).translationsCreate ?? []), ...((d as ChatMessageUpdateInput).translationsUpdate ?? [])], userData.languages);
                     messageData[d.id] = {
-                        botData: null,
+                        botIds: [],
                         chatId: (d as ChatMessageCreateInput).chatConnect ?? null,
+                        content: best?.text ?? "",
+                        language: best?.language ?? userData.languages[0],
                         participantsCount: null,
                         userId: userData.id,
                     };
                 }
                 for (const d of deleteList) {
                     messageData[d] = {
-                        botData: null,
+                        botIds: [],
                         chatId: null,
+                        content: "",
+                        language: userData.languages[0],
                         participantsCount: null,
                         userId: userData.id,
                     };
                 }
-                // Query chat information for new messages
+                // Query chat information of new messages
                 const chatIdsForNewMessages = createList.map(c => c.chatConnect);
                 const chatInfoForNewMessages = await prisma.chat.findMany({
                     where: { id: { in: chatIdsForNewMessages } },
@@ -81,12 +114,13 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         _count: { select: { participants: true } },
                     },
                 });
-                // Map chat information for new messages back to message data
+                // Add chat information to message data
                 chatInfoForNewMessages.forEach(chat => {
                     const message = createList.find(m => m.chatConnect === chat.id);
                     if (message) {
                         messageData[message.id] = {
-                            botData: chat.participants.map(p => {
+                            ...messageData[message.id],
+                            botIds: chat.participants.map(p => {
                                 botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
                                 return p.user.id;
                             }),
@@ -128,14 +162,15 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                         user: { select: { id: true } },
                     },
                 });
-                // Merge queriedData into messageData, without overwriting data from createList
+                // Add queriedData into messageData
                 queriedData.forEach(d => {
                     if (!messageData[d.id]) {
                         messageData[d.id] = {
-                            botData: d.chat?.participants.map(p => {
+                            ...messageData[d.id],
+                            botIds: d.chat?.participants.map(p => {
                                 botData[p.user.id] = p.user.botSettings ?? JSON.stringify({});
                                 return p.user.id;
-                            }) ?? null,
+                            }) ?? [],
                             chatId: d.chat?.id ?? null,
                             participantsCount: d.chat?._count?.participants ?? null,
                             userId: d.user?.id ?? "",
@@ -157,7 +192,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                 ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
             }),
             post: async ({ created, deletedIds, updated, preMap, prisma, userData }) => {
-                // Call triggers TODO handle bot responses
+                // Call triggers
                 for (const c of created) {
                     // Common trigger logic
                     await Trigger(prisma, userData.languages).objectCreated({
@@ -177,7 +212,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     // 2. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
                     // 3. Otherwise, we must check the message to see if any bots were mentioned
                     // Get message and bot data
-                    const message = preMap[__typename].messageData[c.id];
+                    const message: MessageData = preMap[__typename].messageData[c.id];
                     const botIds = preMap[__typename].botData;
                     // Check condition 1
                     if (botIds.length === 0) continue;
@@ -187,7 +222,45 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
                     }
                     // Check condition 3
                     else {
-                        //TODO
+                        // Find markdown links in the message
+                        const linkStrings = message.content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
+                        // Get the label and link for each link
+                        let links: { label: string, link: string }[] = linkStrings?.map(s => {
+                            const [label, link] = s.slice(1, -1).split("](");
+                            return { label, link };
+                        }) ?? [];
+                        // Filter out links where the that aren't a mention. Rules:
+                        // 1. Label must start with @
+                        // 2. Link must be to this site
+                        const correctOrigin = new URL(SERVER_URL).origin;
+                        links = links.filter(l => {
+                            if (!l.label.startsWith("@")) return false;
+                            try {
+                                const url = new URL(l.link);
+                                return url.origin === correctOrigin;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+                        let botsToRespond: string[] = [];
+                        // If one of the links is "@Everyone", all bots should respond
+                        if (links.some(l => l.label === "@Everyone")) {
+                            botsToRespond = botIds;
+                        }
+                        // Otherwise, find the bots that were mentioned by name (e.g. "@BotName")
+                        else {
+                            botsToRespond = links.map(l => {
+                                const botId = Object.keys(botIds).find(id => botIds[id].name === l.label.slice(1));
+                                if (!botId) return null;
+                                return botId;
+                            }).filter(id => id !== null) as string[];
+                            // Remove duplicates
+                            botsToRespond = [...new Set(botsToRespond)];
+                        }
+                        // For each bot that should respond, request bot response
+                        for (const botId of botsToRespond) {
+                            //TODO
+                        }
                     }
                 }
                 for (const u of updated) {

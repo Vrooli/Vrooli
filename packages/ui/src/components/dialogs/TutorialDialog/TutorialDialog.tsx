@@ -103,11 +103,30 @@ const sections: TutorialSection[] = [
                 action: () => { PubSub.get().publishSideMenu(false); },
             },
             {
-                text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nWe'll cover routines and other objects in more detail later.",
+                text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",
                 page: LINKS.Search,
                 element: "search-tabs",
             },
-            // TODO add step that links to a specific routine to run, then steps about each section, then steps about running it. Then steps to explain some other object types
+        ],
+    },
+    {
+        title: "Routines",
+        steps: [
+            {
+                text: "There are an endless number of tasks which can be completed with routines, and an endless way to design them\n\nLet's look at increasingly complex routines, all designed for a specific task - researching a topic.",
+            },
+            {
+                text: "This routine is as simple as they come. It has no steps or automation features - it's just a simple guide with resources.\n\nWhen automating a task, it can be helpful to start with a simple routine like this, and then add steps and automation features as you go.",
+            },
+            {
+                text: "This routine is a bit more complex. While still having no automation features, you'll notice that it has multiple steps.\n\nSteps are a great way to break down a task into smaller, more manageable chunks. Additionally, you can reuse steps across other routines, saving you time and effort.",
+            },
+            {
+                text: "Finally, we have a routine which automates the entire task.\n\nInstead of viewing resources manually and typing in each step's inputs yourself, an AI bot will do it for you.",
+            },
+            {
+                text: "This is just one example of how routines can be used. There are many other ways to use them, and many other features you can explore.",
+            },
         ],
     },
     {
