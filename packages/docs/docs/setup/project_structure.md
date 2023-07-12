@@ -1,5 +1,5 @@
-# Directory Structure
-This is a high-level overview of the directory structure of the Vrooli codebase. For more information on a specific directory. Check out each directory yourself to get a better understanding of what's in there.
+# Project Structure
+This is a high-level overview of the project structure of the Vrooli codebase. For more information on a specific directory. Check out each directory yourself to get a better understanding of what's in there.
 
 .  
 ├── [assets]({{ config.extra.repo_code }}/assets) - Data displayed in docs  

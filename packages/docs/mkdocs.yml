@@ -12,29 +12,40 @@ nav:
       - Background: about/background.md
       - Resources: about/resources.md
   - Valyxa:
-      - Introduction: valyxa/introduction.md
+      - Overview: valyxa/overview.md
   - API Reference:
       - Overview: api_reference/overview.md
       - Getting Access: api_reference/getting_access.md
       - Authorization: api_reference/authorization.md
   - Setup:
       - Overview: setup/overview.md
+      - Project Structure: setup/project_structure.md
       - Getting Started:
           - Overview: setup/getting_started/overview.md
           - Prerequisites: setup/getting_started/prerequisites.md
           - Remote Server Setup: setup/getting_started/remote_setup.md
           - Repository Setup: setup/getting_started/repo_setup.md
+          - Messenger Setup: setup/messenger_setup.md
           - Working With Docker: setup/getting_started/working_with_docker.md
-      - Messenger Setup: setup/messenger_setup.md
-      - Understanding the Design:
-          - Directory Structure: setup/understanding_the_design/directory_structure.md
-          - Database Design: setup/understanding_the_design/database_design.md
   - Testing:
       - Overview: testing/overview.md
+      - Logs: testing/logs.md
+      - Profiling: testing/profiling.md
       - Routine Complexity: testing/routine_complexity.md
-  - Upgrades:
-      - Overview: upgrades/overview.md
-      - Migrate: upgrades/migrate.md
+  - Deployment:
+      - Overview: deployment/overview.md
+      - Single Server: deployment/single_server.md
+      - Multiple Servers: deployment/multiple_servers.md
+  - Guides:
+      - Overview: guides/overview.md
+      - Linting: guides/linting.md
+      - Logo: guides/logo.md
+      - Fonts: guides/fonts.md
+      - UX Performance: guides/ui_performance.md
+      - PWA and TWA: guides/pwa_and_twa.md
+      - Income Streams: guides/income_streams.md
+      - Database Design: design/database_design.md
+      - Migrate: guides/migrate.md
 theme:
   name: material
   logo: assets/logo.png

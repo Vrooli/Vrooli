@@ -1,4 +1,6 @@
 # Database Migrations
+This guide will walk you through migrating the database. If you want to read more general information about the data, you can visit [the Prisma docs](https://www.prisma.io/docs/concepts/components/prisma-migrate).
+
 Database migrations require an interactive terminal, which means they cannot be a part of the docker-compose setup process. 
 
 ## Initial Migration

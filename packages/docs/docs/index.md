@@ -13,7 +13,7 @@ In these docs, we cover the following topics:
   </div>
 
   <div class="card">
-    <a href="valyxa/introduction.html">
+    <a href="valyxa/overview.html">
       <h3>Valyxa</h3>
       <p>Our powerful AI assistant</p>
     </a>
@@ -27,7 +27,7 @@ In these docs, we cover the following topics:
   </div>
 
   <div class="card">
-    <a href="setup/getting_started.html">
+    <a href="setup/overview.html">
       <h3>Setup</h3>
       <p>Learn how to develop Vrooli</p>
     </a>
@@ -41,9 +41,16 @@ In these docs, we cover the following topics:
   </div>
 
   <div class="card">
-    <a href="upgrades/overview.html">
-      <h3>Upgrading</h3>
-      <p>How Vrooli is updated</p>
+    <a href="deployment/overview.html">
+      <h3>Deployment</h3>
+      <p>How we deploy Vrooli</p>
+    </a>
+  </div>
+
+  <div class="card">
+    <a href="guides/overview.html">
+      <h3>Guides</h3>
+      <p>Various developer guides</p>
     </a>
   </div>
 
