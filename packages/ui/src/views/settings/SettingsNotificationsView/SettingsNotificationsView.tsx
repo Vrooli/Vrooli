@@ -1,5 +1,5 @@
 import { endpointGetNotificationSettings, endpointPutNotificationSettings, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -34,35 +34,37 @@ export const SettingsNotificationsView = ({
             />
             <Stack direction="row">
                 <SettingsList />
-                <Formik
-                    enableReinitialize={true}
-                    initialValues={{
-                        includedEmails: [] as string[],
-                        includedSms: [] as string[],
-                        includedPush: [] as string[],
-                        toEmails: false,
-                        toSms: false,
-                        toPush: false,
-                        dailyLimit: 0,
-                        enabled: true,
-                        categories: [] as NotificationSettingsCategory[],
-                    } as NotificationSettingsUpdateInput}
-                    onSubmit={(values, helpers) =>
-                        fetchLazyWrapper<NotificationSettingsUpdateInput, NotificationSettings>({
-                            fetch: updateFetch,
-                            inputs: values,
-                            onError: () => { helpers.setSubmitting(false); },
-                        })
-                    }
-                >
-                    {(formik) => <SettingsNotificationForm
-                        display={display}
-                        isLoading={isLoading || isUpdating}
-                        onCancel={formik.resetForm}
-                        zIndex={zIndex}
-                        {...formik}
-                    />}
-                </Formik>
+                <Box m="auto" mt={2}>
+                    <Formik
+                        enableReinitialize={true}
+                        initialValues={{
+                            includedEmails: [] as string[],
+                            includedSms: [] as string[],
+                            includedPush: [] as string[],
+                            toEmails: false,
+                            toSms: false,
+                            toPush: false,
+                            dailyLimit: 0,
+                            enabled: true,
+                            categories: [] as NotificationSettingsCategory[],
+                        } as NotificationSettingsUpdateInput}
+                        onSubmit={(values, helpers) =>
+                            fetchLazyWrapper<NotificationSettingsUpdateInput, NotificationSettings>({
+                                fetch: updateFetch,
+                                inputs: values,
+                                onError: () => { helpers.setSubmitting(false); },
+                            })
+                        }
+                    >
+                        {(formik) => <SettingsNotificationForm
+                            display={display}
+                            isLoading={isLoading || isUpdating}
+                            onCancel={formik.resetForm}
+                            zIndex={zIndex}
+                            {...formik}
+                        />}
+                    </Formik>
+                </Box>
             </Stack>
         </>
     );

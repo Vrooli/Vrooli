@@ -1,5 +1,5 @@
 import { endpointPostReport, Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
-import { DialogContent, Link, Typography } from "@mui/material";
+import { Link, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -23,7 +23,7 @@ export const ReportDialog = ({
     onClose,
     open,
     reportFor,
-    title = "Report",
+    title,
     zIndex,
 }: ReportDialogProps) => {
     const session = useContext(SessionContext);
@@ -53,59 +53,57 @@ export const ReportDialog = ({
         >
             <DialogTitle
                 id={titleId}
-                title={title}
+                title={title ?? t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
                 onClose={handleCancel}
                 zIndex={zIndex + 1000}
             />
-            <DialogContent>
-                <Link onClick={toExistingReports}>
-                    <Typography sx={{
-                        ...clickSize,
-                        ...formNavLink,
-                        justifyContent: "center",
-                        marginTop: 2,
-                    }}>
-                        {t("ViewExistingReports")}
-                    </Typography>
-                </Link>
-                <Formik
-                    enableReinitialize={true}
-                    initialValues={initialValues}
-                    onSubmit={(values, helpers) => {
-                        fetchLazyWrapper<ReportCreateInput, Report>({
-                            fetch,
-                            inputs: {
-                                id: uuid(),
-                                createdFor: reportFor,
-                                createdForConnect: forId,
-                                reason: values.otherReason ?? values.reason,
-                                details: "",
-                                language,
-                            },
-                            successCondition: (data) => data !== null,
-                            successMessage: () => ({ messageKey: "ReportSubmitted" }),
-                            onSuccess: () => {
-                                helpers.resetForm();
-                                onClose();
-                            },
-                            onError: () => { helpers.setSubmitting(false); },
-                        });
-                    }}
-                    validationSchema={reportCreateForm}
-                >
-                    {(formik) => <ReportForm
-                        display="dialog"
-                        isCreate={true}
-                        isLoading={isLoading}
-                        isOpen={true}
-                        onCancel={handleCancel}
-                        ref={formRef}
-                        zIndex={zIndex + 1000}
-                        {...formik}
-                    />}
-                </Formik>
-            </DialogContent>
+            <Link onClick={toExistingReports}>
+                <Typography sx={{
+                    ...clickSize,
+                    ...formNavLink,
+                    justifyContent: "center",
+                    marginTop: 2,
+                }}>
+                    {t("ViewExistingReports")}
+                </Typography>
+            </Link>
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={(values, helpers) => {
+                    fetchLazyWrapper<ReportCreateInput, Report>({
+                        fetch,
+                        inputs: {
+                            id: uuid(),
+                            createdFor: reportFor,
+                            createdForConnect: forId,
+                            reason: values.otherReason ?? values.reason,
+                            details: "",
+                            language,
+                        },
+                        successCondition: (data) => data !== null,
+                        successMessage: () => ({ messageKey: "ReportSubmitted" }),
+                        onSuccess: () => {
+                            helpers.resetForm();
+                            onClose();
+                        },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
+                }}
+                validationSchema={reportCreateForm}
+            >
+                {(formik) => <ReportForm
+                    display="dialog"
+                    isCreate={true}
+                    isLoading={isLoading}
+                    isOpen={true}
+                    onCancel={handleCancel}
+                    ref={formRef}
+                    zIndex={zIndex + 1000}
+                    {...formik}
+                />}
+            </Formik>
         </LargeDialog>
     );
 };

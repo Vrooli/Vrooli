@@ -18,6 +18,7 @@ import { PageTab } from "components/types";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OverviewContainer } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -250,7 +251,7 @@ export const UserView = ({
                     </Tooltip> */}
                     <ShareButton object={user} zIndex={zIndex} />
                     <BookmarkButton
-                        disabled={permissions.canUpdate}
+                        disabled={user?.id === getCurrentUser(session).id}
                         objectId={user?.id ?? ""}
                         bookmarkFor={BookmarkFor.User}
                         isBookmarked={user?.you?.isBookmarked ?? false}
@@ -262,7 +263,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, handle, user, bio, zIndex, actionData]);
+    ), [profileColors, user, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, isLoading, name, permissions.canUpdate, t, zIndex, handle, bio, session, actionData]);
 
     /**
      * Opens add new page

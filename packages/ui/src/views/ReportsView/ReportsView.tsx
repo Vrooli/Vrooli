@@ -46,7 +46,7 @@ export const ReportsView = ({
                 display={display}
                 help={t("ReportsHelp")}
                 onClose={onClose}
-                title={t("Reports")}
+                title={t("Report", { count: 2 })}
                 zIndex={zIndex}
             />
             {reports.map((report, i) => {

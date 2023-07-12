@@ -176,10 +176,7 @@ export const SettingsFocusModesView = ({
             />
             <Stack direction="row">
                 <SettingsList />
-                <Stack direction="column" sx={{
-                    margin: "auto",
-                    display: "block",
-                }}>
+                <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
@@ -267,7 +264,7 @@ export const SettingsFocusModesView = ({
                             </ListItem>
                         ))}
                     </ListContainer>
-                </Stack>
+                </Box>
             </Stack>
         </>
     );

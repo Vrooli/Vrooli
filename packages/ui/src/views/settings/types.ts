@@ -5,7 +5,7 @@ export type SettingsPageType = "Profile" | "Privacy" | "Authentication" | "Displ
 export type SettingsData = {
     title: SettingsPageType,
     description: CommonKey,
-    link: keyof typeof LINKS,
+    link: LINKS,
     Icon: SvgComponent,
 };
 

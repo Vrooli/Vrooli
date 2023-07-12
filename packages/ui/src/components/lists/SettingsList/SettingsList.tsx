@@ -11,15 +11,15 @@ export const SettingsList = () => {
     const [, setLocation] = useLocation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const onSelect = useCallback((newValue: any) => {
-        if (!newValue) return;
-        setLocation(LINKS[newValue]);
+    const onSelect = useCallback((link: LINKS) => {
+        if (!link) return;
+        setLocation(link);
     }, [setLocation]);
 
     const [accountListOpen, setAccountListOpen] = useState(false);
     const toggleAccountList = useCallback(() => setAccountListOpen(!accountListOpen), [accountListOpen]);
     const accountList = useMemo(() => {
-        const isSelected = (link: string) => window.location.pathname.includes(link);
+        const isSelected = (link: LINKS) => window.location.pathname.includes(link);
         return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
                 button
@@ -42,7 +42,7 @@ export const SettingsList = () => {
     const [displayListOpen, setDisplayListOpen] = useState(false);
     const toggleDisplayList = useCallback(() => setDisplayListOpen(!displayListOpen), [displayListOpen]);
     const displayList = useMemo(() => {
-        const isSelected = (link: string) => window.location.pathname.includes(link);
+        const isSelected = (link: LINKS) => window.location.pathname.includes(link);
         return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
                 button
@@ -65,11 +65,14 @@ export const SettingsList = () => {
 
     if (isMobile) return null;
     return (
-        // Full width on mobile, and 500px on desktop. 
         <Box sx={{
             width: "min(100%, 300px)",
-            marginLeft: "auto",
-            borderRight: { xs: "none", md: "1px solid" },
+            height: "fit-content",
+            marginLeft: 0,
+            marginTop: 4,
+            background: palette.background.paper,
+            boxShadow: 4,
+            borderRadius: 2,
         }}>
             <List>
                 {/* Account-related items */}

@@ -1,4 +1,5 @@
 import { DialogContent, ListItem, ListItemText } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { walletDownloadUrls } from "utils/authentication/walletIntegration";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
@@ -15,6 +16,8 @@ export const WalletInstallDialog = ({
     open,
     zIndex,
 }: WalletInstallDialogProps) => {
+    const { t } = useTranslation();
+
     return (
         <LargeDialog
             id="wallet-install-dialog"
@@ -25,7 +28,7 @@ export const WalletInstallDialog = ({
         >
             <DialogTitle
                 id={titleId}
-                title={"Install Wallet Extension"}
+                title={t("InstallWalletExtension")}
                 onClose={onClose}
                 zIndex={zIndex + 1000}
             />

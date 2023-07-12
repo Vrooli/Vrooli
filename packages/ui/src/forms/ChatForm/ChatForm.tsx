@@ -88,17 +88,17 @@ export const ChatForm = forwardRef<BaseFormRef | undefined, ChatFormProps>(({
                 <FormContainer>
                     {/* TODO */}
                 </FormContainer>
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                zIndex={zIndex}
+            />
         </>
     );
 });

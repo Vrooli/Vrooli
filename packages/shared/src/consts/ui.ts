@@ -42,7 +42,7 @@ export const LINKS = {
     Tag: "/tag",
     Terms: "/terms", // Terms and conditions
     User: "/profile",
-};
+} as const;
 export type LINKS = ValueOf<typeof LINKS>;
 
 export const THEME = {

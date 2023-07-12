@@ -82,9 +82,9 @@ export const SettingsAuthenticationView = ({
                 title={t("Authentication")}
                 zIndex={zIndex}
             />
-            <Stack direction="row">
+            <Stack direction="row" mt={2}>
                 <SettingsList />
-                <Box>
+                <Box m="auto">
                     <Title
                         help={t("WalletListHelp")}
                         Icon={WalletIcon}

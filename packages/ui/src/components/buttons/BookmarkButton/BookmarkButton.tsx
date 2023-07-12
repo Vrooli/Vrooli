@@ -1,7 +1,8 @@
 import { Bookmark, BookmarkFilledIcon, BookmarkFor, BookmarkOutlineIcon, uuidValidate } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { useBookmarker } from "utils/hooks/useBookmarker";
@@ -22,6 +23,7 @@ export const BookmarkButton = ({
 }: BookmarkButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Used to respond to user clicks immediately, without having 
@@ -99,19 +101,11 @@ export const BookmarkButton = ({
                 zIndex={zIndex + 1}
             />
             {/* Main content */}
-            <Box
-                onClick={handleClick}
-                sx={{
-                    marginRight: 0,
-                    marginTop: "auto !important",
-                    marginBottom: "auto !important",
-                    pointerEvents: disabled ? "none" : "all",
-                    cursor: userId ? "pointer" : "default",
-                    ...(sxs?.root ?? {}),
-                }}
-            >
-                <Icon fill={fill} />
-            </Box>
+            <Tooltip title={t("Bookmark")}>
+                <IconButton aria-label={t("Bookmark")} size="small" onClick={handleClick}>
+                    <Icon fill={fill} />
+                </IconButton>
+            </Tooltip>
         </>
     );
 };

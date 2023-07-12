@@ -22,72 +22,74 @@ export const SettingsNotificationForm = ({
     const { t } = useTranslation();
 
     return (
-        <BaseForm
-            dirty={dirty}
-            display={display}
-            isLoading={isLoading}
-        >
-            <Stack direction="column" spacing={4}>
-                {/* Overall notifications toggle */}
-                <ListContainer>
-                    <SettingsToggleListItem
-                        title={t("Notification", { count: 2 })}
-                        description={t("PushNotificationToggleDescription")}
-                        name="enabled"
-                    />
-                </ListContainer>
-                {/* Daily limit input */}
-                <IntegerInput
-                    disabled={!values.enabled}
-                    label={t("DailyLimit")}
-                    min={0}
-                    name="dailyLimit"
-                // tooltip={t('DailyLimitNotificationDescription')}
-                />
-                {/* Push notifications toggle */}
-                <ListContainer>
-                    <SettingsToggleListItem
-                        title={t("PushNotification", { count: 2 })}
-                        description={t("PushNotificationToggleDescription")}
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                <Stack direction="column" spacing={4}>
+                    {/* Overall notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t("Notification", { count: 2 })}
+                            description={t("PushNotificationToggleDescription")}
+                            name="enabled"
+                        />
+                    </ListContainer>
+                    {/* Daily limit input */}
+                    <IntegerInput
                         disabled={!values.enabled}
-                        name="toPush"
+                        label={t("DailyLimit")}
+                        min={0}
+                        name="dailyLimit"
+                    // tooltip={t('DailyLimitNotificationDescription')}
                     />
-                </ListContainer>
-                {/* Push Device list */}
-                <Title
-                    Icon={PhoneIcon}
-                    title={t("Device", { count: 2 })}
-                    variant="subheader"
-                    zIndex={zIndex}
-                />
-                <PushList
-                    handleUpdate={() => { }}
-                    list={[]}
-                />
-                {/* Email notifications toggle */}
-                <ListContainer>
-                    <SettingsToggleListItem
-                        title={t("EmailNotification", { count: 2 })}
-                        description={t("EmailNotificationToggleDescription")}
-                        disabled={!values.enabled}
-                        name="toEmails"
+                    {/* Push notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t("PushNotification", { count: 2 })}
+                            description={t("PushNotificationToggleDescription")}
+                            disabled={!values.enabled}
+                            name="toPush"
+                        />
+                    </ListContainer>
+                    {/* Push Device list */}
+                    <Title
+                        Icon={PhoneIcon}
+                        title={t("Device", { count: 2 })}
+                        variant="subheader"
+                        zIndex={zIndex}
                     />
-                </ListContainer>
-                {/* Email list */}
-                <Title
-                    Icon={EmailIcon}
-                    title={t("Email", { count: 2 })}
-                    variant="subheader"
-                    zIndex={zIndex}
-                />
-                {/* <EmailList
+                    <PushList
+                        handleUpdate={() => { }}
+                        list={[]}
+                    />
+                    {/* Email notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t("EmailNotification", { count: 2 })}
+                            description={t("EmailNotificationToggleDescription")}
+                            disabled={!values.enabled}
+                            name="toEmails"
+                        />
+                    </ListContainer>
+                    {/* Email list */}
+                    <Title
+                        Icon={EmailIcon}
+                        title={t("Email", { count: 2 })}
+                        variant="subheader"
+                        zIndex={zIndex}
+                    />
+                    {/* <EmailList
                 handleUpdate={updateEmails}
                 list={profile?.emails ?? []}
                 numVerifiedWallets={numVerifiedWallets}
             /> */}
-                {/* Toggle individual categories */}
-                {/* TODO */}
-            </Stack>
+                    {/* Toggle individual categories */}
+                    {/* TODO */}
+                </Stack>
+            </BaseForm>
             <GridSubmitButtons
                 display={display}
                 errors={props.errors}
@@ -98,6 +100,6 @@ export const SettingsNotificationForm = ({
                 onSubmit={props.handleSubmit}
                 zIndex={zIndex}
             />
-        </BaseForm>
+        </>
     );
 };

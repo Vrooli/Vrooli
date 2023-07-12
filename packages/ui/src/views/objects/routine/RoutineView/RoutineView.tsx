@@ -319,8 +319,8 @@ export const RoutineView = ({
                     {
                         existing?.nodes?.length ? <Box>
                             <Title
-                                title={"This is a multi-step routine."}
-                                help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                                title={t("ThisIsMultiStep")}
+                                help={"ThisIsMultiStepHelp"}
                                 variant="subheader"
                                 zIndex={zIndex}
                             />
@@ -330,7 +330,7 @@ export const RoutineView = ({
                                 onClick={viewGraph}
                                 color="secondary"
                                 variant="outlined"
-                            >View Graph</Button>
+                            >{t("ViewGraph")}</Button>
                         </Box> : null
                     }
                     {/* Tags */}

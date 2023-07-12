@@ -196,19 +196,15 @@ export const WalletList = ({
                 alignItems: "center",
                 display: "flex",
                 justifyContent: "center",
-                paddingTop: 2,
+                paddingTop: 4,
                 paddingBottom: 6,
             }}>
                 <Button
                     fullWidth
                     onClick={openWalletAddDialog}
                     startIcon={<AddIcon />}
-                    sx={{
-                        maxWidth: "400px",
-                        width: "auto",
-                    }}
                     variant="outlined"
-                >Add Wallet</Button>
+                >{t("AddWallet")}</Button>
             </Box>
         </>
     );

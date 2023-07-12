@@ -38,10 +38,7 @@ export const SettingsDisplayView = ({
             />
             <Stack direction="row">
                 <SettingsList />
-                <Stack direction="column" sx={{
-                    margin: "auto",
-                    display: "block",
-                }}>
+                <Box m="auto">
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
@@ -84,7 +81,7 @@ export const SettingsDisplayView = ({
                                 marginRight: "auto",
                             }}>{t("ClearSearchHistory")}</Button>
                     </Box>
-                </Stack>
+                </Box>
             </Stack>
         </>
     );

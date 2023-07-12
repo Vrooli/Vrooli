@@ -18,7 +18,7 @@ export const SettingsSearchBar = ({
     options = [],
     onChange,
     onInputChange,
-    placeholder = "Search...",
+    placeholder,
     value,
     ...props
 }: SettingsSearchBarProps) => {
@@ -158,7 +158,7 @@ export const SettingsSearchBar = ({
                         fullWidth={params.fullWidth}
                         value={internalValue}
                         onChange={handleChange}
-                        placeholder={placeholder}
+                        placeholder={placeholder ?? t("SearchEllipsis")}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
                         inputProps={params.inputProps}

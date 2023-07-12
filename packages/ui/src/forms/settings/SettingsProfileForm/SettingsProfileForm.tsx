@@ -60,28 +60,29 @@ export const SettingsProfileForm = ({
     }, [handlesData]);
 
     return (
-        <BaseForm
-            dirty={dirty}
-            display={display}
-            isLoading={isLoading}
-        >
-            <Grid container spacing={2} sx={{
-                paddingBottom: 4,
-                paddingLeft: 2,
-                paddingRight: 2,
-                paddingTop: 2,
-            }}>
-                <Grid item xs={12}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                {/* <Grid item xs={12}>
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                <Grid container spacing={2} sx={{
+                    paddingBottom: 4,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                    paddingTop: 2,
+                }}>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* <Grid item xs={12}>
                     <Stack direction="row" spacing={0}>
                         <Autocomplete
                             disablePortal
@@ -114,20 +115,21 @@ export const SettingsProfileForm = ({
                         </ColorIconButton>
                     </Stack>
                 </Grid> */}
-                <Grid item xs={12}>
-                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
+                    <Grid item xs={12}>
+                        <Field fullWidth name="name" label={t("Name")} as={TextField} />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TranslatedMarkdownInput
+                            language={language}
+                            maxChars={2048}
+                            minRows={4}
+                            name="bio"
+                            placeholder={t("Bio")}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
                 </Grid>
-                <Grid item xs={12}>
-                    <TranslatedMarkdownInput
-                        language={language}
-                        maxChars={2048}
-                        minRows={4}
-                        name="bio"
-                        placeholder={t("Bio")}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-            </Grid>
+            </BaseForm>
             <GridSubmitButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
@@ -138,6 +140,6 @@ export const SettingsProfileForm = ({
                 onSubmit={props.handleSubmit}
                 zIndex={zIndex}
             />
-        </BaseForm>
+        </>
     );
 };

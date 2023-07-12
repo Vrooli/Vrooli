@@ -68,6 +68,7 @@ export const SettingsTopBar = ({
         <TopBar
             {...rest}
             display={display}
+            hideTitleOnDesktop={true}
             onClose={onClose}
             // Search bar to find settings
             below={<Box sx={{
