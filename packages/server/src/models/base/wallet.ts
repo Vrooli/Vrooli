@@ -40,10 +40,11 @@ export const WalletModel: ModelLogic<WalletModelLogic, typeof suppFields> = ({
         },
         yup: walletValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             organization: "Organization",
             user: "User",

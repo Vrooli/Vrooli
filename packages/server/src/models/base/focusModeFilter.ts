@@ -5,7 +5,7 @@ import { FocusModeFilterFormat } from "../format/focusModeFilter";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";
-import { FocusModeFilterModelLogic } from "./types";
+import { FocusModeFilterModelLogic, TagModelLogic } from "./types";
 
 const __typename = "FocusModeFilter" as const;
 const suppFields = [] as const;
@@ -15,7 +15,7 @@ export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof 
     display: {
         label: {
             select: () => ({ id: true, tag: { select: TagModel.display.label.select() } }),
-            get: (select, languages) => select.tag ? TagModel.display.label.get(select.tag as any, languages) : "",
+            get: (select, languages) => select.tag ? TagModel.display.label.get(select.tag as TagModelLogic["PrismaModel"], languages) : "",
         },
     },
     format: FocusModeFilterFormat,
@@ -31,6 +31,7 @@ export const FocusModeFilterModel: ModelLogic<FocusModeFilterModelLogic, typeof 
         },
         yup: focusModeFilterValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

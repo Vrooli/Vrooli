@@ -6,7 +6,7 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../
 import { ApiVersionFormat } from "../format/apiVersion";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
-import { ApiVersionModelLogic } from "./types";
+import { ApiModelLogic, ApiVersionModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
 const suppFields = ["you"] as const;
@@ -132,10 +132,10 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate.isPublic(data.root as any, languages),
+            ApiModel.validate.isPublic(data.root as ApiModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate.owner(data.root as any, userId),
+        owner: (data, userId) => ApiModel.validate.owner(data.root as ApiModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

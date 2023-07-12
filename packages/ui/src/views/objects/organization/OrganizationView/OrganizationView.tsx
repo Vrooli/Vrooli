@@ -175,16 +175,15 @@ export const OrganizationView = ({
             >
                 <OrganizationIcon fill="white" width='75%' height='75%' />
             </Avatar>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
                         display: "block",
                         marginLeft: "auto",
                         marginRight: 1,
-                        paddingRight: "1em",
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />

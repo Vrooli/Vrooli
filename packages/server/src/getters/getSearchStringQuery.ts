@@ -65,7 +65,7 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
 }): Where {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
-    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery");
+    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery", true);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
 }

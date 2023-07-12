@@ -5,7 +5,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionFormat } from "../format/quizQuestion";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
-import { QuizQuestionModelLogic } from "./types";
+import { QuizModelLogic, QuizQuestionModelLogic } from "./types";
 
 const __typename = "QuizQuestion" as const;
 const suppFields = ["you"] as const;
@@ -68,10 +68,10 @@ export const QuizQuestionModel: ModelLogic<QuizQuestionModelLogic, typeof suppFi
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as any, languages),
+        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as QuizModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as any, userId),
+        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

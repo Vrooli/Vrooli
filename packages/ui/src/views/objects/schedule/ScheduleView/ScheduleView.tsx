@@ -48,9 +48,9 @@ export const ScheduleView = ({
      */
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{

@@ -9,7 +9,7 @@ import { RoutineVersionFormat } from "../format/routineVersion";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
 import { RunRoutineModel } from "./runRoutine";
-import { RoutineVersionModelLogic } from "./types";
+import { RoutineModelLogic, RoutineVersionModelLogic } from "./types";
 
 /**
  * Validates node positions
@@ -230,10 +230,10 @@ export const RoutineVersionModel: ModelLogic<RoutineVersionModelLogic, typeof su
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            RoutineModel.validate.isPublic(data.root as any, languages),
+            RoutineModel.validate.isPublic(data.root as RoutineModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => RoutineModel.validate.owner(data.root as any, userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data.root as RoutineModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

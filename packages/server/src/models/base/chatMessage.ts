@@ -8,7 +8,7 @@ import { ChatMessageFormat } from "../format/chatMessage";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
 import { ReactionModel } from "./reaction";
-import { ChatMessageModelLogic } from "./types";
+import { ChatMessageModelLogic, ChatModelLogic } from "./types";
 import { UserModel } from "./user";
 
 /** Information for a message, collected in mutate.shape.pre */
@@ -308,7 +308,7 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         searchStringQuery: () => ({
             OR: [
                 "transTextWrapped",
-                { user: UserModel.search!.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {
@@ -329,11 +329,11 @@ export const ChatMessageModel: ModelLogic<ChatMessageModelLogic, typeof suppFiel
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as any).organization,
-            User: (data.chat as any).user,
+            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
+            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const isParticipant = uuidValidate(userId) && (data.chat as any).participants?.some((p) => p.userId === userId);
+            const isParticipant = uuidValidate(userId) && (data.chat as ChatModelLogic["PrismaModel"]).participants?.some((p) => p.userId === userId);
             return {
                 ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
                 canReply: () => isLoggedIn && !isDeleted && (isAdmin || isParticipant),

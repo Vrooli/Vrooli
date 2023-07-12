@@ -1,12 +1,11 @@
 import { StatsSmartContractSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsSmartContractFormat } from "../format/statsSmartContract";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
-import { StatsSmartContractModelLogic } from "./types";
+import { SmartContractModelLogic, StatsSmartContractModelLogic } from "./types";
 
 const __typename = "StatsSmartContract" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
     delegate: (prisma) => prisma.stats_smart_contract,
     display: {
         label: {
-            select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.label.select) }),
+            select: () => ({ id: true, smartContract: { select: SmartContractModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: SmartContractModel.display.label.get(select.smartContract as any, languages),
+                objectName: SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ smartContract: SmartContractModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ smartContract: SmartContractModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsSmartContractModel: ModelLogic<StatsSmartContractModelLogic, t
             smartContract: "SmartContract",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => SmartContractModel.validate.owner(data.smartContract as any, userId),
+        owner: (data, userId) => SmartContractModel.validate.owner(data.smartContract as SmartContractModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
             ["smartContract", "SmartContract"],

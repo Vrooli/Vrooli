@@ -2,13 +2,13 @@
 // they created or own the object of
 import { ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { noNull, selPad, shapeHelper } from "../../builders";
+import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportResponseFormat } from "../format/reportResponse";
 import { ModelLogic } from "../types";
 import { ReportModel } from "./report";
-import { ReportResponseModelLogic } from "./types";
+import { ReportModelLogic, ReportResponseModelLogic } from "./types";
 
 const __typename = "ReportResponse" as const;
 const suppFields = [] as const;
@@ -19,9 +19,9 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         label: {
             select: () => ({
                 id: true,
-                report: selPad(ReportModel.display.label.select),
+                report: { select: ReportModel.display.label.select() },
             }),
-            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label.get(select.report as any, languages) }),
+            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ReportModel.display.label.get(select.report as ReportModelLogic["PrismaModel"], languages) }),
         },
     },
     format: ReportResponseFormat,
@@ -56,7 +56,7 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         searchStringQuery: () => ({
             OR: [
                 "detailsWrapped",
-                { report: ReportModel.search!.searchStringQuery() },
+                { report: ReportModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {
@@ -76,9 +76,9 @@ export const ReportResponseModel: ModelLogic<ReportResponseModelLogic, typeof su
         maxObjects: 100000,
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ReportModel.validate.owner(data.report as any, userId),
-        isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as any, languages),
-        isPublic: (data, languages) => ReportModel.validate.isPublic(data.report as any, languages),
+        owner: (data, userId) => ReportModel.validate.owner(data.report as ReportModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => ReportModel.validate.isDeleted(data.report as ReportModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => ReportModel.validate.isPublic(data.report as ReportModelLogic["PrismaModel"], languages),
         visibility: {
             private: { report: ReportModel.validate.visibility.private },
             public: { report: ReportModel.validate.visibility.public },

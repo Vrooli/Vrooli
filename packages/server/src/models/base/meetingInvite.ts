@@ -6,7 +6,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { MeetingInviteFormat } from "../format/meetingInvite";
 import { ModelLogic } from "../types";
 import { MeetingModel } from "./meeting";
-import { MeetingInviteModelLogic } from "./types";
+import { MeetingInviteModelLogic, MeetingModelLogic } from "./types";
 
 const __typename = "MeetingInvite" as const;
 const suppFields = ["you"] as const;
@@ -17,7 +17,7 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         // Label is the meeting label
         label: {
             select: () => ({ id: true, meeting: { select: MeetingModel.display.label.select() } }),
-            get: (select, languages) => MeetingModel.display.label.get(select.meeting as any, languages),
+            get: (select, languages) => MeetingModel.display.label.get(select.meeting as MeetingModelLogic["PrismaModel"], languages),
         },
     },
     format: MeetingInviteFormat,
@@ -49,7 +49,7 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         searchStringQuery: () => ({
             OR: [
                 "messageWrapped",
-                { meeting: MeetingModel.search!.searchStringQuery() },
+                { meeting: MeetingModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {
@@ -73,7 +73,7 @@ export const MeetingInviteModel: ModelLogic<MeetingInviteModelLogic, typeof supp
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data.meeting as any).organization,
+            Organization: (data.meeting as MeetingModelLogic["PrismaModel"]).organization,
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [

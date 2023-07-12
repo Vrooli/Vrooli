@@ -115,7 +115,6 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                     />
                     {/* Enter link or search for object */}
                     <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
-                    {/* Select resource type */}
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -124,14 +123,12 @@ export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProp
                         fullWidth
                         label={t("Type")}
                     />
-                    {/* Enter name */}
                     <TranslatedTextField
                         fullWidth
                         label={t("NameOptional")}
                         language={language}
                         name="name"
                     />
-                    {/* Enter description */}
                     <TranslatedTextField
                         fullWidth
                         label={t("DescriptionOptional")}

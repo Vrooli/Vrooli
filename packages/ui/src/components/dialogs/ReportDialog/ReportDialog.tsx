@@ -1,9 +1,9 @@
-import { endpointPostReport, Report, reportCreateForm, ReportCreateInput, uuid } from "@local/shared";
+import { endpointPostReport, Report, ReportCreateInput } from "@local/shared";
 import { Link, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ReportForm, reportInitialValues } from "forms/ReportForm/ReportForm";
+import { ReportForm, reportInitialValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +12,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { SessionContext } from "utils/SessionContext";
+import { shapeReport } from "utils/shape/models/report";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ReportDialogProps } from "../types";
@@ -72,16 +73,10 @@ export const ReportDialog = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
+                    console.log("form submit", values);
                     fetchLazyWrapper<ReportCreateInput, Report>({
                         fetch,
-                        inputs: {
-                            id: uuid(),
-                            createdFor: reportFor,
-                            createdForConnect: forId,
-                            reason: values.otherReason ?? values.reason,
-                            details: "",
-                            language,
-                        },
+                        inputs: shapeReport.create(values),
                         successCondition: (data) => data !== null,
                         successMessage: () => ({ messageKey: "ReportSubmitted" }),
                         onSuccess: () => {
@@ -91,7 +86,7 @@ export const ReportDialog = ({
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validationSchema={reportCreateForm}
+                validate={async (values) => await validateReportValues(values)}
             >
                 {(formik) => <ReportForm
                     display="dialog"

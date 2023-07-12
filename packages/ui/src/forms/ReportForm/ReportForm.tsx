@@ -1,7 +1,8 @@
-import { DUMMY_ID, Report, ReportFor, Session } from "@local/shared";
+import { DUMMY_ID, Report, ReportFor, reportValidation, Session } from "@local/shared";
 import { TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -10,7 +11,8 @@ import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
-import { ReportShape } from "utils/shape/models/report";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ReportShape, shapeReport } from "utils/shape/models/report";
 
 enum ReportOptions {
     Inappropriate = "Inappropriate",
@@ -44,6 +46,19 @@ export const reportInitialValues = (
     ...existing,
 });
 
+export const transformReportValues = (values: ReportShape, existing?: ReportShape) => {
+    return existing === undefined
+        ? shapeReport.create(values)
+        : shapeReport.update(existing, values);
+};
+
+export const validateReportValues = async (values: ReportShape, existing?: ReportShape) => {
+    const transformedValues = transformReportValues(values, existing);
+    console.log("transformed report", transformedValues);
+    const validationSchema = reportValidation[existing === undefined ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
 
 export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>(({
     display,
@@ -87,7 +102,6 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         options={Object.keys(ReportReasons)}
                         getOptionLabel={(r) => ReportReasons[r]}
                         fullWidth
-                        inputAriaLabel="select reason"
                         label={t("Reason")}
                     />
                     {reasonField.value === ReportOptions.Other && <Field
@@ -97,14 +111,13 @@ export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>((
                         helperText={t("ReasonCustomHelp")}
                         as={TextField}
                     />}
-                    <Field
-                        fullWidth
-                        multiline
-                        rows={4}
+                    <MarkdownInput
+                        maxChars={8192}
+                        maxRows={10}
+                        minRows={4}
                         name="details"
-                        label={t("DetailsOptional")}
-                        helperText={t("ReportDetailsHelp")}
-                        as={TextField}
+                        placeholder={t("DetailsOptional")}
+                        zIndex={zIndex}
                     />
                 </FormContainer>
             </BaseForm>

@@ -4,7 +4,7 @@ import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { ReminderFormat } from "../format/reminder";
 import { ModelLogic } from "../types";
 import { ReminderListModel } from "./reminderList";
-import { ReminderModelLogic } from "./types";
+import { ReminderListModelLogic, ReminderModelLogic } from "./types";
 
 const __typename = "Reminder" as const;
 const suppFields = [] as const;
@@ -65,10 +65,10 @@ export const ReminderModel: ModelLogic<ReminderModelLogic, typeof suppFields> = 
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderListModel.validate.isPublic(data.reminderList as any, languages),
+        isPublic: (data, languages) => ReminderListModel.validate.isPublic(data.reminderList as ReminderListModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderListModel.validate.owner(data.reminderList as any, userId),
+        owner: (data, userId) => ReminderListModel.validate.owner(data.reminderList as ReminderListModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

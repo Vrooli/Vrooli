@@ -1594,10 +1594,11 @@ model reminder_item {
 
 model report {
     id                     String                      @id @default(uuid()) @db.Uuid
+    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
     reason                 String                      @db.VarChar(128)
     details                String?                     @db.VarChar(8192)
     language               String                      @db.VarChar(3)
-    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     status                 ReportStatus
     apiVersionId           String?                     @db.Uuid
     chatMessageId          String?                     @db.Uuid
@@ -1635,6 +1636,8 @@ model report {
 
 model report_response {
     id              String                @id @default(uuid()) @db.Uuid
+    created_at      DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime              @default(now()) @db.Timestamptz(6)
     reportId        String                @db.Uuid
     createdById     String                @db.Uuid
     actionSuggested ReportSuggestedAction

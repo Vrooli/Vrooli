@@ -38,6 +38,7 @@ export const PushDeviceModel: ModelLogic<PushDeviceModelLogic, typeof suppFields
         },
         yup: pushDeviceValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

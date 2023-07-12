@@ -1,6 +1,7 @@
 import { MaxObjects, ScheduleSortBy, scheduleValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { findFirstRel, noNull, selPad, shapeHelper } from "../../builders";
+import i18next from "i18next";
+import { findFirstRel, noNull, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleFormat } from "../format/schedule";
@@ -9,7 +10,7 @@ import { FocusModeModel } from "./focusMode";
 import { MeetingModel } from "./meeting";
 import { RunProjectModel } from "./runProject";
 import { RunRoutineModel } from "./runRoutine";
-import { ScheduleModelLogic } from "./types";
+import { FocusModeModelLogic, MeetingModelLogic, RunProjectModelLogic, RunRoutineModelLogic, ScheduleModelLogic } from "./types";
 
 const __typename = "Schedule" as const;
 const suppFields = [] as const;
@@ -20,17 +21,17 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
         label: {
             select: () => ({
                 id: true,
-                focusModes: selPad(FocusModeModel.display.label.select),
-                meetings: selPad(MeetingModel.display.label.select),
-                runProjects: selPad(RunProjectModel.display.label.select),
-                runRoutines: selPad(RunRoutineModel.display.label.select),
+                focusModes: { select: FocusModeModel.display.label.select() },
+                meetings: { select: MeetingModel.display.label.select() },
+                runProjects: { select: RunProjectModel.display.label.select() },
+                runRoutines: { select: RunRoutineModel.display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.focusModes) return FocusModeModel.display.label.get(select.focusModes as any, languages);
-                if (select.meetings) return MeetingModel.display.label.get(select.meetings as any, languages);
-                if (select.runProjects) return RunProjectModel.display.label.get(select.runProjects as any, languages);
-                if (select.runRoutines) return RunRoutineModel.display.label.get(select.runRoutines as any, languages);
-                return "";
+                if (select.focusModes && select.focusModes.length > 0) return FocusModeModel.display.label.get(select.focusModes[0] as FocusModeModelLogic["PrismaModel"], languages);
+                if (select.meetings && select.meetings.length > 0) return MeetingModel.display.label.get(select.meetings[0] as MeetingModelLogic["PrismaModel"], languages);
+                if (select.runProjects && select.runProjects.length > 0) return RunProjectModel.display.label.get(select.runProjects[0] as RunProjectModelLogic["PrismaModel"], languages);
+                if (select.runRoutines && select.runRoutines.length > 0) return RunRoutineModel.display.label.get(select.runRoutines[0] as RunRoutineModelLogic["PrismaModel"], languages);
+                return i18next.t("common:Schedule", { lng: languages[0] });
             },
         },
     },
@@ -90,10 +91,10 @@ export const ScheduleModel: ModelLogic<ScheduleModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { focusModes: { some: FocusModeModel.search!.searchStringQuery() } },
-                { meetings: { some: MeetingModel.search!.searchStringQuery() } },
-                { runProjects: { some: RunProjectModel.search!.searchStringQuery() } },
-                { runRoutines: { some: RunRoutineModel.search!.searchStringQuery() } },
+                { focusModes: { some: FocusModeModel.search.searchStringQuery() } },
+                { meetings: { some: MeetingModel.search.searchStringQuery() } },
+                { runProjects: { some: RunProjectModel.search.searchStringQuery() } },
+                { runRoutines: { some: RunRoutineModel.search.searchStringQuery() } },
             ],
         }),
     },

@@ -1,11 +1,10 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
-import { selPad } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { MemberFormat } from "../format/member";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";
-import { MemberModelLogic } from "./types";
+import { MemberModelLogic, OrganizationModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "Member" as const;
@@ -17,9 +16,9 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
         label: {
             select: () => ({
                 id: true,
-                user: selPad(UserModel.display.label.select),
+                user: { select: UserModel.display.label.select() },
             }),
-            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
         },
     },
     format: MemberFormat,
@@ -34,9 +33,9 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
         },
         searchStringQuery: () => ({
             OR: [
-                { organization: OrganizationModel.search!.searchStringQuery() },
-                { role: RoleModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { organization: OrganizationModel.search.searchStringQuery() },
+                { role: RoleModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
     },
@@ -45,9 +44,9 @@ export const MemberModel: ModelLogic<MemberModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
-        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as any, languages),
-        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as any, languages),
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

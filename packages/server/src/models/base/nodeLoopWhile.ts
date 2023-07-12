@@ -4,7 +4,7 @@ import { defaultPermissions, translationShapeHelper } from "../../utils";
 import { NodeLoopWhileFormat } from "../format/nodeLoopWhile";
 import { ModelLogic } from "../types";
 import { NodeLoopModel } from "./nodeLoop";
-import { NodeLoopWhileModelLogic } from "./types";
+import { NodeLoopModelLogic, NodeLoopWhileModelLogic } from "./types";
 
 const __typename = "NodeLoopWhile" as const;
 const suppFields = [] as const;
@@ -35,14 +35,15 @@ export const NodeLoopWhileModel: ModelLogic<NodeLoopWhileModelLogic, typeof supp
         },
         yup: nodeLoopWhileValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, loop: "NodeLoop" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeLoopModel.validate.owner(data.loop as any, userId),
-        isDeleted: (data, languages) => NodeLoopModel.validate.isDeleted(data.loop as any, languages),
-        isPublic: (data, languages) => NodeLoopModel.validate.isPublic(data.loop as any, languages),
+        owner: (data, userId) => NodeLoopModel.validate.owner(data.loop as NodeLoopModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => NodeLoopModel.validate.isDeleted(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => NodeLoopModel.validate.isPublic(data.loop as NodeLoopModelLogic["PrismaModel"], languages),
         visibility: {
             private: { loop: NodeLoopModel.validate.visibility.private },
             public: { loop: NodeLoopModel.validate.visibility.public },

@@ -1,11 +1,10 @@
 import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
 import { RoutineVersionInputModel } from ".";
-import { selPad } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { RunRoutineInputFormat } from "../format/runRoutineInput";
 import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
-import { RunRoutineInputModelLogic } from "./types";
+import { RoutineVersionInputModelLogic, RunRoutineInputModelLogic, RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutineInput" as const;
 const suppFields = [] as const;
@@ -16,13 +15,13 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
         label: {
             select: () => ({
                 id: true,
-                input: selPad(RoutineVersionInputModel.display.label.select),
-                runRoutine: selPad(RunRoutineModel.display.label.select),
+                input: { select: RoutineVersionInputModel.display.label.select() },
+                runRoutine: { select: RunRoutineModel.display.label.select() },
             }),
             // Label combines runRoutine's label and input's label
             get: (select, languages) => {
-                const runRoutineLabel = RunRoutineModel.display.label.get(select.runRoutine as any, languages);
-                const inputLabel = RoutineVersionInputModel.display.label.get(select.input as any, languages);
+                const runRoutineLabel = RunRoutineModel.display.label.get(select.runRoutine as RunRoutineModelLogic["PrismaModel"], languages);
+                const inputLabel = RoutineVersionInputModel.display.label.get(select.input as RoutineVersionInputModelLogic["PrismaModel"], languages);
                 if (runRoutineLabel.length > 0) {
                     return `${runRoutineLabel} - ${inputLabel}`;
                 }
@@ -58,7 +57,7 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
             standardIds: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({ runRoutine: RunRoutineModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ runRoutine: RunRoutineModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -69,9 +68,9 @@ export const RunRoutineInputModel: ModelLogic<RunRoutineInputModelLogic, typeof 
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as any, userId),
+        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
+        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },

@@ -18,7 +18,7 @@ import { SmartContractModel } from "./smartContract";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
-import { PullRequestModelLogic } from "./types";
+import { ApiModelLogic, ApiVersionModelLogic, NoteModelLogic, NoteVersionModelLogic, ProjectModelLogic, ProjectVersionModelLogic, PullRequestModelLogic, RoutineModelLogic, RoutineVersionModelLogic, SmartContractModelLogic, SmartContractVersionModelLogic, StandardModelLogic, StandardVersionModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -62,19 +62,19 @@ export const PullRequestModel: ModelLogic<PullRequestModelLogic, typeof suppFiel
             }),
             // Label is from -> to
             get: (select, languages) => {
-                const from = select.fromApiVersion ? ApiVersionModel.display.label.get(select.fromApiVersion as any, languages) :
-                    select.fromNoteVersion ? NoteVersionModel.display.label.get(select.fromNoteVersion as any, languages) :
-                        select.fromProjectVersion ? ProjectVersionModel.display.label.get(select.fromProjectVersion as any, languages) :
-                            select.fromRoutineVersion ? RoutineVersionModel.display.label.get(select.fromRoutineVersion as any, languages) :
-                                select.fromSmartContractVersion ? SmartContractVersionModel.display.label.get(select.fromSmartContractVersion as any, languages) :
-                                    select.fromStandardVersion ? StandardVersionModel.display.label.get(select.fromStandardVersion as any, languages) :
+                const from = select.fromApiVersion ? ApiVersionModel.display.label.get(select.fromApiVersion as ApiVersionModelLogic["PrismaModel"], languages) :
+                    select.fromNoteVersion ? NoteVersionModel.display.label.get(select.fromNoteVersion as NoteVersionModelLogic["PrismaModel"], languages) :
+                        select.fromProjectVersion ? ProjectVersionModel.display.label.get(select.fromProjectVersion as ProjectVersionModelLogic["PrismaModel"], languages) :
+                            select.fromRoutineVersion ? RoutineVersionModel.display.label.get(select.fromRoutineVersion as RoutineVersionModelLogic["PrismaModel"], languages) :
+                                select.fromSmartContractVersion ? SmartContractVersionModel.display.label.get(select.fromSmartContractVersion as SmartContractVersionModelLogic["PrismaModel"], languages) :
+                                    select.fromStandardVersion ? StandardVersionModel.display.label.get(select.fromStandardVersion as StandardVersionModelLogic["PrismaModel"], languages) :
                                         "";
-                const to = select.toApi ? ApiModel.display.label.get(select.toApi as any, languages) :
-                    select.toNote ? NoteModel.display.label.get(select.toNote as any, languages) :
-                        select.toProject ? ProjectModel.display.label.get(select.toProject as any, languages) :
-                            select.toRoutine ? RoutineModel.display.label.get(select.toRoutine as any, languages) :
-                                select.toSmartContract ? SmartContractModel.display.label.get(select.toSmartContract as any, languages) :
-                                    select.toStandard ? StandardModel.display.label.get(select.toStandard as any, languages) :
+                const to = select.toApi ? ApiModel.display.label.get(select.toApi as ApiModelLogic["PrismaModel"], languages) :
+                    select.toNote ? NoteModel.display.label.get(select.toNote as NoteModelLogic["PrismaModel"], languages) :
+                        select.toProject ? ProjectModel.display.label.get(select.toProject as ProjectModelLogic["PrismaModel"], languages) :
+                            select.toRoutine ? RoutineModel.display.label.get(select.toRoutine as RoutineModelLogic["PrismaModel"], languages) :
+                                select.toSmartContract ? SmartContractModel.display.label.get(select.toSmartContract as SmartContractModelLogic["PrismaModel"], languages) :
+                                    select.toStandard ? StandardModel.display.label.get(select.toStandard as StandardModelLogic["PrismaModel"], languages) :
                                         "";
                 return `${from} -> ${to}`;
             },

@@ -5,7 +5,7 @@ import { bestTranslation, defaultPermissions, translationShapeHelper } from "../
 import { NodeFormat } from "../format/node";
 import { ModelLogic } from "../types";
 import { RoutineVersionModel } from "./routineVersion";
-import { NodeModelLogic } from "./types";
+import { NodeModelLogic, RoutineVersionModelLogic } from "./types";
 
 const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
@@ -62,14 +62,15 @@ export const NodeModel: ModelLogic<NodeModelLogic, typeof suppFields> = ({
         },
         yup: nodeValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
-        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as any, languages),
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

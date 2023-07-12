@@ -4,7 +4,7 @@ import { defaultPermissions } from "../../utils";
 import { ReminderItemFormat } from "../format/reminderItem";
 import { ModelLogic } from "../types";
 import { ReminderModel } from "./reminder";
-import { ReminderItemModelLogic } from "./types";
+import { ReminderItemModelLogic, ReminderModelLogic } from "./types";
 
 const __typename = "ReminderItem" as const;
 const suppFields = [] as const;
@@ -38,12 +38,13 @@ export const ReminderItemModel: ModelLogic<ReminderItemModelLogic, typeof suppFi
         },
         yup: reminderItemValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as any, languages),
+        isPublic: (data, languages) => ReminderModel.validate.isPublic(data.reminder as ReminderModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as any, userId),
+        owner: (data, userId) => ReminderModel.validate.owner(data.reminder as ReminderModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

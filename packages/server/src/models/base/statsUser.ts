@@ -1,11 +1,10 @@
 import { StatsUserSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsUserFormat } from "../format/statsUser";
 import { ModelLogic } from "../types";
-import { StatsUserModelLogic } from "./types";
+import { StatsUserModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "StatsUser" as const;
@@ -15,10 +14,10 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
     delegate: (prisma) => prisma.stats_user,
     display: {
         label: {
-            select: () => ({ id: true, user: selPad(UserModel.display.label.select) }),
+            select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: UserModel.display.label.get(select.user as any, languages),
+                objectName: UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ user: UserModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ user: UserModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsUserModel: ModelLogic<StatsUserModelLogic, typeof suppFields> 
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => UserModel.validate.owner(data.user as any, userId),
+        owner: (data, userId) => UserModel.validate.owner(data.user as UserModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_userSelect>(data, [
             ["user", "User"],

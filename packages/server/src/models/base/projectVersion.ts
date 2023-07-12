@@ -8,7 +8,7 @@ import { ProjectVersionFormat } from "../format/projectVersion";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
 import { RunProjectModel } from "./runProject";
-import { ProjectVersionModelLogic } from "./types";
+import { ProjectModelLogic, ProjectVersionModelLogic } from "./types";
 
 const __typename = "ProjectVersion" as const;
 const suppFields = ["you"] as const;
@@ -105,7 +105,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         // Loop through search fields and add each to the search query, 
     //         // if the field is specified in the input
     //         const customQueries: { [x: string]: any }[] = [];
-    //         for (const field of Object.keys(CommentModel.search!.searchFields)) {
+    //         for (const field of Object.keys(CommentModel.search.searchFields)) {
     //             if (input[field as string] !== undefined) {
     //                 customQueries.push(SearchMap[field as string](input, getUser(req.session), __typename));
     //             }
@@ -116,9 +116,9 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
     //         // Make sure sort field is valid
-    //         const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
-    //         const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined
-    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
+    //         const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
+    //         const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined
+    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
     //         // Find requested search array
     //         const searchResults = await prisma.comment.findMany({
     //             where,
@@ -146,7 +146,7 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
     //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
-    //             sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
+    //             sortBy: input.sortBy ?? CommentModel.search.defaultSort,
     //         }, info, nestLimit) : [];
     //         // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
     //         const flattenThreads = (threads: CommentThread[]) => {
@@ -270,11 +270,11 @@ export const ProjectVersionModel: ModelLogic<ProjectVersionModelLogic, typeof su
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ProjectModel.validate.isPublic(data.root as any, languages),
+            ProjectModel.validate.isPublic(data.root as ProjectModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectModel.validate.owner(data.root as any, userId),
-        permissionsSelect: (...params) => ({
+        owner: (data, userId) => ProjectModel.validate.owner(data.root as ProjectModelLogic["PrismaModel"], userId),
+        permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,
