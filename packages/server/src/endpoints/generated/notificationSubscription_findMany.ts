@@ -51,7 +51,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -72,9 +74,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -85,7 +89,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -106,9 +112,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -156,7 +164,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -177,9 +187,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "score": true,
@@ -220,7 +232,9 @@ export const notificationSubscription_findMany = {
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -271,7 +285,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -292,9 +308,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -324,7 +342,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -345,9 +365,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -365,7 +387,9 @@ export const notificationSubscription_findMany = {
               "owner": {
                 "Organization": {
                   "id": true,
+                  "bannerImage": true,
                   "handle": true,
+                  "profileImage": true,
                   "you": {
                     "canAddMembers": true,
                     "canDelete": true,
@@ -386,9 +410,11 @@ export const notificationSubscription_findMany = {
                 },
                 "User": {
                   "id": true,
+                  "bannerImage": true,
+                  "handle": true,
                   "isBot": true,
                   "name": true,
-                  "handle": true
+                  "profileImage": true
                 }
               },
               "you": {
@@ -437,7 +463,9 @@ export const notificationSubscription_findMany = {
               "stepsCount": true,
               "organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -458,9 +486,11 @@ export const notificationSubscription_findMany = {
               },
               "user": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               },
               "you": {
                 "canDelete": true,
@@ -506,7 +536,9 @@ export const notificationSubscription_findMany = {
               "wasRunAutomatically": true,
               "organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -527,9 +559,11 @@ export const notificationSubscription_findMany = {
               },
               "user": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               },
               "you": {
                 "canDelete": true,
@@ -571,7 +605,9 @@ export const notificationSubscription_findMany = {
           "showOnOrganizationProfile": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -606,7 +642,9 @@ export const notificationSubscription_findMany = {
                 "membersCount": true,
                 "organization": {
                   "id": true,
+                  "bannerImage": true,
                   "handle": true,
+                  "profileImage": true,
                   "you": {
                     "canAddMembers": true,
                     "canDelete": true,
@@ -640,7 +678,9 @@ export const notificationSubscription_findMany = {
             "membersCount": true,
             "organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -714,7 +754,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -735,9 +777,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -748,7 +792,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -769,9 +815,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -809,6 +857,7 @@ export const notificationSubscription_findMany = {
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
           "created_at": true,
           "updated_at": true,
@@ -816,6 +865,7 @@ export const notificationSubscription_findMany = {
           "isPrivate": true,
           "commentsCount": true,
           "membersCount": true,
+          "profileImage": true,
           "reportsCount": true,
           "bookmarks": true,
           "tags": {
@@ -891,7 +941,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -912,9 +964,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -925,7 +979,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -946,9 +1002,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -998,9 +1056,11 @@ export const notificationSubscription_findMany = {
           "status": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "you": {
             "canComment": true,
@@ -1021,9 +1081,11 @@ export const notificationSubscription_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "hasAcceptedAnswer": true,
           "isPrivate": true,
@@ -1043,7 +1105,9 @@ export const notificationSubscription_findMany = {
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1111,9 +1175,11 @@ export const notificationSubscription_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "score": true,
           "bookmarks": true,
@@ -1202,7 +1268,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -1223,9 +1291,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -1236,7 +1306,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1257,9 +1329,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -1344,7 +1418,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -1365,9 +1441,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -1378,7 +1456,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1399,9 +1479,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -1487,7 +1569,9 @@ export const notificationSubscription_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -1508,9 +1592,11 @@ export const notificationSubscription_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -1521,7 +1607,9 @@ export const notificationSubscription_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1542,9 +1630,11 @@ export const notificationSubscription_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,

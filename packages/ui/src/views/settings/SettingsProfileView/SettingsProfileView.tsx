@@ -13,6 +13,7 @@ import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
+import { createPrims } from "utils/shape/models/tools";
 import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
@@ -40,8 +41,10 @@ export const SettingsProfileView = ({
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
+                            bannerImage: null,
                             handle: profile?.handle ?? null,
                             name: profile?.name ?? "",
+                            profileImage: null,
                             translations: profile?.translations?.length ? profile.translations : [{
                                 id: DUMMY_ID,
                                 language: getUserLanguages(session)[0],
@@ -53,6 +56,13 @@ export const SettingsProfileView = ({
                                 PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
                                 return;
                             }
+                            console.log("submitting profile update: values", values);
+                            console.log("submitting profile update: profile", profile);
+                            console.log("submitting profile update: shapeProfile.update(profile, values)", shapeProfile.update(profile, {
+                                id: profile.id,
+                                ...values,
+                            }));
+                            console.log("test1", createPrims(values, "profileImage"));
                             fetchLazyWrapper<ProfileUpdateInput, User>({
                                 fetch,
                                 inputs: shapeProfile.update(profile, {
@@ -60,6 +70,7 @@ export const SettingsProfileView = ({
                                     ...values,
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
+                                onSuccess: (updated) => { helpers.setSubmitting(false); onProfileUpdate(updated); },
                                 onError: () => { helpers.setSubmitting(false); },
                             });
                         }}

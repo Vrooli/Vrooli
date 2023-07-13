@@ -11,7 +11,9 @@ export const chat_findMany = {
         "owner": {
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -32,9 +34,11 @@ export const chat_findMany = {
           },
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           }
         },
         "you": {
@@ -54,7 +58,9 @@ export const chat_findMany = {
       "openToAnyoneWithInvite": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -89,7 +95,9 @@ export const chat_findMany = {
             "membersCount": true,
             "organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -123,7 +131,9 @@ export const chat_findMany = {
         "membersCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -151,9 +161,11 @@ export const chat_findMany = {
       "participants": {
         "user": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true
+          "profileImage": true
         },
         "id": true,
         "created_at": true,

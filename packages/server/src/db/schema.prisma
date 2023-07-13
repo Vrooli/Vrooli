@@ -817,10 +817,12 @@ model organization {
     id                 String                      @id @default(uuid()) @db.Uuid
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
+    bannerImage        String?                     @db.VarChar(2048)
     handle             String?                     @unique @db.VarChar(16)
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
+    profileImage       String?                     @db.VarChar(2048)
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     parentId           String?                     @db.Uuid
@@ -2517,6 +2519,7 @@ model user {
     id                             String                      @id @default(uuid()) @db.Uuid
     created_at                     DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at                     DateTime                    @default(now()) @db.Timestamptz(6)
+    bannerImage                    String?                     @db.VarChar(2048)
     confirmationCode               String?                     @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
     invitedByUserId                String?                     @db.Uuid
@@ -2551,6 +2554,7 @@ model user {
     resetPasswordCode              String?                     @unique @db.VarChar(256)
     sessionToken                   String?                     @db.VarChar(1024)
     name                           String                      @db.VarChar(128)
+    profileImage                   String?                     @db.VarChar(2048)
     theme                          String                      @default("light") @db.VarChar(255)
     handle                         String?                     @unique @db.VarChar(16)
     currentStreak                  Int                         @default(0)

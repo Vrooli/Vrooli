@@ -506,8 +506,6 @@ spec:
               value: postgresql://site:$(DB_PASSWORD)@db:5432
             - name: DB_USER
               value: site
-            - name: HUGGINGFACE_API_KEY
-              value: /run/secrets/vrooli/prod/HUGGINGFACE_API_KEY
             - name: LETSENCRYPT_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -816,4 +814,3 @@ spec:
     requests:
       storage: 100Mi
 status: {}
-

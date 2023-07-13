@@ -71,7 +71,7 @@ export const SettingsList = () => {
             marginLeft: 0,
             marginTop: 4,
             background: palette.background.paper,
-            boxShadow: 4,
+            boxShadow: 2,
             borderRadius: 2,
         }}>
             <List>

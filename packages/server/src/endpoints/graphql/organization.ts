@@ -14,10 +14,12 @@ export const typeDef = gql`
 
     input OrganizationCreateInput {
         id: ID!
+        bannerImage: Upload
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
         permissions: String
+        profileImage: Upload
         memberInvitesCreate: [MemberInviteCreateInput!]
         resourceListCreate: ResourceListCreateInput
         rolesCreate: [RoleCreateInput!]
@@ -27,10 +29,12 @@ export const typeDef = gql`
     }
     input OrganizationUpdateInput {
         id: ID!
+        bannerImage: Upload
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
         permissions: String
+        profileImage: Upload
         membersDelete: [ID!]
         memberInvitesDelete: [ID!]
         memberInvitesCreate: [MemberInviteCreateInput!]
@@ -50,10 +54,12 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        bannerImage: String
         handle: String
         isOpenToNewMembers: Boolean!
         isPrivate: Boolean!
         bookmarks: Int!
+        profileImage: String
         views: Int!
         translatedName: String!
         apis: [Api!]!

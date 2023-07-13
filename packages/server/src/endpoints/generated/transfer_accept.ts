@@ -51,14 +51,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -88,14 +92,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -193,14 +201,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -230,14 +242,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -328,14 +344,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -365,14 +385,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -478,14 +502,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -515,14 +543,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -628,14 +660,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -665,14 +701,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -779,14 +819,18 @@ export const transfer_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -816,14 +860,18 @@ export const transfer_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,

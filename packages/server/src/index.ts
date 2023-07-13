@@ -104,17 +104,17 @@ const main = async () => {
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
-    // Set up image uploading
-    app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
-
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
         app.use("/api/v2/rest", restRoutes[key]);
     });
 
+    // Set up image uploading for GraphQL
+    app.use("/api/v2/graphql", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
+
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({
-        cache: "bounded" as any,
+        cache: "bounded",
         introspection: debug,
         schema,
         context: (c) => context(c), // Allows request and response to be included in the context

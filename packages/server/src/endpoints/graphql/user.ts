@@ -16,6 +16,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date
+        bannerImage: String
         botSettings: String
         handle: String
         isBot: Boolean!
@@ -39,6 +40,7 @@ export const typeDef = gql`
         isPrivateBookmarks: Boolean!
         isPrivateVotes: Boolean!
         name: String!
+        profileImage: String
         theme: String
         status: AccountStatus
         bookmarks: Int!
@@ -155,8 +157,10 @@ export const typeDef = gql`
     }
 
     input ProfileUpdateInput {
+        bannerImage: Upload
         handle: String
         name: String
+        profileImage: Upload
         theme: String
         isPrivate: Boolean
         isPrivateApis: Boolean

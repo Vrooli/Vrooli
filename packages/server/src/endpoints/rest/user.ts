@@ -4,14 +4,14 @@ import { setupRoutes } from "./base";
 
 export const UserRest = setupRoutes({
     "/bot/:id": {
-        put: [UserEndpoints.Mutation.botUpdate, user_botUpdate],
+        put: [UserEndpoints.Mutation.botUpdate, user_botUpdate, { acceptsFiles: true }],
     },
     "/bot": {
-        post: [UserEndpoints.Mutation.botCreate, user_botCreate],
+        post: [UserEndpoints.Mutation.botCreate, user_botCreate, { acceptsFiles: true }],
     },
     "/profile": {
         get: [UserEndpoints.Query.profile, user_profile],
-        put: [UserEndpoints.Mutation.profileUpdate, user_profileUpdate],
+        put: [UserEndpoints.Mutation.profileUpdate, user_profileUpdate, { acceptsFiles: true }],
     },
     "/user/:id": {
         get: [UserEndpoints.Query.user, user_findOne],
@@ -26,7 +26,7 @@ export const UserRest = setupRoutes({
         delete: [UserEndpoints.Mutation.userDeleteOne, user_deleteOne],
     },
     // "/importCalendar": {
-    //     post: [UserEndpoints.Mutation.importCalendar, importCalendar],
+    //     post: [UserEndpoints.Mutation.importCalendar, importCalendar, { acceptsFiles: true }],
     // },
     // "/exportCalendar": {
     //     get: [UserEndpoints.Mutation.exportCalendar, exportCalendar],

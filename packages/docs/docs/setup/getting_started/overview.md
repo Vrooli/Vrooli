@@ -34,6 +34,13 @@ In these docs, we cover the following topics:
   </div>
 
   <div class="card">
+    <a href="s3_setup.html">
+      <h3>S3 Setup</h3>
+      <p>Setting up S3 for file storage</p>
+    </a>
+  </div>
+
+  <div class="card">
     <a href="working_with_docker.html">
       <h3>Working With Docker</h3>
       <p>The basics of working with Docker, which runs the application</p>

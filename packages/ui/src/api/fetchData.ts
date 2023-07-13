@@ -58,7 +58,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     }
 
     let url = `${urlBase}${endpoint}`;
-    let body: string | null = null;
+    let body: string | FormData | null = null;
 
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
@@ -68,7 +68,11 @@ export const fetchData = async <Input extends object | undefined, Output>({
     }
     // Other requests should have their inputs converted to JSON and sent in the body.
     else if (["POST", "PUT"].includes(method)) {
-        body = JSON.stringify(inputs);
+        if (inputs instanceof FormData) {
+            body = inputs;
+        } else {
+            body = JSON.stringify(inputs);
+        }
     }
 
     const finalOptions: RequestInit = {
@@ -76,11 +80,13 @@ export const fetchData = async <Input extends object | undefined, Output>({
         method,
         headers: {
             ...options?.headers,
-            "Content-Type": "application/json",
+            // Only set the Content-Type to "application/json" if the body is not FormData.
+            ...(!(inputs instanceof FormData) && { "Content-Type": "application/json" }),
         },
         body,
         credentials: "include",
     };
 
+    console.log("right before fetch", finalOptions);
     return fetch(url, finalOptions).then(response => response.json()) as Promise<ServerResponse<Output>>;
 };

@@ -11,7 +11,9 @@ export const memberInvite_findMany = {
       "willHavePermissions": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -32,9 +34,11 @@ export const memberInvite_findMany = {
       },
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "you": {
         "canDelete": true,

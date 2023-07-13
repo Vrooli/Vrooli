@@ -26,6 +26,7 @@ nav:
           - Remote Server Setup: setup/getting_started/remote_setup.md
           - Repository Setup: setup/getting_started/repo_setup.md
           - Messenger Setup: setup/messenger_setup.md
+          - S3 Setup: setup/s3_setup.md
           - Working With Docker: setup/getting_started/working_with_docker.md
   - Testing:
       - Overview: testing/overview.md

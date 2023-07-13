@@ -2,9 +2,11 @@ export const meetingInvite_accept = {
   "meeting": {
     "attendees": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "labels": {
@@ -26,14 +28,18 @@ export const meetingInvite_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -80,14 +86,18 @@ export const meetingInvite_accept = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -252,14 +262,18 @@ export const meetingInvite_accept = {
               "owner": {
                 "User": {
                   "id": true,
+                  "bannerImage": true,
+                  "handle": true,
                   "isBot": true,
                   "name": true,
-                  "handle": true,
+                  "profileImage": true,
                   "__typename": "User"
                 },
                 "Organization": {
                   "id": true,
+                  "bannerImage": true,
                   "handle": true,
+                  "profileImage": true,
                   "you": {
                     "canAddMembers": true,
                     "canDelete": true,
@@ -289,14 +303,18 @@ export const meetingInvite_accept = {
             "owner": {
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true,
+                "profileImage": true,
                 "__typename": "User"
               },
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -423,7 +441,9 @@ export const meetingInvite_accept = {
         "stepsCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -445,9 +465,11 @@ export const meetingInvite_accept = {
         },
         "user": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "you": {
@@ -590,7 +612,9 @@ export const meetingInvite_accept = {
         "wasRunAutomatically": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -612,9 +636,11 @@ export const meetingInvite_accept = {
         },
         "user": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "you": {
@@ -661,7 +687,9 @@ export const meetingInvite_accept = {
     "showOnOrganizationProfile": true,
     "organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,
@@ -697,7 +725,9 @@ export const meetingInvite_accept = {
           "membersCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -734,7 +764,9 @@ export const meetingInvite_accept = {
       "membersCount": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,

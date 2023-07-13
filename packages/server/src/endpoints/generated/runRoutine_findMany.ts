@@ -39,7 +39,9 @@ export const runRoutine_findMany = {
       "wasRunAutomatically": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -60,9 +62,11 @@ export const runRoutine_findMany = {
       },
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "you": {
         "canDelete": true,

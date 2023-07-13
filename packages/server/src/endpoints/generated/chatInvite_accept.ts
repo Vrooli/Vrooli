@@ -3,9 +3,11 @@ export const chatInvite_accept = {
     "participants": {
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "id": true,
@@ -24,9 +26,11 @@ export const chatInvite_accept = {
       "updated_at": true,
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "score": true,
@@ -60,14 +64,18 @@ export const chatInvite_accept = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -106,7 +114,9 @@ export const chatInvite_accept = {
     "openToAnyoneWithInvite": true,
     "organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,
@@ -142,7 +152,9 @@ export const chatInvite_accept = {
           "membersCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -179,7 +191,9 @@ export const chatInvite_accept = {
       "membersCount": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -222,9 +236,11 @@ export const chatInvite_accept = {
   "status": true,
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

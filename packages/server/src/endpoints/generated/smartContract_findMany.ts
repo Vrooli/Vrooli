@@ -50,7 +50,9 @@ export const smartContract_findMany = {
         "owner": {
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -71,9 +73,11 @@ export const smartContract_findMany = {
           },
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           }
         },
         "you": {
@@ -84,7 +88,9 @@ export const smartContract_findMany = {
       "owner": {
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -105,9 +111,11 @@ export const smartContract_findMany = {
         },
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true
+          "profileImage": true
         }
       },
       "permissions": true,

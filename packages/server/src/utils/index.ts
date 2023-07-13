@@ -8,7 +8,7 @@ export * from "./convertPlaceholders";
 export * from "./cudInputsToMaps";
 export * from "./defaultPermissions";
 export * from "./embeddings";
-export * from "./fileIO";
+export * from "./fileStorage";
 export * from "./getAuthenticatedData";
 export * from "./inputToMapWithPartials";
 export * from "./labelShapeHelper";

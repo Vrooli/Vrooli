@@ -13,9 +13,11 @@ export const question_findMany = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "hasAcceptedAnswer": true,
       "isPrivate": true,
@@ -35,7 +37,9 @@ export const question_findMany = {
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,

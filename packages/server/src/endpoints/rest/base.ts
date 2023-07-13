@@ -1,6 +1,7 @@
-import { Request, Response, Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
+import multer, { File } from "multer";
 import { getUser } from "../../auth";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
@@ -12,7 +13,17 @@ export type EndpointFunction<TInput extends object | undefined, TResult extends 
     context: Context,
     info: GraphQLResolveInfo | PartialGraphQLInfo,
 ) => Promise<TResult>;
-export type EndpointTuple = readonly [GQLEndpoint<any, any> | GQLEndpoint<never, any>, any];//GraphQLResolveInfo | PartialGraphQLInfo];
+export type EndpointConfig = {
+    acceptsFiles?: boolean;
+    fileTypes?: string[];
+    maxFileSize?: number;
+    maxFiles?: number;
+}
+export type EndpointTuple = readonly [
+    GQLEndpoint<any, any> | GQLEndpoint<never, any>,
+    any,
+    EndpointConfig?
+];
 export type EndpointGroup = {
     get?: EndpointTuple;
     post?: EndpointTuple;
@@ -66,6 +77,43 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
 };
 
 /**
+ * Middleware to conditionally setup multer for file uploads.
+ */
+export const maybeMulter = (config?: EndpointConfig) => {
+    // Return multer middleware if the endpoint accepts files.
+    return (req: Request, res: Response, next: NextFunction) => {
+        if (!config || !config.acceptsFiles) {
+            return next();  // No multer needed, proceed to next middleware.
+        }
+
+        const multerOptions = {
+            limits: {
+                // Maximum file size in bytes. Defaults to 10MB.
+                fileSize: config.maxFileSize ?? 10 * 1024 * 1024,
+                // Maximum number of files. Defaults to 1.
+                files: config.maxFiles ?? 1,
+            },
+            fileFilter: (req: any, file: File, cb: (error: Error | null, acceptFile: boolean) => void) => {
+                // Default to accepting txt and image files
+                if (!config?.fileTypes) {
+                    config.fileTypes = ["text/plain", "image/jpeg", "image/png"];
+                }
+                // Only accept files with the correct MIME type
+                if (config?.fileTypes && config.fileTypes.includes(file.mimetype)) {
+                    cb(null, true);  // accept file
+                } else {
+                    cb(null, false);  // reject file
+                }
+            },
+        };
+
+        const upload = multer(multerOptions).any();
+
+        return upload(req, res, next);
+    };
+};
+
+/**
  * Creates router with endpoints from given object.
  * @param restEndpoints Object with endpoints. Each endpoint is an object with 
  * methods as keys and tuples as values. Each tuple has the endpoint function as
@@ -78,14 +126,20 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
         // Create route
         const routerChain = router.route(route);
         // Loop through each method
-        Object.entries(methods).forEach(([method, [endpoint, selection]]) => {
-            routerChain[method]((req: Request, res: Response) => {
-                // Find input from request
-                const input: Record<string, string> = method === "get" ?
-                    { ...req.params, ...parseInput(req.query) } :
-                    { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
-                handleEndpoint(endpoint as any, selection, input, req, res);
-            });
+        Object.entries(methods).forEach(([method, [endpoint, selection, config]]) => {
+            // Add method to route
+            routerChain[method](
+                maybeMulter(config),
+                // Handle endpoint
+                (req: Request, res: Response) => {
+                    // Get files from request
+                    const files = (req as any).files;
+                    // Find non-file data
+                    const input: Record<string, string> = method === "get" ?
+                        { ...req.params, ...parseInput(req.query) } :
+                        { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                    handleEndpoint(endpoint as any, selection, input, req, res);
+                });
         });
     });
     return router;

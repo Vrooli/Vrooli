@@ -185,6 +185,16 @@ export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
     onChange: (isPreviewOn: boolean) => unknown;
 }
 
+export interface ProfilePictureInputProps {
+    name?: string;
+    onChange: (file: File | null) => unknown;
+    profile?: {
+        __typename: "Organization" | "User";
+        isBot?: boolean;
+    } | null | undefined;
+    zIndex: number;
+}
+
 export interface IntegerInputProps extends BoxProps {
     autoFocus?: boolean;
     disabled?: boolean;

@@ -28,6 +28,7 @@
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/src/api/generated/graphqlTypes.ts"
     },
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.370.0",
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
@@ -44,6 +45,7 @@
         "i18next": "^22.4.10",
         "jsonwebtoken": "^9.0.0",
         "lodash": "^4.17.21",
+        "multer": "^1.4.5-lts.1",
         "node-cron": "^3.0.0",
         "node-fetch": "^3.2.10",
         "node-ical": "^0.15.3",

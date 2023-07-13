@@ -25,6 +25,35 @@ type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
     id?: string;
 };
 
+/**
+ * Transforms an object into FormData, allowing nested objects and File instances.
+ * This function works recursively to accommodate complex objects and arrays.
+ *
+ * @param {Object} obj - The object to be converted into FormData.
+ * @param {FormData} form - The FormData object that is being built recursively. This should be undefined when initially called.
+ * @param {string} namespace - The namespace for the formData entry being created. For nested objects or arrays, this will be the parent's formKey. This should be undefined when initially called.
+ * @return {FormData} The final FormData object which is constructed from the input object.
+ */
+const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?: string): FormData => {
+    const formData = form || new FormData();
+
+    Object.entries(obj).forEach(([property, value]) => {
+        if (value !== undefined && value !== null) {
+            const formKey = namespace ? `${namespace}[${property}]` : property;
+
+            if (value instanceof Date) {
+                formData.append(formKey, value.toISOString());
+            } else if (typeof value === "object" && !(value instanceof File)) {
+                objectToFormData(value, formData, formKey);
+            } else {
+                formData.append(formKey, value);
+            }
+        }
+    });
+
+    return formData;
+};
+
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     fetch: (input?: Input) => Promise<ServerResponse<Output>>;
     // Input to pass to endpoint
@@ -82,7 +111,12 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     // Start loading spinner
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     let result: ServerResponse<Output> = {};
-    await fetch(inputs)
+    // Convert inputs to FormData if they contain a File
+    const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
+        ? objectToFormData(inputs)
+        : inputs;
+    console.log("before fetch", finalInputs, inputs);
+    await fetch(finalInputs as Input)
         .then((response: ServerResponse<Output>) => {
             result = response;
             // If response is null or undefined or not an object, then there must be an error

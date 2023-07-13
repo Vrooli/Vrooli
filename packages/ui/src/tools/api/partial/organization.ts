@@ -44,6 +44,7 @@ export const organization: GqlPartial<Organization> = {
             0: async () => rel((await import("./tag")).tag, "list"),
         },
         id: true,
+        bannerImage: true,
         handle: true,
         created_at: true,
         updated_at: true,
@@ -51,6 +52,7 @@ export const organization: GqlPartial<Organization> = {
         isPrivate: true,
         commentsCount: true,
         membersCount: true,
+        profileImage: true,
         reportsCount: true,
         bookmarks: true,
         tags: { __use: 0 },
@@ -63,7 +65,9 @@ export const organization: GqlPartial<Organization> = {
     list: {},
     nav: {
         id: true,
+        bannerImage: true,
         handle: true,
+        profileImage: true,
         you: () => rel(organizationYou, "full"),
     },
 };

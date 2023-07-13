@@ -42,7 +42,9 @@ export const note_findMany = {
         "owner": {
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -63,9 +65,11 @@ export const note_findMany = {
           },
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           }
         },
         "you": {
@@ -76,7 +80,9 @@ export const note_findMany = {
       "owner": {
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -97,9 +103,11 @@ export const note_findMany = {
         },
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true
+          "profileImage": true
         }
       },
       "permissions": true,

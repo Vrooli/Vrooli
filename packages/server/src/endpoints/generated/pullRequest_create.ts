@@ -12,9 +12,11 @@ export const pullRequest_create = {
   "status": true,
   "createdBy": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

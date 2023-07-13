@@ -27,6 +27,7 @@ export const handle = yup.string().transform(blankToUndefined).min(3, minStrErr)
     },
 );
 export const hexColor = yup.string().transform(blankToUndefined).max(16, maxStrErr);
+export const imageFile = yup.string().transform(blankToUndefined);
 export const pushNotificationKeys = yup.object().shape({
     p256dh: yup.string().transform(blankToUndefined).max(256, maxStrErr),
     auth: yup.string().transform(blankToUndefined).max(256, maxStrErr),

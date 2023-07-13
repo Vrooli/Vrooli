@@ -5,12 +5,12 @@ import { setupRoutes } from "./base";
 export const OrganizationRest = setupRoutes({
     "/organization/:id": {
         get: [OrganizationEndpoints.Query.organization, organization_findOne],
-        put: [OrganizationEndpoints.Mutation.organizationUpdate, organization_update],
+        put: [OrganizationEndpoints.Mutation.organizationUpdate, organization_update, { acceptsFiles: true }],
     },
     "/organizations": {
         get: [OrganizationEndpoints.Query.organizations, organization_findMany],
     },
     "/organization": {
-        post: [OrganizationEndpoints.Mutation.organizationCreate, organization_create],
+        post: [OrganizationEndpoints.Mutation.organizationCreate, organization_create, { acceptsFiles: true }],
     },
 });

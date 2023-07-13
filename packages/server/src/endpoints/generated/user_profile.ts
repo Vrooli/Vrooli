@@ -2,6 +2,7 @@ export const user_profile = {
   "id": true,
   "created_at": true,
   "updated_at": true,
+  "bannerImage": true,
   "handle": true,
   "isPrivate": true,
   "isPrivateApis": true,
@@ -22,6 +23,8 @@ export const user_profile = {
   "isPrivateBookmarks": true,
   "isPrivateVotes": true,
   "name": true,
+  "notificationSettings": true,
+  "profileImage": true,
   "theme": true,
   "emails": {
     "id": true,
@@ -203,7 +206,6 @@ export const user_profile = {
     "link": true,
     "imgLink": true
   },
-  "notificationSettings": true,
   "translations": {
     "id": true,
     "language": true,

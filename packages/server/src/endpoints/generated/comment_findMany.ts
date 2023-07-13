@@ -15,7 +15,9 @@ export const comment_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -36,9 +38,11 @@ export const comment_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "score": true,
@@ -70,7 +74,9 @@ export const comment_findMany = {
         "owner": {
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -91,9 +97,11 @@ export const comment_findMany = {
           },
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           }
         },
         "score": true,
@@ -125,7 +133,9 @@ export const comment_findMany = {
       "owner": {
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -146,9 +156,11 @@ export const comment_findMany = {
         },
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true
+          "profileImage": true
         }
       },
       "score": true,
