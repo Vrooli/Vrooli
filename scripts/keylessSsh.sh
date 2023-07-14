@@ -1,5 +1,8 @@
 #!/bin/bash
-# This script sets up keyless SSH access to a remote server
+# This script sets up keyless SSH access to a remote server.
+# By default, tries to use SITE_IP from .env file, but can also be passed
+# as a command line argument. Example usage:
+#  ./scripts/keylessSsh.sh 123.456.789.012
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
@@ -11,7 +14,14 @@ CONN_TIMEOUT=10
 if [ -f "${HERE}/../.env" ]; then
     . "${HERE}/../.env"
 else
-    error "Could not find .env file. Exiting..."
+    warning "Could not find .env file. Trying to use command line arg..."
+fi
+
+# Command line flag for SITE_IP
+if [ $# -eq 1 ]; then
+    SITE_IP=$1
+elif [ -z "${SITE_IP}" ]; then
+    error "Could not find SITE_IP in .env or as command line arg. Exiting..."
     exit 1
 fi
 
