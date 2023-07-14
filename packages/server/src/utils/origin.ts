@@ -5,7 +5,7 @@ import { Request } from "express";
  * @returns An array of strings and regular expressions
  */
 export const safeOrigins = (): Array<string | RegExp> => {
-    const origins: Array<string | RegExp> = ["https://cardano-mainnet.blockfrost.io"];
+    const origins: Array<string | RegExp> = [];
     if (process.env.VITE_SERVER_LOCATION === "local") {
         origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,

@@ -494,8 +494,6 @@ spec:
               value: /run/secrets/vrooli/prod/ADMIN_PASSWORD
             - name: ADMIN_WALLET
               value: /run/secrets/vrooli/prod/ADMIN_WALLET
-            - name: BLOCKFROST_API_KEY
-              value: /run/secrets/vrooli/prod/BLOCKFROST_API_KEY
             - name: CREATE_MOCK_DATA
               value: "false"
             - name: DB_PASSWORD
