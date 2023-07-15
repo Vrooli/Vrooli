@@ -36,11 +36,6 @@ if [ -z "$HOST" ] || [ -z "$PORT" ]; then
     usage
 fi
 
-echo "Host: $HOST"
-echo "Port: $PORT"
-echo "Timeout: $TIMEOUT"
-echo "Command: $CMD"
-
 # Wait for the host:port to be available
 for i in $(seq $TIMEOUT); do
     if nc -z "$HOST" "$PORT" >/dev/null 2>&1; then

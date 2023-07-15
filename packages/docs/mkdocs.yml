@@ -25,8 +25,8 @@ nav:
           - Prerequisites: setup/getting_started/prerequisites.md
           - Remote Server Setup: setup/getting_started/remote_setup.md
           - Repository Setup: setup/getting_started/repo_setup.md
-          - Messenger Setup: setup/messenger_setup.md
-          - S3 Setup: setup/s3_setup.md
+          - Messenger Setup: setup/getting_started/messenger_setup.md
+          - S3 Setup: setup/getting_started/s3_setup.md
           - Working With Docker: setup/getting_started/working_with_docker.md
   - Testing:
       - Overview: testing/overview.md
@@ -45,7 +45,7 @@ nav:
       - UX Performance: guides/ui_performance.md
       - PWA and TWA: guides/pwa_and_twa.md
       - Income Streams: guides/income_streams.md
-      - Database Design: design/database_design.md
+      - Database Design: guides/database_design.md
       - Migrate: guides/migrate.md
 theme:
   name: material
