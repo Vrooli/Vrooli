@@ -131,7 +131,7 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
             routerChain[method](
                 maybeMulter(config),
                 // Handle endpoint
-                (req: Request, res: Response) => {
+                async (req: Request, res: Response) => {
                     // Get files from request
                     const files = req.files;
                     const fileNames: string[] = [];

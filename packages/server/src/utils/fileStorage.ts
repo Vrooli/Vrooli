@@ -1,5 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { uuid } from "@local/shared";
+// import * as nsfwjs from "nsfwjs";
+import sharp from "sharp";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -22,6 +24,35 @@ const getS3Client = (): S3Client => {
         });
     }
     return s3 as S3Client;
+};
+
+// NSFW model
+let nsfwModel: any;//nsfwjs.NSFWJS | undefined;
+
+/**
+ * Loads the NSFW model
+ */
+const getNSFWModel = async (): Promise<any> => {//Promise<nsfwjs.NSFWJS> => {
+    // if (!nsfwModel) {
+    //     nsfwModel = await nsfwjs.load();
+    // }
+    return nsfwModel as any;
+};
+
+const resizeImage = async (buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") => {
+    return await sharp(buffer)
+        .resize(width, height, { withoutEnlargement: true })
+        .toFormat(format)
+        .toBuffer();
+};
+
+const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
+    // return await convert({
+    //     buffer,
+    //     format: "JPEG",
+    //     quality: 1,
+    // }) as any;
+    return [] as any;
 };
 
 /**
