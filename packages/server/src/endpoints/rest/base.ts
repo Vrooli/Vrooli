@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
-import multer, { File } from "multer";
+import multer, { Options as MulterOptions } from "multer";
 import { getUser } from "../../auth";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
@@ -86,14 +86,14 @@ export const maybeMulter = (config?: EndpointConfig) => {
             return next();  // No multer needed, proceed to next middleware.
         }
 
-        const multerOptions = {
+        const multerOptions: MulterOptions = {
             limits: {
                 // Maximum file size in bytes. Defaults to 10MB.
                 fileSize: config.maxFileSize ?? 10 * 1024 * 1024,
                 // Maximum number of files. Defaults to 1.
                 files: config.maxFiles ?? 1,
             },
-            fileFilter: (req: any, file: File, cb: (error: Error | null, acceptFile: boolean) => void) => {
+            fileFilter: (_req, file, cb) => {
                 // Default to accepting txt and image files
                 if (!config?.fileTypes) {
                     config.fileTypes = ["text/plain", "image/jpeg", "image/png"];
@@ -133,7 +133,12 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 (req: Request, res: Response) => {
                     // Get files from request
-                    const files = (req as any).files;
+                    const files = req.files;
+                    const fileNames: string[] = [];
+                    // If there are files and the method is POST or PUT, upload them to S3
+                    if (files && (method === "post" || method === "put")) {
+                        // fileNames = await processAndStoreFiles(files);
+                    }
                     // Find non-file data
                     const input: Record<string, string> = method === "get" ?
                         { ...req.params, ...parseInput(req.query) } :

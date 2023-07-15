@@ -135,12 +135,8 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/db.sh
+            - /srv/app/scripts/getSecrets.sh production DB_PASSWORD && export POSTGRES_PASSWORD=$(DB_PASSWORD) && exec docker-entrypoint.sh postgres
           env:
-            - name: NODE_ENV
-              value: production
-            - name: POSTGRES_PASSWORD
-              value: /run/secrets/vrooli/prod/DB_PASSWORD
             - name: POSTGRES_USER
               value: site
             - name: PROJECT_DIR
@@ -394,7 +390,7 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/redis.sh
+            - /srv/app/scripts/redis.sh
           image: redis:7-alpine
           livenessProbe:
             exec:
@@ -488,20 +484,14 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/server.sh
+            - /srv/app/scripts/server.sh
           env:
-            - name: ADMIN_PASSWORD
-              value: /run/secrets/vrooli/prod/ADMIN_PASSWORD
-            - name: ADMIN_WALLET
-              value: /run/secrets/vrooli/prod/ADMIN_WALLET
             - name: CREATE_MOCK_DATA
               value: "false"
             - name: DB_PASSWORD
               value: /run/secrets/vrooli/prod/DB_PASSWORD
             - name: DB_PULL
               value: "false"
-            - name: DB_URL
-              value: postgresql://site:$(DB_PASSWORD)@db:5432
             - name: DB_USER
               value: site
             - name: LETSENCRYPT_EMAIL
@@ -535,8 +525,6 @@ spec:
                 secretKeyRef:
                   name: vrooli-secrets
                   key: SITE_EMAIL_FROM
-            - name: SITE_EMAIL_PASSWORD
-              value: /run/secrets/vrooli/prod/SITE_EMAIL_PASSWORD
             - name: SITE_EMAIL_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -547,16 +535,6 @@ spec:
                 secretKeyRef:
                   name: vrooli-secrets
                   key: SITE_IP
-            - name: STRIPE_SECRET_KEY
-              value: /run/secrets/vrooli/prod/STRIPE_SECRET_KEY
-            - name: STRIPE_WEBHOOK_SECRET
-              value: /run/secrets/vrooli/prod/STRIPE_WEBHOOK_SECRET
-            - name: VALYXA_API_KEY
-              value: /run/secrets/vrooli/prod/VALYXA_API_KEY
-            - name: VALYXA_PASSWORD
-              value: /run/secrets/vrooli/prod/VALYXA_PASSWORD
-            - name: VAPID_PRIVATE_KEY
-              value: /run/secrets/vrooli/prod/VAPID_PRIVATE_KEY
             - name: VAPID_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
@@ -723,7 +701,7 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/ui.sh
+            - /srv/app/scripts/ui.sh
           env:
             - name: LETSENCRYPT_EMAIL
               valueFrom:
@@ -812,3 +790,4 @@ spec:
     requests:
       storage: 100Mi
 status: {}
+

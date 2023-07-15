@@ -11,7 +11,7 @@ const BUCKET_NAME = "vrooli-bucket";
  * the environment variables are loaded from the secrets location, so they're 
  * not available at startup.
  */
-const initS3Client = () => {
+const getS3Client = (): S3Client => {
     if (!s3) {
         s3 = new S3Client({
             region: REGION,
@@ -21,13 +21,14 @@ const initS3Client = () => {
             },
         });
     }
+    return s3 as S3Client;
 };
 
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export const processAndStoreFiles = async (files: any[]): Promise<{ [x: string]: string }> => {
-    initS3Client();
+export const processAndStoreFiles = async (files: Express.Multer.File[]): Promise<{ [x: string]: string }> => {
+    const s3 = getS3Client();
     const fileUrls = {};
     for (const file of files) {
         // Generate a unique identifier for the file
@@ -44,10 +45,10 @@ export const processAndStoreFiles = async (files: any[]): Promise<{ [x: string]:
                 Body: file.buffer, // assuming the file's data is stored in a Buffer
                 ContentType: file.mimetype,
             });
-            await s3!.send(command);
+            await s3.send(command);
 
             // Add the file's URL to the result object
-            fileUrls[file.originalname] = `https://your-bucket-name.s3.your-region.amazonaws.com/${key}`;
+            fileUrls[file.originalname] = `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
 
         } catch (error) {
             console.error(`Failed to upload file ${file.originalname}:`, error);
