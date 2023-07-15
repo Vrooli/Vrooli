@@ -43,6 +43,16 @@ export const NavbarLogo = ({
                     color: palette.primary.contrastText,
                 }}
             >{BUSINESS_NAME}</Typography>}
+            {/* Alpha indicator */}
+            <Typography
+                variant="body2"
+                noWrap
+                sx={{
+                    color: palette.error.main,
+                    paddingLeft: state === "full" ? 1 : 0,
+                }}
+            >1.9.4 alpha</Typography>
+
         </Box>
     );
 };

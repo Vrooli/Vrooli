@@ -54,10 +54,10 @@ export const TIDCard = ({
                 justifyContent: "space-between",
             }}>
                 <Box>
-                    <Typography variant='h6' component='div'>
+                    <Typography variant='h6' component='div' sx={{ overflowWrap: "anywhere" }}>
                         {title}
                     </Typography>
-                    <Typography variant='body2' color={palette.background.textSecondary}>
+                    <Typography variant='body2' color={palette.background.textSecondary} sx={{ overflowWrap: "anywhere" }}>
                         {description}
                     </Typography>
                 </Box>
@@ -72,6 +72,6 @@ export const TIDCard = ({
                     variant="text"
                 >{buttonText}</Button>
             </Box>
-        </Box>
+        </Box >
     );
 };
