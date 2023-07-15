@@ -1,51 +1,29 @@
 #!/bin/sh
-# Gets required secrets from secrets manager, if
-# not already in /run/secrets
+# Gets required secrets from secrets manager, if not already in /run/secrets.
+# Usage: ./getSecrets.sh <environment> <secret1> <secret2> ...
+# - environment: Either 'development' or 'production'
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
 
-# Variable to hold secret names
-secrets=""
 # Variable to hold environment
-environment=""
+environment="$1"
+shift
 
-# Parse options
-while getopts ":s:e:" opt; do
-    case $opt in
-    s)
-        secrets="$secrets $OPTARG"
-        ;;
-    e)
-        # Check if valid environment
-        if [ "$OPTARG" == "development" ]; then
-            environment="dev"
-        elif [ "$OPTARG" == "production" ]; then
-            environment="prod"
-        else
-            error "Invalid environment: $OPTARG. Expected 'development' or 'production'."
-            exit 1
-        fi
-        ;;
-    \?)
-        error "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        error "Option -$OPTARG requires an argument." >&2
-        exit 1
-        ;;
-    esac
-done
-
-# Exit if no environment set
-if [ -z "$environment" ]; then
-    error "No environment set. Please use -e option with 'development' or 'production'."
+# Check if valid environment
+if [ "$environment" = "development" ]; then
+    environment="dev"
+elif [ "$environment" = "production" ]; then
+    environment="prod"
+else
+    error "Invalid environment: $environment. Expected 'development' or 'production'."
     exit 1
 fi
 
-# Loop over the list of secrets
-for secret in $secrets; do
-    # Check if the secret already exists
+# Loop over the rest of the arguments to get secrets
+while [ $# -gt 0 ]; do
+    secret="$1"
+
+    # Check if the secret doesn't exist in /run/secrets
     if [ ! -f "/run/secrets/vrooli/$environment/$secret" ]; then
         # Fetch the secret from the secret manager and store it in /run/secrets/
         # Note: The following is a placeholder and should be replaced with an actual command to fetch the secret
@@ -55,4 +33,5 @@ for secret in $secrets; do
     fi
     # Export the secret as an environment variable
     export $secret=$(cat "/run/secrets/vrooli/$environment/$secret")
+    shift
 done

@@ -37,7 +37,7 @@ services:
       - ./packages/shared:${PROJECT_DIR}/packages/shared:z
     depends_on:
       - server
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
+    command: /bin/sh -c "${PROJECT_DIR}/scripts/ui.sh"
   server:
     build:
       context: .
@@ -50,30 +50,18 @@ services:
     environment:
       NODE_ENV: "development"
       PROJECT_DIR: "${PROJECT_DIR}"
-      VALYXA_API_KEY: "/run/secrets/vrooli/dev/VALYXA_API_KEY"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: "${PORT_SERVER}"
       REDIS_CONN: "redis:${PORT_REDIS}"
       DB_CONN: "db:${PORT_DB}"
       DB_USER: "${DB_USER}"
       DB_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
-      DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       PORT_TRANSLATE: "${PORT_TRANSLATE}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
-      ADMIN_WALLET: "/run/secrets/vrooli/dev/ADMIN_WALLET"
-      ADMIN_PASSWORD: "/run/secrets/vrooli/dev/ADMIN_PASSWORD"
-      VALYXA_PASSWORD: "/run/secrets/vrooli/dev/VALYXA_PASSWORD"
-      BLOCKFROST_API_KEY: "/run/secrets/vrooli/dev/BLOCKFROST_API_KEY"
-      AWS_ACCESS_KEY_ID: "/run/secrets/vrooli/dev/AWS_ACCESS_KEY_ID"
-      AWS_SECRET_ACCESS_KEY: "/run/secrets/vrooli/dev/AWS_SECRET_ACCESS_KEY"
       VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
-      VAPID_PRIVATE_KEY: "/run/secrets/vrooli/dev/VAPID_PRIVATE_KEY"
-      STRIPE_SECRET_KEY: "/run/secrets/vrooli/dev/STRIPE_SECRET_KEY"
-      STRIPE_WEBHOOK_SECRET: "/run/secrets/vrooli/dev/STRIPE_WEBHOOK_SECRET"
       SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
-      SITE_EMAIL_PASSWORD: "/run/secrets/vrooli/dev/SITE_EMAIL_PASSWORD"
       SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
       SITE_IP: "${SITE_IP}"
       SERVER_URL: "${SERVER_URL}"
@@ -101,15 +89,13 @@ services:
     depends_on:
       - redis
       - db
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
+    command: /bin/sh -c "${PROJECT_DIR}/scripts/server.sh"
   db:
     image: ankane/pgvector:v0.4.1
     restart: always
     container_name: db
     environment:
-      NODE_ENV: "development"
       POSTGRES_USER: "${DB_USER}"
-      POSTGRES_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       PROJECT_DIR: "${PROJECT_DIR}"
     expose:
       - ${PORT_DB}
@@ -125,7 +111,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/db.sh"
+    command: /bin/sh -c "${PROJECT_DIR}/scripts/getSecrets.sh development DB_PASSWORD && export POSTGRES_PASSWORD=${DB_PASSWORD} && exec docker-entrypoint.sh postgres"
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -137,7 +123,7 @@ services:
       - ./scripts:${PROJECT_DIR}/scripts
     expose:
       - ${PORT_REDIS}
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/redis.sh"
+    command: /bin/sh -c "${PROJECT_DIR}/scripts/redis.sh"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -167,12 +153,10 @@ services:
     container_name: adminer
     restart: always
     environment:
-      NODE_ENV: "development"
       ADMINER_PLUGINS: login-env-vars
       ADMINER_DRIVER: pgsql
       ADMINER_SERVER: db
       ADMINER_USERNAME: "${DB_USER}"
-      ADMINER_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       ADMINER_DB: "${DB_NAME}"
     networks:
       - app
@@ -183,7 +167,7 @@ services:
     volumes:
       - ./scripts:${PROJECT_DIR}/scripts
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/adminer.sh"
+    command: /bin/sh -c "${PROJECT_DIR}/scripts/getSecrets.sh development DB_PASSWORD && export ADMINER_PASSWORD=${DB_PASSWORD} && exec php -S [::]:8080 -t /var/www/html/"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9

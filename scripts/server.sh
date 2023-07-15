@@ -9,6 +9,10 @@ if [ "${NODE_ENV}" = "development" ]; then
     . "${HERE}/shared.sh"
 fi
 
+info 'Getting secrets...'
+. ${HERE}/getSecrets.sh ${NODE_ENV} VALYXA_API_KEY DB_PASSWORD ADMIN_WALLET ADMIN_PASSWORD VALYXA_PASSWORD VAPID_PRIVATE_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET SITE_EMAIL_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+
 success 'Prisma schema generated'
 info 'Waiting for database and redis to start...'
 ${PROJECT_DIR}/scripts/wait-for.sh db:5432 -t 120 -- echo 'Database is up'
@@ -46,9 +50,6 @@ if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
 fi
-
-info 'Getting secrets...'
-. ${HERE}/getSecrets.sh -e ${NODE_ENV} -s VALYXA_API_KEY -s DB_PASSWORD -s ADMIN_WALLET -s ADMIN_PASSWORD -s VALYXA_PASSWORD -s VAPID_PRIVATE_KEY -s STRIPE_SECRET_KEY -s STRIPE_WEBHOOK_SECRET -s SITE_EMAIL_PASSWORD -s AWS_ACCESS_KEY_ID -s AWS_SECRET_ACCESS_KEY
 
 info 'Starting server...'
 cd ${PROJECT_DIR}/packages/server
