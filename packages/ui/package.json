@@ -32,7 +32,6 @@
         "@replit/codemirror-lang-svelte": "^6.0.0",
         "@stripe/stripe-js": "^1.52.0",
         "@uiw/react-codemirror": "^4.21.2",
-        "apollo-upload-client": "^17.0.0",
         "cm6-graphql": "^0.0.8",
         "codemirror-lang-r": "^0.1.0-2",
         "d3-scale": "^4.0.2",
@@ -87,14 +86,11 @@
         "not op_mini all"
     ],
     "devDependencies": {
-        "@types/apollo-upload-client": "^17.0.2",
         "@types/node": "^18.14.1",
         "@types/react": "^18.0.28",
         "@types/react-beautiful-dnd": "^13.1.4",
         "@types/react-big-calendar": "^1.6.1",
         "@types/react-dom": "^18.0.11",
-        "@types/react-measure": "^2.0.8",
-        "@types/react-swipeable-views": "^0.13.1",
         "@types/react-window": "^1.8.5",
         "@vitejs/plugin-react-swc": "^3.0.0",
         "chai": "^4.3.4",
