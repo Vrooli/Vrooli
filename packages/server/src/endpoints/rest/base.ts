@@ -6,6 +6,7 @@ import { getUser } from "../../auth";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap } from "../../types";
+import { processAndStoreFiles } from "../../utils";
 
 export type EndpointFunction<TInput extends object | undefined, TResult extends object> = (
     parent: undefined,
@@ -13,16 +14,18 @@ export type EndpointFunction<TInput extends object | undefined, TResult extends 
     context: Context,
     info: GraphQLResolveInfo | PartialGraphQLInfo,
 ) => Promise<TResult>;
-export type EndpointConfig = {
+export type UploadConfig = {
     acceptsFiles?: boolean;
     fileTypes?: string[];
     maxFileSize?: number;
     maxFiles?: number;
+    /** For image files, what they should be resized to */
+    imageSizes?: { width: number; height: number }[];
 }
 export type EndpointTuple = readonly [
     GQLEndpoint<any, any> | GQLEndpoint<never, any>,
     any,
-    EndpointConfig?
+    UploadConfig?
 ];
 export type EndpointGroup = {
     get?: EndpointTuple;
@@ -79,7 +82,7 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
 /**
  * Middleware to conditionally setup multer for file uploads.
  */
-export const maybeMulter = (config?: EndpointConfig) => {
+export const maybeMulter = (config?: UploadConfig) => {
     // Return multer middleware if the endpoint accepts files.
     return (req: Request, res: Response, next: NextFunction) => {
         if (!config || !config.acceptsFiles) {
@@ -137,7 +140,7 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                     const fileNames: string[] = [];
                     // If there are files and the method is POST or PUT, upload them to S3
                     if (files && (method === "post" || method === "put")) {
-                        // fileNames = await processAndStoreFiles(files);
+                        fileNames = await processAndStoreFiles(files, config);
                     }
                     // Find non-file data
                     const input: Record<string, string> = method === "get" ?

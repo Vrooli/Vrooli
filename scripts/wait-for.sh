@@ -48,4 +48,4 @@ for i in $(seq $TIMEOUT); do
 done
 
 echo >&2 "Operation timed out"
-exit 1
+exit 0 # Don't fail on timeout

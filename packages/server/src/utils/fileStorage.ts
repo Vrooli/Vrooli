@@ -2,6 +2,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { uuid } from "@local/shared";
 // import * as nsfwjs from "nsfwjs";
 import sharp from "sharp";
+import { UploadConfig } from "../endpoints";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -58,7 +59,10 @@ const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export const processAndStoreFiles = async (files: Express.Multer.File[]): Promise<{ [x: string]: string }> => {
+export const processAndStoreFiles = async (
+    files: Express.Multer.File[],
+    config: UploadConfig,
+): Promise<{ [x: string]: string }> => {
     const s3 = getS3Client();
     const fileUrls = {};
     for (const file of files) {

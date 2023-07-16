@@ -80,7 +80,7 @@ export const SettingsPrivacyForm = ({
             </BaseForm>
             <GridSubmitButtons
                 display={display}
-                errors={props.errors}
+                errors={props.errors as any}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}
