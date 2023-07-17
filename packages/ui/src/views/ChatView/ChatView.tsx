@@ -1,4 +1,4 @@
-import { AddIcon, Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { AddIcon, Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
@@ -7,6 +7,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";

@@ -1,6 +1,7 @@
-import { CommentIcon, useLocation } from "@local/shared";
+import { CommentIcon } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
+import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CommentsButtonProps } from "../types";

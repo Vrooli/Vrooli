@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -7,6 +7,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";

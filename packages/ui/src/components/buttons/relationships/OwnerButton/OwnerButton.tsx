@@ -1,4 +1,4 @@
-import { exists, OrganizationIcon, useLocation, UserIcon } from "@local/shared";
+import { exists, OrganizationIcon, UserIcon } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -10,6 +10,7 @@ import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";

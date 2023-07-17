@@ -1,8 +1,9 @@
-import { GitHubIcon, openLink, OrganizationIcon, TwitterIcon, useLocation, WebsiteIcon } from "@local/shared";
+import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@local/shared";
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { slideTitle, textPop } from "styles";
 import { AboutViewProps } from "views/types";
 

@@ -1,10 +1,11 @@
-import { endpointGetFeedPopular, PopularInput, PopularResult, useLocation, uuidValidate } from "@local/shared";
+import { endpointGetFeedPopular, PopularInput, PopularResult, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";

@@ -1,4 +1,4 @@
-import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkList, EditIcon, endpointGetBookmarkList, endpointPostBookmark, useLocation, uuid } from "@local/shared";
+import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkList, EditIcon, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -9,6 +9,7 @@ import { SiteSearchBar } from "components/inputs/search";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { listToAutocomplete, listToListItems } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";

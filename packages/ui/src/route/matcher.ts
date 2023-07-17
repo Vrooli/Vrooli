@@ -23,7 +23,7 @@ export interface PatternToRegexpResult {
 
 // creates a matcher function
 export default function makeMatcher(makeRegexpFn: (pattern: string) => PatternToRegexpResult = pathToRegexp) {
-    const cache: { [x: string]: any } = {};
+    const cache: { [x: string]: PatternToRegexpResult } = {};
 
     // obtains a cached regexp version of the pattern
     const getRegexp = (pattern: string) =>
@@ -62,8 +62,9 @@ const pathToRegexp = (pattern: any) => {
 
     let match: RegExpExecArray | null = null,
         lastIndex = 0,
-        keys: { name: string }[] = [],
         result = "";
+    const keys: { name: string }[] = [];
+
 
     while ((match = groupRx.exec(pattern)) !== null) {
         const [_, segment, mod] = match;

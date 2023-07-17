@@ -1,13 +1,14 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success, useLocation } from "@local/shared";
+import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, OpenInNewIcon, Reminder, ReminderCreateInput, ReminderIcon, ReminderUpdateInput, Success } from "@local/shared";
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";

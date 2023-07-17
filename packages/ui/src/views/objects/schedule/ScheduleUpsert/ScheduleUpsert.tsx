@@ -1,4 +1,4 @@
-import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, FindByIdInput, parseSearchParams, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
+import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, FindByIdInput, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -8,6 +8,7 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parseSearchParams } from "route";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";

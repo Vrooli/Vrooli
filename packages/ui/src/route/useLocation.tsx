@@ -1,3 +1,4 @@
+// eslint-disable-file import/no-anonymous-default-export
 import { useCallback, useEffect, useRef, useState } from "react";
 import { stringifySearchParams } from "./searchParams";
 

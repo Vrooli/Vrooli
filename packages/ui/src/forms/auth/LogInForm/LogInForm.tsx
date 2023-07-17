@@ -1,4 +1,4 @@
-import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, parseSearchParams, Session, useLocation } from "@local/shared";
+import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
@@ -7,6 +7,7 @@ import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { parseSearchParams, useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";

@@ -1,4 +1,4 @@
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, useLocation, User, UserIcon, userValidation } from "@local/shared";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LINKS, LogOutIcon, LogOutInput, PlusIcon, PremiumIcon, ProfileUpdateInput, RoutineActiveIcon, Session, SessionUser, SettingsIcon, SwitchCurrentAccountInput, User, UserIcon, userValidation } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -11,6 +11,7 @@ import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";

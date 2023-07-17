@@ -1,5 +1,6 @@
-import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, LINKS, ReactionFor, ReportFor, setDotNotationValue, SetLocation } from "@local/shared";
+import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
+import { SetLocation } from "route";
 import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";

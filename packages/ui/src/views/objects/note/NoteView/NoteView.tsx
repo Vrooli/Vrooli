@@ -1,4 +1,4 @@
-import { endpointGetNoteVersion, NoteVersion, useLocation } from "@local/shared";
+import { endpointGetNoteVersion, NoteVersion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -8,6 +8,7 @@ import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectAction
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";

@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetSmartContractVersion, SmartContractIcon, SmartContractVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetSmartContractVersion, SmartContractIcon, SmartContractVersion } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -10,6 +10,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";

@@ -1,4 +1,4 @@
-import { AddIcon, calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { AddIcon, calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
@@ -12,6 +12,7 @@ import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
 import { PageTab } from "components/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";

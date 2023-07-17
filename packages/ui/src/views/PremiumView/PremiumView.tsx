@@ -1,9 +1,10 @@
-import { CompleteIcon, LINKS, parseSearchParams, stringifySearchParams, useLocation } from "@local/shared";
+import { CompleteIcon, LINKS } from "@local/shared";
 import { Box, Button, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { loadStripe } from "@stripe/stripe-js";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parseSearchParams, stringifySearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";

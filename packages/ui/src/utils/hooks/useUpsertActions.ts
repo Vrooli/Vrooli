@@ -1,7 +1,8 @@
-import { LINKS, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ViewDisplayType } from "views/types";

@@ -1,6 +1,7 @@
-import { LINKS, Redirect, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { useContext } from "react";
+import { Redirect, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { PageProps } from "../../views/wrapper/types";

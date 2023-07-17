@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, MonthIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
+import { AddIcon, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -9,6 +9,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";

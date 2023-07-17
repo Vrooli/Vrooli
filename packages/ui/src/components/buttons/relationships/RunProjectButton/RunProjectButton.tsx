@@ -1,4 +1,4 @@
-import { AddIcon, exists, ProjectIcon, useLocation } from "@local/shared";
+import { AddIcon, exists, ProjectIcon } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -7,6 +7,7 @@ import { RelationshipItemRunProject } from "components/lists/types";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";

@@ -137,10 +137,10 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 async (req: Request, res: Response) => {
                     // Get files from request
                     const files = req.files;
-                    const fileNames: string[] = [];
+                    let fileNames: string[] = [];
                     // If there are files and the method is POST or PUT, upload them to S3
                     if (files && (method === "post" || method === "put")) {
-                        fileNames = await processAndStoreFiles(files, config);
+                        fileNames = await processAndStoreFiles(files as any, config as any) as any;
                     }
                     // Find non-file data
                     const input: Record<string, string> = method === "get" ?

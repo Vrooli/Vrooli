@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, parseSearchParams, ProjectIcon, RoutineIcon, Schedule, ScheduleFor, ScheduleSearchResult, SvgComponent, TodayIcon, useLocation, VisibleIcon, WeekIcon } from "@local/shared";
+import { AddIcon, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, ProjectIcon, RoutineIcon, Schedule, ScheduleFor, ScheduleSearchResult, SvgComponent, TodayIcon, VisibleIcon, WeekIcon } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -12,6 +12,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { CalendarEvent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";

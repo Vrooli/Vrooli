@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetProjectVersion, ProjectVersion, useLocation } from "@local/shared";
+import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetProjectVersion, ProjectVersion } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -10,6 +10,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";

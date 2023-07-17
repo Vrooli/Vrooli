@@ -1,4 +1,4 @@
-import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -18,6 +18,7 @@ import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";

@@ -4,13 +4,14 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session, useLocation } from "@local/shared";
+import { EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
 import { Box, SxProps, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
 import { Forms } from "utils/consts";

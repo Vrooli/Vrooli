@@ -1,10 +1,9 @@
-import { addSearchParams, useLocation } from "@local/shared";
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useMemo, useState } from "react";
+import { addSearchParams, useLocation } from "route";
 import usePress from "utils/hooks/usePress";
 import { VersionDisplayProps } from "../types";
-
 
 /**
  * Displays version of object.

@@ -2,7 +2,8 @@
  * Navigate to various objects and object search pages
  */
 
-import { adaHandleRegex, Bookmark, GqlModelType, isOfType, LINKS, Reaction, RunProject, RunRoutine, SetLocation, stringifySearchParams, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { adaHandleRegex, Bookmark, GqlModelType, isOfType, LINKS, Reaction, RunProject, RunRoutine, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { SetLocation, stringifySearchParams } from "route";
 import { NavigableObject } from "types";
 import { ResourceType } from "utils/consts";
 import { uuidToBase36 } from "./urlTools";

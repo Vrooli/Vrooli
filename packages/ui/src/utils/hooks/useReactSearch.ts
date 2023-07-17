@@ -1,5 +1,5 @@
-import { parseSearchParams } from "@local/shared";
 import { useCallback, useEffect, useState } from "react";
+import { parseSearchParams } from "route";
 
 type Primitive = string | number | boolean;
 type UseReactSearchResults = { [x: string]: Primitive | Primitive[] | UseReactSearchResults };

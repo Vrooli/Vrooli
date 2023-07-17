@@ -1,7 +1,8 @@
-import { LINKS, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { accountSettingsData, displaySettingsData } from "views/settings";
 

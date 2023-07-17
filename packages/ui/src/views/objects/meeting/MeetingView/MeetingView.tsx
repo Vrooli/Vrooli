@@ -1,9 +1,10 @@
-import { endpointGetMeeting, Meeting, useLocation } from "@local/shared";
+import { endpointGetMeeting, Meeting } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";

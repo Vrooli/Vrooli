@@ -1,10 +1,11 @@
-import { LINKS, Route, RouteProps, Switch } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
 import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
 import { lazily } from "react-lazily";
+import { Route, RouteProps, Switch } from "route";
 import { BotUpsert } from "views/objects/bot";
 import { PageProps } from "views/wrapper/types";
 import { Page } from "./components/Page/Page";

@@ -1,10 +1,11 @@
-import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success, useLocation } from "@local/shared";
+import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
 import { Button, Grid, Link, TextField, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";

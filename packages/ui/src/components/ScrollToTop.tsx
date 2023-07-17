@@ -1,5 +1,5 @@
-import { useLocation } from "@local/shared";
 import { useEffect } from "react";
+import { useLocation } from "route";
 
 export const ScrollToTop = () => {
     const pathname = useLocation();

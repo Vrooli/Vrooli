@@ -1,4 +1,4 @@
-import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, parseSearchParams, Session, useLocation, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, LINKS, Session, uuidValidate } from "@local/shared";
 import { Button, Grid } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
@@ -8,6 +8,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResetPasswordFormProps } from "forms/types";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { parseSearchParams, useLocation } from "route";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { formPaper, formSubmit } from "../../styles";

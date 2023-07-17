@@ -1,4 +1,5 @@
-import { adaHandleRegex, getLastUrlPart, LINKS, SetLocation, uuidValidate } from "@local/shared";
+import { adaHandleRegex, LINKS, uuidValidate } from "@local/shared";
+import { getLastUrlPart, SetLocation } from "route";
 import { PubSub } from "utils/pubsub";
 
 /**

@@ -1,4 +1,4 @@
-import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, SvgComponent, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
+import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, PlayIcon, SOCIALS, SvgComponent, TwitterIcon, WHITE_PAPER_URL } from "@local/shared";
 import { Box, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
@@ -9,6 +9,7 @@ import { SlideContainerNeon } from "components/slides";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";

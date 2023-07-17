@@ -1,4 +1,4 @@
-import { AddIcon, CommonKey, HistoryIcon, LockIcon, MemberInviteStatus, UnlockIcon, useLocation, UserIcon } from "@local/shared";
+import { AddIcon, CommonKey, HistoryIcon, LockIcon, MemberInviteStatus, UnlockIcon, UserIcon } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -6,6 +6,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { useTabs } from "utils/hooks/useTabs";
 import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";

@@ -1,7 +1,8 @@
-import { BUSINESS_NAME, LINKS, useLocation } from "@local/shared";
+import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "route";
 import { noSelect } from "styles";
 import { useDimensions } from "utils/hooks/useDimensions";
 import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";

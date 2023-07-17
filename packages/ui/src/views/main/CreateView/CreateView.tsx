@@ -1,10 +1,11 @@
-import { ApiIcon, BotIcon, CommonKey, HelpIcon, LINKS, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation } from "@local/shared";
+import { ApiIcon, BotIcon, CommonKey, HelpIcon, LINKS, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from "@local/shared";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { CreateViewProps } from "../types";
 
 type CreateType = "Api" | "Bot" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";

@@ -1,4 +1,4 @@
-import { AddIcon, exists, FocusModeIcon, LINKS, useLocation } from "@local/shared";
+import { AddIcon, exists, FocusModeIcon, LINKS } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -7,6 +7,7 @@ import { RelationshipItemFocusMode } from "components/lists/types";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 

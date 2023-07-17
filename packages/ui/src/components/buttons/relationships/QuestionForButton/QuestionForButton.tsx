@@ -1,4 +1,4 @@
-import { AddIcon, ApiIcon, exists, NoteIcon, OrganizationIcon, ProjectIcon, QuestionForType, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation } from "@local/shared";
+import { AddIcon, ApiIcon, exists, NoteIcon, OrganizationIcon, ProjectIcon, QuestionForType, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -7,6 +7,7 @@ import { RelationshipItemQuestionForObject } from "components/lists/types";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";

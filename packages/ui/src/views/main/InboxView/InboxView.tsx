@@ -1,4 +1,4 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, CompleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
+import { AddIcon, Chat, CommentIcon, CommonKey, CompleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -10,6 +10,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { listToListItems } from "utils/display/listTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";

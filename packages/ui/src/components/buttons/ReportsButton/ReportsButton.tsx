@@ -1,6 +1,7 @@
-import { ReportIcon, useLocation } from "@local/shared";
+import { ReportIcon } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
+import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getObjectReportUrl } from "utils/navigation/openObject";
 import { ReportsButtonProps } from "../types";

@@ -1,6 +1,7 @@
-import { addSearchParams, CommonKey, parseSearchParams, SvgComponent, useLocation } from "@local/shared";
+import { CommonKey, SvgComponent } from "@local/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { SearchType } from "utils/search/objectToSearch";
 
 type TabParams<T> = {
@@ -48,7 +49,7 @@ export const useTabs = <T, U extends Record<string, any> = {}>(tabParams: readon
             ...tabParams[currTab.index],
             title: currTab.label,
         };
-    }, [currTab.index, currTab.label, t, tabParams]);
+    }, [currTab.index, currTab.label, tabParams]);
 
     return { searchType, title, where, tabs, currTab, handleTabChange, ...rest };
 };

@@ -1,9 +1,10 @@
-import { LINKS, LogInIcon, openLink, ProfileIcon, useLocation } from "@local/shared";
+import { LINKS, LogInIcon, ProfileIcon } from "@local/shared";
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";

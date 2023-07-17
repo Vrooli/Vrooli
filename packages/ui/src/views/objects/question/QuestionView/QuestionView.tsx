@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag, useLocation } from "@local/shared";
+import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -15,6 +15,7 @@ import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";

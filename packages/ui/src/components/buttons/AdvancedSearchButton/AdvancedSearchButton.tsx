@@ -1,8 +1,9 @@
-import { addSearchParams, BuildIcon, parseSearchParams, removeSearchParams, useLocation } from "@local/shared";
+import { BuildIcon } from "@local/shared";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog } from "components/dialogs/AdvancedSearchDialog/AdvancedSearchDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
 import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
