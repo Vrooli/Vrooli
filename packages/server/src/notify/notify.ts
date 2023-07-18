@@ -205,7 +205,7 @@ const replaceLabels = async (
     languages: string[],
     users: Pick<PushToUser, "languages" | "userId" | "delays">[],
 ): Promise<PushToUser[]> => {
-    const labelRegex = /<Label\|([A-z]+):([0-9\-]+)>/;
+    const labelRegex = /<Label\|([A-z]+):([0-9-]+)>/;
     // Initialize the result
     const result: PushToUser[] = users.map(u => ({ ...u, bodyVariables, titleVariables, silent }));
     // If titleVariables or bodyVariables contains "<Label|objectType:${id}>", we must inject 

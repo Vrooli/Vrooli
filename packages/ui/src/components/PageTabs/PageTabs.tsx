@@ -7,7 +7,7 @@ import { useWindowSize } from "utils/hooks/useWindowSize";
  * Tabs for a page. Ensures that all page tabs are consistent, 
  * and leave room on the sides for drawer swiping
  */
-export const PageTabs = <T extends any>({
+export const PageTabs = <T extends string | number | object>({
     ariaLabel,
     currTab,
     fullWidth = false,

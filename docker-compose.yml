@@ -55,7 +55,6 @@ services:
       REDIS_CONN: "redis:${PORT_REDIS}"
       DB_CONN: "db:${PORT_DB}"
       DB_USER: "${DB_USER}"
-      DB_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       PORT_TRANSLATE: "${PORT_TRANSLATE}"

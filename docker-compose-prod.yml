@@ -52,7 +52,6 @@ services:
       VITE_PORT_SERVER: ${PORT_SERVER}
       REDIS_CONN: "redis:${PORT_REDIS}"
       DB_USER: "${DB_USER}"
-      DB_PASSWORD: "/run/secrets/vrooli/prod/DB_PASSWORD"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"

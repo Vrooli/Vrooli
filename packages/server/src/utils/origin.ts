@@ -11,17 +11,17 @@ export const safeOrigins = (): Array<string | RegExp> => {
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
             "https://studio.apollographql.com",
-            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
+            new RegExp(`^http(s)?://${process.env.SITE_IP}(?::[0-9]+)?$`),
         );
     }
     else {
         // Parse URLs from process.env.VIRTUAL_HOST
         const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
         for (const domain of domains) {
-            origins.push(new RegExp(`^http(s)?:\/\/${domain}$`));
+            origins.push(new RegExp(`^http(s)?://${domain}$`));
         }
         origins.push(
-            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
+            new RegExp(`^http(s)?://${process.env.SITE_IP}(?::[0-9]+)?$`),
         );
     }
     return origins;
