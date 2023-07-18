@@ -1,5 +1,7 @@
-import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, getReactionScore, ReplyIcon, ReportIcon, SearchIcon, Session, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@local/shared";
+import { getReactionScore, Session } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
+import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
+import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getYou, ListObjectType } from "utils/display/listTools";
 
@@ -115,7 +117,7 @@ const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boo
     [ObjectAction.VoteUp]: ["Upvote", UpvoteWideIcon, "default", false],
 });
 
-export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<any>, "Icon" | "iconColor" | "label" | "preview" | "value">[] => {
+export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "label" | "value">[] => {
     return actions.map((action) => {
         const [label, Icon, iconColor, preview] = allOptionsMap[action];
         return { label, Icon, iconColor, preview, value: action };

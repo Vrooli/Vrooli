@@ -1,9 +1,10 @@
-import { AddIcon, CommonKey, HistoryIcon, LockIcon, MemberInviteStatus, UnlockIcon, UserIcon } from "@local/shared";
+import { CommonKey, MemberInviteStatus } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
+import { AddIcon, HistoryIcon, LockIcon, UnlockIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

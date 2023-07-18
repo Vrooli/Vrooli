@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, SuccessIcon, Tag } from "@local/shared";
+import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -22,6 +22,7 @@ import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, setSearchParams, useLocation } from "route";

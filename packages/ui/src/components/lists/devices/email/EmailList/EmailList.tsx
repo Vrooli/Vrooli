@@ -1,12 +1,13 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
 import { Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
+import { AddIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";

@@ -1,10 +1,11 @@
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon, StandardVersion } from "@local/shared";
+import { StandardVersion } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableText } from "components/containers/EditableText/EditableText";
 import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { linkColors } from "styles";

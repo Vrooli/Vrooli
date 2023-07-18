@@ -1,6 +1,5 @@
-import { SvgComponent } from "@local/shared";
 import { TitleProps } from "components/text/types";
-import { SxType } from "types";
+import { SvgComponent, SxType } from "types";
 import { ViewDisplayType } from "views/types";
 
 export interface ContactInfoProps {

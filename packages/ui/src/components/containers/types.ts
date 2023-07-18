@@ -1,8 +1,8 @@
-import { CommentFor, CommonKey, SvgComponent, SvgProps } from "@local/shared";
+import { CommentFor, CommonKey } from "@local/shared";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 import { ReactNode } from "react";
-import { SxType } from "types";
+import { SvgComponent, SvgProps, SxType } from "types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;

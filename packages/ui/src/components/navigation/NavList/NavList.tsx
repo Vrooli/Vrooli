@@ -1,7 +1,8 @@
-import { LINKS, LogInIcon, ProfileIcon } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
+import { LogInIcon, ProfileIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";

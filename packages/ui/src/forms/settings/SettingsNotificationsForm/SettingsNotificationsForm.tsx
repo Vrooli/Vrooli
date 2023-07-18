@@ -1,4 +1,3 @@
-import { EmailIcon, PhoneIcon } from "@local/shared";
 import { Stack } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -7,6 +6,7 @@ import { PushList } from "components/lists/devices";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { Title } from "components/text/Title/Title";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { EmailIcon, PhoneIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { SettingsNotificationFormProps } from "../types";
 

@@ -1,12 +1,14 @@
-import { AddIcon, BotIcon, LockIcon, SvgComponent, User, UserIcon } from "@local/shared";
+import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { AddIcon, BotIcon, LockIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SvgComponent } from "types";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { MembersButtonProps } from "../types";

@@ -1,9 +1,10 @@
-import { CompleteIcon } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { CompleteIcon } from "icons";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsCompleteButtonProps } from "../types";
 
@@ -12,6 +13,7 @@ export function IsCompleteButton({
     objectType,
 }: IsCompleteButtonProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [field, , helpers] = useField("isComplete");
 
@@ -21,11 +23,11 @@ export function IsCompleteButton({
         const isComplete = field?.value;
         return {
             Icon: isComplete ? CompleteIcon : null,
-            tooltip: isComplete ? `This is complete${isEditing ? "" : ". Press to mark incomplete"}` : `This is incomplete${isEditing ? "" : ". Press to mark complete"}`,
+            tooltip: t(`IsComplete${isComplete ? "True" : "False"}TogglePress${isEditing ? "Editable" : ""}`),
         };
-    }, [field?.value, isEditing]);
+    }, [field?.value, isEditing, t]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isEditing || !isAvailable) return;
         helpers.setValue(!field?.value);
     }, [isEditing, isAvailable, helpers, field?.value]);
@@ -39,7 +41,7 @@ export function IsCompleteButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{field?.value ? "Complete" : "Incomplete"}</TextShrink>
+            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Complete" : "Incomplete")}</TextShrink>
             <Tooltip title={tooltip}>
                 <ColorIconButton background={palette.primary.light} sx={{ ...smallButtonProps(isEditing, false) }} onClick={handleClick}>
                     {Icon && <Icon {...commonIconProps()} />}

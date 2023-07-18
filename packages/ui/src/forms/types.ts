@@ -44,7 +44,7 @@ export interface BaseFormProps {
     onClose?: () => unknown;
     promptBeforeUnload?: boolean;
     ref?: any;
-    style?: { [key: string]: any };
+    style?: { [x: string]: string | number | null };
     validationSchema?: any;
 }
 

@@ -1,6 +1,7 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuProps } from "../types";
 
@@ -16,16 +17,19 @@ export function ListMenu<T>({
     zIndex,
 }: ListMenuProps<T>) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
 
-    const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, preview, helpData }, index) => {
-        const itemText = <ListItemText primary={label} secondary={preview ? "Coming Soon" : null} sx={{
-            // Style secondary
-            "& .MuiListItemText-secondary": {
-                color: "red",
-            },
-        }} />;
+    const items = useMemo(() => data?.map(({
+        label,
+        labelKey,
+        value,
+        Icon,
+        iconColor,
+        helpData,
+    }, index) => {
+        const itemText = <ListItemText primary={labelKey ? t(labelKey) : label} />;
         const fill = !iconColor || ["default", "unset"].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
@@ -51,7 +55,6 @@ export function ListMenu<T>({
 
         return (
             <ListItem
-                disabled={preview}
                 button
                 onClick={() => { onSelect(value); onClose(); }}
                 onKeyDown={handleKeyDown}
@@ -64,7 +67,7 @@ export function ListMenu<T>({
                 {helpIcon}
             </ListItem>
         );
-    }), [data, id, onClose, onSelect, palette.background.textSecondary]);
+    }), [data, id, onClose, onSelect, palette.background.textSecondary, t]);
 
     return (
         <Menu
@@ -80,7 +83,7 @@ export function ListMenu<T>({
                 vertical: "top",
                 horizontal: "center",
             }}
-            onClose={(e, reason: any) => {
+            onClose={(_e, reason: "backdropClick" | "escapeKeyDown" | "tabKeyDown") => {
                 if (reason !== "tabKeyDown") {
                     onClose();
                 }

@@ -1,6 +1,6 @@
-import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "@local/shared";
 import { Avatar, Box, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { placeholderColor } from "utils/display/listTools";

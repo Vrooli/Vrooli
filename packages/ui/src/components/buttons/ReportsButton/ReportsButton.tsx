@@ -1,5 +1,5 @@
-import { ReportIcon } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
+import { ReportIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";

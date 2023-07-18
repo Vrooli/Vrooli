@@ -1,7 +1,7 @@
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "@local/shared";
 import { Box, Dialog, DialogContent, IconButton, Palette, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keyComboToString } from "utils/display/device";

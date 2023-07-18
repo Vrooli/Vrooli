@@ -1,9 +1,10 @@
-import { HistoryIcon, LightModeIcon, LINKS, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
+import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

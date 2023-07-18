@@ -1,6 +1,6 @@
-import { HelpIcon } from "@local/shared";
 import { Box, IconButton, Menu, Tooltip, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
+import { HelpIcon } from "icons";
 import { useCallback, useState } from "react";
 import { linkColors, noSelect } from "styles";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";

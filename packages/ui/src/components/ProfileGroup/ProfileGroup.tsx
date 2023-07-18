@@ -1,7 +1,9 @@
-import { BotIcon, SvgComponent, User, UserIcon } from "@local/shared";
+import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ProfileGroupProps } from "components/types";
+import { BotIcon, UserIcon } from "icons";
 import { useContext, useMemo } from "react";
+import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { SessionContext } from "utils/SessionContext";
 

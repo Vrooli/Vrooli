@@ -1,9 +1,10 @@
-import { DeleteIcon, DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
+import { DeleteIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

@@ -1,6 +1,6 @@
-import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, SvgComponent, User } from "@local/shared";
+import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
-import { SxType } from "types";
+import { SvgComponent, SxType } from "types";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {

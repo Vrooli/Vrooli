@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetStandardVersion, StandardVersion } from "@local/shared";
+import { CommentFor, endpointGetStandardVersion, StandardVersion } from "@local/shared";
 import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -14,6 +14,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

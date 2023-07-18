@@ -1,4 +1,4 @@
-import { BotIcon, Chat, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, User, UserIcon, uuid } from "@local/shared";
+import { Chat, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -7,10 +7,12 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
+import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";

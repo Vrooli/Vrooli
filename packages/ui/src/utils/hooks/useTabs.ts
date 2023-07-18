@@ -1,7 +1,8 @@
-import { CommonKey, SvgComponent } from "@local/shared";
+import { CommonKey } from "@local/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
+import { SvgComponent } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 
 type TabParams<T> = {
@@ -12,12 +13,12 @@ type TabParams<T> = {
     where: { [x: string]: any };
 }
 
-type UseTabsParams<T, U extends Record<string, any> = {}> = TabParams<T> & U;
+type UseTabsParams<T, U extends Record<string, any> = object> = TabParams<T> & U;
 
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <T, U extends Record<string, any> = {}>(tabParams: readonly UseTabsParams<T, U>[], defaultTab: number) => {
+export const useTabs = <T, U extends Record<string, any> = object>(tabParams: readonly UseTabsParams<T, U>[], defaultTab: number) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 

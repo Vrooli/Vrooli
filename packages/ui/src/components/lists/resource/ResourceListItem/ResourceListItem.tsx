@@ -1,7 +1,8 @@
 // Used to display popular/search results of a particular object type
-import { adaHandleRegex, DeleteIcon, EditIcon, OpenInNewIcon, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
+import { adaHandleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { openLink, useLocation } from "route";
 import { multiLineEllipsis } from "styles";

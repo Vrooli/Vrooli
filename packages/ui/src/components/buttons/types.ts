@@ -1,8 +1,8 @@
-import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine, SvgProps } from "@local/shared";
+import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
-import React, { ReactNode } from "react";
-import { NavigableObject, SxType } from "types";
+import React from "react";
+import { NavigableObject, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -36,7 +36,7 @@ export type CameraButtonProps = {
 
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
-    children: ReactNode;
+    children: JSX.Element | null | undefined;
     disabled?: boolean;
     href?: string;
     onClick?: (event: React.MouseEvent<HTMLElement>) => unknown;
@@ -51,11 +51,11 @@ export interface CommentsButtonProps {
 }
 
 export interface EllipsisActionButtonProps {
-    children: ReactNode;
+    children: JSX.Element | null | undefined;
 }
 
 export interface GridActionButtonsProps {
-    children: ReactNode;
+    children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
 }
 
@@ -94,7 +94,7 @@ export type MicrophoneButtonProps = {
 
 export interface PopupMenuProps extends ButtonProps {
     text?: string;
-    children: ReactNode;
+    children: JSX.Element | null | undefined;
 }
 
 export interface ReportButtonProps {
@@ -141,7 +141,7 @@ export interface ShareButtonProps {
 }
 
 export interface SideActionButtonsProps {
-    children: ReactNode;
+    children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
     /** If true, displays higher up */
     hasGridActions?: boolean;

@@ -1,5 +1,5 @@
-import { VisibleIcon } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
+import { VisibleIcon } from "icons";
 import { ViewsDisplayProps } from "../types";
 
 /**

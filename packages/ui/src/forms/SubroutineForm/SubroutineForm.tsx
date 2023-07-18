@@ -1,4 +1,4 @@
-import { CloseIcon, DUMMY_ID, exists, nodeRoutineListItemValidation, OpenInNewIcon, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, exists, nodeRoutineListItemValidation, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -17,6 +17,7 @@ import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
+import { CloseIcon, OpenInNewIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";

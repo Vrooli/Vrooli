@@ -1,6 +1,6 @@
-import { BuildIcon } from "@local/shared";
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog } from "components/dialogs/AdvancedSearchDialog/AdvancedSearchDialog";
+import { BuildIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";

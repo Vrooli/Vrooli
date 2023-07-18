@@ -1,7 +1,7 @@
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Range } from "@codemirror/state";
-import { ErrorIcon, LangsKey, MagicIcon, OpenThreadIcon, RedoIcon, SvgComponent, UndoIcon, WarningIcon } from "@local/shared";
+import { LangsKey } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -17,7 +17,9 @@ import { Extension, StateField } from "@codemirror/state";
 import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
+import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
 import ReactDOMServer from "react-dom/server";
+import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";

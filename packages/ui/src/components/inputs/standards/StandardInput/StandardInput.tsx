@@ -1,10 +1,10 @@
-import { BuildIcon, VisibleIcon } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { useField } from "formik";
 import { FieldData } from "forms/types";
+import { BuildIcon, VisibleIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";

@@ -1,11 +1,13 @@
-import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, LINKS, SOCIALS, StatsIcon, SvgComponent, TwitterIcon } from "@local/shared";
+import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
+import { SvgComponent } from "types";
 import { ContactInfoProps } from "../types";
 
 type NavActionListData = [string, string, string, SvgComponent]

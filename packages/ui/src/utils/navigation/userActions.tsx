@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { CommonKey, CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, LINKS, NotificationsAllIcon, PremiumIcon, SearchIcon, Session, SvgComponent } from "@local/shared";
+import { CommonKey, LINKS, Session } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons";
 import { openLink, SetLocation } from "route";
+import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 
 export enum ACTION_TAGS {

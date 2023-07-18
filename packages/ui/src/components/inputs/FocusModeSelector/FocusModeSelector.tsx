@@ -42,6 +42,7 @@ export const FocusModeSelector = () => {
             <Formik
                 enableReinitialize={true}
                 initialValues={{ active }}
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 onSubmit={() => { }} // no-op
             >
                 <Selector

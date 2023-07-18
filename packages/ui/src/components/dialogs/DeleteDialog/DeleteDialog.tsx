@@ -1,7 +1,8 @@
-import { DeleteIcon, DeleteOneInput, endpointPostDeleteOne, LINKS, Success } from "@local/shared";
+import { DeleteOneInput, endpointPostDeleteOne, LINKS, Success } from "@local/shared";
 import { Button, DialogContent, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { DeleteIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

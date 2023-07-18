@@ -1,4 +1,4 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, CompleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, Success } from "@local/shared";
+import { Chat, CommonKey, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -8,6 +8,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { AddIcon, CommentIcon, CompleteIcon, NotificationsAllIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";

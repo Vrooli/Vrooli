@@ -1,8 +1,8 @@
-import { InvisibleIcon, VisibleIcon } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { InvisibleIcon, VisibleIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
@@ -27,7 +27,7 @@ export function IsPrivateButton({
         };
     }, [field?.value, isEditing, t]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isEditing || !isAvailable) return;
         helpers.setValue(!field?.value);
     }, [isEditing, isAvailable, helpers, field?.value]);
@@ -41,7 +41,7 @@ export function IsPrivateButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{field?.value ? t("Private") : t("Public")}</TextShrink>
+            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Private" : "Public")}</TextShrink>
             <Tooltip title={tooltip}>
                 <ColorIconButton
                     background={palette.primary.light}

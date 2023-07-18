@@ -1,4 +1,4 @@
-import { BotIcon, ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage, UserIcon } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPutChatMessage } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -6,6 +6,7 @@ import { ChatBubbleStatus } from "components/ChatBubbleStatus/ChatBubbleStatus";
 import { MarkdownInputBase } from "components/inputs/MarkdownInputBase/MarkdownInputBase";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
+import { BotIcon, UserIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";

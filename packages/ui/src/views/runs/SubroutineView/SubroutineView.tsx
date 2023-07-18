@@ -1,4 +1,4 @@
-import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag } from "@local/shared";
+import { CommentFor, exists, ResourceList, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -16,6 +16,7 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

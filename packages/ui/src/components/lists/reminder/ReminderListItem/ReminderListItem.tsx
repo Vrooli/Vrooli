@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
-import { DeleteIcon, ScheduleIcon } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { ReminderListItemProps } from "components/lists/types";
+import { DeleteIcon, ScheduleIcon } from "icons";
 import { useCallback, useMemo } from "react";
 
 /**

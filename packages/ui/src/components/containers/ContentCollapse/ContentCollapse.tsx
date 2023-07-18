@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
-import { ExpandLessIcon, ExpandMoreIcon } from "@local/shared";
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { ExpandLessIcon, ExpandMoreIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ContentCollapseProps } from "../types";

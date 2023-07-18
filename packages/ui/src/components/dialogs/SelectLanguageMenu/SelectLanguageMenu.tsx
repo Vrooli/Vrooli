@@ -1,6 +1,7 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, endpointGetTranslate, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";

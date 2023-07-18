@@ -1,4 +1,4 @@
-import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, CompleteIcon, DUMMY_ID, orDefault, Session } from "@local/shared";
+import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { Button, Grid, Stack, TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
@@ -13,6 +13,7 @@ import { Title } from "components/text/Title/Title";
 import { Field } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
+import { CompleteIcon } from "icons";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";

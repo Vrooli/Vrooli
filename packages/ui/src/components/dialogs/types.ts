@@ -1,10 +1,10 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject, TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
-import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SxType } from "types";
+import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObjectType } from "utils/display/listTools";
@@ -124,9 +124,9 @@ export interface ListMenuItemData<T> {
     /** Color of Icon, if different than text */
     iconColor?: string;
     /** Text to display */
-    label: string;
-    /** Determines if the item is a preview (i.e. not selectable, coming soon) */
-    preview?: boolean;
+    label?: string;
+    /** Translation key for label, if label not provided */
+    labelKey?: CommonKey;
     /** Value to pass back when selected */
     value: T;
 }

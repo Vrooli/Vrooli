@@ -1,4 +1,4 @@
-import { exists, OrganizationIcon, UserIcon } from "@local/shared";
+import { exists } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -8,6 +8,7 @@ import { userFromSession } from "components/lists/RelationshipList/RelationshipL
 import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -26,8 +27,8 @@ enum OwnerTypesEnum {
 }
 
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
-    { label: "Self", value: OwnerTypesEnum.Self },
-    { label: "Organization", value: OwnerTypesEnum.Organization },
+    { labelKey: "Self", value: OwnerTypesEnum.Self },
+    { labelKey: "Organization", value: OwnerTypesEnum.Organization },
 ];
 
 export function OwnerButton({
@@ -60,7 +61,7 @@ export function OwnerButton({
 
     // Owner list dialog (select self, organization, or another user)
     const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
-    const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const owner = versionField?.value ?? rootField?.value;
@@ -84,8 +85,9 @@ export function OwnerButton({
     }, [closeOwnerDialog, openOrganizationDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
     }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog]);
 
@@ -94,7 +96,7 @@ export function OwnerButton({
         // If no owner data, marked as anonymous
         if (!owner) return {
             Icon: null,
-            tooltip: `Marked as anonymous${isEditing ? "" : ". Press to set owner"}`,
+            tooltip: t(`OwnerNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
         // If owner is organization, use organization icon
         if (owner.__typename === "Organization") {
@@ -102,7 +104,7 @@ export function OwnerButton({
             const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, "organization");
             return {
                 Icon,
-                tooltip: `Owner: ${ownerName}`,
+                tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: ownerName }),
             };
         }
         // If owner is user, use self icon
@@ -111,9 +113,9 @@ export function OwnerButton({
         const ownerName = (owner as RelationshipItemUser).name;
         return {
             Icon,
-            tooltip: `Owner: ${isSelf ? "Self" : ownerName}`,
+            tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: isSelf ? t("Self") : ownerName }),
         };
-    }, [isEditing, languages, rootField?.value, session, versionField?.value]);
+    }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -144,7 +146,7 @@ export function OwnerButton({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="owner" sx={{ ...commonLabelProps() }}>Owner</TextShrink>
+                <TextShrink id="owner" sx={{ ...commonLabelProps() }}>{t("Owner")}</TextShrink>
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}

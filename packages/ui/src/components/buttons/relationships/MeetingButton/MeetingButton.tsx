@@ -1,10 +1,11 @@
-import { AddIcon, exists, OrganizationIcon } from "@local/shared";
+import { exists } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemMeeting } from "components/lists/types";
 import { useField } from "formik";
+import { AddIcon, OrganizationIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -31,7 +32,7 @@ export function MeetingButton({
     const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Meeting dialog
-    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const meeting = field?.value;
@@ -57,8 +58,9 @@ export function MeetingButton({
     }, [field?.value?.id, helpers, closeDialog]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return ["Meeting", handleSelect, closeDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
@@ -67,12 +69,12 @@ export function MeetingButton({
         // If no data, marked as unset
         if (!meeting) return {
             Icon: AddIcon,
-            tooltip: isEditing ? "" : "Press to assign to a meeting",
+            tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`),
         };
         const meetingName = firstString(getTranslation(meeting as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }));
         return {
             Icon: OrganizationIcon,
-            tooltip: `Meeting: ${meetingName}`,
+            tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`, { meeting: meetingName }),
         };
     }, [field?.value, isEditing, languages, t]);
 

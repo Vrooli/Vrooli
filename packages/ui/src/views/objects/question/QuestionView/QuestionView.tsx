@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
+import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -13,6 +13,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
+import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

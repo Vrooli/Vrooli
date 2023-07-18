@@ -1,9 +1,11 @@
-import { CommonKey, DiscordIcon, GitHubIcon, InfoIcon, LINKS, SOCIALS, StatsIcon, SvgComponent, TwitterIcon } from "@local/shared";
+import { CommonKey, LINKS, SOCIALS } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
+import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
+import { SvgComponent } from "types";
 import { getDeviceInfo } from "utils/display/device";
 
 /** aria-label, tooltip, link, displayed text, icon */

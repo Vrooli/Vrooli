@@ -1,10 +1,11 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, LINKS, TwitterIcon } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { getDeviceInfo } from "utils/display/device";

@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, RunRoutine, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, RunRoutine, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -6,6 +6,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";

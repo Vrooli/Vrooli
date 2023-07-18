@@ -1,4 +1,6 @@
-import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ResourceUsedFor, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from "@local/shared";
+import { ResourceUsedFor } from "@local/shared";
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from "icons";
+import { SvgComponent } from "types";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Community]: OrganizationIcon,

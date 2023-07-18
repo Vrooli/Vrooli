@@ -1,6 +1,6 @@
-import { BumpModerateIcon } from "@local/shared";
 import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { BumpModerateIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";

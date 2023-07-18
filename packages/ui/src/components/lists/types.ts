@@ -1,7 +1,7 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
-import { AwardDisplay, NavigableObject, SxType } from "types";
+import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObjectType } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
@@ -193,9 +193,7 @@ export interface SearchListProps {
      */
     dummyLength?: number;
     handleAdd?: (event?: any) => unknown; // Not shown if not passed
-    /**
-     * True if update button should be hidden
-     */
+    /** If update button on list items should be hidden */
     hideUpdateButton?: boolean;
     id: string;
     searchPlaceholder?: CommonKey;
@@ -207,7 +205,8 @@ export interface SearchListProps {
     }
     onItemClick?: (item: any) => unknown;
     onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
-    where?: any; // Additional where clause to pass to the query
+    /** Additional where clause to pass to the query */
+    where?: { [key: string]: object };
     zIndex: number;
 }
 

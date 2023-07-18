@@ -1,5 +1,5 @@
-import { OpenThreadIcon, OrganizationIcon, UserIcon } from "@local/shared";
 import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
+import { OpenThreadIcon, OrganizationIcon, UserIcon } from "icons";
 import { useMemo } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { CommentConnectorProps } from "../types";

@@ -1,7 +1,8 @@
-import { EllipsisIcon, endpointGetSchedule, Schedule } from "@local/shared";
+import { endpointGetSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -64,7 +65,7 @@ export const ScheduleView = ({
                 </IconButton>
             </Tooltip>
         </OverviewContainer>
-    ), [palette.background.textSecondary, openMoreMenu]);
+    ), [t, openMoreMenu, palette.background.textSecondary]);
 
     return (
         <>

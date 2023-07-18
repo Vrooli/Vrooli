@@ -1,4 +1,4 @@
-import { CloseIcon, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -13,6 +13,7 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeR
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { NodeWithRoutineListShape } from "forms/types";
+import { CloseIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";

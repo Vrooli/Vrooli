@@ -1,6 +1,7 @@
-import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from "@local/shared";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "components/dialogs/types";
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon } from "icons";
+import { SvgComponent } from "types";
 import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ResourceListItemContextMenuProps } from "../types";
@@ -69,7 +70,7 @@ export const ResourceListItemContextMenu = ({
             case ResourceContextMenuOption.Move:
                 onMove(index);
                 break;
-            case ResourceContextMenuOption.Share:
+            case ResourceContextMenuOption.Share: {
                 if (!resource?.link) return;
                 const { name, description } = getTranslation(resource, []); //TODO languages
                 navigator.share({
@@ -78,6 +79,7 @@ export const ResourceListItemContextMenu = ({
                     url: resource?.link,
                 });
                 break;
+            }
         }
         onClose();
     };

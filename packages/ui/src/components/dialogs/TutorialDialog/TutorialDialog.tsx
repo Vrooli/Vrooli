@@ -1,7 +1,8 @@
-import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon, LINKS } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, Button, Dialog, IconButton, MobileStepper, Paper, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";
 import { useLocation } from "route";

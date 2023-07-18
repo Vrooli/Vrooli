@@ -1,6 +1,7 @@
-import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from "@local/shared";
 import { Box, Button, IconButton, Palette, Typography, useTheme } from "@mui/material";
+import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SvgComponent } from "types";
 import { BasicSnackProps } from "../types";
 
 export enum SnackSeverity {

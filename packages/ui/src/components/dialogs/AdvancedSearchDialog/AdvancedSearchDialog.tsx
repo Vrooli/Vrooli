@@ -1,7 +1,6 @@
 /**
  * Displays all search options for an organization
  */
-import { CancelIcon, RefreshIcon, SearchIcon } from "@local/shared";
 import { Box, Button, Grid, useTheme } from "@mui/material";
 import { GridActionButtons } from "components/buttons/GridActionButtons/GridActionButtons";
 import { GeneratedGrid } from "components/inputs/generated";
@@ -9,6 +8,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { generateDefaultProps, generateYupSchema } from "forms/generators";
 import { FieldData, FormSchema } from "forms/types";
+import { CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams } from "route";

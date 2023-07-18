@@ -1,6 +1,7 @@
-import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, NodeRoutineListItem } from "@local/shared";
+import { NodeRoutineListItem } from "@local/shared";
 import { Box, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";

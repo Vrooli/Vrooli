@@ -1,9 +1,9 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from "@local/shared";
 import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
 import { alpha, Box, Checkbox, IconButton, Palette, styled, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { ListNumberIcon, OpenInNewIcon, StepListCloseIcon, StepListEndIcon, StepListOpenIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
 import { ProjectStep } from "types";
@@ -284,9 +284,9 @@ export const RunStepsDialog = ({
                 {/* Tree display of steps */}
                 <TreeView
                     aria-label="routine steps navigator"
-                    defaultCollapseIcon={<StepListClose fill={palette.background.textPrimary} />}
-                    defaultExpandIcon={<StepListOpen fill={palette.background.textPrimary} />}
-                    defaultEndIcon={<StepListEnd fill={palette.background.textSecondary} />}
+                    defaultCollapseIcon={<StepListCloseIcon fill={palette.background.textPrimary} />}
+                    defaultExpandIcon={<StepListOpenIcon fill={palette.background.textPrimary} />}
+                    defaultEndIcon={<StepListEndIcon fill={palette.background.textSecondary} />}
                     selected={selectedItem}
                     sx={{
                         height: 240,

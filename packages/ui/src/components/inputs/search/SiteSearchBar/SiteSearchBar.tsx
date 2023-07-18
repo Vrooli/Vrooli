@@ -1,10 +1,12 @@
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, BookmarkFor, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from "@local/shared";
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, Tooltip, useTheme } from "@mui/material";
+import { BookmarkFor } from "@local/shared";
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
+import { Dimensions } from "components/graphs/types";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AutocompleteOption } from "types";
+import { AutocompleteOption, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { useDebounce } from "utils/hooks/useDebounce";
 import { useDimensions } from "utils/hooks/useDimensions";
@@ -115,12 +117,12 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
     return Icon ? <Icon fill={fill} /> : null;
 };
 
-const FullWidthPopper = function (props) {
+const FullWidthPopper = function (props: PopperProps & { dimensions: Dimensions }) {
     return <Popper {...props} sx={{
         left: "-12px!important",
         minWidth: props.dimensions.width ?? "fit-content",
         maxWidth: "100%",
-    }} placement="bottom-start" />;
+    }} placement="bottom-start" /> as JSX.Element;
 };
 
 /**

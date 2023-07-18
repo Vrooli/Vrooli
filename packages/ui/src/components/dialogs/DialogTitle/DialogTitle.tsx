@@ -1,6 +1,6 @@
-import { CloseIcon } from "@local/shared";
 import { Box, DialogTitle as MuiDialogTitle, IconButton, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
+import { CloseIcon } from "icons";
 import { forwardRef } from "react";
 import { useLocation } from "route";
 import { noSelect } from "styles";

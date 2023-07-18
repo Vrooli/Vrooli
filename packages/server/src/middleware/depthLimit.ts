@@ -14,6 +14,7 @@ interface Options {
  * @param {Function} [callback] - Called each time validation runs. Receives an Object which is a map of the depths for each operation. 
  * @returns {Function} The validator function for GraphQL validation phase.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 export const depthLimit = (maxDepth: number, options: Options = {}, callback: any = () => { }) => (validationContext: any) => {
     try {
         const { definitions } = validationContext.getDocument();
@@ -71,7 +72,7 @@ const determineDepth: any = (node: any, fragments: any, depthSoFar: number, maxD
     }
 
     switch (node.kind) {
-        case Kind.FIELD:
+        case Kind.FIELD: {
             // by default, ignore the introspection fields which begin with double underscores
             const shouldIgnore = /^__/.test(node.name.value) || seeIfIgnored(node, options.ignoreTypenames);
 
@@ -81,6 +82,7 @@ const determineDepth: any = (node: any, fragments: any, depthSoFar: number, maxD
             return 1 + Math.max(...node.selectionSet.selections.map((selection: any) =>
                 determineDepth(selection, fragments, depthSoFar + 1, maxDepth, context, operationName, options),
             ));
+        }
         case Kind.FRAGMENT_SPREAD:
             return determineDepth(fragments[node.name.value], fragments, depthSoFar, maxDepth, context, operationName, options);
         case Kind.INLINE_FRAGMENT:

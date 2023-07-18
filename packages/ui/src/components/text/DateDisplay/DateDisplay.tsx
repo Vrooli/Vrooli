@@ -1,6 +1,6 @@
-import { ScheduleIcon } from "@local/shared";
 import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { ScheduleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
 import usePress from "utils/hooks/usePress";

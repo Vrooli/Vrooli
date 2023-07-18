@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
@@ -10,6 +10,7 @@ import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { validateAndGetYupErrors } from "utils/shape/general";

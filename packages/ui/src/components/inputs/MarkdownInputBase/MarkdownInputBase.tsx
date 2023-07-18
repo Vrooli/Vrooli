@@ -1,13 +1,13 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";

@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Reminder, reminderValidation, Session, uuid } from "@local/shared";
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
@@ -7,6 +7,7 @@ import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
 import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";

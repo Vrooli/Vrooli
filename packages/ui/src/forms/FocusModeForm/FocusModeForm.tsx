@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, FocusMode, focusModeValidation, HeartFilledIcon, InvisibleIcon, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, FocusMode, focusModeValidation, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -9,6 +9,7 @@ import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";

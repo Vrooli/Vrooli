@@ -1,5 +1,5 @@
-import { CompleteIcon, DeleteIcon } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { CompleteIcon, DeleteIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
 import { WalletListItemProps } from "../types";

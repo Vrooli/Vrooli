@@ -1,9 +1,10 @@
 /**
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, Node, NodeEnd, NodeRoutineList, NodeType, UnlinkedNodesIcon } from "@local/shared";
+import { Node, NodeEnd, NodeRoutineList, NodeType } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
@@ -42,6 +43,7 @@ export const UnlinkedNodesDialog = ({
             case NodeType.End:
                 return <EndNode
                     {...nodeProps}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     language={language}
                     linksIn={[]}
@@ -58,6 +60,7 @@ export const UnlinkedNodesDialog = ({
                     canExpand={false}
                     labelVisible={true}
                     language={language}
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}

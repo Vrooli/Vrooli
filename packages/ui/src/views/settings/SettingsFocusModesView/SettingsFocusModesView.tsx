@@ -1,10 +1,11 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

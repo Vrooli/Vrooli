@@ -1,4 +1,4 @@
-import { AddIcon, Bookmark, BookmarkList, bookmarkListValidation, DeleteIcon, DUMMY_ID, Session, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, bookmarkListValidation, DUMMY_ID, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -6,6 +6,7 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { Field, useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListFormProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { forwardRef, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";

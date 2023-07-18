@@ -1,8 +1,9 @@
-import { DeleteIcon, endpointDeleteUser, LINKS, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { endpointDeleteUser, LINKS, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { Formik } from "formik";
+import { DeleteIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

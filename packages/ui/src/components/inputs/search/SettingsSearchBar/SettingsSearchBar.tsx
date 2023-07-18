@@ -1,5 +1,5 @@
-import { SearchIcon } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
+import { SearchIcon } from "icons";
 import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { findSearchResults, SearchItem, shapeSearchText } from "utils/search/siteToSearch";

@@ -1,28 +1,28 @@
 import { logger } from "../events";
 
-export type ApiSubscriptionContext = {}
+export type ApiSubscriptionContext = object;
 
-export type CommentSubscriptionContext = {}
+export type CommentSubscriptionContext = object
 
-export type IssueSubscriptionContext = {}
+export type IssueSubscriptionContext = object
 
-export type MeetingSubscriptionContext = {}
+export type MeetingSubscriptionContext = object
 
-export type NoteSubscriptionContext = {}
+export type NoteSubscriptionContext = object
 
-export type OrganizationSubscriptionContext = {}
+export type OrganizationSubscriptionContext = object
 
-export type ProjectSubscriptionContext = {}
+export type ProjectSubscriptionContext = object
 
-export type PullRequestSubscriptionContext = {}
+export type PullRequestSubscriptionContext = object
 
-export type QuestionSubscriptionContext = {}
+export type QuestionSubscriptionContext = object
 
-export type QuizSubscriptionContext = {}
+export type QuizSubscriptionContext = object
 
-export type ReportSubscriptionContext = {}
+export type ReportSubscriptionContext = object
 
-export type RoutineSubscriptionContext = {}
+export type RoutineSubscriptionContext = object
 
 export type ScheduleSubscriptionContext = {
     reminders: {
@@ -33,9 +33,9 @@ export type ScheduleSubscriptionContext = {
     }[];
 }
 
-export type SmartContractSubscriptionContext = {}
+export type SmartContractSubscriptionContext = object
 
-export type StandupSubscriptionContext = {}
+export type StandupSubscriptionContext = object
 
 export type SubscriptionContext = ApiSubscriptionContext |
     CommentSubscriptionContext |
@@ -58,7 +58,7 @@ export type SubscriptionContext = ApiSubscriptionContext |
  * @param contextJson JSON string of the subscription's context
  * @returns Parsed subscription context, or empty object if there is an error
  */
-export const parseSubscriptionContext = (contextJson: string | null): SubscriptionContext | {} => {
+export const parseSubscriptionContext = (contextJson: string | null): SubscriptionContext | object => {
     try {
         const settings = contextJson ? JSON.parse(contextJson) : {};
         return settings;

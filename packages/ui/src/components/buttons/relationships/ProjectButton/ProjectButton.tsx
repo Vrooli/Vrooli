@@ -1,4 +1,4 @@
-import { exists, ProjectIcon } from "@local/shared";
+import { exists } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -6,7 +6,9 @@ import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { ProjectIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -22,6 +24,7 @@ export function ProjectButton({
 }: ProjectButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -32,7 +35,7 @@ export function ProjectButton({
 
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
-    const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleProjectClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const project = versionField?.value ?? rootField?.value;
@@ -60,8 +63,9 @@ export function ProjectButton({
     }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeProjectDialog]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isProjectDialogOpen) return ["ProjectVersion", handleProjectSelect, closeProjectDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
     }, [isProjectDialogOpen, handleProjectSelect, closeProjectDialog]);
 
@@ -70,14 +74,14 @@ export function ProjectButton({
         // If no project data, marked as unset
         if (!project) return {
             Icon: null,
-            tooltip: isEditing ? "" : "Press to assign to a project",
+            tooltip: t(`ProjectNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
         const projectName = firstString(getTranslation(project as RelationshipItemProjectVersion, languages, true).name, "project");
         return {
             Icon: ProjectIcon,
-            tooltip: `Project: ${projectName}`,
+            tooltip: t(`ProjectTogglePress${isEditing ? "Editable" : ""}`, { project: projectName }),
         };
-    }, [isEditing, languages, rootField?.value, versionField?.value]);
+    }, [isEditing, languages, rootField?.value, t, versionField?.value]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -98,7 +102,7 @@ export function ProjectButton({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="project" sx={{ ...commonLabelProps() }}>Project</TextShrink>
+                <TextShrink id="project" sx={{ ...commonLabelProps() }}>{t("Project", { count: 1 })}</TextShrink>
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}

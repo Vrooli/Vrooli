@@ -1,8 +1,8 @@
-import { Comment, CommentFor, StandardVersion, SvgComponent, Tag } from "@local/shared";
+import { Comment, CommentFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
-import { SxType } from "types";
+import { SvgComponent, SxType } from "types";
 import { ListObjectType } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";

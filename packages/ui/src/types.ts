@@ -4,6 +4,18 @@ import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 
+export interface SvgProps {
+    fill?: string;
+    iconTitle?: string;
+    id?: string;
+    style?: { [x: string]: string | number | null };
+    onClick?: () => unknown;
+    width?: number | string | null;
+    height?: number | string | null;
+}
+
+export type SvgComponent = (props: SvgProps) => JSX.Element;
+
 export type CalendarEvent = {
     __typename: "CalendarEvent",
     id: string;

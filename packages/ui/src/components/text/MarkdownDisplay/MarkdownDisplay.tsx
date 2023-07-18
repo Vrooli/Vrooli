@@ -1,8 +1,9 @@
-import { CopyIcon, endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
+import { endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import hljs from "highlight.js";
 import "highlight.js/styles/monokai-sublime.css";
+import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDisplay } from "utils/display/listTools";

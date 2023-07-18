@@ -1,5 +1,6 @@
-import { BUSINESS_NAME, VrooliIcon } from "@local/shared";
+import { BUSINESS_NAME } from "@local/shared";
 import { Box, IconButton, Typography, useTheme } from "@mui/material";
+import { VrooliIcon } from "icons";
 import { NavbarLogoProps } from "../types";
 
 

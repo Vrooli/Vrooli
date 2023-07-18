@@ -1,4 +1,4 @@
-import { AddIcon, ArrowLeftIcon, ArrowRightIcon, calculateOccurrences, CommonKey, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, ProjectIcon, RoutineIcon, Schedule, ScheduleFor, ScheduleSearchResult, SvgComponent, TodayIcon, VisibleIcon, WeekIcon } from "@local/shared";
+import { calculateOccurrences, CommonKey, Schedule, ScheduleFor, ScheduleSearchResult } from "@local/shared";
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -8,12 +8,13 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
+import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, ProjectIcon, RoutineIcon, TodayIcon, VisibleIcon, WeekIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
-import { CalendarEvent } from "types";
+import { CalendarEvent, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
@@ -178,7 +179,7 @@ export const CalendarView = ({
     useEffect(() => {
         const localeLoader = async () => {
             try {
-                const localeModule = await loadLocale(locale as any);
+                const localeModule = await loadLocale(locale);
 
                 const newLocalizer = dateFnsLocalizer({
                     format,

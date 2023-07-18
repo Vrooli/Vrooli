@@ -1,4 +1,4 @@
-import { CompleteIcon, DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -14,6 +14,7 @@ import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
+import { CompleteIcon, RoutineIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
