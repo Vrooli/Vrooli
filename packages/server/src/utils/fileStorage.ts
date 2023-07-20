@@ -3,6 +3,7 @@ import { uuid } from "@local/shared";
 // import * as nsfwjs from "nsfwjs";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints";
+import { logger } from "../events";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -56,39 +57,75 @@ const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
     return [] as any;
 };
 
+/** Supported image types/extensions */
+const IMAGE_TYPES = ["jpeg", "jpg", "png", "gif", "webp", "tiff", "bmp"];
+
+/** Uploads a file to S3 */
+const uploadFile = async (
+    s3: S3Client,
+    key: string,
+    body: Buffer,
+    mimetype: string,
+) => {
+    // Construct the PutObjectCommand with the necessary parameters.
+    const command = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        Body: body,
+        ContentType: mimetype,
+    });
+    // Send the command to the S3 client.
+    await s3.send(command);
+    // Return the URL of the uploaded file.
+    return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
+};
+
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
 export const processAndStoreFiles = async (
     files: Express.Multer.File[],
     config: UploadConfig,
-): Promise<{ [x: string]: string }> => {
+): Promise<{ [x: string]: string[] }> => {
     const s3 = getS3Client();
     const fileUrls = {};
+
     for (const file of files) {
-        // Generate a unique identifier for the file
-        const fileId = uuid();
+        const extension = file.originalname.split(".").pop();
+        const urls: string[] = [];
 
-        // You can also add a file extension if needed, but be careful not to trust the original name of the file,
-        // as it could be used for an injection attack. You should determine the file type yourself from the file content.
-        const key = `${fileId}`;
+        if (config.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
+            // Compute hash for the original image
+            const hash = await imghash.hash(file.buffer);
+            for (let i = 0; i < config.imageSizes.length; i++) {
+                const { width, height } = config.imageSizes[i];
+                const resizedImage = await resizeImage(file.buffer, width, height);
 
-        try {
-            const command = new PutObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: key,
-                Body: file.buffer, // assuming the file's data is stored in a Buffer
-                ContentType: file.mimetype,
-            });
-            await s3.send(command);
+                // Construct a unique key using hash, extension, and size
+                const resizedKey = `${hash}_${width}x${height}.${extension}`;
 
-            // Add the file's URL to the result object
-            fileUrls[file.originalname] = `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
+                try {
+                    const url = await uploadFile(s3, resizedKey, resizedImage, file.mimetype);
+                    urls.push(url);
+                } catch (error) {
+                    logger.error("Failed to upload file", { trace: "0502", error, fileName: file.originalname });
+                    throw error;
+                }
+            }
+        } else {
+            const fileId = uuid(); // For non-image files, continue to use UUID to avoid collision
+            const originalKey = `${fileId}.${extension}`;
 
-        } catch (error) {
-            console.error(`Failed to upload file ${file.originalname}:`, error);
-            throw error;
+            try {
+                const url = await uploadFile(s3, originalKey, file.buffer, file.mimetype);
+                urls.push(url);
+            } catch (error) {
+                logger.error("Failed to upload file", { trace: "0502", error, fileName: file.originalname });
+                throw error;
+            }
         }
+
+        fileUrls[file.originalname] = urls;
     }
 
     return fileUrls;
