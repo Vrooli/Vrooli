@@ -9,8 +9,13 @@ if [ "${NODE_ENV}" = "development" ]; then
     . "${HERE}/shared.sh"
 fi
 
-info 'Getting secrets...'
-. ${HERE}/getSecrets.sh ${NODE_ENV} VALYXA_API_KEY DB_PASSWORD ADMIN_WALLET ADMIN_PASSWORD VALYXA_PASSWORD VAPID_PRIVATE_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET SITE_EMAIL_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+# Get secrets, which will be stored in a temporary file
+info "Getting ${NODE_ENV} secrets..."
+TMP_FILE=$(mktemp)
+${HERE}/getSecrets.sh ${NODE_ENV} ${TMP_FILE} VALYXA_API_KEY DB_PASSWORD ADMIN_WALLET ADMIN_PASSWORD VALYXA_PASSWORD VAPID_PRIVATE_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET SITE_EMAIL_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+# Source and remove the temporary file
+. "$TMP_FILE"
+rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
 
 success 'Prisma schema generated'
