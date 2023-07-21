@@ -20,13 +20,7 @@ const BUCKET_NAME = "vrooli-bucket";
  */
 const getS3Client = (): S3Client => {
     if (!s3) {
-        s3 = new S3Client({
-            region: REGION,
-            credentials: {
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
-            },
-        });
+        s3 = new S3Client({ region: REGION });
     }
     return s3 as S3Client;
 };
@@ -75,9 +69,14 @@ const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult>
                 responseBody += chunk;
             });
             apiRes.on("end", () => {
-                const result = JSON.parse(responseBody) as NSFWCheckResponse;
-                // Return the predictions for the image.
-                resolve(result.predictions);
+                try {
+                    const result = JSON.parse(responseBody) as NSFWCheckResponse;
+                    resolve(result.predictions);
+                } catch (error) {
+                    const message = "Failed to parse nsfwdetect response"
+                    logger.error(message, { trace: "0507", error });
+                    reject(new Error(message));
+                }
             });
         });
 
@@ -170,9 +169,8 @@ export const processAndStoreFiles = async (
             //TODO if someone is able to find hash collisions, they can overwrite images (which are stored by hash). Need to investigate this.
             const hash = await imghash.hash(buffer);
             // Check for NSFW content
-            // const classifications = await classifyImage(buffer);
-            // const isNsfw = classifications.some((c) => ["Porn", "Hentai"].includes(c.className) && c.probability > 0.85);
-            const isNsfw = await checkNSFW(buffer, hash);
+            const classificationsMap = await checkNSFW(buffer, hash);
+            const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
             if (isNsfw) {
                 throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
             }

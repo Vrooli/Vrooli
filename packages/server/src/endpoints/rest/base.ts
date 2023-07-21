@@ -4,7 +4,6 @@ import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
 import { getUser } from "../../auth";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { logger } from "../../events";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap } from "../../types";
 import { processAndStoreFiles } from "../../utils";
@@ -144,8 +143,10 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                         try {
                             fileNames = await processAndStoreFiles(files, config);
                         } catch (error) {
-                            logger.error("Failed to process and store files", { trace: "0506", error });
-                            throw error;
+                            const languages = getUser(req.session)?.languages ?? ["en"];
+                            const lng = languages.length > 0 ? languages[0] : "en";
+                            res.status(500).json({ errors: [{ code: "0506", message: i18next.t("error:InternalError", { lng, defaultValue: "Internal error." }) }], version });
+                            return;
                         }
                     }
                     // Find non-file data
