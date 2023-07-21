@@ -36,5 +36,44 @@ Currently, we use this for storing profile and banner images for users and organ
 1. Open `.env` and `.env-prod`. Replace `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` with the credentials you downloaded earlier.
 2. Save and close the files.
 
+## Step 5: Set Bucket Policy
+1. Navigate to the bucket you created earlier.
+2. Click on the "Permissions" tab.
+3. Click on "Edit" in the "Bucket Policy" section.
+4. Click on [Policy Generator](https://awspolicygen.s3.amazonaws.com/policygen.html).
+5. Select "S3 Bucket Policy" for the "Select Type of Policy" option.
+6. Select "Allow" for the "Effect" option.
+7. For "Principal", we'll need to find the ARN of the IAM user we created earlier:  
+    a. Navigate to the IAM service from the AWS Management Console.  
+    b. Click on "Users" in the sidebar and then click on the role you created earlier.  
+    c. Copy the "Role ARN" at the top of the page (e.g. `arn:aws:iam::123456789012:role/your-role-name`).
+7. Enter your `AWS_ACCESS_KEY_ID` for the "Principal" option.
+8. Select "DeleteObject", "GetObject", "PutObject", and "PutObjectAcl" for the "Actions" option. This allows the role to delete, read, write, and replace objects in the bucket, respectively.
+9. Enter your bucket's ARN (Amazon Resource Name) for the "Amazon Resource Name (ARN)" option, followed by `/*`. For example, if your bucket name is `vrooli`, you would enter `arn:aws:s3:::vrooli/*`. You can find the ARN in the "Overview" tab of your bucket (from steps 3 and 4).
+10. Click "Add Statement", then "Generate Policy". It should look something like this:
+```json
+{
+    "Id": "Policy1630481234567",
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1630481234567",
+            "Action": [
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:s3:::your-bucket-name/*",
+            "Principal": {
+                "AWS": [
+                    "arn:aws:iam::123456789012:role/your-role-name"
+                ]
+            }
+        }
+    ]
+}
+```
 
 *Refer to the official Amazon S3 and AWS SDK documentation for more detailed information and assistance.*

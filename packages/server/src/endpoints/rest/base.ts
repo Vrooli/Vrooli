@@ -4,6 +4,7 @@ import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
 import { getUser } from "../../auth";
 import { PartialGraphQLInfo } from "../../builders/types";
+import { logger } from "../../events";
 import { context, Context } from "../../middleware";
 import { GQLEndpoint, IWrap } from "../../types";
 import { processAndStoreFiles } from "../../utils";
@@ -136,13 +137,19 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 async (req: Request, res: Response) => {
                     // Get files from request
-                    const files = req.files;
-                    let fileNames: string[] = [];
+                    const files = req.files as Express.Multer.File[];
+                    let fileNames: { [x: string]: string[] } = {};
                     // If there are files and the method is POST or PUT, upload them to S3
                     if (files && (method === "post" || method === "put")) {
-                        fileNames = await processAndStoreFiles(files as any, config as any) as any;
+                        try {
+                            fileNames = await processAndStoreFiles(files, config);
+                        } catch (error) {
+                            logger.error("Failed to process and store files", { trace: "0506", error });
+                            throw error;
+                        }
                     }
                     // Find non-file data
+                    // TODO add files to input
                     const input: Record<string, string> = method === "get" ?
                         { ...req.params, ...parseInput(req.query) } :
                         { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };

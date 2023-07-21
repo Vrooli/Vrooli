@@ -136,7 +136,7 @@ const uploadFile = async (
  */
 export const processAndStoreFiles = async (
     files: Express.Multer.File[],
-    config: UploadConfig,
+    config?: UploadConfig,
 ): Promise<{ [x: string]: string[] }> => {
     const s3 = getS3Client();
 
@@ -165,7 +165,7 @@ export const processAndStoreFiles = async (
         }
 
         // If the file is an image, we must check for NSFW content and upload various sizes
-        if (config.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
+        if (config?.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
             // Compute hash for the original image
             //TODO if someone is able to find hash collisions, they can overwrite images (which are stored by hash). Need to investigate this.
             const hash = await imghash.hash(buffer);
