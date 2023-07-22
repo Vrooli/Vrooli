@@ -92,16 +92,10 @@ const main = async () => {
     });
 
     // Replace GraphQL's `InputMaybe<T>` and `Maybe<T>` with TypeScript's `T | null`
+    tsData = tsData.replace(/InputMaybe<Array<([^>]+)>>/g, "Array<$1> | null | undefined");
+    tsData = tsData.replace(/Maybe<Array<([^>]+)>>/g, "Array<$1> | null | undefined");
     tsData = tsData.replace(/InputMaybe<([^>]+)>/g, "$1 | null | undefined");
     tsData = tsData.replace(/Maybe<([^>]+)>/g, "$1 | null | undefined");
-
-    //TODO for morning: generated types not correct. For example, ApiCreateInput.labelsConnect should be Array<string> | null, but is Array<string | null> instead. Also, nullable relations (not primitives) are not showing up in docs at all, meaning their generated type is invalid in some way. Also, enums are not showing up
-    // For testing purposes, print every line containing "createdBy" to the console
-    // tsData.split("\n").forEach((line) => {
-    //     if (line.includes("createdBy")) {
-    //         console.log(line);
-    //     }
-    // });
 
     // Create the reader and writer
     const reader = getTypeScriptReader();
