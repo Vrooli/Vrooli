@@ -1,26 +1,33 @@
+// from packages/shared, run ts-node --esm --experimental-specifier-resolution node ./src/tools/gqlToJson.ts
 import * as fs from "fs";
 import * as path from "path";
-import * as tsj from "ts-json-schema-generator";
+import { getOpenApiWriter, getTypeScriptReader, makeConverter } from "typeconv";
 import { fileURLToPath } from "url";
 
-// Get the directory name of the current module
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+const main = async () => {
+    // Get the directory name of the current module
+    const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const config = {
-    path: path.resolve(dirname, "../api/generated/graphqlTypes.ts"),
-    tsconfig: path.resolve(dirname, "../../tsconfig.json"),
-    type: "MeetingInviteStatus", // the type you want to generate schema for
+    const pathToTsFile = path.resolve(dirname, "../api/generated/graphqlTypes.ts");
+
+    // Read the TypeScript file
+    const tsData = fs.readFileSync(pathToTsFile, "utf8");
+
+    // Create the reader and writer
+    const reader = getTypeScriptReader();
+    const writer = getOpenApiWriter({ format: "json", title: "Vrooli", version: "1.9.4" });
+
+    // Create the converter
+    const { convert } = makeConverter(reader, writer);
+
+    // Convert the TypeScript types to OpenAPI
+    const { data } = await convert({ data: tsData });
+
+    // Write the OpenAPI schema to a file
+    fs.writeFile(path.resolve(dirname, "openapi.json"), data, (err) => {
+        if (err) throw err;
+        console.log("The OpenAPI schema has been saved!");
+    });
 };
 
-const program = tsj.createProgram(config);
-const parser = tsj.createParser(program, config);
-const formatter = tsj.createFormatter(config);
-const generator = new tsj.SchemaGenerator(program, parser, formatter, config);
-const schema = generator.createSchema(config.type);
-
-const schemaString = JSON.stringify(schema, null, 2);
-
-fs.writeFile("graphqlJsonTypes.json", schemaString, (err) => {
-    if (err) throw err;
-    console.log("The file has been saved!");
-});
+main().catch(console.error);
