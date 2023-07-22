@@ -17,6 +17,7 @@ nav:
       - Overview: api_reference/overview.md
       - Getting Access: api_reference/getting_access.md
       - Authorization: api_reference/authorization.md
+      - OpenAPI: api_reference/openapi.md
   - Setup:
       - Overview: setup/overview.md
       - Project Structure: setup/project_structure.md
@@ -86,6 +87,7 @@ plugins:
   - social
   - offline
   - macros
+  - neoteroi.mkdocsoad
 extra:
   repo_code: "https://github.com/Vrooli/Vrooli/tree/master"
   social:
