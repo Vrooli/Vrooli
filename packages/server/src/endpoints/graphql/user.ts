@@ -140,17 +140,21 @@ export const typeDef = gql`
 
     input BotCreateInput {
         id: ID!
+        bannerImage: Upload
         botSettings: String!
         isPrivate: Boolean
         name: String!
+        profileImage: Upload
         translationsCreate: [UserTranslationCreateInput!]
     }
 
     input BotUpdateInput {
         id: ID!
+        bannerImage: Upload
         botSettings: String
         isPrivate: Boolean
         name: String
+        profileImage: Upload
         translationsDelete: [ID!]
         translationsCreate: [UserTranslationCreateInput!]
         translationsUpdate: [UserTranslationUpdateInput!]

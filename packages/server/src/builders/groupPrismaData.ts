@@ -122,8 +122,8 @@ export const groupPrismaData = (
         result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo);
     }
     // Add data to objectIdsDataDict
-    if (currType && data.id) {
-        result.objectIdsDataDict[data.id] = merge(result.objectIdsDataDict[data.id] ?? {}, data);
+    if (currType && (data as Record<string, any>).id) {
+        result.objectIdsDataDict[(data as Record<string, any>).id] = merge(result.objectIdsDataDict[(data as Record<string, any>).id] ?? {}, data);
     }
     // Before returning, remove duplicate IDs from objectTypesIdsDict
     for (const [type, ids] of Object.entries(result.objectTypesIdsDict)) {

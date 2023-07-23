@@ -17,7 +17,7 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = "vrooli-cache";
-const CURRENT_CACHE_VERSION = "2023-07-16.b"; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = "2023-07-23"; // Change this value to force a cache update
 
 clientsClaim();
 

@@ -258,18 +258,26 @@ async function main() {
                             if (middleware.route) {
                                 const path = middleware.route.path;
                                 const methods = Object.keys(middleware.route.methods);
-                                const endpointMethodPairs: { name: string; endpoint: string; method: string; }[] = [];
+                                const endpointMethodPairs: {
+                                    name: string;
+                                    endpoint: string;
+                                    method: string;
+                                    /** Used as OpenAPI schema operation tag */
+                                    tag: string;
+                                }[] = [];
                                 methods.forEach(method => {
                                     endpointMethodPairs.push({
                                         name: endpointToCamelCase(`${method.toLowerCase()}/${path}`),
                                         endpoint: path,
                                         method: method.toUpperCase(),
+                                        tag: restFile,
                                     });
                                 });
                                 // Append endpoint/method pairs to pairs file
                                 const fileContent = endpointMethodPairs.map(pair => `export const ${"endpoint" + pair.name.charAt(0).toUpperCase() + pair.name.slice(1)} = {
     endpoint: "${pair.endpoint}",
     method: "${pair.method}",
+    tag: "${pair.tag}",
 } as const;\n\n`).join("");
                                 fs.appendFileSync(pairFilePath, fileContent);
                             }

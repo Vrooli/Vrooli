@@ -1,9 +1,10 @@
 import { user_botCreate, user_botUpdate, user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
 import { UserEndpoints } from "../logic";
-import { UploadConfig, setupRoutes } from "./base";
+import { setupRoutes, UploadConfig } from "./base";
 
 const imagesConfig: UploadConfig = {
     acceptsFiles: true,
+    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
     imageSizes: [
         { width: 1024, height: 1024 },
         { width: 512, height: 512 },

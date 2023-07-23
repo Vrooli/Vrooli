@@ -1,9 +1,10 @@
 import { organization_create, organization_findMany, organization_findOne, organization_update } from "../generated";
 import { OrganizationEndpoints } from "../logic";
-import { UploadConfig, setupRoutes } from "./base";
+import { setupRoutes, UploadConfig } from "./base";
 
 const imagesConfig: UploadConfig = {
     acceptsFiles: true,
+    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
     imageSizes: [
         { width: 1024, height: 1024 },
         { width: 512, height: 512 },

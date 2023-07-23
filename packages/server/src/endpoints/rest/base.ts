@@ -16,7 +16,7 @@ export type EndpointFunction<TInput extends object | undefined, TResult extends 
 ) => Promise<TResult>;
 export type UploadConfig = {
     acceptsFiles?: boolean;
-    fileTypes?: string[];
+    allowedExtensions?: Array<"txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "heic" | "heif" | "png" | "jpg" | "jpeg" | "gif" | "webp" | "tiff" | "bmp" | string>;
     maxFileSize?: number;
     maxFiles?: number;
     /** For image files, what they should be resized to */
@@ -96,18 +96,6 @@ export const maybeMulter = (config?: UploadConfig) => {
                 // Maximum number of files. Defaults to 1.
                 files: config.maxFiles ?? 1,
             },
-            fileFilter: (_req, file, cb) => {
-                // Default to accepting txt and image files
-                if (!config?.fileTypes) {
-                    config.fileTypes = ["text/plain", "image/jpeg", "image/png"];
-                }
-                // Only accept files with the correct MIME type
-                if (config?.fileTypes && config.fileTypes.includes(file.mimetype)) {
-                    cb(null, true);  // accept file
-                } else {
-                    cb(null, false);  // reject file
-                }
-            },
         };
 
         const upload = multer(multerOptions).any();
@@ -136,10 +124,10 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                 // Handle endpoint
                 async (req: Request, res: Response) => {
                     // Get files from request
-                    const files = req.files as Express.Multer.File[];
+                    const files = (req.files ?? []) as Express.Multer.File[];
                     let fileNames: { [x: string]: string[] } = {};
                     // If there are files and the method is POST or PUT, upload them to S3
-                    if (files && (method === "post" || method === "put")) {
+                    if (Array.isArray(files) && files.length > 0 && (method === "post" || method === "put")) {
                         try {
                             fileNames = await processAndStoreFiles(files, config);
                         } catch (error) {
@@ -150,10 +138,33 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                         }
                     }
                     // Find non-file data
-                    // TODO add files to input
                     const input: Record<string, string> = method === "get" ?
                         { ...req.params, ...parseInput(req.query) } :
                         { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
+                    // Add files to input
+                    for (const { fieldname, originalname } of files) {
+                        if (!Array.isArray(input[fieldname]) || input[fieldname].length === 0) return;
+                        // We're going to store image files differently than other files. 
+                        // For normal files, there should only be one file in the array. So we'll just use that.
+                        if (input[fieldname].length === 1) {
+                            input[fieldname] = fileNames[originalname][0];
+                        }
+                        // For image files, there may be multiple sizes. We'll store them like this: 
+                        // { sizes: ["1024x1024", "512x512"], file: "https://bucket-name.s3.region.amazonaws.com/image-hash_*.jpg }
+                        // Note how there is an asterisk in the file name. You can replace this with any of the sizes to create a valid URL.
+                        else {
+                            // Find the size string of each file
+                            const sizes = fileNames[originalname].map((file: string) => {
+                                const url = new URL(file);
+                                const size = url.pathname.split("/").pop()?.split("_")[1]?.split(".")[0];
+                                return size;
+                            }).filter((size: string | undefined) => size !== undefined) as string[];
+                            // Find the file name without the size string
+                            const file = fileNames[originalname][0].replace(`_${sizes[0]}`, "_*");
+                            input[fieldname] = JSON.stringify({ sizes, file });
+                        }
+                        input[fieldname] = fileNames[originalname][0];
+                    }
                     handleEndpoint(endpoint as any, selection, input, req, res);
                 });
         });
