@@ -43,8 +43,9 @@ while [ $# -gt 0 ]; do
         # Fetch the secret from the secret manager and store it in /run/secrets/
         # Note: The following is a placeholder and should be replaced with an actual command to fetch the secret
         info "Fetching $secret from the secret manager"
-        # TODO Replace the following line with a command to fetch the secret
-        echo "Placeholder secret value" >"/run/secrets/vrooli/$environment/$secret"
+        # TODO Complete
+        error "Fetching secrets is not yet implemented"
+        exit 1
     fi
     # Export the secret as an environment variable, if parent script is sourcing this script.
     # Otherwise, send to a temporary file

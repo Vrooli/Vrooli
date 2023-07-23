@@ -87,7 +87,8 @@ plugins:
   - social
   - offline
   - macros
-  - neoteroi.mkdocsoad
+  # - neoteroi.mkdocsoad
+  - swagger-ui-tag
 extra:
   repo_code: "https://github.com/Vrooli/Vrooli/tree/master"
   social:

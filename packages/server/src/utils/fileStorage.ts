@@ -73,7 +73,7 @@ const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult>
                     const result = JSON.parse(responseBody) as NSFWCheckResponse;
                     resolve(result.predictions);
                 } catch (error) {
-                    const message = "Failed to parse nsfwdetect response"
+                    const message = "Failed to parse nsfwdetect response";
                     logger.error(message, { trace: "0507", error });
                     reject(new Error(message));
                 }
@@ -152,6 +152,12 @@ export const processAndStoreFiles = async (
             throw new CustomError("0502", "InternalError", ["en"], { file: file.filename });
         }
 
+        // Check if the file extension is allowed
+        const allowedExtensions = config?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
+        if (!allowedExtensions.includes(extension)) {
+            throw new CustomError("0508", "InternalError", ["en"], { file: file.filename });
+        }
+
         // Find other information about the file
         let buffer = file.buffer;
         let mimetype = file.mimetype;
@@ -168,12 +174,12 @@ export const processAndStoreFiles = async (
             // Compute hash for the original image
             //TODO if someone is able to find hash collisions, they can overwrite images (which are stored by hash). Need to investigate this.
             const hash = await imghash.hash(buffer);
-            // Check for NSFW content
-            const classificationsMap = await checkNSFW(buffer, hash);
-            const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
-            if (isNsfw) {
-                throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
-            }
+            // Check for NSFW content TODO fix and add back
+            // const classificationsMap = await checkNSFW(buffer, hash);
+            // const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
+            // if (isNsfw) {
+            //     throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
+            // }
             // Upload image in various sizes, specified in config
             for (let i = 0; i < config.imageSizes.length; i++) {
                 const { width, height } = config.imageSizes[i];

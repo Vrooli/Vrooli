@@ -19,17 +19,47 @@ export const ProfilePictureInput = ({
     const defaultImg = "/broken-image.jpg";
     const [profileImg, setProfileImg] = useState(defaultImg);
 
+    const handleImagePreview = async (file: any) => {
+        // Extract extension from file name or path
+        const ext = (file.name ? file.name.split(".").pop() : file.path.split(".").pop()).toLowerCase();
+        // .heic and .heif files are not supported by browsers, 
+        // so we need to convert them to JPEGs (thanks, Apple)
+        if (ext === "heic" || ext === "heif") {
+            // Dynamic import of heic2any
+            const heic2any = (await import("heic2any")).default;
+
+            // Convert HEIC/HEIF file to JPEG Blob
+            const outputBlob = await heic2any({
+                blob: file,  // Use the original file object
+                toType: "image/jpeg",
+                quality: 0.7, // adjust quality as needed
+            }) as Blob;
+            // Return as object URL
+            return URL.createObjectURL(outputBlob);
+        } else {
+            // If not a HEIC/HEIF file, proceed as normal
+            return URL.createObjectURL(file);
+        }
+    };
+
     const { getRootProps, getInputProps } = useDropzone({
-        accept: "image/*",
+        accept: ["image/*", ".heic", ".heif"],
         maxFiles: 1,
-        onDrop: acceptedFiles => {
+        onDrop: async acceptedFiles => {
             if (acceptedFiles.length <= 0) {
                 console.error("No files were uploaded");
                 return;
             }
-            setFiles(acceptedFiles.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file),
-            })));
+
+            const previews = await Promise.all(
+                acceptedFiles.map(file =>
+                    handleImagePreview(file).then(preview =>
+                        Object.assign(file, { preview }),
+                    ),
+                ),
+            );
+
+            setFiles(previews);
             onChange(acceptedFiles[0]);
         },
     });

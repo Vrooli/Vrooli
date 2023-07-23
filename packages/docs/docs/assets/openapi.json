@@ -6566,6 +6566,9 @@
       },
       "BotCreateInput": {
         "properties": {
+          "bannerImage": {
+            "title": "BotCreateInput.bannerImage"
+          },
           "botSettings": {
             "title": "BotCreateInput.botSettings",
             "type": "string"
@@ -6582,6 +6585,9 @@
           "name": {
             "title": "BotCreateInput.name",
             "type": "string"
+          },
+          "profileImage": {
+            "title": "BotCreateInput.profileImage"
           },
           "translationsCreate": {
             "anyOf": [
@@ -6611,6 +6617,9 @@
       },
       "BotUpdateInput": {
         "properties": {
+          "bannerImage": {
+            "title": "BotUpdateInput.bannerImage"
+          },
           "botSettings": {
             "title": "BotUpdateInput.botSettings",
             "nullable": true,
@@ -6629,6 +6638,9 @@
             "title": "BotUpdateInput.name",
             "nullable": true,
             "type": "string"
+          },
+          "profileImage": {
+            "title": "BotUpdateInput.profileImage"
           },
           "translationsCreate": {
             "anyOf": [

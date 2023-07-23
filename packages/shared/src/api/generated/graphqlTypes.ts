@@ -554,18 +554,22 @@ export type BookmarkUpdateInput = {
 };
 
 export type BotCreateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings: Scalars['String'];
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
+  profileImage?: InputMaybe<Scalars['Upload']>;
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
 };
 
 export type BotUpdateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
