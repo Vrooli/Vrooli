@@ -15,7 +15,3770 @@
       "url": "https://opensource.org/licenses/GPL-3.0"
     }
   },
-  "paths": {},
+  "paths": {
+    "/api/{id}": {
+      "get": {
+        "operationId": "endpointGetApi",
+        "tags": [
+          "api"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutApi",
+        "tags": [
+          "api"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apis": {
+      "get": {
+        "operationId": "endpointGetApis",
+        "tags": [
+          "api"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/api": {
+      "post": {
+        "operationId": "endpointPostApi",
+        "tags": [
+          "api"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiKey": {
+      "post": {
+        "operationId": "endpointPostApiKey",
+        "tags": [
+          "apiKey"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiKey/{id}": {
+      "put": {
+        "operationId": "endpointPutApiKey",
+        "tags": [
+          "apiKey"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "endpointDeleteApiKey",
+        "tags": [
+          "apiKey"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiKey/validate": {
+      "post": {
+        "operationId": "endpointPostApiKeyValidate",
+        "tags": [
+          "apiKey"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetApiVersion",
+        "tags": [
+          "apiVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutApiVersion",
+        "tags": [
+          "apiVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiVersions": {
+      "get": {
+        "operationId": "endpointGetApiVersions",
+        "tags": [
+          "apiVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/apiVersion": {
+      "post": {
+        "operationId": "endpointPostApiVersion",
+        "tags": [
+          "apiVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/email/login": {
+      "post": {
+        "operationId": "endpointPostAuthEmailLogin",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/email/signup": {
+      "post": {
+        "operationId": "endpointPostAuthEmailSignup",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/email/requestPasswordChange": {
+      "post": {
+        "operationId": "endpointPostAuthEmailRequestPasswordChange",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/email/resetPassword": {
+      "post": {
+        "operationId": "endpointPostAuthEmailResetPassword",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/guest/login": {
+      "post": {
+        "operationId": "endpointPostAuthGuestLogin",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "endpointPostAuthLogout",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/validateSession": {
+      "post": {
+        "operationId": "endpointPostAuthValidateSession",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/switchCurrentAccount": {
+      "post": {
+        "operationId": "endpointPostAuthSwitchCurrentAccount",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/wallet/init": {
+      "post": {
+        "operationId": "endpointPostAuthWalletInit",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/auth/wallet/complete": {
+      "post": {
+        "operationId": "endpointPostAuthWalletComplete",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/awards": {
+      "post": {
+        "operationId": "endpointPostAwards",
+        "tags": [
+          "award"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmark/{id}": {
+      "get": {
+        "operationId": "endpointGetBookmark",
+        "tags": [
+          "bookmark"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutBookmark",
+        "tags": [
+          "bookmark"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmarks": {
+      "get": {
+        "operationId": "endpointGetBookmarks",
+        "tags": [
+          "bookmark"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmark": {
+      "post": {
+        "operationId": "endpointPostBookmark",
+        "tags": [
+          "bookmark"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmarkList/{id}": {
+      "get": {
+        "operationId": "endpointGetBookmarkList",
+        "tags": [
+          "bookmarkList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutBookmarkList",
+        "tags": [
+          "bookmarkList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmarkLists": {
+      "get": {
+        "operationId": "endpointGetBookmarkLists",
+        "tags": [
+          "bookmarkList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bookmarkList": {
+      "post": {
+        "operationId": "endpointPostBookmarkList",
+        "tags": [
+          "bookmarkList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chat/{id}": {
+      "get": {
+        "operationId": "endpointGetChat",
+        "tags": [
+          "chat"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChat",
+        "tags": [
+          "chat"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chats": {
+      "get": {
+        "operationId": "endpointGetChats",
+        "tags": [
+          "chat"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "operationId": "endpointPostChat",
+        "tags": [
+          "chat"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatInvite/{id}": {
+      "get": {
+        "operationId": "endpointGetChatInvite",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChatInvite",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatInvites": {
+      "get": {
+        "operationId": "endpointGetChatInvites",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatInvite": {
+      "post": {
+        "operationId": "endpointPostChatInvite",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatInvite/{id}/accept": {
+      "put": {
+        "operationId": "endpointPutChatInviteAccept",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatInvite/{id}/decline": {
+      "put": {
+        "operationId": "endpointPutChatInviteDecline",
+        "tags": [
+          "chatInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatMessage/{id}": {
+      "get": {
+        "operationId": "endpointGetChatMessage",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChatMessage",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatMessages": {
+      "get": {
+        "operationId": "endpointGetChatMessages",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatMessage": {
+      "post": {
+        "operationId": "endpointPostChatMessage",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatParticipant/{id}": {
+      "get": {
+        "operationId": "endpointGetChatParticipant",
+        "tags": [
+          "chatParticipant"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutChatParticipant",
+        "tags": [
+          "chatParticipant"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/chatParticipants": {
+      "get": {
+        "operationId": "endpointGetChatParticipants",
+        "tags": [
+          "chatParticipant"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/comment/{id}": {
+      "get": {
+        "operationId": "endpointGetComment",
+        "tags": [
+          "comment"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutComment",
+        "tags": [
+          "comment"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/comments": {
+      "get": {
+        "operationId": "endpointGetComments",
+        "tags": [
+          "comment"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/comment": {
+      "post": {
+        "operationId": "endpointPostComment",
+        "tags": [
+          "comment"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/copy": {
+      "post": {
+        "operationId": "endpointPostCopy",
+        "tags": [
+          "copy"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/deleteOne": {
+      "post": {
+        "operationId": "endpointPostDeleteOne",
+        "tags": [
+          "deleteOneOrMany"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/deleteMany": {
+      "post": {
+        "operationId": "endpointPostDeleteMany",
+        "tags": [
+          "deleteOneOrMany"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/email": {
+      "post": {
+        "operationId": "endpointPostEmail",
+        "tags": [
+          "email"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/email/verification": {
+      "post": {
+        "operationId": "endpointPostEmailVerification",
+        "tags": [
+          "email"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/feed/home": {
+      "get": {
+        "operationId": "endpointGetFeedHome",
+        "tags": [
+          "feed"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/feed/popular": {
+      "get": {
+        "operationId": "endpointGetFeedPopular",
+        "tags": [
+          "feed"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/focusMode/{id}": {
+      "get": {
+        "operationId": "endpointGetFocusMode",
+        "tags": [
+          "focusMode"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutFocusMode",
+        "tags": [
+          "focusMode"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/focusModes": {
+      "get": {
+        "operationId": "endpointGetFocusModes",
+        "tags": [
+          "focusMode"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/focusMode": {
+      "post": {
+        "operationId": "endpointPostFocusMode",
+        "tags": [
+          "focusMode"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/focusMode/active": {
+      "put": {
+        "operationId": "endpointPutFocusModeActive",
+        "tags": [
+          "focusMode"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/issue/{id}": {
+      "get": {
+        "operationId": "endpointGetIssue",
+        "tags": [
+          "issue"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutIssue",
+        "tags": [
+          "issue"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/issues": {
+      "get": {
+        "operationId": "endpointGetIssues",
+        "tags": [
+          "issue"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/issue": {
+      "post": {
+        "operationId": "endpointPostIssue",
+        "tags": [
+          "issue"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/issue/{id}/close": {
+      "put": {
+        "operationId": "endpointPutIssueClose",
+        "tags": [
+          "issue"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/label/{id}": {
+      "get": {
+        "operationId": "endpointGetLabel",
+        "tags": [
+          "label"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutLabel",
+        "tags": [
+          "label"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/labels": {
+      "get": {
+        "operationId": "endpointGetLabels",
+        "tags": [
+          "label"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/label": {
+      "post": {
+        "operationId": "endpointPostLabel",
+        "tags": [
+          "label"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meeting/{id}": {
+      "get": {
+        "operationId": "endpointGetMeeting",
+        "tags": [
+          "meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMeeting",
+        "tags": [
+          "meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetings": {
+      "get": {
+        "operationId": "endpointGetMeetings",
+        "tags": [
+          "meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meeting": {
+      "post": {
+        "operationId": "endpointPostMeeting",
+        "tags": [
+          "meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetingInvite/{id}": {
+      "get": {
+        "operationId": "endpointGetMeetingInvite",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMeetingInvite",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetingInvites": {
+      "get": {
+        "operationId": "endpointGetMeetingInvites",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetingInvite": {
+      "post": {
+        "operationId": "endpointPostMeetingInvite",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetingInvite/{id}/accept": {
+      "put": {
+        "operationId": "endpointPutMeetingInviteAccept",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/meetingInvite/{id}/decline": {
+      "put": {
+        "operationId": "endpointPutMeetingInviteDecline",
+        "tags": [
+          "meetingInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/member/{id}": {
+      "get": {
+        "operationId": "endpointGetMember",
+        "tags": [
+          "member"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMember",
+        "tags": [
+          "member"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "operationId": "endpointGetMembers",
+        "tags": [
+          "member"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/memberInvite/{id}": {
+      "get": {
+        "operationId": "endpointGetMemberInvite",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutMemberInvite",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/memberInvites": {
+      "get": {
+        "operationId": "endpointGetMemberInvites",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/memberInvite": {
+      "post": {
+        "operationId": "endpointPostMemberInvite",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/memberInvite/{id}/accept": {
+      "put": {
+        "operationId": "endpointPutMemberInviteAccept",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/memberInvite/{id}/decline": {
+      "put": {
+        "operationId": "endpointPutMemberInviteDecline",
+        "tags": [
+          "memberInvite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/node": {
+      "post": {
+        "operationId": "endpointPostNode",
+        "tags": [
+          "node"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/node/{id}": {
+      "put": {
+        "operationId": "endpointPutNode",
+        "tags": [
+          "node"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/note/{id}": {
+      "get": {
+        "operationId": "endpointGetNote",
+        "tags": [
+          "note"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutNote",
+        "tags": [
+          "note"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notes": {
+      "get": {
+        "operationId": "endpointGetNotes",
+        "tags": [
+          "note"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/note": {
+      "post": {
+        "operationId": "endpointPostNote",
+        "tags": [
+          "note"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/noteVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetNoteVersion",
+        "tags": [
+          "noteVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutNoteVersion",
+        "tags": [
+          "noteVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/noteVersions": {
+      "get": {
+        "operationId": "endpointGetNoteVersions",
+        "tags": [
+          "noteVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/noteVersion": {
+      "post": {
+        "operationId": "endpointPostNoteVersion",
+        "tags": [
+          "noteVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notification/{id}": {
+      "get": {
+        "operationId": "endpointGetNotification",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutNotification",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "endpointGetNotifications",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notifications/markAllAsRead": {
+      "put": {
+        "operationId": "endpointPutNotificationsMarkAllAsRead",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notificationSettings": {
+      "get": {
+        "operationId": "endpointGetNotificationSettings",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutNotificationSettings",
+        "tags": [
+          "notification"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notificationSubscription/{id}": {
+      "get": {
+        "operationId": "endpointGetNotificationSubscription",
+        "tags": [
+          "notificationSubscription"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutNotificationSubscription",
+        "tags": [
+          "notificationSubscription"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notificationSubscriptions": {
+      "get": {
+        "operationId": "endpointGetNotificationSubscriptions",
+        "tags": [
+          "notificationSubscription"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/notificationSubscription": {
+      "post": {
+        "operationId": "endpointPostNotificationSubscription",
+        "tags": [
+          "notificationSubscription"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/organization/{id}": {
+      "get": {
+        "operationId": "endpointGetOrganization",
+        "tags": [
+          "organization"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutOrganization",
+        "tags": [
+          "organization"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/organizations": {
+      "get": {
+        "operationId": "endpointGetOrganizations",
+        "tags": [
+          "organization"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/organization": {
+      "post": {
+        "operationId": "endpointPostOrganization",
+        "tags": [
+          "organization"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/phone": {
+      "post": {
+        "operationId": "endpointPostPhone",
+        "tags": [
+          "phone"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/post/{id}": {
+      "get": {
+        "operationId": "endpointGetPost",
+        "tags": [
+          "post"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutPost",
+        "tags": [
+          "post"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/posts": {
+      "get": {
+        "operationId": "endpointGetPosts",
+        "tags": [
+          "post"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/post": {
+      "post": {
+        "operationId": "endpointPostPost",
+        "tags": [
+          "post"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/project/{id}": {
+      "get": {
+        "operationId": "endpointGetProject",
+        "tags": [
+          "project"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutProject",
+        "tags": [
+          "project"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "operationId": "endpointGetProjects",
+        "tags": [
+          "project"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/project": {
+      "post": {
+        "operationId": "endpointPostProject",
+        "tags": [
+          "project"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetProjectVersion",
+        "tags": [
+          "projectVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutProjectVersion",
+        "tags": [
+          "projectVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersions": {
+      "get": {
+        "operationId": "endpointGetProjectVersions",
+        "tags": [
+          "projectVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersionContents": {
+      "get": {
+        "operationId": "endpointGetProjectVersionContents",
+        "tags": [
+          "projectVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersion": {
+      "post": {
+        "operationId": "endpointPostProjectVersion",
+        "tags": [
+          "projectVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/projectVersionDirectories": {
+      "get": {
+        "operationId": "endpointGetProjectVersionDirectories",
+        "tags": [
+          "projectVersionDirectory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pullRequest/{id}": {
+      "get": {
+        "operationId": "endpointGetPullRequest",
+        "tags": [
+          "pullRequest"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutPullRequest",
+        "tags": [
+          "pullRequest"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pullRequests": {
+      "get": {
+        "operationId": "endpointGetPullRequests",
+        "tags": [
+          "pullRequest"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pullRequest": {
+      "post": {
+        "operationId": "endpointPostPullRequest",
+        "tags": [
+          "pullRequest"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pushDevice": {
+      "post": {
+        "operationId": "endpointPostPushDevice",
+        "tags": [
+          "pushDevice"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pushDevices": {
+      "get": {
+        "operationId": "endpointGetPushDevices",
+        "tags": [
+          "pushDevice"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/pushDevice/{id}": {
+      "put": {
+        "operationId": "endpointPutPushDevice",
+        "tags": [
+          "pushDevice"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/question/{id}": {
+      "get": {
+        "operationId": "endpointGetQuestion",
+        "tags": [
+          "question"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutQuestion",
+        "tags": [
+          "question"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/questions": {
+      "get": {
+        "operationId": "endpointGetQuestions",
+        "tags": [
+          "question"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/question": {
+      "post": {
+        "operationId": "endpointPostQuestion",
+        "tags": [
+          "question"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/questionAnswer/{id}": {
+      "get": {
+        "operationId": "endpointGetQuestionAnswer",
+        "tags": [
+          "questionAnswer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutQuestionAnswer",
+        "tags": [
+          "questionAnswer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/questionAnswers": {
+      "get": {
+        "operationId": "endpointGetQuestionAnswers",
+        "tags": [
+          "questionAnswer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/questionAnswer": {
+      "post": {
+        "operationId": "endpointPostQuestionAnswer",
+        "tags": [
+          "questionAnswer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/questionAnswer/{id}/accept": {
+      "put": {
+        "operationId": "endpointPutQuestionAnswerAccept",
+        "tags": [
+          "questionAnswer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quiz/{id}": {
+      "get": {
+        "operationId": "endpointGetQuiz",
+        "tags": [
+          "quiz"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutQuiz",
+        "tags": [
+          "quiz"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizzes": {
+      "get": {
+        "operationId": "endpointGetQuizzes",
+        "tags": [
+          "quiz"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quiz": {
+      "post": {
+        "operationId": "endpointPostQuiz",
+        "tags": [
+          "quiz"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizAttempt/{id}": {
+      "get": {
+        "operationId": "endpointGetQuizAttempt",
+        "tags": [
+          "quizAttempt"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutQuizAttempt",
+        "tags": [
+          "quizAttempt"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizAttempts": {
+      "get": {
+        "operationId": "endpointGetQuizAttempts",
+        "tags": [
+          "quizAttempt"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizAttempt": {
+      "post": {
+        "operationId": "endpointPostQuizAttempt",
+        "tags": [
+          "quizAttempt"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizQuestion/{id}": {
+      "get": {
+        "operationId": "endpointGetQuizQuestion",
+        "tags": [
+          "quizQuestion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizQuestions": {
+      "get": {
+        "operationId": "endpointGetQuizQuestions",
+        "tags": [
+          "quizQuestion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizQuestionResponse/{id}": {
+      "get": {
+        "operationId": "endpointGetQuizQuestionResponse",
+        "tags": [
+          "quizQuestionResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/quizQuestionResponses": {
+      "get": {
+        "operationId": "endpointGetQuizQuestionResponses",
+        "tags": [
+          "quizQuestionResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reactions": {
+      "get": {
+        "operationId": "endpointGetReactions",
+        "tags": [
+          "reaction"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/react": {
+      "post": {
+        "operationId": "endpointPostReact",
+        "tags": [
+          "reaction"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reminder/{id}": {
+      "get": {
+        "operationId": "endpointGetReminder",
+        "tags": [
+          "reminder"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutReminder",
+        "tags": [
+          "reminder"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reminders": {
+      "get": {
+        "operationId": "endpointGetReminders",
+        "tags": [
+          "reminder"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reminder": {
+      "post": {
+        "operationId": "endpointPostReminder",
+        "tags": [
+          "reminder"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reminderList": {
+      "post": {
+        "operationId": "endpointPostReminderList",
+        "tags": [
+          "reminderList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reminderList/{id}": {
+      "put": {
+        "operationId": "endpointPutReminderList",
+        "tags": [
+          "reminderList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/report/{id}": {
+      "get": {
+        "operationId": "endpointGetReport",
+        "tags": [
+          "report"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutReport",
+        "tags": [
+          "report"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reports": {
+      "get": {
+        "operationId": "endpointGetReports",
+        "tags": [
+          "report"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/report": {
+      "post": {
+        "operationId": "endpointPostReport",
+        "tags": [
+          "report"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reportResponse/{id}": {
+      "get": {
+        "operationId": "endpointGetReportResponse",
+        "tags": [
+          "reportResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutReportResponse",
+        "tags": [
+          "reportResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reportResponses": {
+      "get": {
+        "operationId": "endpointGetReportResponses",
+        "tags": [
+          "reportResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reportResponse": {
+      "post": {
+        "operationId": "endpointPostReportResponse",
+        "tags": [
+          "reportResponse"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reputationHistory/{id}": {
+      "get": {
+        "operationId": "endpointGetReputationHistory",
+        "tags": [
+          "reputationHistory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/reputationHistories": {
+      "get": {
+        "operationId": "endpointGetReputationHistories",
+        "tags": [
+          "reputationHistory"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resource/{id}": {
+      "get": {
+        "operationId": "endpointGetResource",
+        "tags": [
+          "resource"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutResource",
+        "tags": [
+          "resource"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resources": {
+      "get": {
+        "operationId": "endpointGetResources",
+        "tags": [
+          "resource"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resource": {
+      "post": {
+        "operationId": "endpointPostResource",
+        "tags": [
+          "resource"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resourceList/{id}": {
+      "get": {
+        "operationId": "endpointGetResourceList",
+        "tags": [
+          "resourceList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutResourceList",
+        "tags": [
+          "resourceList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resourceLists": {
+      "get": {
+        "operationId": "endpointGetResourceLists",
+        "tags": [
+          "resourceList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/resourceList": {
+      "post": {
+        "operationId": "endpointPostResourceList",
+        "tags": [
+          "resourceList"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/role/{id}": {
+      "get": {
+        "operationId": "endpointGetRole",
+        "tags": [
+          "role"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutRole",
+        "tags": [
+          "role"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/roles": {
+      "get": {
+        "operationId": "endpointGetRoles",
+        "tags": [
+          "role"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/role": {
+      "post": {
+        "operationId": "endpointPostRole",
+        "tags": [
+          "role"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routine/{id}": {
+      "get": {
+        "operationId": "endpointGetRoutine",
+        "tags": [
+          "routine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutRoutine",
+        "tags": [
+          "routine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routines": {
+      "get": {
+        "operationId": "endpointGetRoutines",
+        "tags": [
+          "routine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routine": {
+      "post": {
+        "operationId": "endpointPostRoutine",
+        "tags": [
+          "routine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routineVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetRoutineVersion",
+        "tags": [
+          "routineVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutRoutineVersion",
+        "tags": [
+          "routineVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routineVersions": {
+      "get": {
+        "operationId": "endpointGetRoutineVersions",
+        "tags": [
+          "routineVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/routineVersion": {
+      "post": {
+        "operationId": "endpointPostRoutineVersion",
+        "tags": [
+          "routineVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProject/{id}": {
+      "get": {
+        "operationId": "endpointGetRunProject",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutRunProject",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProjects": {
+      "get": {
+        "operationId": "endpointGetRunProjects",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProject": {
+      "post": {
+        "operationId": "endpointPostRunProject",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProject/deleteAll": {
+      "delete": {
+        "operationId": "endpointDeleteRunProjectDeleteAll",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProject/{id}/complete": {
+      "put": {
+        "operationId": "endpointPutRunProjectComplete",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runProject/{id}/cancel": {
+      "put": {
+        "operationId": "endpointPutRunProjectCancel",
+        "tags": [
+          "runProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutine/{id}": {
+      "get": {
+        "operationId": "endpointGetRunRoutine",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutRunRoutine",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutines": {
+      "get": {
+        "operationId": "endpointGetRunRoutines",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutine": {
+      "post": {
+        "operationId": "endpointPostRunRoutine",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutine/deleteAll": {
+      "delete": {
+        "operationId": "endpointDeleteRunRoutineDeleteAll",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutine/{id}/complete": {
+      "put": {
+        "operationId": "endpointPutRunRoutineComplete",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutine/{id}/cancel": {
+      "put": {
+        "operationId": "endpointPutRunRoutineCancel",
+        "tags": [
+          "runRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/runRoutineInputs": {
+      "get": {
+        "operationId": "endpointGetRunRoutineInputs",
+        "tags": [
+          "runRoutineInput"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/schedule/{id}": {
+      "get": {
+        "operationId": "endpointGetSchedule",
+        "tags": [
+          "schedule"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutSchedule",
+        "tags": [
+          "schedule"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/schedules": {
+      "get": {
+        "operationId": "endpointGetSchedules",
+        "tags": [
+          "schedule"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/schedule": {
+      "post": {
+        "operationId": "endpointPostSchedule",
+        "tags": [
+          "schedule"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleException/{id}": {
+      "get": {
+        "operationId": "endpointGetScheduleException",
+        "tags": [
+          "scheduleException"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutScheduleException",
+        "tags": [
+          "scheduleException"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleExceptions": {
+      "get": {
+        "operationId": "endpointGetScheduleExceptions",
+        "tags": [
+          "scheduleException"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleException": {
+      "post": {
+        "operationId": "endpointPostScheduleException",
+        "tags": [
+          "scheduleException"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleRecurrence/{id}": {
+      "get": {
+        "operationId": "endpointGetScheduleRecurrence",
+        "tags": [
+          "scheduleRecurrence"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutScheduleRecurrence",
+        "tags": [
+          "scheduleRecurrence"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleRecurrences": {
+      "get": {
+        "operationId": "endpointGetScheduleRecurrences",
+        "tags": [
+          "scheduleRecurrence"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/scheduleRecurrence": {
+      "post": {
+        "operationId": "endpointPostScheduleRecurrence",
+        "tags": [
+          "scheduleRecurrence"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContract/{id}": {
+      "get": {
+        "operationId": "endpointGetSmartContract",
+        "tags": [
+          "smartContract"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutSmartContract",
+        "tags": [
+          "smartContract"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContracts": {
+      "get": {
+        "operationId": "endpointGetSmartContracts",
+        "tags": [
+          "smartContract"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContract": {
+      "post": {
+        "operationId": "endpointPostSmartContract",
+        "tags": [
+          "smartContract"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContractVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetSmartContractVersion",
+        "tags": [
+          "smartContractVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutSmartContractVersion",
+        "tags": [
+          "smartContractVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContractVersions": {
+      "get": {
+        "operationId": "endpointGetSmartContractVersions",
+        "tags": [
+          "smartContractVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/smartContractVersion": {
+      "post": {
+        "operationId": "endpointPostSmartContractVersion",
+        "tags": [
+          "smartContractVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standard/{id}": {
+      "get": {
+        "operationId": "endpointGetStandard",
+        "tags": [
+          "standard"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutStandard",
+        "tags": [
+          "standard"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standards": {
+      "get": {
+        "operationId": "endpointGetStandards",
+        "tags": [
+          "standard"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standard": {
+      "post": {
+        "operationId": "endpointPostStandard",
+        "tags": [
+          "standard"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standardVersion/{id}": {
+      "get": {
+        "operationId": "endpointGetStandardVersion",
+        "tags": [
+          "standardVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutStandardVersion",
+        "tags": [
+          "standardVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standardVersions": {
+      "get": {
+        "operationId": "endpointGetStandardVersions",
+        "tags": [
+          "standardVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/standardVersion": {
+      "post": {
+        "operationId": "endpointPostStandardVersion",
+        "tags": [
+          "standardVersion"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/api": {
+      "get": {
+        "operationId": "endpointGetStatsApi",
+        "tags": [
+          "statsApi"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/organization": {
+      "get": {
+        "operationId": "endpointGetStatsOrganization",
+        "tags": [
+          "statsOrganization"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/project": {
+      "get": {
+        "operationId": "endpointGetStatsProject",
+        "tags": [
+          "statsProject"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/quiz": {
+      "get": {
+        "operationId": "endpointGetStatsQuiz",
+        "tags": [
+          "statsQuiz"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/routine": {
+      "get": {
+        "operationId": "endpointGetStatsRoutine",
+        "tags": [
+          "statsRoutine"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/site": {
+      "get": {
+        "operationId": "endpointGetStatsSite",
+        "tags": [
+          "statsSite"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/smartContract": {
+      "get": {
+        "operationId": "endpointGetStatsSmartContract",
+        "tags": [
+          "statsSmartContract"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/standard": {
+      "get": {
+        "operationId": "endpointGetStatsStandard",
+        "tags": [
+          "statsStandard"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/stats/user": {
+      "get": {
+        "operationId": "endpointGetStatsUser",
+        "tags": [
+          "statsUser"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/tag/{id}": {
+      "get": {
+        "operationId": "endpointGetTag",
+        "tags": [
+          "tag"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutTag",
+        "tags": [
+          "tag"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/tags": {
+      "get": {
+        "operationId": "endpointGetTags",
+        "tags": [
+          "tag"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/tag": {
+      "post": {
+        "operationId": "endpointPostTag",
+        "tags": [
+          "tag"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/{id}": {
+      "get": {
+        "operationId": "endpointGetTransfer",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutTransfer",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfers": {
+      "get": {
+        "operationId": "endpointGetTransfers",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/requestSend": {
+      "post": {
+        "operationId": "endpointPostTransferRequestSend",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/requestReceive": {
+      "post": {
+        "operationId": "endpointPostTransferRequestReceive",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/{id}/cancel": {
+      "put": {
+        "operationId": "endpointPutTransferCancel",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/{id}/accept": {
+      "put": {
+        "operationId": "endpointPutTransferAccept",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/transfer/deny": {
+      "put": {
+        "operationId": "endpointPutTransferDeny",
+        "tags": [
+          "transfer"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/translate": {
+      "get": {
+        "operationId": "endpointGetTranslate",
+        "tags": [
+          "translate"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/unions/projectOrRoutines": {
+      "get": {
+        "operationId": "endpointGetUnionsProjectOrRoutines",
+        "tags": [
+          "unions"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/unions/projectOrOrganizations": {
+      "get": {
+        "operationId": "endpointGetUnionsProjectOrOrganizations",
+        "tags": [
+          "unions"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/unions/runProjectOrRunRoutines": {
+      "get": {
+        "operationId": "endpointGetUnionsRunProjectOrRunRoutines",
+        "tags": [
+          "unions"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bot/{id}": {
+      "put": {
+        "operationId": "endpointPutBot",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/bot": {
+      "post": {
+        "operationId": "endpointPostBot",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/profile": {
+      "get": {
+        "operationId": "endpointGetProfile",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      },
+      "put": {
+        "operationId": "endpointPutProfile",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/user/{id}": {
+      "get": {
+        "operationId": "endpointGetUser",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "endpointGetUsers",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/profile/email": {
+      "put": {
+        "operationId": "endpointPutProfileEmail",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/user": {
+      "delete": {
+        "operationId": "endpointDeleteUser",
+        "tags": [
+          "user"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/views": {
+      "get": {
+        "operationId": "endpointGetViews",
+        "tags": [
+          "view"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/wallet/handles": {
+      "post": {
+        "operationId": "endpointPostWalletHandles",
+        "tags": [
+          "wallet"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/wallet/{id}": {
+      "put": {
+        "operationId": "endpointPutWallet",
+        "tags": [
+          "wallet"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    }
+  },
   "components": {
     "schemas": {
       "ActiveFocusMode": {

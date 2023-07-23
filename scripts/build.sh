@@ -10,12 +10,12 @@
 # -v: Version number to use (e.g. "1.0.0")
 # -d: Deploy to VPS (y/N)
 # -h: Show this help message
-# -g: Generate GraphQL tags for queries/mutations
+# -a: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts "v:d:hg:" opt; do
+while getopts "v:d:ha:" opt; do
     case $opt in
     v)
         VERSION=$OPTARG
@@ -23,15 +23,15 @@ while getopts "v:d:hg:" opt; do
     d)
         DEPLOY=$OPTARG
         ;;
-    g)
-        GRAPHQL_GENERATE=$OPTARG
+    a)
+        API_GENERATE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-g GRAPHQL_GENERATE]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-a API_GENERATE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
         echo "  -h --help: Show this help message"
-        echo "  -g --graphql-generate: Generate GraphQL tags for queries/mutations"
+        echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         exit 0
         ;;
     \?)
@@ -135,12 +135,12 @@ echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
 # Generate query/mutation selectors
-if [ -z "$GRAPHQL_GENERATE" ]; then
-    prompt "Do you want to generate GraphQL query/mutation selectors? (y/N)"
-    read -n1 -r GRAPHQL_GENERATE
+if [ -z "$API_GENERATE" ]; then
+    prompt "Do you want to regenerate computed API information (GraphQL query/mutation selectors and OpenAPI schema)? (y/N)"
+    read -n1 -r API_GENERATE
     echo
 fi
-if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
+if [ "${API_GENERATE}" = "y" ] || [ "${API_GENERATE}" = "Y" ] || [ "${API_GENERATE}" = "yes" ] || [ "${API_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
     NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
@@ -149,6 +149,15 @@ if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GR
         # This IS a critical error, so we'll exit
         exit 1
     fi
+    info "Generating OpenAPI schema..."
+    cd ${HERE}/../packages/shared
+    NODE_OPTIONS="--max-old-space-size=4096" && ts-node --esm --experimental-specifier-resolution node ./src/tools/gqlToJson.ts
+    if [ $? -ne 0 ]; then
+        error "Failed to generate OpenAPI schema"
+        echo "${HERE}/../packages/shared/src/tools/gqlToJson.ts"
+        # This is NOT a critical error, so we'll continue
+    fi
+    cd ${HERE}/../packages/ui
 fi
 
 # Build React app
