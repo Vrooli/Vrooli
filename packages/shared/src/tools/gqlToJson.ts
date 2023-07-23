@@ -20,12 +20,36 @@ const main = async () => {
     // Split into blocks of types
     let blocks = tsData.split("\n\n");
 
-    // Filter out blocks that start with "export type" followed by a word containing "Resolver". 
-    // These are types which are only used internally by GraphQL, and are not used by the REST API.
+    // Remove the first block, which contains imports, Maybe, InputMaybe, and other types which are not used by the REST API
+    blocks.shift();
+
+    // Filter out other GraphQL-specific types from the rest of the blocks:
+    // - Anything with `Resolver` in the name
+    // - Maybe
+    // - InputMaybe
+    // - Exact
+    // - MakeOptional
+    // - MakeMaybe
+    // - Omit
+    // - RequireFields
+    // - Scalars
+    // - Mutation and Mutation...Args
+    // - Query and Query...Args
+    // Most of these were probably included in the first block, but depending on spacing maybe not
     blocks = blocks.filter(block => {
         // Get the first line of code (excluding comments)
         const firstLineOfCode = block.split("\n").find(line => !line.trim().startsWith("//") && !line.trim().startsWith("/*") && line.trim().length > 0);
-        return !firstLineOfCode?.match(/export type .*Resolver.*/);
+        return !firstLineOfCode?.match(/export type .*Resolver.*/) &&
+            !firstLineOfCode?.startsWith("export type Maybe<T> =") &&
+            !firstLineOfCode?.startsWith("export type InputMaybe<T> = ") &&
+            !firstLineOfCode?.startsWith("export type Exact<T extends ") &&
+            !firstLineOfCode?.startsWith("export type MakeOptional<T, K extends ") &&
+            !firstLineOfCode?.startsWith("export type MakeMaybe<T, K extends ") &&
+            !firstLineOfCode?.startsWith("export type Omit<T, K extends ") &&
+            !firstLineOfCode?.startsWith("export type RequireFields<T, K extends ") &&
+            !firstLineOfCode?.startsWith("export type Scalars = ") &&
+            !firstLineOfCode?.match(/export type Mutation[A-Za-z]* = /) &&
+            !firstLineOfCode?.match(/export type Query[A-Za-z]* = /);
     });
 
     // Define a Map to store the enums and their corresponding string unions
@@ -105,7 +129,25 @@ const main = async () => {
     const { convert } = makeConverter(reader, writer);
 
     // Convert the TypeScript types to OpenAPI
-    const { data } = await convert({ data: tsData });
+    let { data } = await convert({ data: tsData });
+
+    // Parse the JSON
+    const openApiSchema = JSON.parse(data);
+
+    // Add additional fields
+    openApiSchema.info.description = "This is the REST API for Vrooli. Find out more about Vrooli at https://vrooli.com/about";
+    openApiSchema.info.termsOfService = "https://vrooli.com/terms";
+    openApiSchema.info.contact = {
+        name: "Vrooli API Support",
+        email: "support@vrooli.com",
+    };
+    openApiSchema.info.license = {
+        name: "GPL-3.0",
+        url: "https://opensource.org/licenses/GPL-3.0",
+    };
+
+    // Stringify the JSON
+    data = JSON.stringify(openApiSchema, null, 2);
 
     // Write the OpenAPI schema to a file
     fs.writeFile(path.resolve(dirname, "../../../docs/docs/assets/openapi.json"), data, (err) => {

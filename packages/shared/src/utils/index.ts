@@ -1,5 +1,5 @@
-export * from './arrays';
-export * from './casing';
+export * from "./arrays";
+export * from "./casing";
 export * from "./emotions";
 export * from "./exists";
 export * from "./focusModes";
