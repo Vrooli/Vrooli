@@ -21,7 +21,7 @@ export const SettingsList = () => {
     const toggleAccountList = useCallback(() => setAccountListOpen(!accountListOpen), [accountListOpen]);
     const accountList = useMemo(() => {
         const isSelected = (link: LINKS) => window.location.pathname.includes(link);
-        return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
+        return Object.entries(accountSettingsData).map(([_, { title, titleVariables, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -35,7 +35,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, { count: 2 })} />
+                <ListItemText primary={t(title, titleVariables)} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
@@ -44,7 +44,7 @@ export const SettingsList = () => {
     const toggleDisplayList = useCallback(() => setDisplayListOpen(!displayListOpen), [displayListOpen]);
     const displayList = useMemo(() => {
         const isSelected = (link: LINKS) => window.location.pathname.includes(link);
-        return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
+        return Object.entries(displaySettingsData).map(([_, { title, titleVariables, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -58,7 +58,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, { count: 2 })} />
+                <ListItemText primary={t(title, titleVariables)} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);

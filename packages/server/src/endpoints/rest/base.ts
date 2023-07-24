@@ -143,10 +143,11 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                         { ...req.params, ...(typeof req.body === "object" ? req.body : {}) };
                     // Add files to input
                     for (const { fieldname, originalname } of files) {
-                        if (!Array.isArray(input[fieldname]) || input[fieldname].length === 0) return;
+                        // If there are no files, upload must have failed or been rejected. So skip this file.
+                        if (!Array.isArray(fileNames[originalname]) || fileNames[originalname].length === 0) continue;
                         // We're going to store image files differently than other files. 
                         // For normal files, there should only be one file in the array. So we'll just use that.
-                        if (input[fieldname].length === 1) {
+                        if (fileNames[originalname].length === 1) {
                             input[fieldname] = fileNames[originalname][0];
                         }
                         // For image files, there may be multiple sizes. We'll store them like this: 
@@ -163,7 +164,6 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                             const file = fileNames[originalname][0].replace(`_${sizes[0]}`, "_*");
                             input[fieldname] = JSON.stringify({ sizes, file });
                         }
-                        input[fieldname] = fileNames[originalname][0];
                     }
                     handleEndpoint(endpoint as any, selection, input, req, res);
                 });

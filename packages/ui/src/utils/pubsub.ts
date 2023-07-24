@@ -9,6 +9,7 @@ import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { SnackSeverity } from "components/snacks";
 
 export type Pubs = "Celebration" |
+    "ChatSideMenu" |
     "CommandPalette" |
     "Cookies" | // For cookie consent dialog
     "FastUpdate" |
@@ -85,6 +86,9 @@ export class PubSub {
     publishCelebration(duration?: number) {
         this.publish("Celebration", duration);
     }
+    publishChatSideMenu(open?: boolean) {
+        this.publish("ChatSideMenu", open);
+    }
     publishCommandPalette() {
         this.publish("CommandPalette");
     }
@@ -115,7 +119,7 @@ export class PubSub {
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
      */
-    publishLoading(spinnerDelay: number | false) {
+    publishLoading(spinnerDelay: number | boolean) {
         this.publish("Loading", spinnerDelay);
     }
     publishLogOut() {
@@ -161,6 +165,9 @@ export class PubSub {
     subscribeCelebration(subscriber: (duration?: number) => void) {
         return this.subscribe("Celebration", subscriber);
     }
+    subscribeChatSideMenu(subscriber: (open?: boolean) => void) {
+        return this.subscribe("ChatSideMenu", subscriber);
+    }
     subscribeCommandPalette(subscriber: () => void) {
         return this.subscribe("CommandPalette", subscriber);
     }
@@ -185,7 +192,7 @@ export class PubSub {
     subscribeLanguage(subscriber: (language: string) => void) {
         return this.subscribe("Language", subscriber);
     }
-    subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
+    subscribeLoading(subscriber: (spinnerDelay: number | boolean) => void) {
         return this.subscribe("Loading", subscriber);
     }
     subscribeLogOut(subscriber: () => void) {

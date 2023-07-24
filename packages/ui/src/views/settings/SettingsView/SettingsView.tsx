@@ -4,7 +4,7 @@ import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
-import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from "icons";
+import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon, WalletIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -29,6 +29,19 @@ export const accountSettingsData: SettingsData[] = [
         link: LINKS.SettingsAuthentication,
         Icon: LockIcon,
     },
+    {
+        title: "Payment",
+        titleVariables: { count: 2 },
+        description: "PaymentsSettingsDescription",
+        link: LINKS.SettingsPayments,
+        Icon: WalletIcon,
+    },
+    {
+        title: "Api",
+        description: "ApiSettingsDescription",
+        link: LINKS.SettingsApi,
+        Icon: ApiIcon,
+    },
 ];
 
 export const displaySettingsData: SettingsData[] = [
@@ -40,12 +53,14 @@ export const displaySettingsData: SettingsData[] = [
     },
     {
         title: "Notification",
+        titleVariables: { count: 2 },
         description: "NotificationSettingsDescription",
         link: LINKS.SettingsNotifications,
         Icon: NotificationsCustomizedIcon,
     },
     {
         title: "FocusMode",
+        titleVariables: { count: 2 },
         description: "FocusModeSettingsDescription",
         link: LINKS.SettingsFocusModes,
         Icon: HistoryIcon,
@@ -80,14 +95,14 @@ export const SettingsView = ({
                     zIndex={zIndex}
                 />
                 <CardGrid minWidth={300}>
-                    {accountSettingsData.map(({ title, description, link, Icon }, index) => (
+                    {accountSettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (
                         <TIDCard
                             buttonText={t("Open")}
                             description={t(description)}
                             Icon={Icon}
                             key={index}
                             onClick={() => onSelect(link)}
-                            title={t(title, { count: 2 })}
+                            title={t(title, titleVariables)}
                         />
                     ))}
                 </CardGrid>
@@ -98,14 +113,14 @@ export const SettingsView = ({
                     zIndex={zIndex}
                 />
                 <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
-                    {displaySettingsData.map(({ title, description, link, Icon }, index) => (
+                    {displaySettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (
                         <TIDCard
                             buttonText={t("Open")}
                             description={t(description)}
                             Icon={Icon}
                             key={index}
                             onClick={() => onSelect(link)}
-                            title={t(title, { count: 2 })}
+                            title={t(title, titleVariables)}
                         />
                     ))}
                 </CardGrid>

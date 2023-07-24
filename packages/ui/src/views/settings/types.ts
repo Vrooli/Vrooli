@@ -2,9 +2,10 @@ import { CommonKey, LINKS } from "@local/shared";
 import { SvgComponent } from "types";
 import { BaseViewProps } from "views/types";
 
-export type SettingsPageType = "Profile" | "Privacy" | "Authentication" | "Display" | "Notification" | "FocusMode";
+export type SettingsPageType = "Profile" | "Privacy" | "Authentication" | "Payments" | "Api" | "Display" | "Notification" | "FocusMode";
 export type SettingsData = {
     title: SettingsPageType,
+    titleVariables?: Record<string, string | number>,
     description: CommonKey,
     link: LINKS,
     Icon: SvgComponent,

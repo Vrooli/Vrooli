@@ -233,6 +233,7 @@ export const ChatView = ({
             {(formik) => <>
                 <TopBar
                     display={display}
+                    // TODO add ChatSideMenu component
                     onClose={() => {
                         if (formik.values.editingMessage.trim().length > 0) {
                             PubSub.get().publishAlertDialog({
