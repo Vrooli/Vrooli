@@ -4,6 +4,7 @@ import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { placeholderColor } from "utils/display/listTools";
+import { PubSub } from "utils/pubsub";
 import { ProfilePictureInputProps } from "../types";
 
 export const ProfilePictureInput = ({
@@ -25,6 +26,7 @@ export const ProfilePictureInput = ({
         // .heic and .heif files are not supported by browsers, 
         // so we need to convert them to JPEGs (thanks, Apple)
         if (ext === "heic" || ext === "heif") {
+            PubSub.get().publishLoading(true);
             // Dynamic import of heic2any
             const heic2any = (await import("heic2any")).default;
 
@@ -34,6 +36,7 @@ export const ProfilePictureInput = ({
                 toType: "image/jpeg",
                 quality: 0.7, // adjust quality as needed
             }) as Blob;
+            PubSub.get().publishLoading(false);
             // Return as object URL
             return URL.createObjectURL(outputBlob);
         } else {
