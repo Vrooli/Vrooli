@@ -74,6 +74,16 @@ Currently, we use this for storing profile and banner images for users and organ
         }
     ]
 }
+```  
+11. Now add an additional statement to the `Statement` array to enable public read access. It should look like this:
+```json
+{
+    "Sid":"AddPublicReadAccess",
+    "Effect":"Allow",
+    "Principal": "*",
+    "Action":["s3:GetObject"],
+    "Resource":["arn:aws:s3:::vrooli-bucket/*"]
+}
 ```
 
 *Refer to the official Amazon S3 and AWS SDK documentation for more detailed information and assistance.*

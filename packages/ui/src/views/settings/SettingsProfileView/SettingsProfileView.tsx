@@ -44,12 +44,13 @@ export const SettingsProfileView = ({
                             bannerImage: null,
                             handle: profile?.handle ?? null,
                             name: profile?.name ?? "",
-                            profileImage: null,
+                            profileImage: profile?.profileImage ?? null,
                             translations: profile?.translations?.length ? profile.translations : [{
                                 id: DUMMY_ID,
                                 language: getUserLanguages(session)[0],
                                 bio: "",
                             }],
+                            updated_at: profile?.updated_at ?? null, // Used for cache busting on profile image
                         }}
                         onSubmit={(values, helpers) => {
                             if (!profile) {

@@ -69,7 +69,7 @@ export const SettingsProfileForm = ({
                 <ProfilePictureInput
                     onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                     name="profileImage"
-                    profile={{ __typename: "User" }}
+                    profile={{ __typename: "User", ...values }}
                     zIndex={zIndex}
                 />
                 <FormSection sx={{ marginTop: 2 }}>

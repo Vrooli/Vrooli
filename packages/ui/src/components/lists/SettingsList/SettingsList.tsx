@@ -35,7 +35,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, titleVariables)} />
+                <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
@@ -58,7 +58,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, titleVariables)} />
+                <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);

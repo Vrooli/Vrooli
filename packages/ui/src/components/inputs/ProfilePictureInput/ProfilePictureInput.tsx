@@ -7,6 +7,24 @@ import { placeholderColor } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { ProfilePictureInputProps } from "../types";
 
+const getExistingImage = (profile: ProfilePictureInputProps["profile"]): string | undefined => {
+    if (profile?.profileImage && typeof profile.profileImage === "string") {
+        // Profile image can either be a URL or a stringified JSON object containing the filename base and available sizes
+        if (profile.profileImage.startsWith("http")) {
+            return profile.profileImage;
+        }
+        try {
+            const { file, sizes } = JSON.parse(profile.profileImage);
+            console.log("after parse", `${file.replace("_*", `_${sizes[0]}`)}`);
+            // Replace wildcard with appropriate size, and add cache busting query param
+            return `${file.replace("_*", `_${sizes[0]}`)}?v=${profile.updated_at}`;
+        } catch (error) {
+            console.error("Could not parse profile image", profile.profileImage);
+        }
+    }
+    return undefined;
+};
+
 export const ProfilePictureInput = ({
     name,
     onChange,
@@ -17,8 +35,10 @@ export const ProfilePictureInput = ({
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const [files, setFiles] = useState<any[]>([]);
-    const defaultImg = "/broken-image.jpg";
-    const [profileImg, setProfileImg] = useState(defaultImg);
+    const [profileImg, setProfileImg] = useState(getExistingImage(profile));
+    useEffect(() => {
+        setProfileImg(getExistingImage(profile));
+    }, [profile]);
 
     const handleImagePreview = async (file: any) => {
         // Extract extension from file name or path
@@ -76,7 +96,7 @@ export const ProfilePictureInput = ({
 
     const removeImage = (event: any) => {
         event.stopPropagation();
-        setProfileImg(defaultImg);
+        setProfileImg(undefined);
         setFiles([]);
         onChange(null);
     };
@@ -125,7 +145,7 @@ export const ProfilePictureInput = ({
                 >
                     <EditIcon width="32px" height="32px" fill={palette.secondary.contrastText} />
                 </ColorIconButton>
-                {profileImg !== defaultImg && (
+                {profileImg !== undefined && (
                     <ColorIconButton
                         background={palette.error.main}
                         sx={{

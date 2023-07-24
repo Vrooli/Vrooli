@@ -102,7 +102,7 @@ export const SettingsView = ({
                             Icon={Icon}
                             key={index}
                             onClick={() => onSelect(link)}
-                            title={t(title, titleVariables)}
+                            title={t(title, { ...titleVariables, defaultValue: title })}
                         />
                     ))}
                 </CardGrid>
@@ -120,7 +120,7 @@ export const SettingsView = ({
                             Icon={Icon}
                             key={index}
                             onClick={() => onSelect(link)}
-                            title={t(title, titleVariables)}
+                            title={t(title, { ...titleVariables, defaultValue: title })}
                         />
                     ))}
                 </CardGrid>
