@@ -488,8 +488,6 @@ spec:
           env:
             - name: CREATE_MOCK_DATA
               value: "false"
-            - name: DB_PASSWORD
-              value: /run/secrets/vrooli/prod/DB_PASSWORD
             - name: DB_PULL
               value: "false"
             - name: DB_USER

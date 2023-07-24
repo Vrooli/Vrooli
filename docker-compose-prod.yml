@@ -6,52 +6,52 @@ services:
       context: .
       dockerfile: ./packages/ui/Dockerfile-prod
       args:
-        PROJECT_DIR: "${PROJECT_DIR}"
+        PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: ui
     image: ui:prod
     restart: always
     environment:
       NODE_ENV: "production"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: ${PORT_SERVER}
+      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
       VITE_SERVER_URL: "${SERVER_URL}"
       VITE_SITE_IP: "${SITE_IP}"
       VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VITE_STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
       VITE_GOOGLE_ADSENSE_PUBLISHER_ID: "${GOOGLE_ADSENSE_PUBLISHER_ID}"
       VITE_GOOGLE_TRACKING_ID: "${GOOGLE_TRACKING_ID}"
-      PROJECT_DIR: "${PROJECT_DIR}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PATH: "/"
-      VIRTUAL_PORT: ${PORT_UI}
+      VIRTUAL_PORT: ${PORT_UI:-3000}
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
-      - ${PORT_UI}:${PORT_UI}
+      - ${PORT_UI:-3000}:${PORT_UI:-3000}
     networks:
       - proxy
       - app
     volumes:
-      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
+      - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
     depends_on:
       - server
-    command: /bin/sh -c "${PROJECT_DIR}/scripts/ui.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
   server:
     build:
       context: .
       dockerfile: ./packages/server/Dockerfile-prod
       args:
-        PROJECT_DIR: "${PROJECT_DIR}"
+        PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: server
     image: server:prod
     restart: always
     environment:
       NODE_ENV: "production"
-      PROJECT_DIR: "${PROJECT_DIR}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: ${PORT_SERVER}
-      REDIS_CONN: "redis:${PORT_REDIS}"
-      DB_USER: "${DB_USER}"
+      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
+      REDIS_CONN: "redis:${PORT_REDIS:-6379}"
+      DB_USER: "${DB_USER:-site}"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
@@ -61,47 +61,47 @@ services:
       SITE_IP: "${SITE_IP}"
       SERVER_URL: "${SERVER_URL}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_SERVER}
+      VIRTUAL_PORT: ${PORT_SERVER:-5329}
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
-      - ${PORT_SERVER}:${PORT_SERVER}
+      - ${PORT_SERVER:-5329}:${PORT_SERVER:-5329}
     networks:
       - proxy
       - app
     volumes:
-      - ./data/logs:${PROJECT_DIR}/data/logs:z
-      - ./data/uploads:${PROJECT_DIR}/data/uploads:z
-      - ./data/stats:${PROJECT_DIR}/data/stats:z
-      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
+      - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
+      - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
+      - ./data/stats:${PROJECT_DIR:-/srv/app}/data/stats:z
+      - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
       - /run/secrets/vrooli/prod:/run/secrets/vrooli/prod
     depends_on:
       - redis
       - db
-    command: /bin/sh -c "${PROJECT_DIR}/scripts/server.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
   db:
     image: ankane/pgvector:v0.4.1
     restart: always
     container_name: db
     environment:
-      POSTGRES_USER: "${DB_USER}"
-      PROJECT_DIR: "${PROJECT_DIR}"
+      POSTGRES_USER: "${DB_USER:-site}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     expose:
-      - ${PORT_DB}
+      - ${PORT_DB:-5432}
     networks:
       - app
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
-      - ./scripts:${PROJECT_DIR}/scripts
+      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
       - /run/secrets/vrooli/prod:/run/secrets/vrooli/prod
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${DB_USER}" ]
+      test: [ "CMD", "pg_isready", "-U", "${DB_USER:-site}" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "${PROJECT_DIR}/scripts/getSecrets.sh production DB_PASSWORD && export POSTGRES_PASSWORD=${DB_PASSWORD} && exec docker-entrypoint.sh postgres"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production DB_PASSWORD && export POSTGRES_PASSWORD=${DB_PASSWORD} && exec docker-entrypoint.sh postgres"
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -109,11 +109,11 @@ services:
     networks:
       - app
     volumes:
-      - ./data/redis:${PROJECT_DIR}/data/redis:z
-      - ./scripts:${PROJECT_DIR}/scripts
+      - ./data/redis:${PROJECT_DIR:-/srv/app}/data/redis:z
+      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
     expose:
-      - ${PORT_REDIS}
-    command: /bin/sh -c "${PROJECT_DIR}/scripts/redis.sh"
+      - ${PORT_REDIS:-6379}
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/redis.sh"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -127,14 +127,14 @@ services:
     volumes:
       - ./packages/docs:/docs
     ports:
-      - "${PORT_DOCS}:${PORT_DOCS}"
+      - "${PORT_DOCS:-4000}:${PORT_DOCS:-4000}"
     networks:
       - proxy
       - app
-    command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
+    command: serve --dev-addr=0.0.0.0:${PORT_DOCS:-4000}
     environment:
       VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-      VIRTUAL_PORT: "${PORT_DOCS}"
+      VIRTUAL_PORT: "${PORT_DOCS:-4000}"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
 networks:
@@ -150,7 +150,7 @@ networks:
     #   networks:
     #     - app
     #   expose:
-    #     - ${PORT_TRANSLATE}
+    #     - ${PORT_TRANSLATE:-3457}
     # adminer:
     #     image: adminer
     #     restart: always

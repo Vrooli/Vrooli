@@ -174,13 +174,13 @@ cp ${COMPOSE_FILE} ${COMPOSE_FILE}.edit
 for VAR_NAME in ${NON_SENSITIVE_VARS[@]}; do
     VAR_VALUE=${!VAR_NAME}
     echo "Replacing ${VAR_NAME} with ${VAR_VALUE}"
-    sed -i -E 's|\$\{'"${VAR_NAME}"'\}|'"${VAR_VALUE}"'|g' ${COMPOSE_FILE}.edit
+    sed -i -E 's|\$\{'"${VAR_NAME}"'(:-[^}]*)?\}|'"${VAR_VALUE}"'|g' ${COMPOSE_FILE}.edit
 done
 
 # Replace remaining environment variables with their names, wrapped in angle brackets
-# For example, ${DB_USER} becomes <DB_USER>.
+# For example, ${DB_USER} becomes <DB_USER>, or ${DB_USER:-default} becomes <DB_USER>
 # These will be replaced with Kubernetes secrets later.
-sed -i -E 's/\$\{([^}]+)\}/<\1>/g' ${COMPOSE_FILE}.edit
+sed -i -E 's/\$\{([^:}]*).*\}/<\1>/g' ${COMPOSE_FILE}.edit
 
 # Convert the docker-compose file
 kompose convert -f ${COMPOSE_FILE}.edit -o k8s.yml
