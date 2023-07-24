@@ -7,6 +7,7 @@ import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
@@ -25,6 +26,7 @@ const navItemStyle = (palette: Palette) => ({
 
 export const NavList = () => {
     const session = useContext(SessionContext);
+    const user = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -83,7 +85,7 @@ export const NavList = () => {
             {checkIfLoggedIn(session) && (
                 <Avatar
                     id="side-menu-profile-icon"
-                    src="/broken-image.jpg" //TODO
+                    src={extractImageUrl(user.profileImage, user.updated_at, 50)}
                     onClick={toggleSideMenu}
                     sx={{
                         background: palette.primary.contrastText,

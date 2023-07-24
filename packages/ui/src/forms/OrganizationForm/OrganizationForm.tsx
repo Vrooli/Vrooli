@@ -2,6 +2,7 @@ import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, o
 import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
@@ -94,8 +95,10 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                         objectType={"Organization"}
                         zIndex={zIndex}
                     />
-                    <ResourceListHorizontalInput
-                        isCreate={true}
+                    <ProfilePictureInput
+                        onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        name="profileImage"
+                        profile={{ __typename: "Organization", ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection>
@@ -127,6 +130,10 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                             zIndex={zIndex}
                         />
                     </FormSection>
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
                 </FormContainer>
             </BaseForm>
             <GridSubmitButtons

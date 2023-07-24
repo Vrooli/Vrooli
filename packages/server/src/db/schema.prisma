@@ -2548,7 +2548,6 @@ model user {
     lastLoginAttempt               DateTime                    @default(now()) @db.Timestamptz(6)
     lastResetPasswordReqestAttempt DateTime?                   @db.Timestamptz(6)
     logInAttempts                  Int                         @default(0)
-    lastSessionVerified            DateTime?                   @db.Timestamptz(6)
     numExports                     Int                         @default(0)
     password                       String?                     @db.VarChar(256)
     resetPasswordCode              String?                     @unique @db.VarChar(256)

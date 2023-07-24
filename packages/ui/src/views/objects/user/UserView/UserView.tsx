@@ -22,6 +22,7 @@ import { getLastUrlPart, useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -153,7 +154,7 @@ export const UserView = ({
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
             <Avatar
-                src="/broken-image.jpg" //TODO
+                src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
                 sx={{
                     backgroundColor: profileColors[0],
                     color: profileColors[1],

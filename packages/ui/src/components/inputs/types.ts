@@ -191,7 +191,7 @@ export interface ProfilePictureInputProps {
     profile?: {
         __typename: "Organization" | "User";
         isBot?: boolean;
-        profileImage?: string | null;
+        profileImage?: string | File | null;
         /** Used for cache busting */
         updated_at?: string;
     } | null | undefined;

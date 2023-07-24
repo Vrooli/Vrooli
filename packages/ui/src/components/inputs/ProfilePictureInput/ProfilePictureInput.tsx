@@ -3,27 +3,13 @@ import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconBut
 import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { ProfilePictureInputProps } from "../types";
 
-const getExistingImage = (profile: ProfilePictureInputProps["profile"]): string | undefined => {
-    if (profile?.profileImage && typeof profile.profileImage === "string") {
-        // Profile image can either be a URL or a stringified JSON object containing the filename base and available sizes
-        if (profile.profileImage.startsWith("http")) {
-            return profile.profileImage;
-        }
-        try {
-            const { file, sizes } = JSON.parse(profile.profileImage);
-            console.log("after parse", `${file.replace("_*", `_${sizes[0]}`)}`);
-            // Replace wildcard with appropriate size, and add cache busting query param
-            return `${file.replace("_*", `_${sizes[0]}`)}?v=${profile.updated_at}`;
-        } catch (error) {
-            console.error("Could not parse profile image", profile.profileImage);
-        }
-    }
-    return undefined;
-};
+// What size image to display
+const TARGET_SIZE = 100;
 
 export const ProfilePictureInput = ({
     name,
@@ -35,9 +21,9 @@ export const ProfilePictureInput = ({
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const [files, setFiles] = useState<any[]>([]);
-    const [profileImg, setProfileImg] = useState(getExistingImage(profile));
+    const [profileImg, setProfileImg] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     useEffect(() => {
-        setProfileImg(getExistingImage(profile));
+        setProfileImg(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     }, [profile]);
 
     const handleImagePreview = async (file: any) => {

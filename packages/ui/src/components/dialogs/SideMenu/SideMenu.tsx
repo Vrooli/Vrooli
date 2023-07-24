@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
 import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useWindowSize } from "utils/hooks/useWindowSize";
@@ -175,7 +176,7 @@ export const SideMenu = () => {
             }}
         >
             <Avatar
-                src="/broken-image.jpg" //TODO
+                src={extractImageUrl(account.profileImage, account.updated_at, 50)}
                 sx={{
                     marginRight: 2,
                 }}

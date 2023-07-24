@@ -13,8 +13,10 @@ export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | 
 
 export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNewMembers" | "isPrivate"> & {
     __typename?: "Organization";
+    bannerImage?: string | File | null;
     memberInvites?: MemberInviteShape[] | null;
     membersDelete?: { id: string }[] | null;
+    profileImage?: string | File | null;
     resourceList?: ResourceListShape | null;
     roles?: RoleShape[] | null;
     tags?: ({ tag: string } | TagShape)[] | null;
@@ -28,7 +30,7 @@ export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationSha
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "handle", "isOpenToNewMembers", "isPrivate"),
+        ...createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
         ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
         ...createRel(d, "roles", ["Create"], "many", shapeRole),
@@ -36,7 +38,7 @@ export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreate
         ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "handle", "isOpenToNewMembers", "isPrivate"),
+        ...updatePrims(o, u, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
         ...updateRel(o, u, "roles", ["Create", "Update", "Delete"], "many", shapeRole),

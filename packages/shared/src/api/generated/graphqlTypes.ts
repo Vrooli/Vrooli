@@ -8151,12 +8151,14 @@ export type SessionUser = {
   membershipsCount: Scalars['Int'];
   name?: Maybe<Scalars['String']>;
   notesCount: Scalars['Int'];
+  profileImage?: Maybe<Scalars['String']>;
   projectsCount: Scalars['Int'];
   questionsAskedCount: Scalars['Int'];
   routinesCount: Scalars['Int'];
   smartContractsCount: Scalars['Int'];
   standardsCount: Scalars['Int'];
   theme?: Maybe<Scalars['String']>;
+  updated_at: Scalars['Date'];
 };
 
 export type SetActiveFocusModeInput = {
@@ -13905,12 +13907,14 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   membershipsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { SvgComponent } from "types";
+import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -162,7 +163,7 @@ export const OrganizationView = ({
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
             <Avatar
-                src="/broken-image.jpg" //TODO
+                src={extractImageUrl(organization?.profileImage, organization?.updated_at, 100)}
                 sx={{
                     backgroundColor: profileColors[0],
                     color: profileColors[1],

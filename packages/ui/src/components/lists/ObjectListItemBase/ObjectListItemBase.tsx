@@ -14,6 +14,7 @@ import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -134,7 +135,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
             }
             return (
                 <Avatar
-                    src="/broken-image.jpg" //TODO
+                    src={extractImageUrl((object as any).profileImage, (object as any).updated_at, 50)}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
@@ -183,7 +184,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                 sx={{
                     pointerEvents: "none",
                     justifyContent: isMobile ? "right" : "center",
-                    alignItems: isMobile ? "center" : "start",
+                    alignItems: "center",
                 }}
             >
                 {!hideUpdateButton && canUpdate &&
