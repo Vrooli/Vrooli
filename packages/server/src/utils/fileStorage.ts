@@ -3,10 +3,10 @@ import { uuid } from "@local/shared";
 import { fileTypeFromBuffer } from "file-type";
 import convert from "heic-convert";
 import https from "https";
-import imghash from "imghash";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints";
 import { CustomError, logger } from "../events";
+import { SessionUserToken } from "../types";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -33,6 +33,28 @@ interface NSFWCheckResult {
         sexy: number,
     };
 }
+
+/** Common configuration for profile images */
+export const profileImageConfig = {
+    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
+    imageSizes: [
+        { width: 400, height: 400 },
+        { width: 200, height: 200 },
+        { width: 100, height: 100 },
+        { width: 50, height: 50 },
+    ],
+};
+
+/** Common configuration for banner images */
+export const bannerImageConfig = {
+    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
+    imageSizes: [
+        { width: 1500, height: 500 },
+        { width: 900, height: 300 },
+        { width: 600, height: 200 },
+        { width: 300, height: 100 },
+    ],
+};
 
 interface NSFWCheckResponse {
     predictions: NSFWCheckResult;
@@ -133,15 +155,23 @@ const uploadFile = async (
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export const processAndStoreFiles = async (
+export const processAndStoreFiles = async <TInput extends object | undefined>(
     files: Express.Multer.File[],
-    config?: UploadConfig,
+    input: TInput,
+    userData: SessionUserToken,
+    config?: UploadConfig<TInput>,
 ): Promise<{ [x: string]: string[] }> => {
     const s3 = getS3Client();
 
     // Create promise for each file
     const fileUrlsPromises = files.map(async file => {
         const urls: string[] = [];
+
+        // Find the correct input configuration for this file
+        const fileConfig = config?.fields?.find(field => field.fieldName === file.fieldname);
+
+        // Get the file name
+        const filenameBase = fileConfig?.fileNameBase ? fileConfig.fileNameBase(input, userData) : uuid();
 
         // Find extension using the beginning of the file buffer. 
         // This is safer than using the file extension from the original file name, 
@@ -153,7 +183,7 @@ export const processAndStoreFiles = async (
         }
 
         // Check if the file extension is allowed
-        const allowedExtensions = config?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
+        const allowedExtensions = fileConfig?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
         if (!allowedExtensions.includes(extension)) {
             throw new CustomError("0508", "InternalError", ["en"], { file: file.filename });
         }
@@ -170,23 +200,20 @@ export const processAndStoreFiles = async (
         }
 
         // If the file is an image, we must check for NSFW content and upload various sizes
-        if (config?.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
-            // Compute hash for the original image
-            //TODO if someone is able to find hash collisions, they can overwrite images (which are stored by hash). Need to investigate this.
-            const hash = await imghash.hash(buffer);
+        if (fileConfig?.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
             // Check for NSFW content TODO fix and add back
             // const classificationsMap = await checkNSFW(buffer, hash);
             // const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
             // if (isNsfw) {
             //     throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
             // }
-            // Upload image in various sizes, specified in config
-            for (let i = 0; i < config.imageSizes.length; i++) {
-                const { width, height } = config.imageSizes[i];
+            // Upload image in various sizes, specified in fileConfig
+            for (let i = 0; i < fileConfig.imageSizes.length; i++) {
+                const { width, height } = fileConfig.imageSizes[i];
                 const resizedImage = await resizeImage(buffer, width, height);
 
                 // Construct a unique key using hash, extension, and size
-                const resizedKey = `${hash}_${width}x${height}.${extension}`;
+                const resizedKey = `${filenameBase}_${width}x${height}.${extension}`;
 
                 try {
                     const url = await uploadFile(s3, resizedKey, resizedImage, mimetype);
@@ -197,8 +224,7 @@ export const processAndStoreFiles = async (
                 }
             }
         } else {
-            const fileId = uuid(); // For non-image files, continue to use UUID to avoid collision
-            const originalKey = `${fileId}.${extension}`;
+            const originalKey = `${filenameBase}.${extension}`;
 
             try {
                 const url = await uploadFile(s3, originalKey, buffer, mimetype);

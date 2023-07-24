@@ -1,17 +1,19 @@
+import { bannerImageConfig, profileImageConfig } from "../../utils";
 import { user_botCreate, user_botUpdate, user_deleteOne, user_findMany, user_findOne, user_profile, user_profileEmailUpdate, user_profileUpdate } from "../generated";
 import { UserEndpoints } from "../logic";
 import { setupRoutes, UploadConfig } from "./base";
 
-const imagesConfig: UploadConfig = {
+const imagesConfig: UploadConfig<undefined> = {
     acceptsFiles: true,
-    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
-    imageSizes: [
-        { width: 1024, height: 1024 },
-        { width: 512, height: 512 },
-        { width: 256, height: 256 },
-        { width: 128, height: 128 },
-        { width: 64, height: 64 },
-    ],
+    fields: [{
+        ...profileImageConfig,
+        fieldName: "profileImage",
+        fileNameBase: (_, currentUser) => `${currentUser.id}-profile`,
+    }, {
+        ...bannerImageConfig,
+        fieldName: "bannerImage",
+        fileNameBase: (_, currentUser) => `${currentUser.id}-banner`,
+    }],
 };
 
 export const UserRest = setupRoutes({
