@@ -76,6 +76,11 @@ const main = async () => {
         next();
     });
 
+    // Set up health check endpoint
+    app.get("/healthcheck", (_req, res) => {
+        res.status(200).send("OK");
+    });
+
     // For authentication
     app.use(auth.authenticate);
 

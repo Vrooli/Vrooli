@@ -36,7 +36,8 @@ services:
       - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
   server:
     build:
@@ -86,8 +87,16 @@ services:
       - ./packages/server/src/db/migrations:${PROJECT_DIR:-/srv/app}/packages/server/src/db/migrations
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     depends_on:
-      - redis
-      - db
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_SERVER || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
+      start_period: 90s
+      interval: 20s
+      timeout: 5s
+      retries: 10
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
   db:
     image: ankane/pgvector:v0.4.1
@@ -106,7 +115,7 @@ services:
       - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${DB_USER:-site}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -160,7 +169,8 @@ services:
     networks:
       - app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - 8080:8080
     volumes:

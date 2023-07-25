@@ -18,11 +18,6 @@ ${HERE}/getSecrets.sh ${NODE_ENV} ${TMP_FILE} VALYXA_API_KEY DB_PASSWORD ADMIN_W
 rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
 
-success 'Prisma schema generated'
-info 'Waiting for database and redis to start...'
-${PROJECT_DIR}/scripts/wait-for.sh db:5432 -t 30 -- echo 'Database is up'
-${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 15 -- echo 'Redis is up'
-
 # Install prisma dependency
 # TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
 yarn global add prisma@4.14.0

@@ -8,10 +8,6 @@ if [ "${NODE_ENV}" = "development" ]; then
     . "${HERE}/shared.sh"
 fi
 
-# Wait for backend server to start. It could run fine alone, but we don't want a user trying to access the site during this time
-info 'Waiting for backend server to start...'
-${PROJECT_DIR}/scripts/wait-for.sh server:5329 -t 240 -- echo 'Backend server is up'
-
 cd ${PROJECT_DIR}/packages/ui
 
 # Finally, start project
