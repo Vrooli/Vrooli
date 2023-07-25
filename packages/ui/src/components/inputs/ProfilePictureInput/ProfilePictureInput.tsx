@@ -20,10 +20,9 @@ export const ProfilePictureInput = ({
     const { palette } = useTheme();
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const [files, setFiles] = useState<any[]>([]);
-    const [profileImg, setProfileImg] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
+    const [imgUrl, setImgUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     useEffect(() => {
-        setProfileImg(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
+        setImgUrl(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     }, [profile]);
 
     const handleImagePreview = async (file: any) => {
@@ -55,35 +54,25 @@ export const ProfilePictureInput = ({
         accept: ["image/*", ".heic", ".heif"],
         maxFiles: 1,
         onDrop: async acceptedFiles => {
+            console.log("ondrop", acceptedFiles);
+            // Ignore if no files were uploaded
             if (acceptedFiles.length <= 0) {
                 console.error("No files were uploaded");
                 return;
             }
-
-            const previews = await Promise.all(
-                acceptedFiles.map(file =>
-                    handleImagePreview(file).then(preview =>
-                        Object.assign(file, { preview }),
-                    ),
-                ),
-            );
-
-            setFiles(previews);
-            onChange(acceptedFiles[0]);
+            // Process first file, and ignore any others
+            handleImagePreview(acceptedFiles[0]).then(preview => {
+                console.log("got preview", preview);
+                Object.assign(acceptedFiles[0], { preview });
+                onChange(acceptedFiles[0]);
+                setImgUrl(preview);
+            });
         },
     });
 
-    // Update profile image after file has been uploaded
-    useEffect(() => {
-        if (files.length > 0) {
-            setProfileImg(files[0].preview);
-        }
-    }, [files]);
-
     const removeImage = (event: any) => {
         event.stopPropagation();
-        setProfileImg(undefined);
-        setFiles([]);
+        setImgUrl(undefined);
         onChange(null);
     };
 
@@ -104,7 +93,7 @@ export const ProfilePictureInput = ({
             }} {...getRootProps()}>
                 <input name={name ?? "picture"} {...getInputProps()} />
                 <Avatar
-                    src={profileImg}
+                    src={imgUrl}
                     sx={{
                         backgroundColor: profileColors[0],
                         color: profileColors[1],
@@ -131,7 +120,7 @@ export const ProfilePictureInput = ({
                 >
                     <EditIcon width="32px" height="32px" fill={palette.secondary.contrastText} />
                 </ColorIconButton>
-                {profileImg !== undefined && (
+                {imgUrl !== undefined && (
                     <ColorIconButton
                         background={palette.error.main}
                         sx={{

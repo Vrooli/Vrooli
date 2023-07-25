@@ -13,10 +13,10 @@ const __typename = "User" as const;
 const suppFields = ["you"] as const;
 
 const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
-    bannerImage: noNull(data.bannerImage),
+    bannerImage: data.bannerImage,
     handle: data.handle ?? null,
     name: noNull(data.name),
-    profileImage: noNull(data.profileImage),
+    profileImage: data.profileImage,
     theme: noNull(data.theme),
     isPrivate: noNull(data.isPrivate),
     isPrivateApis: noNull(data.isPrivateApis),
@@ -44,11 +44,11 @@ const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>
 });
 
 const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
-    bannerImage: noNull(data.bannerImage),
+    bannerImage: data.bannerImage,
     botSettings: noNull(data.botSettings),
     isPrivate: noNull(data.isPrivate),
     name: noNull(data.name),
-    profileImage: noNull(data.profileImage),
+    profileImage: data.profileImage,
     ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[rest.userData.id], data, ...rest })),
 });
 

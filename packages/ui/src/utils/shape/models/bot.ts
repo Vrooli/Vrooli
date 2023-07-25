@@ -17,8 +17,10 @@ export type BotTranslationShape = {
 
 export type BotShape = Pick<User, "id" | "isPrivate" | "name"> & {
     __typename?: "User";
+    bannerImage?: string | File | null;
     creativity?: number | null;
     isBot?: true;
+    profileImage?: string | File | null;
     translations?: BotTranslationShape[] | null;
     verbosity?: number | null;
 }
@@ -46,7 +48,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 creativity: d.creativity ?? undefined,
                 verbosity: d.verbosity ?? undefined,
             }),
-            ...createPrims(d, "id", "isBot", "name"),
+            ...createPrims(d, "id", "bannerImage", "isBot", "name", "profileImage"),
             ...createRel(d, "translations", ["Create"], "many", shapeUserTranslation),
         };
     },
@@ -67,7 +69,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 creativity: u.creativity ?? undefined,
                 verbosity: u.verbosity ?? undefined,
             }),
-            ...updatePrims(o, u, "id", "isBot", "name"),
+            ...updatePrims(o, u, "id", "bannerImage", "isBot", "name", "profileImage"),
             ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
         }, a);
     },

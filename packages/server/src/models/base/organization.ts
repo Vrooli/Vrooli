@@ -48,12 +48,12 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
-                    bannerImage: noNull(data.bannerImage),
+                    bannerImage: data.bannerImage,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
                     permissions: JSON.stringify({}), //TODO
-                    profileImage: noNull(data.profileImage),
+                    profileImage: data.profileImage,
                     createdBy: { connect: { id: rest.userData.id } },
                     members: {
                         create: {

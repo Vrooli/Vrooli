@@ -10,8 +10,9 @@ export const extractImageUrl = (
     lastUpdated: string | null | undefined,
     targetSize: number,
 ): string | undefined => {
-    // Make sure the image data is a string
-    if (!imageData || typeof imageData !== "string") return undefined;
+    console.log("extractImageUrl", imageData);
+    if (!imageData) return undefined;
+    if (imageData instanceof File) return (imageData as any).preview;
     // Image data can either be a URL or a stringified JSON object containing the filename base and available sizes
     if (imageData.startsWith("http")) {
         return imageData;

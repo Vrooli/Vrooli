@@ -2,6 +2,7 @@ import { botTranslationValidation, botValidation, DUMMY_ID, Session, User } from
 import { Slider, Stack, TextField, Typography } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -122,6 +123,12 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         objectType={"User"}
                         zIndex={zIndex}
                         sx={{ marginBottom: 4 }}
+                    />
+                    <ProfilePictureInput
+                        onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        name="profileImage"
+                        profile={{ __typename: "User", ...values }}
+                        zIndex={zIndex}
                     />
                     <FormSection sx={{
                         overflowX: "hidden",
