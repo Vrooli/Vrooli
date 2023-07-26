@@ -30,3 +30,29 @@ export const initializeRedis = async (): Promise<RedisClientType> => {
 
     return _redisClient;
 };
+
+interface WithRedisProps {
+    process: (redisClient: RedisClientType) => Promise<void>,
+    trace: string,
+    traceObject?: Record<string, any>,
+}
+
+/**
+ * Handles the Redis connection/disconnection and error logging
+ */
+export async function withRedis({
+    process,
+    trace,
+    traceObject,
+}: WithRedisProps): Promise<boolean> {
+    let success = false;
+    try {
+        const redis = await initializeRedis();
+        await process(redis);
+        success = true;
+    } catch (error) {
+        logger.error("Caught error in withRedis", { trace, error, ...traceObject });
+        return (error as any)?.message ?? "Failed to connect to Redis.";
+    }
+    return success;
+}

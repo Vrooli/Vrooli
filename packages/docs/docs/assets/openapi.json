@@ -39628,6 +39628,11 @@
             "title": "SessionUser.notesCount",
             "type": "number"
           },
+          "profileImage": {
+            "title": "SessionUser.profileImage",
+            "nullable": true,
+            "type": "string"
+          },
           "projectsCount": {
             "title": "SessionUser.projectsCount",
             "type": "number"
@@ -39652,6 +39657,10 @@
             "title": "SessionUser.theme",
             "nullable": true,
             "type": "string"
+          },
+          "updated_at": {
+            "title": "SessionUser.updated_at",
+            "type": "string"
           }
         },
         "required": [
@@ -39668,7 +39677,8 @@
           "questionsAskedCount",
           "routinesCount",
           "smartContractsCount",
-          "standardsCount"
+          "standardsCount",
+          "updated_at"
         ],
         "additionalProperties": false,
         "title": "SessionUser",

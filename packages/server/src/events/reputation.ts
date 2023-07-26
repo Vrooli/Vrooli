@@ -3,9 +3,8 @@
  */
 
 import { GqlModelType } from "@local/shared";
-import { initializeRedis } from "../redisConn";
+import { withRedis } from "../redisConn";
 import { PrismaType } from "../types";
-import { logger } from "./logger";
 
 export enum ReputationEvent {
     ObjectDeletedFromReport = "ObjectDeletedFromReport",
@@ -109,23 +108,20 @@ const reputationMap: { [key in ReputationEvent]?: number } = {
  */
 export async function getReputationGainedToday(userId: string, delta: number): Promise<number> {
     const keyBase = `reputation-gain-limit-${userId}`;
-    // Try connecting to redis
-    try {
-        const client = await initializeRedis();
-        // Increment the reputation gained today by the given amount
-        const updatedReputationCount = await client.incrBy(keyBase, delta);
-        // If key is new, set it to expire in 24 hours
-        if (updatedReputationCount === delta) {
-            await client.expire(keyBase, 60 * 60 * 24);
-        }
-        return updatedReputationCount;
-    }
-    // If Redis fails, let the user through. It's not their fault. 
-    catch (error) {
-        logger.error("Error occured while connecting or accessing redis server", { trace: "0279", error });
-        // Return absurdly high number so we don't store reputation
-        return Number.MAX_SAFE_INTEGER;
-    }
+    // Initialize with max value, so on fail we don't increase reputation in the non-Redis database
+    let reputationGainedToday = Number.MAX_SAFE_INTEGER;
+    await withRedis({
+        process: async (redisClient) => {
+            // Increment the reputation gained today by the given amount
+            reputationGainedToday = await redisClient.incrBy(keyBase, delta);
+            // If key is new, set it to expire in 24 hours
+            if (reputationGainedToday === delta) {
+                await redisClient.expire(keyBase, 60 * 60 * 24);
+            }
+        },
+        trace: "0514",
+    });
+    return reputationGainedToday;
 }
 
 /**

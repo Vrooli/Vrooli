@@ -74,6 +74,8 @@ export async function rateLimit({
     const userData = getUser(req.session);
     const hasUserData = req.session.isLoggedIn === true && userData !== null;
     // Try connecting to redis
+    // TODO should use `withRedis` function to let users through if Redis fails, but that would 
+    // also catch the errors we want to throw
     try {
         const client = await initializeRedis();
         // Apply rate limit to API TODO factor in cost of request, instead of just incrementing by 1

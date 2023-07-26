@@ -47,4 +47,11 @@ In these docs, we cover the following topics:
     </a>
   </div>
 
+  <div class="card">
+    <a href="stripe_setup.html">
+      <h3>Stripe Setup</h3>
+      <p>Using Stripe to enable payments</p>
+    </a>
+  </div>
+
 </div>

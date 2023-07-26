@@ -6,7 +6,7 @@ import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models/base";
-import { initializeRedis } from "../redisConn";
+import { withRedis } from "../redisConn";
 import { sendMail, sendPush } from "../tasks";
 import { PrismaType, SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
@@ -103,64 +103,61 @@ const push = async ({
         userBodies[user.userId] = body ?? title!;
     }
     const icon = "https://vrooli.com/Logo.png"; // TODO location of logo
-    // Try connecting to redis
-    try {
-        const client = await initializeRedis();
-        // For each user
-        for (let i = 0; i < users.length; i++) {
-            // For each delay
-            for (const delay of users[i].delays ?? [0]) {
-                const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
-                let currSilent = users[i].silent ?? false;
-                const currTitle = userTitles[users[i].userId];
-                const currBody = userBodies[users[i].userId];
-                // Increment count in Redis for this user. If it is over the limit, make the notification silent
-                const count = await client.incr(`notification:${users[i].userId}:${category}`);
-                if (dailyLimit && count > dailyLimit) currSilent = true;
-                // Send the notification to each device, if not silent
-                if (!currSilent) {
-                    for (const device of pushDevices) {
-                        try {
-                            const subscription = {
-                                endpoint: device.endpoint,
-                                keys: {
-                                    p256dh: device.p256dh,
-                                    auth: device.auth,
-                                },
-                            };
-                            const payload = { body: currBody, icon, link, title: currTitle };
-                            sendPush(subscription, payload, delay);
-                        } catch (err) {
-                            logger.error("Error sending push notification", { trace: "0306" });
+    await withRedis({
+        process: async (redisClient) => {
+            // For each user
+            for (let i = 0; i < users.length; i++) {
+                // For each delay
+                for (const delay of users[i].delays ?? [0]) {
+                    const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
+                    let currSilent = users[i].silent ?? false;
+                    const currTitle = userTitles[users[i].userId];
+                    const currBody = userBodies[users[i].userId];
+                    // Increment count in Redis for this user. If it is over the limit, make the notification silent
+                    const count = await redisClient.incr(`notification:${users[i].userId}:${category}`);
+                    if (dailyLimit && count > dailyLimit) currSilent = true;
+                    // Send the notification to each device, if not silent
+                    if (!currSilent) {
+                        for (const device of pushDevices) {
+                            try {
+                                const subscription = {
+                                    endpoint: device.endpoint,
+                                    keys: {
+                                        p256dh: device.p256dh,
+                                        auth: device.auth,
+                                    },
+                                };
+                                const payload = { body: currBody, icon, link, title: currTitle };
+                                sendPush(subscription, payload, delay);
+                            } catch (err) {
+                                logger.error("Error sending push notification", { trace: "0306" });
+                            }
                         }
+                        // Send the notification to each email (ignore if no title)
+                        if (emails.length && currTitle) {
+                            sendMail(emails.map(e => e.emailAddress), currTitle, currBody, "", delay);
+                        }
+                        // Send the notification to each phone number
+                        // for (const phoneNumber of phoneNumbers) {
+                        //     fdasfsd
+                        // }
                     }
-                    // Send the notification to each email (ignore if no title)
-                    if (emails.length && currTitle) {
-                        sendMail(emails.map(e => e.emailAddress), currTitle, currBody, "", delay);
-                    }
-                    // Send the notification to each phone number
-                    // for (const phoneNumber of phoneNumbers) {
-                    //     fdasfsd
-                    // }
                 }
             }
-        }
-        // Store the notifications in the database
-        await prisma.notification.createMany({
-            data: users.map(({ userId }) => ({
-                category,
-                title: userTitles[userId],
-                description: userBodies[userId],
-                link,
-                imgLink: icon,
-                userId,
-            })),
-        });
-    }
-    // If Redis fails, let the user through. It's not their fault. 
-    catch (error) {
-        logger.error("Error occured while connecting or accessing redis server", { trace: "0305", error });
-    }
+            // Store the notifications in the database
+            await prisma.notification.createMany({
+                data: users.map(({ userId }) => ({
+                    category,
+                    title: userTitles[userId],
+                    description: userBodies[userId],
+                    link,
+                    imgLink: icon,
+                    userId,
+                })),
+            });
+        },
+        trace: "0512",
+    });
 };
 
 /**

@@ -2,6 +2,7 @@ import { PaymentType } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events";
+import { withRedis } from "../redisConn";
 import { withPrisma } from "../utils/withPrisma";
 
 // Disable Stripe if any of the required environment variables are missing 
@@ -12,7 +13,7 @@ const canUseStripe = () => Boolean(process.env.STRIPE_SECRET_KEY) && Boolean(pro
 // Declare price IDs
 // NOTE 1: Make sure to update these are production keys before deploying
 // NOTE 2: Make sure these are PRICE IDs, not PRODUCT IDs
-const prices = {
+const STRIPE_PRICE_IDS = {
     donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
     premium: {
         monthly: "price_1MrTMEJq1sLW02CVHdm1U247",
@@ -40,6 +41,57 @@ export const setupStripe = (app: Express): void => {
             version: "2.0.0",
         },
     });
+    // Create endpoint for checking prices for premium subscriptions
+    app.get("/api/premium-prices", async (req: Request, res: Response) => {
+        // Initialize result
+        const data: { monthly: number, yearly: number } = {
+            monthly: NaN,
+            yearly: NaN,
+        };
+        let wasMonthlyCached = false;
+        let wasYearlyCached = false;
+        // Try to find cached price
+        await withRedis({
+            process: async (redisClient) => {
+                const cachedMonthlyPrice = await redisClient.get("premium-price-monthly");
+                if (cachedMonthlyPrice) {
+                    data.monthly = Number(cachedMonthlyPrice);
+                    wasMonthlyCached = true;
+                }
+                const cachedYearlyPrice = await redisClient.get("premium-price-yearly");
+                if (cachedYearlyPrice) {
+                    data.yearly = Number(cachedYearlyPrice);
+                    wasYearlyCached = true;
+                }
+            },
+            trace: "0516",
+        });
+        // Fetch prices from Stripe
+        if (!data.monthly) {
+            const monthlyPrice = await stripe.prices.retrieve(STRIPE_PRICE_IDS.premium.monthly);
+            data.monthly = monthlyPrice.unit_amount ?? 0;
+        }
+        if (!data.yearly) {
+            const yearlyPrice = await stripe.prices.retrieve(STRIPE_PRICE_IDS.premium.yearly);
+            data.yearly = yearlyPrice.unit_amount ?? 0;
+        }
+        // Cache prices
+        await withRedis({
+            process: async (redisClient) => {
+                if (!wasMonthlyCached) {
+                    await redisClient.set("premium-price-monthly", data.monthly);
+                    await redisClient.expire("premium-price-monthly", 60 * 60 * 24);
+                }
+                if (!wasYearlyCached) {
+                    await redisClient.set("premium-price-yearly", data.yearly);
+                    await redisClient.expire("premium-price-yearly", 60 * 60 * 24);
+                }
+            },
+            trace: "0517",
+        });
+        // Send result
+        res.json({ data });
+    });
     // Create endpoint for buying a premium subscription or donating
     app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
         // Get userId and variant from request body
@@ -50,38 +102,46 @@ export const setupStripe = (app: Express): void => {
         let priceId: string;
         let paymentType: PaymentType;
         if (variant === "yearly") {
-            priceId = prices.premium.yearly;
+            priceId = STRIPE_PRICE_IDS.premium.yearly;
             paymentType = PaymentType.PremiumYearly;
         } else if (variant === "monthly") {
-            priceId = prices.premium.monthly;
+            priceId = STRIPE_PRICE_IDS.premium.monthly;
             paymentType = PaymentType.PremiumMonthly;
         } else if (variant === "donation") {
-            priceId = prices.donation;
+            priceId = STRIPE_PRICE_IDS.donation;
             paymentType = PaymentType.Donation;
         } else {
             logger.error("Invalid variant", { trace: "0436", userId, variant });
             res.status(400).json({ error: "Invalid variant" });
             return;
         }
-        // Create checkout session
-        try {
-            const session = await stripe.checkout.sessions.create({
-                success_url: "https://vrooli.com/premium?status=success",
-                cancel_url: "https://vrooli.com/premium?status=canceled",
-                payment_method_types: ["card"],
-                line_items: [
-                    {
-                        price: priceId,
-                        quantity: 1,
+        await withPrisma({
+            process: async (prisma) => {
+                // Get user from database
+                const user = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: {
+                        emails: { select: { emailAddress: true } },
                     },
-                ],
-                mode: variant === "donation" ? "payment" : "subscription",
-                metadata: { userId },
-            });
-            // Create open payment in database, so we can track it
-            // TODO create cron job to clean up old payments that never completed, and to remove premium status from users when expired
-            await withPrisma({
-                process: async (prisma) => {
+                });
+                // Create checkout session
+                try {
+                    const session = await stripe.checkout.sessions.create({
+                        success_url: "https://vrooli.com/premium?status=success",
+                        cancel_url: "https://vrooli.com/premium?status=canceled",
+                        payment_method_types: ["card"],
+                        line_items: [
+                            {
+                                price: priceId,
+                                quantity: 1,
+                            },
+                        ],
+                        mode: variant === "donation" ? "payment" : "subscription",
+                        customer_email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                        metadata: { userId },
+                    });
+                    // Create open payment in database, so we can track it
+                    // TODO create cron job to clean up old payments that never completed, and to remove premium status from users when expired
                     await prisma.payment.create({
                         data: {
                             amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
@@ -94,15 +154,48 @@ export const setupStripe = (app: Express): void => {
                             user: { connect: { id: userId } },
                         },
                     });
-                },
-                trace: "0437",
-                traceObject: { userId, variant },
+                    // Send session ID as response
+                    res.json(session);
+                    return;
+                } catch (error) {
+                    logger.error("Error creating checkout session", { trace: "0437", userId, variant, error });
+                    res.status(500).json({ error });
+                    return;
+                }
+            },
+            trace: "0437",
+            traceObject: { userId, variant },
+        });
+    });
+    // Create endpoint for updating payment method and switching/canceling subscription
+    app.post("/api/create-portal-session", async (req: Request, res: Response) => {
+        // Get userId from request body
+        const userId: string = req.body.userId;
+
+        // Ideally, you should store the Stripe Customer ID associated with each user in your database.
+        // For this example, I'll assume you have a function getStripeCustomerId(userId) that retrieves
+        // the Stripe Customer ID associated with the given user ID.
+        const stripeCustomerId = "asdf";// TODO await getStripeCustomerId(userId);
+
+        // Check if the stripeCustomerId is valid
+        if (!stripeCustomerId) {
+            logger.error("Invalid user", { trace: "0515", userId });
+            res.status(400).json({ error: "Invalid user" });
+            return;
+        }
+
+        // Create a portal session
+        try {
+            const session = await stripe.billingPortal.sessions.create({
+                customer: stripeCustomerId,
+                return_url: "https://vrooli.com/", // Return to settings page after leaving portal
             });
-            // Send session ID as response
+
+            // Send session URL as response
             res.json(session);
             return;
         } catch (error) {
-            logger.error("Error creating checkout session", { trace: "0437", userId, variant, error });
+            logger.error("Error creating portal session", { trace: "0516", userId, error });
             res.status(500).json({ error });
             return;
         }
@@ -121,7 +214,7 @@ export const setupStripe = (app: Express): void => {
             let checkoutId;
             // Handle the event
             switch (event.type) {
-                // Donation completed or subscription created
+                // Checkout completed for donation or subscription
                 case "checkout.session.completed":
                     // Find payment in database
                     session = event.data.object;
@@ -157,6 +250,9 @@ export const setupStripe = (app: Express): void => {
                                 const premiums = await prisma.premium.findMany({
                                     where: { user: { id: userId } },
                                 });
+                                // TODO store stripe subscription ID in database, since we can't rely 
+                                // on the email associated with the Stripe customer ID to be the same
+                                // as the email associated with the Vrooli user ID
                                 if (premiums.length === 0) {
                                     await prisma.premium.create({
                                         data: {
@@ -182,7 +278,7 @@ export const setupStripe = (app: Express): void => {
                         traceObject: { userId, session, checkoutId },
                     });
                     break;
-                // Session expired before payment
+                // Checkout  expired before payment
                 case "checkout.session.expired":
                     // Find payment in database
                     session = event.data.object;
@@ -245,7 +341,34 @@ export const setupStripe = (app: Express): void => {
                     logger.error("Payment failed", { trace: "0444", userId, subscriptionId });
                     break;
                 }
-                // Subscription changed (monthly -> yearly, yearly -> monthly)
+                // Details of a price have been updated
+                // NOTE: You can't actually update a price's price. You have to create a new price. 
+                // So this condition isn't needed unless Stripe changes how prices work.
+                case "price.updated": {
+                    // Find the price ID and updated price
+                    const updatedPriceId = event.data.object.id;
+                    const updatedAmount = event.data.object.unit_amount;
+                    // Update cached price
+                    await withRedis({
+                        process: async (redisClient) => {
+                            let key: string | null = null;
+                            // Check if the updated price ID matches any of our IDs
+                            if (updatedPriceId === STRIPE_PRICE_IDS.premium.monthly) {
+                                key = "premium-price-monthly";
+                            } else if (updatedPriceId === STRIPE_PRICE_IDS.premium.yearly) {
+                                key = "premium-price-yearly";
+                            }
+                            // If a matching key was found, update the value in Redis
+                            if (key) {
+                                await redisClient.set(key, updatedAmount);
+                                await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
+                            }
+                        },
+                        trace: "0518",
+                    });
+                    break;
+                }
+                // User changed subscription (monthly -> yearly, yearly -> monthly)
                 case "customer.subscription.updated": {
                     const subscription = event.data.object;
                     userId = subscription.metadata.userId;
@@ -277,7 +400,7 @@ export const setupStripe = (app: Express): void => {
                     });
                     break;
                 }
-                // Subscription canceled
+                // User canceled subscription
                 case "customer.subscription.deleted":
                     userId = event.data.object.metadata.userId;
                     await withPrisma({
@@ -306,7 +429,7 @@ export const setupStripe = (app: Express): void => {
                         traceObject: { userId },
                     });
                     break;
-                // Subscription renewed
+                // Subscription automatically renewed
                 case "invoice.payment_succeeded": {
                     const renewedInvoice = event.data.object;
                     const renewedSubscriptionId = renewedInvoice.subscription;

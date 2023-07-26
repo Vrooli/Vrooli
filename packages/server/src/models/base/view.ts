@@ -3,7 +3,7 @@ import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContrac
 import { onlyValidIds } from "../../builders";
 import { CustomError } from "../../events";
 import { getLabels, getLogic } from "../../getters";
-import { initializeRedis } from "../../redisConn";
+import { withRedis } from "../../redisConn";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils";
 import { ViewFormat } from "../format/view";
@@ -347,21 +347,26 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         }
         // If user is owner, don't do anything else
         if (isOwn) return true;
-        // Check the last time the user viewed this object
-        const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
-        const client = await initializeRedis();
-        const lastViewed = await client.get(redisKey);
-        // If object viewed more than 1 hour ago, update view count
-        if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
-            // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-            const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view3");
-            await rootObjectDelegate(prisma).update({
-                where: { id: input.forId },
-                data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
-            });
-        }
-        // Update last viewed time
-        await client.set(redisKey, new Date().toISOString());
+        // Update view count
+        await withRedis({
+            process: async (redisClient) => {
+                // Check the last time the user viewed this object
+                const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
+                const lastViewed = await redisClient.get(redisKey);
+                // If object viewed more than 1 hour ago, update view count
+                if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
+                    // View counts don't exist on versioned objects, so we must make sure we are updating the root object
+                    const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view3");
+                    await rootObjectDelegate(prisma).update({
+                        where: { id: input.forId },
+                        data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
+                    });
+                }
+                // Update last viewed time
+                await redisClient.set(redisKey, new Date().toISOString());
+            },
+            trace: "0513",
+        });
         return true;
     },
     deleteViews,

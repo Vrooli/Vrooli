@@ -29,6 +29,7 @@ nav:
           - Messenger Setup: setup/getting_started/messenger_setup.md
           - S3 Setup: setup/getting_started/s3_setup.md
           - Working With Docker: setup/getting_started/working_with_docker.md
+          - Stripe Setup: setup/getting_started/stripe_setup.md
   - Testing:
       - Overview: testing/overview.md
       - Logs: testing/logs.md

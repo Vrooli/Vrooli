@@ -145,9 +145,7 @@ spec:
           livenessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - site
+                - pg_isready -U site && psql -U site -d postgres -c 'SELECT 1'
             failureThreshold: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -552,6 +550,14 @@ spec:
             - name: VITE_SERVER_LOCATION
               value: dns
           image: server:prod
+          livenessProbe:
+            exec:
+              command:
+                - 'node -e "require(''http'').request({hostname: ''localhost'', port: process.env.PORT_SERVER || 5329, path: ''/healthcheck''}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on(''error'', err => { process.exit(1) }).end()"'
+            failureThreshold: 10
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
           name: server
           ports:
             - containerPort: 5329

@@ -30,6 +30,8 @@ export async function rateLimitSocket({
     // Parse socket
     const keyBaseWithId = `${keyBase}:${socket.id}:`;
     // Try connecting to redis
+    // TODO should use `withRedis` function to let users through if Redis fails, but that would 
+    // also catch the errors we want to throw
     try {
         const client = await initializeRedis();
         // Apply rate limit to IP address

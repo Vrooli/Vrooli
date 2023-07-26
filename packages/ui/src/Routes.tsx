@@ -20,9 +20,12 @@ const {
 } = lazily(() => import("./views/main"));
 const {
     SettingsView,
+    SettingsApiView,
     SettingsAuthenticationView,
+    SettingsDataView,
     SettingsDisplayView,
     SettingsNotificationsView,
+    SettingsPaymentView,
     SettingsProfileView,
     SettingsPrivacyView,
     SettingsFocusModesView,
@@ -295,14 +298,23 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
                     <SettingsView {...viewProps} />
                 </NavRoute>
+                <NavRoute path={LINKS.SettingsApi} mustBeLoggedIn={true} {...props}>
+                    <SettingsApiView {...viewProps} />
+                </NavRoute>
                 <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
                     <SettingsAuthenticationView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsData} mustBeLoggedIn={true} {...props}>
+                    <SettingsDataView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
                     <SettingsDisplayView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
                     <SettingsNotificationsView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsPayments} mustBeLoggedIn={true} {...props}>
+                    <SettingsPaymentView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
                     <SettingsProfileView {...viewProps} />

@@ -54,7 +54,6 @@ export const ProfilePictureInput = ({
         accept: ["image/*", ".heic", ".heif"],
         maxFiles: 1,
         onDrop: async acceptedFiles => {
-            console.log("ondrop", acceptedFiles);
             // Ignore if no files were uploaded
             if (acceptedFiles.length <= 0) {
                 console.error("No files were uploaded");
@@ -62,7 +61,6 @@ export const ProfilePictureInput = ({
             }
             // Process first file, and ignore any others
             handleImagePreview(acceptedFiles[0]).then(preview => {
-                console.log("got preview", preview);
                 Object.assign(acceptedFiles[0], { preview });
                 onChange(acceptedFiles[0]);
                 setImgUrl(preview);

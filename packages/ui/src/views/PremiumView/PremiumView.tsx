@@ -1,12 +1,15 @@
 import { LINKS } from "@local/shared";
 import { Box, Button, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { loadStripe } from "@stripe/stripe-js";
+import { fetchData } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { CompleteIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, stringifySearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
+import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { useFetch } from "utils/hooks/useFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { PremiumViewProps } from "../types";
@@ -51,6 +54,14 @@ export const PremiumView = ({
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const { hasPremium, id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const [loading, setLoading] = useState(false);
+
+    const { data: prices, errors } = useFetch<undefined, { monthly: number, yearly: number }>({
+        endpoint: "/premium-prices",
+        method: "GET",
+        omitRestBase: true,
+    });
+    useDisplayServerError(errors);
 
     // This view is also used to check for successful/failed payments, 
     // so we need to check URL search params
@@ -78,57 +89,37 @@ export const PremiumView = ({
         }
     }, [setLocation]);
 
-    const [loading, setLoading] = useState(false);
-
-    /**
-     * Creates stripe checkout session and redirects to checkout page
-     */
+    /** Creates stripe checkout session and redirects to checkout page */
     const startCheckout = async (variant: "yearly" | "monthly" | "donation") => {
         setLoading(true);
         // Initialize Stripe
         const stripe = await stripePromise;
         if (!stripe) {
             console.error("Stripe failed to load");
+            PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error" });
             return;
         }
-        // Determine server URL
-        // Determine origin of API server
-        let uri: string;
-        // If running locally
-        const endpoint = "create-checkout-session";
-        if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-            uri = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
-        }
-        // If running on server
-        else {
-            uri = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
-                `${import.meta.env.VITE_SERVER_URL}/v2` :
-                `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
-        }
-        // Create checkout session
-        try {
-            const response = await fetch(uri, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    userId,
-                    variant,
-                }),
-            });
-            const session = await response.json();
+        // Call server to create checkout session
+        await fetchData({
+            endpoint: "/create-checkout-session",
+            inputs: {
+                userId,
+                variant,
+            },
+            method: "POST",
+            omitRestBase: true,
+        }).then(async (session: any) => {
             const result = await stripe.redirectToCheckout({
                 sessionId: session.id,
             });
             if (result.error) {
                 PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: result.error });
             }
-        } catch (error) {
+        }).catch((error) => {
             PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
-        } finally {
+        }).finally(() => {
             setLoading(false);
-        }
+        });
     };
 
     // TODO convert MaxObjects to list of limit increases 
@@ -196,9 +187,9 @@ export const PremiumView = ({
                         variant="contained"
                     >
                         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-                            $149.99/year
+                            ${(prices?.yearly ?? 0) / 100}/{t("Year")}
                             <Box component="span" fontStyle="italic" color="green" pl={1}>
-                                Best Deal!
+                                {t("BestDeal")}
                             </Box>
                         </Box>
                     </Button>
@@ -208,11 +199,11 @@ export const PremiumView = ({
                         onClick={() => { startCheckout("monthly"); }}
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
                         variant="outlined"
-                    >$14.99/month</Button>
+                    >${(prices?.monthly ?? 0) / 100}/{t("Month")}</Button>
                     {hasPremium && (
                         // TODO need way to change from monthly to yearly and vice versa
                         <Typography variant="body1" sx={{ textAlign: "center" }}>
-                            You already have premium!
+                            {t("AlreadyHavePremium")}
                         </Typography>
                     )}
                     <Button
@@ -220,14 +211,14 @@ export const PremiumView = ({
                         onClick={() => { startCheckout("donation"); }}
                         startIcon={loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : undefined}
                         variant="outlined"
-                    >One-time donation (no premium)</Button>
+                    >{t("DonationButton")}</Button>
                 </Stack>}
                 {/* If not logged in, button to log in first */}
                 {!userId && <Button
                     fullWidth
                     onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
                     variant="contained"
-                >Log in to upgrade</Button>}
+                >{t("LogInToUpgrade")}</Button>}
             </Stack>
         </>
     );

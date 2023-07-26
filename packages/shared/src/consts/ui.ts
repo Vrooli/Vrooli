@@ -31,6 +31,7 @@ export const LINKS = {
     Settings: "/settings",
     SettingsApi: "/settings/api",
     SettingsAuthentication: "/settings/auth",
+    SettingsData: "/settings/data",
     SettingsDisplay: "/settings/display",
     SettingsFocusModes: "/settings/focus",
     SettingsNotifications: "/settings/notifications",
