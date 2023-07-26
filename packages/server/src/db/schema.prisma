@@ -2565,6 +2565,7 @@ model user {
     views                          Int                         @default(0)
     reputation                     Int                         @default(0)
     premiumId                      String?                     @unique @db.Uuid
+    stripeCustomerId               String?                     @unique @db.VarChar(255)
     status                         AccountStatus               @default(Unlocked)
     apisCreated                    api[]                       @relation("api_createdBy")
     apis                           api[]                       @relation("api_ownedByUser")

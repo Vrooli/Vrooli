@@ -3,6 +3,9 @@ This guide will walk you through migrating the database. If you want to read mor
 
 Database migrations require an interactive terminal, which means they cannot be a part of the docker-compose setup process. 
 
+## Getting DB_URL
+To use Prisma, you'll need to make sure that the `DB_URL` environment variable is set. Since we calculate this in `scripts.sh` instead of directly as a docker-compose environment variable, it won't be available automatically. Instead, we'll need to export it manually whenever we're in the container. To do this, enter `export DB_PASSWORD=$(cat /run/secrets/vrooli/dev/DB_PASSWORD); export DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432;`
+
 ## Initial Migration
 Before you even think about migrating your schema, make sure you have already created an initial migration. To do this:  
 1. Make sure schema.prisma matches the current database schema.  
@@ -22,6 +25,9 @@ Before you even think about migrating your schema, make sure you have already cr
 7. `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION>`  
 8. Type `exit` to exit the shell.  
 9. Move the new migration folder in `packages/server/dist/db/migrations` to `packages/server/src/db/migrations`.
+10. Restart the server with `docker-compose restart server` and make sure that it starts successfully.
+11. `cd packages/server`
+12. Enter `yarn prisma generate` to update the Prisma types.
 
 
 ## Resolving Migration Issues
