@@ -1,3 +1,4 @@
+import { HttpStatus } from "@local/shared";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
@@ -81,7 +82,7 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
         }
         // Handle other errors here if needed
         // ...
-        res.status(500).json({ errors: [{ code, message }], version });
+        res.status(HttpStatus.InternalServerError).json({ errors: [{ code, message }], version });
     }
 };
 
@@ -154,14 +155,14 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                             if (!userData) {
                                 const languages = getUser(req.session)?.languages ?? ["en"];
                                 const lng = languages.length > 0 ? languages[0] : "en";
-                                res.status(401).json({ errors: [{ code: "0509", message: i18next.t("error:NotLoggedIn", { lng, defaultValue: "Not logged in." }) }], version });
+                                res.status(HttpStatus.Unauthorized).json({ errors: [{ code: "0509", message: i18next.t("error:NotLoggedIn", { lng, defaultValue: "Not logged in." }) }], version });
                                 return;
                             }
                             fileNames = await processAndStoreFiles(files, input, userData, config);
                         } catch (error) {
                             const languages = getUser(req.session)?.languages ?? ["en"];
                             const lng = languages.length > 0 ? languages[0] : "en";
-                            res.status(500).json({ errors: [{ code: "0506", message: i18next.t("error:InternalError", { lng, defaultValue: "Internal error." }) }], version });
+                            res.status(HttpStatus.InternalServerError).json({ errors: [{ code: "0506", message: i18next.t("error:InternalError", { lng, defaultValue: "Internal error." }) }], version });
                             return;
                         }
                     }

@@ -1,4 +1,4 @@
-import { i18nConfig } from "@local/shared";
+import { HttpStatus, i18nConfig } from "@local/shared";
 import { ApolloServer } from "apollo-server-express";
 import cookie from "cookie";
 import cors from "cors";
@@ -78,7 +78,7 @@ const main = async () => {
 
     // Set up health check endpoint
     app.get("/healthcheck", (_req, res) => {
-        res.status(200).send("OK");
+        res.status(HttpStatus.Ok).send("OK");
     });
 
     // For authentication

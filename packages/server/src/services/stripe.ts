@@ -1,25 +1,64 @@
-import { PaymentType } from "@local/shared";
+import { HttpStatus, PaymentType } from "@local/shared";
+import { PaymentStatus } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events";
 import { withRedis } from "../redisConn";
+import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks";
+import { PrismaType } from "../types";
 import { withPrisma } from "../utils/withPrisma";
 
-// Disable Stripe if any of the required environment variables are missing 
-// (Publishable key only required for client-side Stripe)
-// NOTE: Make sure to update these are production keys before deploying
-const canUseStripe = () => Boolean(process.env.STRIPE_SECRET_KEY) && Boolean(process.env.STRIPE_WEBHOOK_SECRET);
+type EventHandlerArgs = {
+    event: Stripe.Event,
+    prisma: PrismaType,
+    stripe: Stripe,
+    res: Response,
+}
 
-// Declare price IDs
-// NOTE 1: Make sure to update these are production keys before deploying
-// NOTE 2: Make sure these are PRICE IDs, not PRODUCT IDs
-const STRIPE_PRICE_IDS = {
-    donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
-    premium: {
-        monthly: "price_1MrTMEJq1sLW02CVHdm1U247",
-        yearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
-    },
+type HandlerResult = {
+    status: HttpStatus;
+    message?: string;
+}
+
+type Handler = (args: EventHandlerArgs) => Promise<HandlerResult>;
+
+/** 
+ * Finds all available price IDs for the current environment (development or production)
+ * NOTE: Make sure these are PRICE IDs, not PRODUCT IDs
+ **/
+const getPriceIds = () => {
+    if (process.env.NODE_ENV === "development") {
+        return {
+            donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
+            premium: {
+                monthly: "price_1MrTMEJq1sLW02CVHdm1U247",
+                yearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
+            },
+        };
+    }
+    return {
+        donation: "TODO",
+        premium: {
+            monthly: "TODO",
+            yearly: "TODO",
+        },
+    };
 };
+
+/** Finds the payment type of a Stripe product*/
+const getPaymentType = (product: string | Stripe.Product | Stripe.DeletedProduct): PaymentType => {
+    const productId = typeof product === "string" ? product : product.id;
+    if (productId === getPriceIds().donation) {
+        return PaymentType.Donation;
+    } else if (productId === getPriceIds().premium.monthly) {
+        return PaymentType.PremiumMonthly;
+    } else if (productId === getPriceIds().premium.yearly) {
+        return PaymentType.PremiumYearly;
+    } else {
+        throw new Error("Invalid product ID");
+    }
+};
+
 
 /**
  * Returns the customer ID from the Stripe API response.
@@ -38,22 +77,393 @@ const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustom
     }
 };
 
-/**
- * Returns the subscription ID from the Stripe API response.
- * @param {string | Stripe.Subscription | null} subscription The subscription field in a Stripe event.
- * This could be a string (representing the subscription ID), a Stripe.Subscription object, or null.
- * @returns {string} The subscription ID as a string if it exists.
- * @throws {Error} Throws an error if the subscription ID doesn't exist or couldn't be found.
+/** 
+ * Simplifies the return logic for Stripe event handlers, by handling 
+ * logging, setting res.status, and returning a message.
+ * @param status HTTP status code
+ * @param res Express response object
+ * @param message Message to return
+ * @param trace Trace to log
+ * @param ...args Additional arguments to log
+ * @returns Object with status and message
  */
-function getSubscriptionId(subscription: string | Stripe.Subscription | null): string {
-    if (typeof subscription === "string") {
-        return subscription;
-    } else if (subscription && typeof subscription === "object") {
-        return subscription.id; // Access 'id' field if 'subscription' is an object
-    } else {
-        throw new Error("Subscription ID not found");
+const handlerResult = (
+    status: HttpStatus,
+    res: Response,
+    message?: string,
+    trace?: string,
+    ...args: unknown[]
+): HandlerResult => {
+    if (status !== HttpStatus.Ok) {
+        logger.error(message ?? "Stripe handler error", { trace: trace ?? "0523", ...args });
     }
-}
+    res.status(status).send(message);
+    return { status, message };
+};
+
+/** Checkout completed for donation or subscription */
+const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const checkoutId = session.id;
+    const customerId = getCustomerId(session.customer);
+    // Find payment in database
+    const payments = await prisma.payment.findMany({
+        where: {
+            checkoutId,
+            paymentMethod: "Stripe",
+            user: { stripeCustomerId: customerId },
+        },
+    });
+    // If not found, log error. This is BAD
+    if (payments.length === 0) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0439", { checkoutId, customerId });
+    }
+    // Update payment in database to indicate it was paid
+    const payment = await prisma.payment.update({
+        where: { id: payments[0].id },
+        data: {
+            status: "Paid",
+        },
+        select: {
+            paymentType: true,
+            user: {
+                select: {
+                    id: true,
+                    emails: { select: { emailAddress: true } },
+                },
+            },
+        },
+    });
+    // If there is not a user associated with this payment, log an error and return
+    if (!payment.user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0440", { checkoutId, customerId });
+    }
+    // If subscription, upsert premium status
+    if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
+        // Get subscription
+        const subscriptionId = payment.stripeSubscriptionId;
+        const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        // Find enabledAt and expiresAt
+        const enabledAt = new Date().toISOString();
+        const expiresAt = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+        // Upsert premium status
+        const premiums = await prisma.premium.findMany({
+            where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
+        });
+        if (premiums.length === 0) {
+            await prisma.premium.create({
+                data: {
+                    enabledAt,
+                    expiresAt,
+                    isActive: true,
+                    user: { connect: { id: payment.user.id } }, // User should exist based on findMany query above
+                },
+            });
+        } else {
+            await prisma.premium.update({
+                where: { id: premiums[0].id },
+                data: {
+                    enabledAt: premiums[0].enabledAt ?? enabledAt,
+                    expiresAt,
+                    isActive: true,
+                },
+            });
+        }
+    }
+    // Send thank you notification
+    for (const email of payment.user.emails) {
+        sendPaymentThankYou(email.emailAddress, payment.paymentType);
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Checkout expired before payment */
+const handleCheckoutSessionExpired = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const checkoutId = session.id;
+    const customerId = getCustomerId(session.customer);
+    // Find payment in database
+    const payments = await prisma.payment.findMany({
+        where: {
+            checkoutId,
+            paymentMethod: "Stripe",
+            status: "Pending",
+            user: { stripeCustomerId: customerId },
+        },
+    });
+    if (payments.length === 0) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0425", { checkoutId, customerId });
+    }
+    // Delete payment in database
+    await prisma.payment.delete({
+        where: { id: payments[0].id },
+    });
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Customer was deleted */
+const handleCustomerDeleted = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const customer = event.data.object as Stripe.Customer;
+    const customerId = getCustomerId(customer);
+    // Remove customer ID from user in database
+    await prisma.user.update({
+        where: { stripeCustomerId: customerId },
+        data: { stripeCustomerId: null },
+    });
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Customer's credit card is about to expire */
+const handleCustomerSourceExpiring = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const customer = event.data.object as Stripe.Customer;
+    const customerId = getCustomerId(customer);
+    // Find user with the given Stripe customer ID
+    const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
+        select: {
+            emails: { select: { emailAddress: true } },
+        },
+    });
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0468", { customerId });
+    }
+    // Send notification
+    for (const email of user.emails) {
+        sendCreditCardExpiringSoon(email.emailAddress);
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/**
+ * User canceled subscription. They still have paid for their current 
+ * billing period, so don't set as inactive
+ */
+const handleCustomerSubscriptionDeleted = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = getCustomerId(subscription.customer);
+    // Find user 
+    const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
+        select: {
+            emails: { select: { emailAddress: true } },
+        },
+    });
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0459", { customerId });
+    }
+    // If found, send notification
+    for (const email of user.emails) {
+        sendSubscriptionCanceled(email.emailAddress);
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Trial ending in a few days */
+const handleCustomerSubscriptionTrialWillEnd = async ({ res }: EventHandlerArgs): Promise<HandlerResult> => {
+    return handlerResult(HttpStatus.NotImplemented, res, "customer.subscription.trial_will_end not implemented", "0460");
+};
+
+/** User updated subscription (e.g. switched from monthly to yearly) */
+const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = getCustomerId(subscription.customer);
+    // Check that subscription contains exactly one item
+    if (subscription.items.data.length !== 1) {
+        return handlerResult(HttpStatus.InternalServerError, res, `Subscription contains ${subscription.items.data.length} items`, "0471", { customerId });
+    }
+    // Find premium record in database
+    const premiumRecord = await prisma.premium.findFirst({
+        where: { user: { stripeCustomerId: customerId } },
+    });
+    if (!premiumRecord) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Premium record not found on customer.subscription.updated", "0457", { customerId });
+    }
+    // Update the expiration date
+    if (premiumRecord) {
+        // Update expiration date based on current period end of subscription
+        const nextBillingCycleTimestamp = subscription.current_period_end;
+        const newExpiresAt = new Date(nextBillingCycleTimestamp * 1000);
+
+        await prisma.premium.update({
+            where: { id: premiumRecord.id },
+            data: { expiresAt: newExpiresAt.toISOString() },
+        });
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Payment created, but not finalized */
+const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = getCustomerId(invoice.customer);
+    // Find user with the given Stripe customer ID
+    const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
+    });
+    // Check if user is found
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0456", { customerId, invoice: invoice.id });
+    }
+    // Create new payment in the database
+    const newPayment = await prisma.payment.create({
+        data: {
+            checkoutId: invoice.id,
+            amount: invoice.amount_due,
+            currency: invoice.currency,
+            paymentMethod: "Stripe",
+            paymentType: getPaymentType(invoice.lines.data[0].price.product),
+            status: PaymentStatus.Pending,
+            userId: user.id,
+            description: "Pending payment for Invoice ID: " + invoice.id,
+        },
+    });
+    // Check if payment creation was successful
+    if (!newPayment) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Payment creation failed", "0458", { customerId, invoice: invoice.id });
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Payment failed */
+const handleInvoicePaymentFailed = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = getCustomerId(invoice.customer);
+    // Find corresponding payment in the database
+    const payment = await prisma.payment.findFirst({
+        where: {
+            checkoutId: invoice.id,
+            user: { stripeCustomerId: customerId },
+        },
+        select: {
+            id: true,
+            paymentType: true,
+            user: {
+                select: {
+                    emails: { select: { emailAddress: true } },
+                },
+            },
+        },
+    });
+    if (!payment) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found.", "0444", { customerId, invoice: invoice.id });
+    }
+    // Update the payment status to Failed
+    await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.Failed },
+    });
+    // Notify user
+    for (const email of payment.user?.emails ?? []) {
+        sendPaymentFailed(email.emailAddress, payment.paymentType);
+    }
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+
+/** Payment succeeded (e.g. subscription renewed) */
+const handleInvoicePaymentSucceeded = async ({ event, prisma, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = getCustomerId(invoice.customer);
+    // Find the user associated with the invoice
+    const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
+    });
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0461", { customerId, invoice: invoice.id });
+    }
+    // Find the corresponding payment in the database
+    const payment = await prisma.payment.findFirst({
+        where: {
+            checkoutId: invoice.id,
+            user: { stripeCustomerId: customerId },
+        },
+        select: {
+            id: true,
+            paymentType: true,
+            user: {
+                select: {
+                    id: true,
+                },
+            },
+        },
+    });
+    if (!payment) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found", "0462", { customerId, invoice: invoice.id });
+    }
+    // Update the payment status to indicate it was successfully paid
+    await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "Paid" },
+    });
+    if (!payment.user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0223", { customerId, invoice: invoice.id });
+    }
+    // If subscription, update or create premium status
+    if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
+        // Fetch subscription from Stripe
+        const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+        const expiresAt = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+        const premiums = await prisma.premium.findMany({
+            where: { user: { id: payment.user.id } },
+        });
+        if (premiums.length === 0) {
+            await prisma.premium.create({
+                data: {
+                    enabledAt: new Date().toISOString(),
+                    expiresAt,
+                    isActive: true,
+                    user: { connect: { id: payment.user.id } },
+                },
+            });
+        } else {
+            await prisma.premium.update({
+                where: { id: premiums[0].id },
+                data: {
+                    expiresAt,
+                    isActive: true,
+                },
+            });
+        }
+    }
+    // Probably? don't need to send an email for this one
+    return handlerResult(HttpStatus.Ok, res);
+};
+
+/**
+ * Details of a price have been updated
+ * NOTE: You can't actually update a price's price; you have to create a new price. 
+ * This means this condition isn't needed unless Stripe changes how prices work. 
+ * But I already wrote it, so I'm leaving it here.
+ */
+const handlePriceUpdated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    const price = event.data.object as Stripe.Price;
+    // Find the price ID and updated price
+    const updatedPriceId = price.id;
+    const updatedAmount = price.unit_amount;
+    // Update cached price
+    await withRedis({
+        process: async (redisClient) => {
+            let key: string | null = null;
+            // Check if the updated price ID matches any of our IDs
+            if (updatedPriceId === getPriceIds().premium.monthly) {
+                key = "premium-price-monthly";
+            } else if (updatedPriceId === getPriceIds().premium.yearly) {
+                key = "premium-price-yearly";
+            }
+            // If a matching key was found, update the value in Redis
+            if (key) {
+                if (updatedAmount === null) {
+                    await redisClient.del(key);
+                } else {
+                    await redisClient.set(key, updatedAmount);
+                    await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
+                }
+            }
+        },
+        trace: "0518",
+    });
+    return handlerResult(HttpStatus.Ok, res);
+};
 
 /**
  * Sets up Stripe-related routes on the provided Express application instance.
@@ -61,11 +471,12 @@ function getSubscriptionId(subscription: string | Stripe.Subscription | null): s
  * @param app - The Express application instance to attach routes to.
  */
 export const setupStripe = (app: Express): void => {
-    if (!canUseStripe()) {
+    if (process.env.STRIPE_SECRET_KEY === undefined || process.env.STRIPE_WEBHOOK_SECRET === undefined) {
         logger.error("Missing one or more Stripe secret keys", { trace: "0489" });
         return;
     }
     // Set up Stripe
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
         apiVersion: "2022-11-15",
         typescript: true,
@@ -102,11 +513,11 @@ export const setupStripe = (app: Express): void => {
         });
         // Fetch prices from Stripe
         if (!data.monthly) {
-            const monthlyPrice = await stripe.prices.retrieve(STRIPE_PRICE_IDS.premium.monthly);
+            const monthlyPrice = await stripe.prices.retrieve(getPriceIds().premium.monthly);
             data.monthly = monthlyPrice.unit_amount ?? 0;
         }
         if (!data.yearly) {
-            const yearlyPrice = await stripe.prices.retrieve(STRIPE_PRICE_IDS.premium.yearly);
+            const yearlyPrice = await stripe.prices.retrieve(getPriceIds().premium.yearly);
             data.yearly = yearlyPrice.unit_amount ?? 0;
         }
         // Cache prices
@@ -136,17 +547,17 @@ export const setupStripe = (app: Express): void => {
         let priceId: string;
         let paymentType: PaymentType;
         if (variant === "yearly") {
-            priceId = STRIPE_PRICE_IDS.premium.yearly;
+            priceId = getPriceIds().premium.yearly;
             paymentType = PaymentType.PremiumYearly;
         } else if (variant === "monthly") {
-            priceId = STRIPE_PRICE_IDS.premium.monthly;
+            priceId = getPriceIds().premium.monthly;
             paymentType = PaymentType.PremiumMonthly;
         } else if (variant === "donation") {
-            priceId = STRIPE_PRICE_IDS.donation;
+            priceId = getPriceIds().donation;
             paymentType = PaymentType.Donation;
         } else {
             logger.error("Invalid variant", { trace: "0436", userId, variant });
-            res.status(400).json({ error: "Invalid variant" });
+            res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
             return;
         }
         await withPrisma({
@@ -161,7 +572,7 @@ export const setupStripe = (app: Express): void => {
                 });
                 if (!user) {
                     logger.error("User not found.", { trace: "0519", userId });
-                    res.status(400).json({ error: "User not found." });
+                    res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                     return;
                 }
                 // Create or retrieve a Stripe customer
@@ -192,8 +603,8 @@ export const setupStripe = (app: Express): void => {
                         },
                     });
                 }
-                // Create checkout session
                 try {
+                    // Create checkout session
                     const session = await stripe.checkout.sessions.create({
                         success_url: "https://vrooli.com/premium?status=success",
                         cancel_url: "https://vrooli.com/premium?status=canceled",
@@ -210,7 +621,6 @@ export const setupStripe = (app: Express): void => {
                         metadata: { userId },
                     });
                     // Create open payment in database, so we can track it
-                    // TODO create cron job to clean up old payments that never completed, and to remove premium status from users when expired
                     await prisma.payment.create({
                         data: {
                             amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
@@ -220,6 +630,8 @@ export const setupStripe = (app: Express): void => {
                             paymentMethod: "Stripe",
                             paymentType,
                             status: "Pending",
+                            stripeSessionId: session.id,
+                            user: { connect: { id: userId } },
                         },
                     });
                     // Send session ID as response
@@ -227,7 +639,7 @@ export const setupStripe = (app: Express): void => {
                     return;
                 } catch (error) {
                     logger.error("Error creating checkout session", { trace: "0437", userId, variant, error });
-                    res.status(500).json({ error });
+                    res.status(HttpStatus.InternalServerError).json({ error });
                     return;
                 }
             },
@@ -252,7 +664,7 @@ export const setupStripe = (app: Express): void => {
                 });
                 if (!user) {
                     logger.error("User not found.", { trace: "0520", userId });
-                    res.status(400).json({ error: "User not found." });
+                    res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                     return;
                 }
                 stripeCustomerId = user.stripeCustomerId ?? undefined;
@@ -264,7 +676,7 @@ export const setupStripe = (app: Express): void => {
         // Check if the stripeCustomerId is valid
         if (!stripeCustomerId) {
             logger.error("Invalid user", { trace: "0515", userId });
-            res.status(400).json({ error: "Invalid user" });
+            res.status(HttpStatus.InternalServerError).json({ error: "Invalid user" });
             return;
         }
 
@@ -279,324 +691,46 @@ export const setupStripe = (app: Express): void => {
             return;
         } catch (error) {
             logger.error("Error creating portal session", { trace: "0516", userId, error });
-            res.status(500).json({ error });
+            res.status(HttpStatus.InternalServerError).json({ error });
             return;
         }
     });
     // Create webhook endpoint for messages from Stripe (e.g. payment completed, subscription renewed/canceled)
     app.post("/webhook/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         const sig: string | string[] = req.headers["stripe-signature"] || "";
-        try {
-            // Parse event
-            const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
-            // Handle the event
-            switch (event.type) {
-                // Checkout completed for donation or subscription
-                case "checkout.session.completed": {
-                    const session = event.data.object as Stripe.Checkout.Session;
-                    const checkoutId = session.id;
-                    const customerId = getCustomerId(session.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find payment in database
-                            const payments = await prisma.payment.findMany({
-                                where: {
-                                    checkoutId,
-                                    paymentMethod: "Stripe",
-                                    user: { stripeCustomerId: customerId },
-                                },
-                            });
-                            // If not found, log error
-                            if (payments.length === 0) {
-                                logger.error("Payment not found. Someone is gonna be mad", { trace: "0439", checkoutId, userId });
-                                return;
-                            }
-                            // Update payment in database to indicate it was paid
-                            const payment = await prisma.payment.update({
-                                where: { id: payments[0].id },
-                                data: {
-                                    status: "Paid",
-                                },
-                                select: {
-                                    user: { select: { id: true } },
-                                },
-                            });
-                            // If subscription, upsert premium status
-                            if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
-                                const enabledAt = new Date().toISOString();
-                                const expiresAt = new Date(Date.now() + (payments[0].paymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString();
-                                const isActive = true;
-                                const premiums = await prisma.premium.findMany({
-                                    where: { user: { id: payment.user!.id } }, // User should exist based on findMany query above
-                                });
-                                if (premiums.length === 0) {
-                                    await prisma.premium.create({
-                                        data: {
-                                            enabledAt,
-                                            expiresAt,
-                                            isActive,
-                                            user: { connect: { id: payment.user!.id } }, // User should exist based on findMany query above
-                                        },
-                                    });
-                                } else {
-                                    await prisma.premium.update({
-                                        where: { id: premiums[0].id },
-                                        data: {
-                                            enabledAt: premiums[0].enabledAt ?? enabledAt,
-                                            expiresAt,
-                                            isActive,
-                                        },
-                                    });
-                                }
-                            }
-                        },
-                        trace: "0454",
-                        traceObject: { customerId, session, checkoutId },
-                    });
-                    break;
-                }
-                // Checkout expired before payment
-                case "checkout.session.expired": {
-                    const session = event.data.object as Stripe.Checkout.Session;
-                    const checkoutId = session.id;
-                    const customerId = getCustomerId(session.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find payment in database
-                            const payments = await prisma.payment.findMany({
-                                where: {
-                                    checkoutId,
-                                    paymentMethod: "Stripe",
-                                    status: "Pending",
-                                    user: { stripeCustomerId: customerId },
-                                },
-                            });
-                            if (payments.length > 0) {
-                                // Delete payment in database
-                                await prisma.payment.delete({
-                                    where: { id: payments[0].id },
-                                });
-                            }
-                        },
-                        trace: "0455",
-                        traceObject: { customerId, session, checkoutId },
-                    });
-                    break;
-                }
-                // Customer was deleted
-                case "customer.deleted": {
-                    const customer = event.data.object as Stripe.Customer;
-                    const customerId = getCustomerId(customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Remove customer ID from user in database
-                            await prisma.user.update({
-                                where: { stripeCustomerId: customerId },
-                                data: { stripeCustomerId: null },
-                            });
-                        },
-                        trace: "0522",
-                        traceObject: { customerId },
-                    });
-                    break;
-                }
-                // Customer updated their payment method
-                case "customer.source.updated": {
-                    //TODO for morning: complete updating all of these webhook cases. Also figure out which ones should notify user (e.g. payment failed), and add notification logic
-                    const source = event.data.object as Stripe.Source;
-                    const customerId = getCustomerId(source.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            //TODO
-                        },
-                        trace: "0523",
-                        traceObject: { customerId },
-                    });
-                    break;
-                }
-                // User added a subscription outside of a checkout session (e.g. we did it in the Stripe dashboard)
-                case "customer.subscription.updated": {
-                    const subscription = event.data.object as Stripe.Subscription;
-                    const customerId = getCustomerId(subscription.customer);
-                    //TODO
-                    break;
-                }
-                // User canceled subscription
-                case "customer.subscription.deleted": {
-                    const subscription = event.data.object as Stripe.Subscription;
-                    const customerId = getCustomerId(subscription.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find premium record in database
-                            const canceledPremiumRecord = await prisma.premium.findFirst({
-                                where: { user: { id: userId } },
-                            });
-                            // If found, set as inactive
-                            if (canceledPremiumRecord) {
-                                await prisma.premium.update({
-                                    where: { id: canceledPremiumRecord.id },
-                                    data: {
-                                        isActive: false,
-                                    },
-                                });
-                            }
-                            // Otherwise, log an error and return
-                            else {
-                                logger.error("Premium record not found on customer.subscription.deleted", { trace: "0459", userId });
-                                res.status(400).send("Premium record not found");
-                                return;
-                            }
-                        },
-                        trace: "0460",
-                        traceObject: { userId },
-                    });
-                    break;
-                }
-                // User changed subscription (monthly -> yearly, yearly -> monthly)
-                case "customer.subscription.updated": {
-                    const subscription = event.data.object as Stripe.Subscription;
-                    const customerId = getCustomerId(subscription.customer);
-                    const newPaymentType = subscription.plan.interval === "month" ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find premium record in database
-                            const premiumRecord = await prisma.premium.findFirst({
-                                where: { user: { id: userId } },
-                            });
-                            // If found, update the expiration date
-                            if (premiumRecord) {
-                                await prisma.premium.update({
-                                    where: { id: premiumRecord.id },
-                                    data: {
-                                        expiresAt: new Date(Date.now() + (newPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
-                                    },
-                                });
-                            }
-                            // Otherwise, log an error and return
-                            else {
-                                logger.error("Premium record not found on customer.subscription.updated", { trace: "0457", userId });
-                                res.status(400).send("Premium record not found");
-                                return;
-                            }
-                        },
-                        trace: "0458",
-                        traceObject: { userId, subscription, newPaymentType },
-                    });
-                    break;
-                }
-                // Payment failed
-                case "invoice.payment_failed": {
-                    const invoice = event.data.object as Stripe.Invoice;
-                    const subscriptionId = getSubscriptionId(invoice.subscription);
-                    const customerId = getCustomerId(invoice.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find payment in database
-                            const payments = await prisma.payment.findMany({
-                                where: {
-                                    user: { stripeCustomerId: customerId },
-                                    paymentMethod: "Stripe",
-                                },
-                            });
-                            // If not found, log an error and return
-                            if (payments.length === 0) {
-                                logger.error("Payment not found on invoice.payment_failed", { trace: "0443", customerId });
-                                res.status(400).send("Payment not found");
-                                return;
-                            }
-                            // Update the payment status to "Failed" in the database
-                            await prisma.payment.update({
-                                where: { id: payments[0].id },
-                                data: {
-                                    status: "Failed",
-                                },
-                            });
-                        },
-                        trace: "0456",
-                        traceObject: { customerId, invoice, subscriptionId },
-                    });
-                    // Log the error
-                    logger.error("Payment failed", { trace: "0444", customerId, subscriptionId });
-                    break;
-                }
-                // Subscription automatically renewed
-                case "invoice.payment_succeeded": {
-                    const invoice = event.data.object as Stripe.Invoice;
-                    const subscriptionId = getSubscriptionId(invoice.subscription);
-                    const customerId = getCustomerId(invoice.customer);
-                    await withPrisma({
-                        process: async (prisma) => {
-                            // Find premium record in database
-                            const renewedPremiumRecord = await prisma.premium.findFirst({
-                                where: { user: { id: userId } },
-                            });
-                            // If found, set as active and update the expiration date
-                            if (renewedPremiumRecord) {
-                                const renewedPaymentType = renewedPremiumRecord.expiresAt && new Date(renewedPremiumRecord.expiresAt) < new Date() ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
-                                await prisma.premium.update({
-                                    where: { id: renewedPremiumRecord.id },
-                                    data: {
-                                        expiresAt: new Date(Date.now() + (renewedPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
-                                        isActive: true,
-                                    },
-                                });
-                            }
-                            // Otherwise, log an error and return
-                            else {
-                                logger.error("Premium record not found on invoice.payment_succeeded", { trace: "0461", userId });
-                                res.status(400).send("Premium record not found");
-                                return;
-                            }
-                        },
-                        trace: "0462",
-                        traceObject: { userId, renewedInvoice, renewedSubscriptionId },
-                    });
-                    break;
-                }
-                // Details of a price have been updated
-                // NOTE: You can't actually update a price's price; you have to create a new price. 
-                // This means this condition isn't needed unless Stripe changes how prices work. 
-                // But I already wrote it, so I'm leaving it here.
-                case "price.updated": {
-                    const price = event.data.object as Stripe.Price;
-                    // Find the price ID and updated price
-                    const updatedPriceId = price.id;
-                    const updatedAmount = price.unit_amount;
-                    // Update cached price
-                    await withRedis({
-                        process: async (redisClient) => {
-                            let key: string | null = null;
-                            // Check if the updated price ID matches any of our IDs
-                            if (updatedPriceId === STRIPE_PRICE_IDS.premium.monthly) {
-                                key = "premium-price-monthly";
-                            } else if (updatedPriceId === STRIPE_PRICE_IDS.premium.yearly) {
-                                key = "premium-price-yearly";
-                            }
-                            // If a matching key was found, update the value in Redis
-                            if (key) {
-                                if (updatedAmount === null) {
-                                    await redisClient.del(key);
-                                } else {
-                                    await redisClient.set(key, updatedAmount);
-                                    await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
-                                }
-                            }
-                        },
-                        trace: "0518",
-                    });
-                    break;
-                }
-                // If this default is reached, either the webhook specified in Stripe is too broad, 
-                // or we're missing an important event
-                default:
+        let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
+        await withPrisma({
+            process: async (prisma) => {
+                // Parse event
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+                // Call appropriate handler
+                const eventHandlers: { [key: string]: Handler } = {
+                    "checkout.session.completed": handleCheckoutSessionCompleted,
+                    "checkout.session.expired": handleCheckoutSessionExpired,
+                    "customer.deleted": handleCustomerDeleted,
+                    "customer.source.expiring": handleCustomerSourceExpiring,
+                    "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
+                    "customer.subscription.trial_will_end": handleCustomerSubscriptionTrialWillEnd,
+                    "customer.subscription.updated": handleCustomerSubscriptionUpdated,
+                    "invoice.created": handleInvoicePaymentCreated,
+                    "invoice.payment_failed": handleInvoicePaymentFailed,
+                    "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
+                    "price.updated": handlePriceUpdated,
+                };
+                if (event.type in eventHandlers) {
+                    result = await eventHandlers[event.type]({ event, prisma, stripe, res });
+                } else {
                     logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
-                    break;
-            }
-        } catch (error: any) {
-            res.status(400).send(`Webhook Error: ${error.message}`);
-            return;
+                }
+            },
+            trace: "0454",
+        });
+        res.status(result.status);
+        if (result.message) {
+            res.send(result.message);
+        } else {
+            res.send();
         }
-        // Return a 200 response to acknowledge receipt of the event
-        res.send();
     });
 };
