@@ -233,7 +233,6 @@ export const ChatView = ({
             {(formik) => <>
                 <TopBar
                     display={display}
-                    // TODO add ChatSideMenu component
                     onClose={() => {
                         if (formik.values.editingMessage.trim().length > 0) {
                             PubSub.get().publishAlertDialog({
@@ -247,9 +246,11 @@ export const ChatView = ({
                             tryOnClose(onClose, setLocation);
                         }
                     }}
+                    // TODO change title so that when pressed, you can switch chats or add a new chat
                     title={firstString(title, botSettings ? "AI Chat" : "Chat")}
                     zIndex={zIndex}
                 />
+                {/* TODO add ChatSideMenu component */}
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
                         {messages.map((message: ChatMessage, index) => {

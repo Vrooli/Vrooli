@@ -31,7 +31,7 @@ const getPriceIds = () => {
         return {
             donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
             premium: {
-                monthly: "price_1MrTMEJq1sLW02CVHdm1U247",
+                monthly: "price_1NYaGQJq1sLW02CVFAO6bPu4",
                 yearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
             },
         };
@@ -141,11 +141,16 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
     // If subscription, upsert premium status
     if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
         // Get subscription
-        const subscriptionId = payment.stripeSubscriptionId;
-        const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!session.subscription) {
+            return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found.", "0224", { checkoutId, customerId });
+        }
+        // If subscription is a string (i.e. the ID), fetch the full subscription object from Stripe
+        const subscription = typeof session.subscription === "string" ?
+            await stripe.subscriptions.retrieve(session.subscription) :
+            session.subscription;
         // Find enabledAt and expiresAt
         const enabledAt = new Date().toISOString();
-        const expiresAt = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+        const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
         // Upsert premium status
         const premiums = await prisma.premium.findMany({
             where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
@@ -304,6 +309,11 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0456", { customerId, invoice: invoice.id });
     }
+    // Check if invoice.lines, invoice.lines.data[0], invoice.lines.data[0].price, and invoice.lines.data[0].price.product are not null
+    const product = invoice.lines && invoice.lines.data[0] && invoice.lines.data[0].price && invoice.lines.data[0].price.product;
+    if (!product) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Product not found", "0225", { customerId, invoice: invoice.id });
+    }
     // Create new payment in the database
     const newPayment = await prisma.payment.create({
         data: {
@@ -311,7 +321,7 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
             amount: invoice.amount_due,
             currency: invoice.currency,
             paymentMethod: "Stripe",
-            paymentType: getPaymentType(invoice.lines.data[0].price.product),
+            paymentType: getPaymentType(product),
             status: PaymentStatus.Pending,
             userId: user.id,
             description: "Pending payment for Invoice ID: " + invoice.id,
@@ -604,10 +614,14 @@ export const setupStripe = (app: Express): void => {
                     });
                 }
                 try {
-                    // Create checkout session
+                    const urlBase = process.env.VITE_SERVER_LOCATION === "local" ? "http://localhost:3000" : "https://vrooli.com";
+                    // Create checkout session 
+                    // NOTE: I previously tried also passing in the customer email 
+                    // to save the customer some typing, but Stripe doesn't allow 
+                    // this to be sent along with the customer ID.
                     const session = await stripe.checkout.sessions.create({
-                        success_url: "https://vrooli.com/premium?status=success",
-                        cancel_url: "https://vrooli.com/premium?status=canceled",
+                        success_url: `${urlBase}/premium?status=success`,
+                        cancel_url: `${urlBase}/premium?status=canceled`,
                         payment_method_types: ["card"],
                         line_items: [
                             {
@@ -617,7 +631,6 @@ export const setupStripe = (app: Express): void => {
                         ],
                         mode: variant === "donation" ? "payment" : "subscription",
                         customer: stripeCustomerId,
-                        customer_email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
                         metadata: { userId },
                     });
                     // Create open payment in database, so we can track it
@@ -630,7 +643,6 @@ export const setupStripe = (app: Express): void => {
                             paymentMethod: "Stripe",
                             paymentType,
                             status: "Pending",
-                            stripeSessionId: session.id,
                             user: { connect: { id: userId } },
                         },
                     });

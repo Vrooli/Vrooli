@@ -39,7 +39,58 @@ To enable the Customer Portal (do this for both test and production environments
 4. Copy the portal link and click "Save."
 5. Save the portal link in TODO
 
+## Subscribe to Webhooks
+Stripe uses webhooks to notify the server of events, such as a successful payment or a subscription cancellation. We need to subscribe to these webhooks so that we can handle them in the server.
+
+To subscribe to webhooks for production:
+1. In the Stripe dashboard, navigate to "Developers" in the navbar.
+2. Click on the "Webhooks" tab.
+3. Click "Add endpoint."
+4. Enter the URL for our server's Stripe webhook handler (e.g. `https://vrooli.com/webhooks/stripe`).
+5. Select the following events:
+    - `checkout.session.completed`
+    - `customer.session.expired`
+    - `customer.deleted`
+    - `customer.source.expiring`
+    - `customer.subscription.deleted`
+    - `customer.subscription.trial_will_end`
+    - `customer.subscription.updated`
+    - `invoice.created`
+    - `invoice.payment_failed`
+    - `invoice.payment_succeeded`
+    - `price.updated`
+Each event corresponds to a function in the server. If you don't select one of these events, there may be problems. If you select too many, you will get non-critical error logs in the server.
+
 ## Set Up the Server
-TODO explain and link to relevant code for stripe endpoints and webhooks
+To find the Stripe code in the server, search for `getPriceIds`. This is a function that stores all of the test and production price IDs. Replace these with the price IDs you created earlier. Other than that, the server should be ready to go!
+
+**Note:** Refer to the [Stripe API documentation](https://stripe.com/docs/api) and [webhook documentation](https://stripe.com/docs/webhooks) when updating the server. ChatGPT also knows a lot about Stripe.
+
+## Test the Server
+To simulate events for local testing, use the Stripe CLI. 
+
+1. **Install the Stripe CLI:** Follow the instructions [here](https://stripe.com/docs/stripe-cli#install).
+2. **Login to Stripe:** Link your Stripe account with the CLI using the `stripe login` command in your terminal and follow the prompts.
+3. **Start listening to events:** Use the `stripe listen` command to start a new instance of the Stripe CLI that listens for and forwards events from your Stripe account to a local webhook running on your machine.
+   ```bash
+   stripe listen --forward-to localhost:<your_port>/<your_endpoint>
+   ```
+   Replace `<your_port>` with the port number where your local server is running and `<your_endpoint>` with the path of your webhook endpoint.
+4. **Trigger events:** Use the `stripe trigger` command to simulate events. For example, to simulate the `invoice.payment_succeeded` event, run:
+   ```bash
+   stripe trigger invoice.payment_succeeded
+   ```
+Remember to restart the Stripe CLI to listen for new events. Also, make sure your local server is running when you start the Stripe CLI.
 
 Refer to the [Stripe API documentation](https://stripe.com/docs/api) and [webhook documentation](https://stripe.com/docs/webhooks) when updating the server.
+"""
+
+**Note:** You can also test outside of the CLI (e.g. pressing the "Subscribe" button in the UI), but note that the webhook events will not be sent to your local server. Instead, they will be sent to the server URL specified in the Stripe dashboard. If you want to test this way, you'll need to deploy the server to a VPS and subscribe that to the Stripe events.
+
+## Fixing errors
+Here are some errors I've run into before while testing the server locally, with their solutions.
+
+### "You must provide at least one recurring price in `subscription` mode when using prices"
+This error occurs when you try to create a subscription with a one-time price. To fix this, make sure you are using the correct price ID for the subscription. You can check this by going to the Stripe dashboard, clicking on the product, and clicking on the price. The price ID is in the URL.
+
+If the price ID matches the intended price, then the price is probably not set up correctly. Look at the price's *Interval* field. If this says "One-Time" and you are setting up a subscription (or vice-versa), then you need to create a new price with the correct interval.

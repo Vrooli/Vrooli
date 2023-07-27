@@ -1080,21 +1080,20 @@ model phone {
 }
 
 model payment {
-    id              String        @id @default(uuid()) @db.Uuid
-    created_at      DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime      @default(now()) @db.Timestamptz(6)
-    amount          Int
-    checkoutId      String        @db.VarChar(255)
-    currency        String        @db.VarChar(255)
-    description     String        @db.VarChar(2048)
-    paymentMethod   String        @db.VarChar(255)
-    paymentType     PaymentType   @default(PremiumMonthly)
-    status          PaymentStatus @default(Pending)
-    stripeSessionId String?       @db.VarChar(255)
-    organizationId  String?       @db.Uuid
-    userId          String?       @db.Uuid
-    organization    organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-    user            user?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+    id             String        @id @default(uuid()) @db.Uuid
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+    amount         Int
+    checkoutId     String        @db.VarChar(255)
+    currency       String        @db.VarChar(255)
+    description    String        @db.VarChar(2048)
+    paymentMethod  String        @db.VarChar(255)
+    paymentType    PaymentType   @default(PremiumMonthly)
+    status         PaymentStatus @default(Pending)
+    organizationId String?       @db.Uuid
+    userId         String?       @db.Uuid
+    organization   organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+    user           user?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model premium {

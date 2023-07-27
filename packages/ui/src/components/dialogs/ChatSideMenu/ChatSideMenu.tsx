@@ -77,9 +77,10 @@ export const ChatSideMenu = () => {
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Stack>
-            {/* Icons to switch between chats and routines */}
+            {/* Chat */}
+            {/* Icons to switch between chats, prompts (standards), and routines */}
             {/* TODO */}
-            {/* List of either: 1) other chats with the current user, or 2) routines you can run with the user */}
+            {/* List of other chats with the current user, prompts you can use, or routines you can run with the users (if they're bots) */}
             <List id="chat-side-menu-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {/* TODO */}
             </List>
