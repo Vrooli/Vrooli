@@ -3,6 +3,9 @@
 # By default, tries to use SITE_IP from .env file, but can also be passed
 # as a command line argument. Example usage:
 #  ./scripts/keylessSsh.sh 123.456.789.012
+#
+# Arguments (all optional):
+# -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
@@ -10,11 +13,37 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Connection timeout in seconds
 CONN_TIMEOUT=10
 
+# Read arguments
+ENV_FILE="${HERE}/../.env-prod"
+while getopts "he:" opt; do
+    case $opt in
+    e)
+        ENV_FILE=$OPTARG
+        ;;
+    h)
+        echo "Usage: $0 [-h] [-e ENV_FILE]"
+        echo "  -h --help: Show this help message"
+        echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
+        exit 0
+        ;;
+    \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+    :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 1
+        ;;
+    esac
+done
+
 # Load variables from .env file
-if [ -f "${HERE}/../.env" ]; then
-    . "${HERE}/../.env"
+if [ -f "${ENV_FILE}" ]; then
+    info "Loading variables from ${ENV_FILE}..."
+    . "${ENV_FILE}"
 else
-    warning "Could not find .env file. Trying to use command line arg..."
+    error "Could not find .env file at ${ENV_FILE}. Exiting..."
+    exit 1
 fi
 
 # Command line flag for SITE_IP

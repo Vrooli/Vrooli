@@ -67,7 +67,7 @@ To find the Stripe code in the server, search for `getPriceIds`. This is a funct
 **Note:** Refer to the [Stripe API documentation](https://stripe.com/docs/api) and [webhook documentation](https://stripe.com/docs/webhooks) when updating the server. ChatGPT also knows a lot about Stripe.
 
 ## Test the Server
-To simulate events for local testing, use the Stripe CLI. 
+To simulate events for local testing, use the Stripe CLI. This forwards events from your Stripe account to a local webhook running on your machine. It also allows you to trigger events manually. Here's how to set it up:
 
 1. **Install the Stripe CLI:** Follow the instructions [here](https://stripe.com/docs/stripe-cli#install).
 2. **Login to Stripe:** Link your Stripe account with the CLI using the `stripe login` command in your terminal and follow the prompts.
@@ -84,8 +84,6 @@ Remember to restart the Stripe CLI to listen for new events. Also, make sure you
 
 Refer to the [Stripe API documentation](https://stripe.com/docs/api) and [webhook documentation](https://stripe.com/docs/webhooks) when updating the server.
 """
-
-**Note:** You can also test outside of the CLI (e.g. pressing the "Subscribe" button in the UI), but note that the webhook events will not be sent to your local server. Instead, they will be sent to the server URL specified in the Stripe dashboard. If you want to test this way, you'll need to deploy the server to a VPS and subscribe that to the Stripe events.
 
 ## Fixing errors
 Here are some errors I've run into before while testing the server locally, with their solutions.

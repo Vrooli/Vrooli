@@ -11,11 +11,13 @@
 # -d: Deploy to VPS (y/N)
 # -h: Show this help message
 # -a: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)
+# -e: .env file location (e.g. "/root/my-folder/.env"). Defaults to .env-prod
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts "v:d:ha:" opt; do
+ENV_FILE="${HERE}/../.env-prod"
+while getopts "v:d:ha:e:" opt; do
     case $opt in
     v)
         VERSION=$OPTARG
@@ -26,12 +28,16 @@ while getopts "v:d:ha:" opt; do
     a)
         API_GENERATE=$OPTARG
         ;;
+    e)
+        ENV_FILE=$OPTARG
+        ;;
     h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-a API_GENERATE]"
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h] [-a API_GENERATE] [-e ENV_FILE]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
         echo "  -d --deploy: Deploy to VPS (y/N)"
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
+        echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
         exit 0
         ;;
     \?)
@@ -46,10 +52,11 @@ while getopts "v:d:ha:" opt; do
 done
 
 # Load variables from .env file
-if [ -f "${HERE}/../.env" ]; then
-    . "${HERE}/../.env"
+if [ -f "${ENV_FILE}" ]; then
+    info "Loading variables from ${ENV_FILE}..."
+    . "${ENV_FILE}"
 else
-    error "Could not find .env file. Exiting..."
+    error "Could not find .env file at ${ENV_FILE}. Exiting..."
     exit 1
 fi
 
@@ -230,7 +237,7 @@ fi
 # Build Docker images
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
-docker-compose --env-file .env -f docker-compose-prod.yml build
+docker-compose --env-file ${ENV_FILE} -f docker-compose-prod.yml build
 docker pull postgres:13-alpine
 docker pull redis:7-alpine
 
@@ -254,7 +261,7 @@ prompt "Would you like to send the Docker images to Docker Hub? (y/N)"
 read -n1 -r SEND_TO_DOCKER_HUB
 echo
 if [ "${SEND_TO_DOCKER_HUB}" = "y" ] || [ "${SEND_TO_DOCKER_HUB}" = "Y" ]; then
-    . "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
+    "${HERE}/dockerToRegistry.sh -b n -v ${VERSION}"
     if [ $? -ne 0 ]; then
         error "Failed to send Docker images to Docker Hub"
         exit 1
@@ -269,11 +276,11 @@ if [ -z "$DEPLOY" ]; then
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
-    . "${HERE}/keylessSsh.sh"
+    "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz ${ENV_FILE} root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${BUILD_DIR}"
         exit 1
@@ -290,9 +297,9 @@ else
         exit 1
     fi
     # If building locally, use .env and rename it to .env-prod
-    cp -p .env ${BUILD_DIR}/.env-prod
+    cp -p ${ENV_FILE} ${BUILD_DIR}/.env-prod
     if [ $? -ne 0 ]; then
-        error "Failed to copy .env to ${BUILD_DIR}/.env-prod"
+        error "Failed to copy ${ENV_FILE} to ${BUILD_DIR}/.env-prod"
         exit 1
     fi
 fi
