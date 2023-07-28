@@ -62,7 +62,6 @@ const findThemeWithoutSession = (): Theme => {
 const useStyles = makeStyles(() => ({
     "@global": {
         body: {
-            backgroundColor: "black",
             overflowX: "hidden",
             overflowY: "auto",
             "&::-webkit-scrollbar": {
