@@ -2,14 +2,10 @@ import { CommonKey, LINKS, SOCIALS } from "@local/shared";
 import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { SvgComponent } from "types";
 import { getDeviceInfo } from "utils/display/device";
-
-/** List of paths where the footer is not displayed */
-export const footerDisableList = [LINKS.Routine];
 
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
@@ -24,12 +20,7 @@ const viewStatsLink = LINKS.Stats;
 export const Footer = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-
-    const [pathname, setLocation] = useLocation();
-    // Hides footer on certain pages (e.g. /routine)
-    const showFooter = useMemo(() => {
-        return !footerDisableList.some(disable => pathname.startsWith(disable));
-    }, [pathname]);
+    const [, setLocation] = useLocation();
 
     // Dont' display footer when app is running standalone
     const { isStandalone } = getDeviceInfo();
@@ -37,7 +28,7 @@ export const Footer = () => {
     return (
         <>
             <Box
-                display={showFooter ? "block" : "none"}
+                display={"block"}
                 overflow="hidden"
                 position="relative"
                 sx={{
