@@ -69,14 +69,9 @@ To find the Stripe code in the server, search for `getPriceIds`. This is a funct
 ## Test the Server
 To simulate events for local testing, use the Stripe CLI. This forwards events from your Stripe account to a local webhook running on your machine. It also allows you to trigger events manually. Here's how to set it up:
 
-1. **Install the Stripe CLI:** Follow the instructions [here](https://stripe.com/docs/stripe-cli#install).
-2. **Login to Stripe:** Link your Stripe account with the CLI using the `stripe login` command in your terminal and follow the prompts.
-3. **Start listening to events:** Use the `stripe listen` command to start a new instance of the Stripe CLI that listens for and forwards events from your Stripe account to a local webhook running on your machine.
-   ```bash
-   stripe listen --forward-to localhost:<your_port>/<your_endpoint>
-   ```
-   Replace `<your_port>` with the port number where your local server is running and `<your_endpoint>` with the path of your webhook endpoint.
-4. **Trigger events:** Use the `stripe trigger` command to simulate events. For example, to simulate the `invoice.payment_succeeded` event, run:
+1. **Install and Login to the Stripe CLI:** You can either run `scripts/stripeSetup.sh`, or follow the instructions [here](https://stripe.com/docs/stripe-cli#install).
+2. **Start listening to events:** Enter `stripe listen --forward-to localhost:5329/webhooks/stripe` in the terminal. If needed, update the port to match the `PORT_SERVER` environment variable. This will start listening for events and forward them to the server.
+3. **Trigger events:** Use the `stripe trigger` command to simulate events. For example, to simulate the `invoice.payment_succeeded` event, run:
    ```bash
    stripe trigger invoice.payment_succeeded
    ```
