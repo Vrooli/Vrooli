@@ -110,7 +110,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh production DB_PASSWORD && export POSTGRES_PASSWORD=${DB_PASSWORD} && exec docker-entrypoint.sh postgres"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh development /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD && . /tmp/secrets.$$ && rm /tmp/secrets.$$ && exec docker-entrypoint.sh postgres"
   redis:
     image: redis:7-alpine
     container_name: redis

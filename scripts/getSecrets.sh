@@ -1,21 +1,32 @@
 #!/bin/sh
 # Gets required secrets from secrets manager, if not already in /run/secrets.
-# Usage with source (requires bash): . ./getSecrets.sh <environment> <secret1> <secret2> ...
-# Usage without source: ./getSecrets.sh <environment> <tmp_file> <secret1> <secret2> ...
+# How to use:
+# 1. Create a temporary file (e.g. `TMP_FILE=$(mktemp)`, `TMP_FILE=/tmp/secrets`, `TMP_FILE=/tmp/secrets.$$`, etc.)
+# 2. Call this script: `./getSecrets.sh <environment> <tmp_file> <secret1> <secret2> ...`
+# 3. Source the temporary file: `. "$TMP_FILE"`
+# 4. Remove the temporary file: `rm "$TMP_FILE"`
+#
+# Arguments:
 # - environment: Either 'development' or 'production'
+# - tmp_file: The temporary file to store secrets in
+# - secret1, secret2, ...: The secrets to fetch from the secret manager
+#   Secrets can be renamed with the format `old_name:new_name`. If there's no `:`, the name saved in the file
+#   will be the same as the name of the secret in the secret manager.
+#
+# NOTE: Due to incompatability with some shells and minimal images, we cannot rely on exporting secrets as environment variables.
+# This is why it's written to a temporary file, which can be sourced by the parent script.
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "${HERE}/prettify.sh"
 
-# Check if at least one argument was provided
-if [ $# -eq 0 ]; then
-    error "No arguments provided. Usage: ./getSecrets.sh <environment> <secret1> <secret2> ..."
+# Check if at least two arguments were provided
+if [ $# -lt 2 ]; then
+    error "Not enough provided. Usage: ./getSecrets.sh <environment> <tmp_file> <secret_1> <secret_2> ..."
     exit 1
 fi
 
-# Variable to hold environment
+# Get environment
 environment="$1"
 shift
-
 # Check if valid environment
 if [ "$environment" = "development" ]; then
     environment="dev"
@@ -26,17 +37,23 @@ else
     exit 1
 fi
 
-# If not sourcing this script, create a temporary file to store secrets
-if [ "$0" != "$BASH_SOURCE" ]; then
-    TMP_FILE="$1"
-    shift
-    echo "Creating temporary file: $TMP_FILE"
-    echo "" >>"$TMP_FILE"
-fi
+# Get temporary file
+TMP_FILE="$1"
+shift
+
+info "Creating or clearing temporary file: $TMP_FILE"
+echo "" >>"$TMP_FILE"
 
 # Loop over the rest of the arguments to get secrets
 while [ $# -gt 0 ]; do
-    secret="$1"
+    # Check if secret contains ":" character for renaming
+    if echo "$1" | grep -q ":"; then
+        secret=$(echo "$1" | cut -d: -f1)
+        rename=$(echo "$1" | cut -d: -f2)
+    else
+        secret="$1"
+        rename="$1"
+    fi
 
     # Check if the secret doesn't exist in /run/secrets
     if [ ! -f "/run/secrets/vrooli/$environment/$secret" ]; then
@@ -47,15 +64,8 @@ while [ $# -gt 0 ]; do
         error "Fetching secrets is not yet implemented"
         exit 1
     fi
-    # Export the secret as an environment variable, if parent script is sourcing this script.
-    # Otherwise, send to a temporary file
-    if [ "$0" = "$BASH_SOURCE" ]; then
-        echo "Exporting $secret"
-        secret_value=$(cat "/run/secrets/vrooli/$environment/$secret")
-        export $secret="$secret_value"
-    else
-        echo "Writing $secret to temporary file"
-        echo "$secret=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
-    fi
+    # Store the secret in the temporary file using rename
+    echo "Writing $secret to $TMP_FILE as $rename"
+    echo "$rename=$(cat "/run/secrets/vrooli/$environment/$secret")" >>"$TMP_FILE"
     shift
 done
