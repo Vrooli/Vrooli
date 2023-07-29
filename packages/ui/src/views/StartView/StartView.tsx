@@ -5,7 +5,7 @@
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
 import { EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Box, SxProps, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
@@ -21,15 +21,6 @@ import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { SessionContext } from "utils/SessionContext";
 import { StartViewProps } from "../types";
-
-const helpText =
-    "Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.";
-
-const buttonProps: SxProps = {
-    height: "4em",
-};
-
-const emailTitleId = "email-login-dialog-title";
 
 export const StartView = ({
     display = "page",

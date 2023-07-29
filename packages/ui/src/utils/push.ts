@@ -37,7 +37,6 @@ export const setupPush = async () => {
             },
             name: getDeviceInfo().deviceName,
         },
-        successMessage: () => ({ messageKey: "PushDeviceCreated" }),
         onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
     });
 };

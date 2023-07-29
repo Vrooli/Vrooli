@@ -34,7 +34,7 @@ export async function cudHelper<
     userData,
 }: CUDHelperInput): Promise<CUDResult<GqlModel>> {
     // Get functions for manipulating model logic
-    const { delegate, mutate, validate } = getLogic(["delegate", "mutate", "validate"], objectType, userData.languages, "cudHelper");
+    const { delegate, mutate } = getLogic(["delegate", "mutate", "validate"], objectType, userData.languages, "cudHelper");
     // Initialize results
     const created: GqlModel[] = [], updated: GqlModel[] = [];
     let deleted: Count = { __typename: "Count" as const, count: 0 };

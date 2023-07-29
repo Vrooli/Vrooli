@@ -45,20 +45,19 @@ const getPriceIds = () => {
     };
 };
 
-/** Finds the payment type of a Stripe product*/
-const getPaymentType = (product: string | Stripe.Product | Stripe.DeletedProduct): PaymentType => {
-    const productId = typeof product === "string" ? product : product.id;
-    if (productId === getPriceIds().donation) {
+/** Finds the payment type of a Stripe price */
+const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType => {
+    const priceId = typeof price === "string" ? price : price.id;
+    if (priceId === getPriceIds().donation) {
         return PaymentType.Donation;
-    } else if (productId === getPriceIds().premium.monthly) {
+    } else if (priceId === getPriceIds().premium.monthly) {
         return PaymentType.PremiumMonthly;
-    } else if (productId === getPriceIds().premium.yearly) {
+    } else if (priceId === getPriceIds().premium.yearly) {
         return PaymentType.PremiumYearly;
     } else {
-        throw new Error("Invalid product ID");
+        throw new Error("Invalid price ID");
     }
 };
-
 
 /**
  * Returns the customer ID from the Stripe API response.
@@ -268,7 +267,7 @@ const handleCustomerSubscriptionTrialWillEnd = async ({ res }: EventHandlerArgs)
     return handlerResult(HttpStatus.NotImplemented, res, "customer.subscription.trial_will_end not implemented", "0460");
 };
 
-/** User updated subscription (e.g. switched from monthly to yearly) */
+/** User updated subscription (i.e. switched from monthly to yearly, canceled, or renewed) */
 const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
@@ -276,23 +275,61 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
     if (subscription.items.data.length !== 1) {
         return handlerResult(HttpStatus.InternalServerError, res, `Subscription contains ${subscription.items.data.length} items`, "0471", { customerId });
     }
-    // Find premium record in database
-    const premiumRecord = await prisma.premium.findFirst({
-        where: { user: { stripeCustomerId: customerId } },
+    const paymentType = getPaymentType(subscription.items.data[0].price.id);
+    // Calculate new expiration date based on current period end of subscription
+    const nextBillingCycleTimestamp = subscription.current_period_end;
+    const newExpiresAt = new Date(nextBillingCycleTimestamp * 1000);
+    const isActive = subscription.status === "active";
+    // Fetch user with stripeCustomerId
+    const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
     });
-    if (!premiumRecord) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Premium record not found on customer.subscription.updated", "0457", { customerId });
+    // If no user is found, return with error
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found on customer.subscription.updated", "0457", { customerId });
     }
-    // Update the expiration date
+    // Find or create premium record
+    let premiumRecord = await prisma.premium.findFirst({
+        where: { user: { id: user.id } },
+        select: {
+            id: true,
+            user: { select: { emails: { select: { emailAddress: true } } } },
+        },
+    });
     if (premiumRecord) {
-        // Update expiration date based on current period end of subscription
-        const nextBillingCycleTimestamp = subscription.current_period_end;
-        const newExpiresAt = new Date(nextBillingCycleTimestamp * 1000);
-
+        // Update the record
         await prisma.premium.update({
             where: { id: premiumRecord.id },
-            data: { expiresAt: newExpiresAt.toISOString() },
+            data: {
+                expiresAt: newExpiresAt.toISOString(),
+                isActive,
+            },
         });
+    } else {
+        // Create a new record
+        premiumRecord = await prisma.premium.create({
+            data: {
+                user: { connect: { id: user.id } },
+                expiresAt: newExpiresAt.toISOString(),
+                isActive,
+            },
+            select: {
+                id: true,
+                user: { select: { emails: { select: { emailAddress: true } } } },
+            },
+        });
+    }
+    // If subscription is active, send notification
+    if (isActive && premiumRecord?.user) {
+        for (const email of premiumRecord.user.emails) {
+            sendPaymentThankYou(email.emailAddress, paymentType);
+        }
+    }
+    // If subscription is canceled, send notification
+    else if (!isActive && premiumRecord?.user) {
+        for (const email of premiumRecord.user.emails) {
+            sendSubscriptionCanceled(email.emailAddress);
+        }
     }
     return handlerResult(HttpStatus.Ok, res);
 };
@@ -309,10 +346,10 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0456", { customerId, invoice: invoice.id });
     }
-    // Check if invoice.lines, invoice.lines.data[0], invoice.lines.data[0].price, and invoice.lines.data[0].price.product are not null
-    const product = invoice.lines && invoice.lines.data[0] && invoice.lines.data[0].price && invoice.lines.data[0].price.product;
-    if (!product) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Product not found", "0225", { customerId, invoice: invoice.id });
+    // Check if invoice.lines, invoice.lines.data[0], and invoice.lines.data[0].price are not null
+    const price = invoice.lines && invoice.lines.data[0] && invoice.lines.data[0].price;
+    if (!price) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Price not found", "0225", { customerId, invoice: invoice.id });
     }
     // Create new payment in the database
     const newPayment = await prisma.payment.create({
@@ -321,7 +358,7 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
             amount: invoice.amount_due,
             currency: invoice.currency,
             paymentMethod: "Stripe",
-            paymentType: getPaymentType(product),
+            paymentType: getPaymentType(price),
             status: PaymentStatus.Pending,
             userId: user.id,
             description: "Pending payment for Invoice ID: " + invoice.id,
@@ -485,6 +522,7 @@ export const setupStripe = (app: Express): void => {
         logger.error("Missing one or more Stripe secret keys", { trace: "0489" });
         return;
     }
+    const urlBase = process.env.VITE_SERVER_LOCATION === "local" ? "http://localhost:3000" : "https://vrooli.com";
     // Set up Stripe
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -492,7 +530,7 @@ export const setupStripe = (app: Express): void => {
         typescript: true,
         appInfo: {
             name: "Vrooli",
-            url: "https://vrooli.com",
+            url: urlBase,
             version: "2.0.0",
         },
     });
@@ -551,18 +589,18 @@ export const setupStripe = (app: Express): void => {
     app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
         // Get userId and variant from request body
         const userId: string = req.body.userId;
-        const variant: "yearly" | "monthly" | "donation" = req.body.variant;
+        const variant: PaymentType = req.body.variant;
         // Determine price API ID based on variant. Select a product in the Stripe dashboard 
         // to find this information
         let priceId: string;
         let paymentType: PaymentType;
-        if (variant === "yearly") {
+        if (variant === PaymentType.PremiumYearly) {
             priceId = getPriceIds().premium.yearly;
             paymentType = PaymentType.PremiumYearly;
-        } else if (variant === "monthly") {
+        } else if (variant === PaymentType.PremiumMonthly) {
             priceId = getPriceIds().premium.monthly;
             paymentType = PaymentType.PremiumMonthly;
-        } else if (variant === "donation") {
+        } else if (variant === PaymentType.Donation) {
             priceId = getPriceIds().donation;
             paymentType = PaymentType.Donation;
         } else {
@@ -614,7 +652,6 @@ export const setupStripe = (app: Express): void => {
                     });
                 }
                 try {
-                    const urlBase = process.env.VITE_SERVER_LOCATION === "local" ? "http://localhost:3000" : "https://vrooli.com";
                     // Create checkout session 
                     // NOTE: I previously tried also passing in the customer email 
                     // to save the customer some typing, but Stripe doesn't allow 
@@ -629,17 +666,17 @@ export const setupStripe = (app: Express): void => {
                                 quantity: 1,
                             },
                         ],
-                        mode: variant === "donation" ? "payment" : "subscription",
+                        mode: variant === PaymentType.Donation ? "payment" : "subscription",
                         customer: stripeCustomerId,
                         metadata: { userId },
                     });
                     // Create open payment in database, so we can track it
                     await prisma.payment.create({
                         data: {
-                            amount: (variant === "donation" ? session.amount_total : session.amount_subtotal) ?? 0,
+                            amount: (variant === PaymentType.Donation ? session.amount_total : session.amount_subtotal) ?? 0,
                             checkoutId: session.id,
                             currency: session.currency ?? "usd",
-                            description: variant === "donation" ? "Donation" : "Premium subscription - " + variant,
+                            description: variant === PaymentType.Donation ? "Donation" : "Premium subscription - " + variant,
                             paymentMethod: "Stripe",
                             paymentType,
                             status: "Pending",
@@ -708,7 +745,7 @@ export const setupStripe = (app: Express): void => {
         }
     });
     // Create webhook endpoint for messages from Stripe (e.g. payment completed, subscription renewed/canceled)
-    app.post("/webhook/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+    app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         const sig: string | string[] = req.headers["stripe-signature"] || "";
         let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
         await withPrisma({

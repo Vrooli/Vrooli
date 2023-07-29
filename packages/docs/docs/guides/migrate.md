@@ -31,4 +31,51 @@ Before you even think about migrating your schema, make sure you have already cr
 
 
 ## Resolving Migration Issues
-The first thing to do when trying to resolve issues is to enter this command: `prisma migrate status`, after following the same steps above for accessing the server.
+When resolving issues, the first thing to do is to enter this command: `prisma migrate status`, after following the same steps above for accessing the server.
+
+### Dumping and Reimporting the Database
+If that doesn't work, you might need to resort to more drastic measures. One such measure is by exporting the database, deleting it, and then reimporting it. Follow these steps:
+
+1. **VERY IMPORTANT:** Make a copy of the database (`data/postgres`) and put it somewhere safe. This is your backup in case something goes wrong.
+2. Start the app with `docker-compose up`.
+3. Wait for the `db` container to be `healthy` (see `docker ps -a`).
+4. Enter the container using `docker exec -it db sh`.
+5. If you want to export the whole database, run `pg_dump -U <DB_USER> postgres > /tmp/dump.sql`. If you want to export specific tables, use `pg_dump -U <DB_USER> -t table1 -t table2 postgres > /tmp/dump.sql`. Replace `<DB_USER>` with the actual database user name defined in your `.env` file.
+
+At this point, you have a backup of your database (or selected tables) saved inside the Docker container. Next, you'll delete and recreate the database.
+
+6. Log into the PostgreSQL database with `psql -U <DB_USER> postgres`.
+7. Drop the database using the `DROP DATABASE postgres;` command.
+8. Recreate the database using the `CREATE DATABASE postgres;` command.
+9. Exit the PostgreSQL interface using `\q`.
+
+Now, you'll import the data you previously exported.
+
+10. Import the database dump using `psql -U <DB_USER> -d postgres -f /tmp/dump.sql`.
+11. Once the process completes, you can exit the container using `exit`.
+12. Finally, restart your Docker app with `docker-compose restart`.
+
+And that's it! You've now deleted and reimported your database. If there were any issues related to the database schema or migration files, they should be resolved.
+
+#### Transferring the Dump to Another Container
+In the above steps, we exported, deleted, and reimported the database using the same Docker container. However, there might be scenarios where you need to export the database from one container and import it into another. In that case, you would need to transfer the database dump to your local machine first. Here's how you do that:
+
+1. After exporting the database (Step 5 above), exit the container using `exit`.
+2. Move the dump file to your local machine using `docker cp db:/tmp/dump.sql .`.
+
+To import the dump into a different Docker container:
+
+1. Copy the dump file from your local machine to the new Docker container using `docker cp ./dump.sql db:/tmp/`.
+2. Enter the new container using `docker exec -it db sh`.
+3. Import the database dump using `psql -U <DB_USER> -d postgres -f /tmp/dump.sql`.
+4. Once the process completes, you can exit the container using `exit`.
+
+
+
+
+
+
+
+
+
+

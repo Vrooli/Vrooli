@@ -1,6 +1,6 @@
 import { BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput } from "@local/shared";
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
-import { assertRequestFrom } from "../../auth";
+import { createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from "../../actions";
+import { assertRequestFrom, logIn, setupPasswordReset } from "../../auth";
 import { CustomError } from "../../events";
 import { rateLimit } from "../../middleware";
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -67,11 +67,21 @@ export const UserEndpoints: EndpointsUser = {
             // return updated;
         },
         userDeleteOne: async (_, { input }, { prisma, req, res }, info) => {
-            throw new CustomError("0999", "NotImplemented", ["en"]);
-            // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ maxUser: 5, req });
-            // // TODO anonymize public data
-            // return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
+            const { id } = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ maxUser: 5, req });
+            // Find user
+            const user = await prisma.user.findUnique({ where: { id } });
+            if (!user)
+                throw new CustomError("0245", "NoUser", req.session.languages);
+            // If user doesn't have a password, they must reset it first
+            if (!user.password) {
+                await setupPasswordReset(user, prisma);
+                throw new CustomError("0246", "MustResetPassword", req.session.languages);
+            }
+            // Use the log in logic to check password
+            await logIn(input?.password as string, user, prisma, req);
+            // TODO anonymize public data
+            return deleteOneHelper({ input: { id }, objectType, prisma, req });
         },
         importCalendar: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ maxUser: 25, req });

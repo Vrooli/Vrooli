@@ -3,6 +3,7 @@ import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { CustomError } from "../events";
+import { UserModelLogic } from "../models/base/types";
 import { Notify } from "../notify";
 import { sendResetPasswordLink, sendVerificationLink } from "../tasks";
 import { PrismaType } from "../types";
@@ -50,7 +51,7 @@ export const hashPassword = (password: string): string => {
  * @param languages Preferred languages to display error messages in
  * @returns Boolean indicating if the password is valid
  */
-export const validatePassword = (plaintext: string, user: { status: AccountStatus, password?: string }, languages: string[]): boolean => {
+export const validatePassword = (plaintext: string, user: Pick<UserModelLogic["PrismaModel"], "status" | "password">, languages: string[]): boolean => {
     if (!user.password) return false;
     // A password is only valid if the user is:
     // 1. Not deleted
@@ -76,7 +77,7 @@ export const validatePassword = (plaintext: string, user: { status: AccountStatu
  */
 export const logIn = async (
     password: string,
-    user: { id: string, lastLoginAttempt: Date, logInAttempts: number, status: AccountStatus, password: string },
+    user: Pick<UserModelLogic["PrismaModel"], "id" | "lastLoginAttempt" | "logInAttempts" | "status" | "password">,
     prisma: PrismaType,
     req: Request,
 ): Promise<Session | null> => {
@@ -111,7 +112,7 @@ export const logIn = async (
         return await toSession(userData, prisma, req);
     }
     // If password is invalid
-    let new_status: any = AccountStatus.Unlocked;
+    let new_status: AccountStatus = AccountStatus.Unlocked;
     const log_in_attempts = user.logInAttempts++;
     if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
         new_status = AccountStatus.HardLocked;
@@ -177,7 +178,7 @@ export const setupVerificationCode = async (emailAddress: string, prisma: Prisma
  */
 export const validateVerificationCode = async (emailAddress: string, userId: string, code: string, prisma: PrismaType, languages: string[]): Promise<boolean> => {
     // Find email data
-    const email: any = await prisma.email.findUnique({
+    const email = await prisma.email.findUnique({
         where: { emailAddress },
         select: {
             id: true,

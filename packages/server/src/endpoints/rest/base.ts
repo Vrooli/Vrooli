@@ -20,6 +20,7 @@ export type FileConfig<TInput extends object | undefined> = {
     fieldName: string;
     /** Creates the base name for the file */
     fileNameBase?: (input: TInput, currentUser: SessionUserToken) => string;
+    /** Max file size, in bytes */
     maxFileSize?: number;
     maxFiles?: number;
     /** For image files, what they should be resized to */

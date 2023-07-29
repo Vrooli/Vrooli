@@ -158,7 +158,7 @@ export function App() {
      * Sets up google adsense
      */
     useEffect(() => {
-        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+        ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
     }, []);
 
     // If anchor tag in url, scroll to element
@@ -184,35 +184,29 @@ export function App() {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
-        console.info(`
-               @@@                 @@@                  
-            @@     @@           @@     @@               
-           @@       @@         @@       @@              
-            @@     @@           @@     @@               
-               @@@   @@        @   @@@                  
-                        @   @@                   @@@      
-                         @@                   @@     @@
-                         @@             @@@@@@@       @@
-            @@           @@          @@       @@     @@
-    @@@  @@    @@    @@@    @@@   @@             @@@ 
- @@     @@         @@          @@                     
-@@       @@       @@            @@                                  
- @@     @@        @             @@@@@@@@@@                Consider developing with us!  
-    @@@           @@            @@        @@@@@           https://github.com/Vrooli/Vrooli
-                   @@          @@                @      
-                     @@@    @@@                  @      
-                         @@                     @@@   
-       @@@              @@@@                 @@     @@  
-    @@     @@@@@@@@@@@@      @@             @@       @@ 
-   @@       @@      @@        @@             @@     @@ 
-    @@     @@        @@      @@                 @@@           
-       @@@              @@@@                             
-                         @@ 
-                       @@@@@@                        
-                     @@      @@                        
-                     @@      @@                        
-                       @@@@@@  
-        `);
+        console.info(`                                               
+                               !G!              
+                               #@@!   :?J.      
+                              .&@@#.:5@@&.      
+                               B@@@?#@@@?       
+                               J@@@Y#@@Y        
+                               .B@@JB#!         
+                                J@@GGPJ?7^.     
+                             .J#@@@@@@@@###Y:   
+ :!!:                       ~G@@@@@@@@@  ^&@&~  
+?@@@&?#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@##@@@5  
+!#@@#?&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#~  
+ .^^ :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&BJ:   
+     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@GY?~:      
+     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&#GY^      
+     :@@@@@&#####################&&&@@@@@@^     
+     :@@@@@J                       :^!YBBY.     
+      5&@@#^                                    
+       :^^.                                     
+                                                
+         Consider developing with us!                                         
+       https://github.com/Vrooli/Vrooli                            
+`);
     }, []);
 
     useEffect(() => {
@@ -346,7 +340,7 @@ export function App() {
         });
         // Handle theme updates
         const themeSub = PubSub.get().subscribeTheme((data) => {
-            const newTheme = themes[data] ?? themes.light;
+            const newTheme = themes[data] ?? themes.dark;
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates

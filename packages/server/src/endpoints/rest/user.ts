@@ -30,6 +30,16 @@ const userImagesConfig: UploadConfig<undefined> = {
     }],
 };
 
+const icalConfig: UploadConfig<undefined> = {
+    acceptsFiles: true,
+    fields: [{
+        allowedExtensions: ["ics"],
+        fieldName: "file",
+        fileNameBase: (_, currentUser) => `${currentUser.id}-import`,
+        maxFileSize: 1024 * 1024 * 2, // 2MB
+    }],
+};
+
 export const UserRest = setupRoutes({
     "/bot/:id": {
         put: [UserEndpoints.Mutation.botUpdate, user_botUpdate, botImagesConfig],

@@ -176,7 +176,7 @@ services:
     volumes:
       - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh development/tmp/secrets.$$ DB_PASSWORD:ADMINER_PASSWORD && ./tmp/secrets.$$ && rm /tmp/secrets.$$ && exec php -S [::]:8080 -t /var/www/html/"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh development /tmp/secrets.$$ DB_PASSWORD:ADMINER_PASSWORD && ./tmp/secrets.$$ && rm /tmp/secrets.$$ && exec php -S [::]:8080 -t /var/www/html/"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9

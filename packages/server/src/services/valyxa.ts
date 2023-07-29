@@ -14,7 +14,7 @@ export const setupValyxa = (app: Express): void => {
         return;
     }
     // Create webhook endpoint for Valyxa
-    app.post("/webhook/valyxa", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+    app.post("/webhooks/valyxa", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         //TODO
     });
 };

@@ -70,12 +70,13 @@ To find the Stripe code in the server, search for `getPriceIds`. This is a funct
 To simulate events for local testing, use the Stripe CLI. This forwards events from your Stripe account to a local webhook running on your machine. It also allows you to trigger events manually. Here's how to set it up:
 
 1. **Install and Login to the Stripe CLI:** You can either run `scripts/stripeSetup.sh`, or follow the instructions [here](https://stripe.com/docs/stripe-cli#install).
-2. **Start listening to events:** Enter `stripe listen --forward-to localhost:5329/webhooks/stripe` in the terminal. If needed, update the port to match the `PORT_SERVER` environment variable. This will start listening for events and forward them to the server.
-3. **Trigger events:** Use the `stripe trigger` command to simulate events. For example, to simulate the `invoice.payment_succeeded` event, run:
-   ```bash
-   stripe trigger invoice.payment_succeeded
-   ```
-Remember to restart the Stripe CLI to listen for new events. Also, make sure your local server is running when you start the Stripe CLI.
+2. **Start listening to events:** Enter `stripe listen --forward-to localhost:5329/webhooks/stripe` in the terminal. If needed, update the port to match the `PORT_SERVER` environment variable. This will start listening for events and forward them to the server. 
+3. **Update .env:** Update `STRIPE_WEBHOOK_SECRET` in the `.env` file, then run `./scripts/setSecrets -e development`. **NOTE:** Comment out the existing key instead of deleting it, so you can switch back to it later. You probably won't be able to find that key again.
+4. **Fully restart the server:** In another shell, run `docker-compose down && docker-compose up -d` to fully restart the server. This is necessary to update the environment variables. Make sure that the Stripe CLI is still running in the other shell.
+3. **Trigger events:** You should test the following events using our app's UI:
+    - Buying every premium plan option, donating, and buying API credits
+    - Switching plans (e.g. monthly -> yearly)
+    - Cancelling your plan
 
 Refer to the [Stripe API documentation](https://stripe.com/docs/api) and [webhook documentation](https://stripe.com/docs/webhooks) when updating the server.
 """

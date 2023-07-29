@@ -82,7 +82,14 @@ const main = async () => {
     });
 
     // For authentication
-    app.use(auth.authenticate);
+    app.use((req, res, next) => {
+        // Exclude webhooks, as they have their own authentication methods
+        if (req.originalUrl.startsWith("/webhooks")) {
+            next();
+        } else {
+            auth.authenticate(req, res, next);
+        }
+    });
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // Disable if API is open to the public
@@ -95,7 +102,7 @@ const main = async () => {
     // For parsing application/json. 
     app.use((req, res, next) => {
         // Exclude on stripe webhook endpoint
-        if (req.originalUrl === "/webhook/stripe") {
+        if (req.originalUrl === "/webhooks/stripe") {
             next();
         } else {
             express.json({ limit: "20mb" })(req, res, next);

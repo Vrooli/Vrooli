@@ -52,7 +52,7 @@ export const NavbarLogo = ({
                     color: palette.error.main,
                     paddingLeft: state === "full" ? 1 : 0,
                 }}
-            >1.9.4 alpha</Typography>
+            >Public alpha</Typography>
 
         </Box>
     );

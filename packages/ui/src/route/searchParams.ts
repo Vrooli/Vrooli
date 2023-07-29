@@ -57,7 +57,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
  * @param params Object with key/value pairs, representing search params
  * @returns string of search params, matching the format of window.location.search
  */
-export const stringifySearchParams = (params: { [key: string]: any }): string => {
+export const stringifySearchParams = (params: object): string => {
     const keys = Object.keys(params);
     if (keys.length === 0) return "";
     // Filter out any keys which are associated with undefined or null values
@@ -93,7 +93,7 @@ export const setSearchParams = (setLocation: SetLocation, params: { [key: string
  * @param keep Array of keys to keep
  */
 export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
-    const keepResult: { [key: string]: any } = {};
+    const keepResult: ParseSearchParamsResult = {};
     const searchParams = parseSearchParams();
     keep.forEach(key => {
         if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
@@ -107,7 +107,7 @@ export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
  * @param remove Array of keys to remove
  */
 export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
-    const removeResult: { [key: string]: any } = {};
+    const removeResult: ParseSearchParamsResult = {};
     const searchParams = parseSearchParams();
     Object.keys(searchParams).forEach(key => {
         if (!remove.includes(key)) removeResult[key] = searchParams[key];
