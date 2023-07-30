@@ -37,6 +37,7 @@ export const botInitialValues = (
         keyPhrases: "",
         occupation: "",
         persona: "",
+        startMessage: "",
         tone: "",
         ...translation,
     })) ?? [{
@@ -49,6 +50,7 @@ export const botInitialValues = (
         keyPhrases: "",
         occupation: "",
         persona: "",
+        startMessage: "",
         tone: "",
     }];
     return {
@@ -166,6 +168,12 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             label={t("Persona")}
                             language={language}
                             name="persona"
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t("StartMessage")}
+                            language={language}
+                            name="startMessage"
                         />
                         <TranslatedTextField
                             fullWidth

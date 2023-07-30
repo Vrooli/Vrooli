@@ -13,6 +13,12 @@ In this guide, we'll walk through how to set up Stripe for use in this applicati
 2. Enter your email, full name, password, and click "Create Account."
 3. Complete the onboarding process by providing the required business information.
 
+## Update Branding
+Stripe provides its own pages for checking out, managing payments, and more. These pages should be branded with the company's logo and colors. To do this:
+1. Open [Stripe's branding page](https://dashboard.stripe.com/settings/branding).
+2. Set the icon, logo, colors, etc. 
+3. Look at all of the preview variations to make sure everything looks good.
+
 ## Create Products
 In both your test and production environment, you need to create Products and Prices. Currently, we offer a premium plan, which is a product with multiple prices (monthly and yearly). We also offer API credits, which is a product with a single price, and donations, which is also product with a single price.
 

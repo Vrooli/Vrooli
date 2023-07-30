@@ -12,6 +12,7 @@ export type BotTranslationShape = {
     keyPhrases?: string | null;
     occupation?: string | null;
     persona?: string | null;
+    startMessage?: string | null;
     tone?: string | null;
 }
 
@@ -26,13 +27,13 @@ export type BotShape = Pick<User, "id" | "isPrivate" | "name"> & {
 }
 
 export const shapeBotTranslation: ShapeModel<BotTranslationShape, Record<string, string | number>, Record<string, string | number>> = {
-    create: (d) => createPrims(d, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "tone"),
+    create: (d) => createPrims(d, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
     /** 
      * Unlike typical updates, we want to include every field so that 
      * we can stringify the entire object and store it in the `botSettings` field. 
      * This means we'll use `createPrims` again.
      **/
-    update: (_, u) => createPrims(u, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "tone"),
+    update: (_, u) => createPrims(u, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
 };
 
 export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {

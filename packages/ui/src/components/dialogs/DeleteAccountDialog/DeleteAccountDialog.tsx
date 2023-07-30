@@ -1,4 +1,4 @@
-import { endpointDeleteUser, LINKS, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { endpointDeleteUser, LINKS, Session, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
@@ -59,12 +59,13 @@ export const DeleteAccountDialog = ({
                         PubSub.get().publishSnack({ messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
-                    fetchLazyWrapper<UserDeleteInput, Success>({
+                    fetchLazyWrapper<UserDeleteInput, Session>({
                         fetch: deleteAccount,
                         inputs: values,
                         successCondition: (data) => data.success,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
-                        onSuccess: () => {
+                        onSuccess: (data) => {
+                            PubSub.get().publishSession(data);
                             setLocation(LINKS.Home);
                             handleClose(true);
                         },

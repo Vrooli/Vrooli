@@ -87,7 +87,7 @@ export async function cudHelper<
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
     // Max objects check
-    maxObjectsCheck(authDataById, idsByAction, prisma, userData);
+    await maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     if (shapedCreate.length > 0) {
         for (const data of shapedCreate) {
             // Make sure no objects with placeholder ids are created. These could potentially bypass permissions/api checks, 

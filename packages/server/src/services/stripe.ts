@@ -698,8 +698,9 @@ export const setupStripe = (app: Express): void => {
     });
     // Create endpoint for updating payment method and switching/canceling subscription
     app.post("/api/create-portal-session", async (req: Request, res: Response) => {
-        // Get userId from request body
+        // Get input from request body
         const userId: string = req.body.userId;
+        const returnUrl: string | undefined = req.body.returnUrl;
 
         let stripeCustomerId: string | undefined;
         await withPrisma({
@@ -708,6 +709,7 @@ export const setupStripe = (app: Express): void => {
                 const user = await prisma.user.findUnique({
                     where: { id: userId },
                     select: {
+                        emails: { select: { emailAddress: true } },
                         stripeCustomerId: true,
                     },
                 });
@@ -717,23 +719,31 @@ export const setupStripe = (app: Express): void => {
                     return;
                 }
                 stripeCustomerId = user.stripeCustomerId ?? undefined;
+                // If no customer ID, create one. This shouldn't happen unless the 
+                // user is the admin (which is initialized with premium already, so hasn't 
+                // gone through checkout before)
+                if (!stripeCustomerId) {
+                    const stripeCustomer = await stripe.customers.create({
+                        email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                    });
+                    stripeCustomerId = stripeCustomer.id;
+                    await prisma.user.update({
+                        where: { id: userId },
+                        data: {
+                            stripeCustomerId,
+                        },
+                    });
+                }
             },
             trace: "0520",
             traceObject: { userId },
         });
 
-        // Check if the stripeCustomerId is valid
-        if (!stripeCustomerId) {
-            logger.error("Invalid user", { trace: "0515", userId });
-            res.status(HttpStatus.InternalServerError).json({ error: "Invalid user" });
-            return;
-        }
-
         // Create a portal session
         try {
             const session = await stripe.billingPortal.sessions.create({
-                customer: stripeCustomerId,
-                return_url: "https://vrooli.com/",
+                customer: stripeCustomerId as string, // Should be defined now, since we created a customer if it didn't exist
+                return_url: returnUrl ?? urlBase,
             });
             // Send session URL as response
             res.json(session);

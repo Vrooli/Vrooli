@@ -71,7 +71,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
         }
     }
     // Other requests should have their inputs converted to JSON and sent in the body.
-    else if (["POST", "PUT"].includes(method)) {
+    else if (["DELETE", "POST", "PUT"].includes(method)) {
         if (inputs instanceof FormData) {
             body = inputs;
         } else {

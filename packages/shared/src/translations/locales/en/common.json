@@ -754,6 +754,7 @@
     "Start": "Start",
     "StartAsc": "Start ↑",
     "StartDesc": "Start ↓",
+    "StartMessage": "Starting message",
     "StartTimeAsc": "Start time ↑",
     "StartTimeDesc": "Start time ↓",
     "StatisticsShort": "Stats",

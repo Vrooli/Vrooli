@@ -53,8 +53,8 @@ const findThemeWithoutSession = (): Theme => {
     // Get isLeftHanded from cookie
     const isLefthanded = getCookieIsLeftHanded(false);
     // Get theme. First check cookie, then window
-    const windowPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = getCookieTheme(windowPrefersDark ? "dark" : "light");
+    const windowPrefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    const theme = getCookieTheme(windowPrefersLight ? "light" : "dark");
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 };

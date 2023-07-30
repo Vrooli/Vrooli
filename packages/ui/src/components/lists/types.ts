@@ -87,19 +87,6 @@ export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
-
-export interface SortMenuProps {
-    sortOptions: any[];
-    anchorEl: HTMLElement | null;
-    onClose: (label?: string, value?: string) => void;
-}
-
-export interface TimeMenuProps {
-    anchorEl: HTMLElement | null;
-    onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => void;
-    zIndex: number;
-}
-
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;

@@ -249,7 +249,7 @@ export const typeDef = gql`
         botUpdate(input: BotUpdateInput!): User!
         profileUpdate(input: ProfileUpdateInput!): User!
         profileEmailUpdate(input: ProfileEmailUpdateInput!): User!
-        userDeleteOne(input: UserDeleteInput!): Success!
+        userDeleteOne(input: UserDeleteInput!): Session!
         importCalendar(input: ImportCalendarInput!): Success!
         # importUserData(input: ImportUserDataInput!): Success!
         exportCalendar: String!

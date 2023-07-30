@@ -40,6 +40,13 @@ export const useStripe = () => {
                     PubSub.get().publishAlertDialog({
                         messageKey: paymentType === PaymentType.Donation ? "DonationPaymentSuccess" : "PremiumPaymentSuccess",
                         buttons: [{
+                            labelKey: "Reload",
+                            // Reload the page
+                            onClick: () => {
+                                setLocation(LINKS.Home);
+                                window.location.reload();
+                            },
+                        }, {
                             labelKey: "Ok",
                             // Redirect to home page
                             onClick: () => setLocation(LINKS.Home),
@@ -99,12 +106,22 @@ export const useStripe = () => {
         // Call server to create portal session
         await fetchData({
             endpoint: "/create-portal-session",
-            inputs: { userId: currentUser.id },
+            inputs: {
+                userId: currentUser.id,
+                returnUrl: window.location.href,
+            },
             method: "POST",
             omitRestBase: true,
         }).then(async (portalSession: any) => {
+            console.log("portalSession", portalSession);
+            if (portalSession.error) {
+                PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: portalSession });
+            } else {
+                // Redirect to portal page
+                window.location.href = portalSession.url;
+            }
             // Redirect to portal page
-            window.location.href = portalSession.url;
+            // window.location.href = portalSession.url;
         }).catch((error) => {
             PubSub.get().publishSnack({ messageKey: "ErrorUnknown", severity: "Error", data: error });
         }).finally(() => {

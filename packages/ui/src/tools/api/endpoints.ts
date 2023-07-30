@@ -695,7 +695,7 @@ export const endpoints = {
     },
     user: async () => {
         const { user: userPartial, profile: profilePartial } = await import("./partial/user");
-        const { success: successPartial } = await import("./partial/success");
+        const { session: sessionPartial } = await import("./partial/session");
         return {
             profile: toQuery("profile", null, profilePartial, "full"),
             findOne: toQuery("user", "FindByIdOrHandleInput", userPartial, "full"),
@@ -704,7 +704,7 @@ export const endpoints = {
             botUpdate: toMutation("botUpdate", "BotUpdateInput", userPartial, "full"),
             profileUpdate: toMutation("profileUpdate", "ProfileUpdateInput", profilePartial, "full"),
             profileEmailUpdate: toMutation("profileEmailUpdate", "ProfileEmailUpdateInput", profilePartial, "full"),
-            deleteOne: toMutation("userDeleteOne", "UserDeleteInput", successPartial, "full"),
+            deleteOne: toMutation("userDeleteOne", "UserDeleteInput", sessionPartial, "full"),
             exportData: toMutation("exportData", null),
         };
     },

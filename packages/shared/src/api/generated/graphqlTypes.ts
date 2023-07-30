@@ -2180,7 +2180,7 @@ export type Mutation = {
   transferRequestReceive: Transfer;
   transferRequestSend: Transfer;
   transferUpdate: Transfer;
-  userDeleteOne: Success;
+  userDeleteOne: Session;
   validateSession: Session;
   walletComplete: WalletComplete;
   walletInit: Scalars['String'];
@@ -12046,7 +12046,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   transferRequestReceive?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferRequestReceiveArgs, 'input'>>;
   transferRequestSend?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferRequestSendArgs, 'input'>>;
   transferUpdate?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferUpdateArgs, 'input'>>;
-  userDeleteOne?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
+  userDeleteOne?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
   validateSession?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationValidateSessionArgs, 'input'>>;
   walletComplete?: Resolver<ResolversTypes['WalletComplete'], ParentType, ContextType, RequireFields<MutationWalletCompleteArgs, 'input'>>;
   walletInit?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationWalletInitArgs, 'input'>>;

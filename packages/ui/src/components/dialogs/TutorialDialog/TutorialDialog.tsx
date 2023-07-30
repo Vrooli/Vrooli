@@ -200,89 +200,111 @@ export const TutorialDialog = ({
     const [place, setPlace] = useState({ section: 0, step: 0 });
 
     // Reset when dialog is closed
-    useEffect(() => {
-        if (!isOpen) {
-            setPlace({ section: 0, step: 0 });
-        }
-    }, [isOpen]);
+    useEffect(() => { !isOpen && setPlace({ section: 0, step: 0 }); }, [isOpen]);
 
-    // Close if user logs out
-    useEffect(() => {
-        if (!user.id) {
-            onClose();
-        }
-    }, [onClose, user]);
+    // // Close if user logs out
+    // useEffect(() => { !user.id && onClose(); }, [onClose, user]);
 
-    // Call action if it exists
-    useEffect(() => {
-        const action = sections[place.section].steps[place.step].action;
-        if (action) {
-            action();
-        }
-    }, [place]);
+    // // Call action if it exists
+    // useEffect(() => { isOpen && sections[place.section]?.steps[place.step]?.action?.(); }, [isOpen, place]);
 
+    // Find information about our position in the tutorial
     const {
         isFinalStep,
-        isFinalSection,
         isFinalStepInSection,
-        isFirstSection,
-        isFirstStepInSection,
         nextStep,
     } = useMemo(() => {
-        const isFinalStepInSection = place.step === sections[place.section].steps.length - 1;
-        const isFinalSection = place.section === sections.length - 1;
-        const isFinalStep = isFinalStepInSection && isFinalSection;
+        // const section = sections[place.section];
+        // const nextSection = sections[place.section + 1];
 
-        const isFirstStepInSection = place.step === 0;
-        const isFirstSection = place.section === 0;
+        // // If no current section is found, or the current step is invalid, default to initial values
+        // if (!section || place.step < 0 || place.step >= section.steps.length) {
+        return {
+            isFinalStep: false,
+            isFinalStepInSection: false,
+            nextStep: null,
+        };
+        // }
 
-        const nextStep = isFinalStep ? null : isFinalStepInSection ? sections[place.section + 1].steps[0] : sections[place.section].steps[place.step + 1];
+        // const isFinalStepInSection = place.step === section.steps.length - 1;
+        // const isFinalSection = place.section === sections.length - 1;
+        // const isFinalStep = isFinalStepInSection && isFinalSection;
 
-        return { isFinalStep, isFinalSection, isFinalStepInSection, isFirstSection, isFirstStepInSection, nextStep };
+        // const nextStep = isFinalStep
+        //     ? null
+        //     : isFinalStepInSection
+        //         ? nextSection ? nextSection.steps[0] : null
+        //         : section.steps[place.step + 1];
+
+        // return { isFinalStep, isFinalStepInSection, nextStep };
     }, [place]);
 
+    /** Move to the next step */
     const handleNext = useCallback(() => {
-        if (!isFinalStepInSection) {
-            const nextPage = sections[place.section].steps[place.step + 1].page;
-            if (nextPage && nextPage !== location) {
-                setLocation(nextPage);
-            }
-            setPlace({ section: place.section, step: place.step + 1 });
-        } else if (!isFinalSection) {
-            const nextPage = sections[place.section + 1].steps[0].page;
-            if (nextPage && nextPage !== location) {
-                setLocation(nextPage);
-            }
-            setPlace({ section: place.section + 1, step: 0 });
-        } else {
-            onClose();
-        }
-    }, [isFinalSection, isFinalStepInSection, location, onClose, place, setLocation]);
+        // const currentSection = sections[place.section];
+        // const nextSection = sections[place.section + 1];
 
+        // // ensure the current section and next step exists
+        // if (currentSection && currentSection.steps[place.step + 1]) {
+        //     const nextPage = currentSection.steps[place.step + 1].page;
+        //     if (nextPage && nextPage !== location) {
+        //         setLocation(nextPage);
+        //     }
+        //     setPlace({ section: place.section, step: place.step + 1 });
+        // } else if (nextSection && nextSection.steps[0]) {
+        //     const nextPage = nextSection.steps[0].page;
+        //     if (nextPage && nextPage !== location) {
+        //         setLocation(nextPage);
+        //     }
+        //     setPlace({ section: place.section + 1, step: 0 });
+        // } else {
+        //     onClose();
+        // }
+    }, [location, onClose, place, setLocation]);
+
+    /** Move to the previous step */
     const handlePrev = useCallback(() => {
-        if (!isFirstStepInSection) {
-            const prevPage = sections[place.section].steps[place.step - 1].page;
-            if (prevPage && prevPage !== location) {
-                setLocation(prevPage);
-            }
-            setPlace({ section: place.section, step: place.step - 1 });
-        } else if (!isFirstSection) {
-            const prevPage = sections[place.section - 1].steps[sections[place.section - 1].steps.length - 1].page;
-            if (prevPage && prevPage !== location) {
-                setLocation(prevPage);
-            }
-            setPlace({ section: place.section - 1, step: sections[place.section - 1].steps.length - 1 });
-        }
-    }, [isFirstSection, isFirstStepInSection, location, place, setLocation]);
+        // const currentSection = sections[place.section];
+        // const previousSection = sections[place.section - 1];
+
+        // // ensure the current section and previous step exists
+        // if (currentSection && currentSection.steps[place.step - 1]) {
+        //     const prevPage = currentSection.steps[place.step - 1].page;
+        //     if (prevPage && prevPage !== location) {
+        //         setLocation(prevPage);
+        //     }
+        //     setPlace({ section: place.section, step: place.step - 1 });
+        // } else if (previousSection) {
+        //     const prevStepIndex = previousSection.steps.length - 1;
+        //     if (previousSection.steps[prevStepIndex]) {
+        //         const prevPage = previousSection.steps[prevStepIndex].page;
+        //         if (prevPage && prevPage !== location) {
+        //             setLocation(prevPage);
+        //         }
+        //         setPlace({ section: place.section - 1, step: prevStepIndex });
+        //     }
+        // }
+    }, [location, place, setLocation]);
 
     const getCurrentElement = useCallback(() => {
-        const elementId = sections[place.section].steps[place.step].element;
+        const currentSection = sections[place.section];
+        if (!currentSection || !currentSection.steps[place.step]) {
+            return null;
+        }
+        const elementId = currentSection.steps[place.step].element;
         return elementId ? document.getElementById(elementId) : null;
     }, [place]);
 
     const content = useMemo(() => {
+        const currentSection = sections[place.section];
+        if (!currentSection || !currentSection.steps[place.step]) {
+            PubSub.get().publishSnack({ message: "Failed to load tutorial step", severity: "Error" });
+            return null;
+        }
+        const currentStep = currentSection.steps[place.step];
+
         // Guide user to correct page if they're on the wrong one
-        const correctPage = sections[place.section].steps[place.step].page;
+        const correctPage = currentStep.page;
         if (correctPage && correctPage !== location) {
             return (
                 <>
@@ -316,7 +338,7 @@ export const TutorialDialog = ({
             <>
                 <DialogTitle
                     id={titleId}
-                    title={`${sections[place.section].title} (${place.section + 1} of ${sections.length})`}
+                    title={`${currentSection.title} (${place.section + 1} of ${sections.length})`}
                     onClose={onClose}
                     variant="subheader"
                     sxs={{
@@ -328,13 +350,13 @@ export const TutorialDialog = ({
                 <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay
                         variant="body1"
-                        content={sections[place.section].steps[place.step].text}
+                        content={currentStep.text}
                         zIndex={zIndex}
                     />
                 </Box>
                 <MobileStepper
                     variant="dots"
-                    steps={sections[place.section].steps.length}
+                    steps={currentSection.steps.length}
                     position="static"
                     activeStep={place.step}
                     backButton={
@@ -355,23 +377,32 @@ export const TutorialDialog = ({
                 />
             </>
         );
-    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, location, onClose, place, setLocation]);
+    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, location, onClose, place, setLocation]);
 
-    // If the user navigates to the page for the next step, automatically advance. 
-    // This is temporarily disabled after the previous/next buttons are pressed.
-    useEffect(() => {
-        // Find current step's page
-        const currPage = sections[place.section].steps[place.step].page;
-        // If already on the correct page, return
-        if (currPage && currPage === location) return;
-        // Find next step's page
-        const nextPage = nextStep?.page;
-        // If next step has a page and it's the current page, advance
-        if (currPage && nextPage && nextPage === location) {
-            console.log("handling next", currPage, nextPage);
-            handleNext();
-        }
-    }, [handleNext, location, nextStep?.page, place, setLocation]);
+    // // If the user navigates to the page for the next step, automatically advance. 
+    // // This is temporarily disabled after the previous/next buttons are pressed.
+    // useEffect(() => {
+    //     const currentSection = sections[place.section];
+    //     if (!currentSection || !currentSection.steps[place.step]) {
+    //         PubSub.get().publishSnack({ message: "Failed to load tutorial", severity: "Error" });
+    //         return;
+    //     }
+    //     const currentStep = currentSection.steps[place.step];
+    //     // Find current step's page
+    //     const currPage = currentStep.page;
+    //     // If already on the correct page, return
+    //     if (currPage && currPage === location) return;
+
+    //     // Find next step's page
+    //     const nextPage = nextStep?.page;
+
+    //     // If next step has a page and it's the current page, advance
+    //     if (currPage && nextPage && nextPage === location) {
+    //         console.log("handling next", currPage, nextPage);
+    //         handleNext();
+    //     }
+    // }, [handleNext, location, nextStep?.page, place, setLocation]);
+
 
     // If there's an anchor, use a popper
     if (getCurrentElement()) {

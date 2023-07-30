@@ -1,4 +1,4 @@
-import { Session } from "@local/shared";
+import { ErrorKey, Session } from "@local/shared";
 import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
@@ -11,9 +11,9 @@ import { toSession } from "./session";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
-const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
-const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
-const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
+const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 5;
+const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 15;
+const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Generates a URL-safe code for account confirmations and password resets
@@ -44,6 +44,13 @@ export const hashPassword = (password: string): string => {
     return bcrypt.hashSync(password, HASHING_ROUNDS);
 };
 
+const statusToError = (status: AccountStatus): ErrorKey | null => {
+    if (status === "HardLocked") return "HardLockout";
+    if (status === "SoftLocked") return "SoftLockout";
+    if (status === "Deleted") return "AccountDeleted";
+    return null;
+};
+
 /**
  * Validates a user's password, taking into account the user's account status
  * @param plaintext Plaintext password to check
@@ -57,12 +64,8 @@ export const validatePassword = (plaintext: string, user: Pick<UserModelLogic["P
     // 1. Not deleted
     // 2. Not locked out
     // If account is deleted or locked, throw error
-    if (user.status === "HardLocked")
-        throw new CustomError("0060", "HardLockout", languages);
-    if (user.status === "SoftLocked")
-        throw new CustomError("0330", "SoftLockout", languages);
-    if (user.status === "Deleted")
-        throw new CustomError("0061", "AccountDeleted", languages);
+    const accountError = statusToError(user.status);
+    if (accountError !== null) throw new CustomError("0060", accountError, languages);
     // Validate plaintext password against hash
     return bcrypt.compareSync(plaintext, user.password);
 };
@@ -91,12 +94,8 @@ export const logIn = async (
         });
     }
     // If account is deleted or locked, throw error
-    if (user.status === AccountStatus.HardLocked)
-        throw new CustomError("0060", "HardLockout", req.session.languages);
-    if (user.status === AccountStatus.SoftLocked)
-        throw new CustomError("0331", "SoftLockout", req.session.languages);
-    if (user.status === AccountStatus.Deleted)
-        throw new CustomError("0061", "AccountDeleted", req.session.languages);
+    const accountError = statusToError(user.status);
+    if (accountError !== null) throw new CustomError("0060", accountError, req.session.languages);
     // If password is valid
     if (validatePassword(password, user, req.session.languages)) {
         const userData = await prisma.user.update({

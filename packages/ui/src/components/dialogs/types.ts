@@ -102,7 +102,7 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
      */
     searchData?: {
         searchType: SearchType | `${SearchType}`;
-        where: { [key: string]: any };
+        where: { [key: string]: string | number | boolean | object | null | undefined; };
     }
     zIndex: number;
 }
@@ -311,14 +311,6 @@ export interface StatsDialogProps<T extends StatsCompactPropsObject> {
     isOpen: boolean;
     object: T | null | undefined;
     onClose: () => unknown;
-    zIndex: number;
-}
-
-export interface AdvancedSearchDialogProps {
-    handleClose: () => unknown;
-    handleSearch: (searchQuery: { [x: string]: any }) => unknown;
-    isOpen: boolean;
-    searchType: SearchType | `${SearchType}`;
     zIndex: number;
 }
 
