@@ -18,7 +18,7 @@ export enum ACTION_TAGS {
     MyStuff = "MyStuff",
 }
 
-export type ActionArray = [string, any, string, any, number];
+export type ActionArray = [string, ACTION_TAGS, LINKS, SvgComponent, number];
 export interface Action {
     label: CommonKey;
     value: ACTION_TAGS;
@@ -62,16 +62,16 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
 
-// Factory for creating action objects
+/** Factory for creating action objects */
 const createAction = (action: ActionArray): Action => {
     const keys = ["label", "value", "link", "Icon", "numNotifications"];
-    return action.reduce((obj: object, val: any, i: number) => { obj[keys[i]] = val; return obj; }, {}) as Action;
+    return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as Action;
 };
 
 // Factory for creating a list of action objects
 export const createActions = (actions: ActionArray[]): Action[] => actions.map(a => createAction(a));
 
-// Display actions in a horizontal menu
+/** Display actions in a horizontal menu */
 interface ActionsToMenuProps {
     actions: Action[];
     setLocation: SetLocation;
@@ -104,7 +104,7 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
             label={i18next.t(label, { count: 2 })}
             value={value}
             href={link}
-            onClick={(e: any) => {
+            onClick={(e) => {
                 e.preventDefault();
                 // Check if link is different from current location
                 const shouldScroll = link === window.location.pathname;

@@ -4,12 +4,13 @@
 
 import { adaHandleRegex, Bookmark, GqlModelType, isOfType, LINKS, Reaction, RunProject, RunRoutine, urlRegex, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
-import { NavigableObject } from "types";
+import { CalendarEvent, NavigableObject } from "types";
 import { ResourceType } from "utils/consts";
 import { uuidToBase36 } from "./urlTools";
 
 export type ObjectType = "Api" |
     "Bookmark" |
+    "Chat" |
     "Comment" |
     "FocusMode" |
     "Meeting" |
@@ -37,34 +38,36 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     // If object is a user, use 'Profile'
     if (isOfType(object, "User")) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectUrlBase((object as Bookmark | Reaction | View).to as any);
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectUrlBase((object as Bookmark | Reaction | View).to as NavigableObject);
     // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
+    if (isOfType(object, "RunRoutine")) return getObjectUrlBase((object as RunRoutine).routineVersion as NavigableObject);
     // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as any);
+    if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as NavigableObject);
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
 };
+
+type SluggableObject = {
+    __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
+    id: string,
+    handle?: string | null,
+    root?: { handle?: string | null, id: string } | null,
+}
 
 /**
  * Determines string used to reference object in URL slug
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: {
-    __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
-    id: string,
-    handle?: string | null,
-    root?: { handle?: string | null, id: string } | null,
-}): string => {
+export const getObjectSlug = (object: SluggableObject): string => {
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Bookmark | Reaction | View).to as any);
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Bookmark | Reaction | View).to as SluggableObject);
     // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getObjectSlug((object as RunRoutine).routineVersion as any);
+    if (isOfType(object, "RunRoutine")) return getObjectSlug((object as RunRoutine).routineVersion as SluggableObject);
     // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getObjectSlug((object as RunProject).projectVersion as any);
+    if (isOfType(object, "RunProject")) return getObjectSlug((object as RunProject).projectVersion as SluggableObject);
     // If object has root, use its handle or id
     if (object.root) {
         const root = object.root.handle ?? uuidToBase36(object.root.id);
@@ -75,21 +78,21 @@ export const getObjectSlug = (object: {
     return object.handle ?? uuidToBase36(object.id);
 };
 
+type SearchParamableObject = {
+    __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
+    id: string,
+}
+
 /**
  * Determines string for object's search params
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (
-    object: {
-        __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
-        id: string
-    },
-): string | null => {
+export const getObjectSearchParams = (object: SearchParamableObject): string | null => {
     // If object is an action/shortcut, return blank
     if (isOfType(object, "Action", "Shortcut")) return "";
     // If object is an event, add start time to search params
-    if (isOfType(object, "CalendarEvent")) return stringifySearchParams({ start: (object as any).start });
+    if (isOfType(object, "CalendarEvent")) return stringifySearchParams({ start: (object as CalendarEvent).start });
     // If object is a run
     if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36(object.id) });
     return "";
