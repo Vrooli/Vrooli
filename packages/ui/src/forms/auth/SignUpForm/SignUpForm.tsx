@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, useLocation } from "@local/shared";
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Link, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
@@ -6,6 +6,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { clickSize } from "styles";
 import { Forms } from "utils/consts";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -17,6 +18,7 @@ import { SignUpFormProps } from "../../types";
 export const SignUpForm = ({
     onClose,
     onFormChange = () => { },
+    zIndex,
 }: SignUpFormProps) => {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -32,6 +34,7 @@ export const SignUpForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("SignUp")}
+                zIndex={zIndex}
             />
             <Formik
                 initialValues={{
@@ -59,6 +62,8 @@ export const SignUpForm = ({
                                         setLocation(LINKS.Home);
                                         // Set up push notifications
                                         setupPush();
+                                        // Start the tutorial
+                                        PubSub.get().publishTutorial();
                                     },
                                 }],
                             });

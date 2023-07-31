@@ -7,10 +7,14 @@
 import { cronTimes } from "../cronTimes";
 import { initializeCronJob } from "../initializeCronJob";
 import { expirePremium } from "./expirePremium";
+import { failPayments } from "./failPayments";
 
-/**
- * Initializes cron jobs for expiring premium status
- */
+/** Initializes cron jobs for expiring premium status */
 export const initExpirePremiumCronJob = () => {
     initializeCronJob(cronTimes.expirePremium, expirePremium, "expire premium");
+};
+
+/** Initializes cron jobs for marking payments stuck in pending to failed */
+export const initFailPaymentsCronJob = () => {
+    initializeCronJob(cronTimes.failPayments, failPayments, "fail payments");
 };

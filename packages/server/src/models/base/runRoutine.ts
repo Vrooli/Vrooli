@@ -274,7 +274,7 @@ export const RunRoutineModel: ModelLogic<RunRoutineModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: RoutineVersionModel.search!.searchStringQuery() },
+                { routineVersion: RoutineVersionModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {

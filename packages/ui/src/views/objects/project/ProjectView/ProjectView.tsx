@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetProjectVersion, ProjectVersion, useLocation } from "@local/shared";
+import { BookmarkFor, endpointGetProjectVersion, ProjectVersion } from "@local/shared";
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -8,8 +8,10 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
+import { EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -22,7 +24,7 @@ export const ProjectView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ProjectViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -88,16 +90,15 @@ export const ProjectView = ({
      */
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
                         display: "block",
                         marginLeft: "auto",
                         marginRight: 1,
-                        paddingRight: "1em",
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -118,6 +119,7 @@ export const ProjectView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -140,6 +142,7 @@ export const ProjectView = ({
                     textBeforeDate="Created"
                     timestamp={existing?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Description */}
                 {
@@ -172,13 +175,14 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

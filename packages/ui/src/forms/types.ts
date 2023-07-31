@@ -1,9 +1,11 @@
 import { InputType } from "@local/shared";
 import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as QP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
+import { ReactNode } from "react";
 import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { BookmarkListShape } from "utils/shape/models/bookmarkList";
+import { BotShape } from "utils/shape/models/bot";
 import { ChatShape } from "utils/shape/models/chat";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
@@ -33,16 +35,16 @@ import { ViewDisplayType } from "views/types";
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
-    children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
+    children: ReactNode;
     dirty?: boolean;
     display: ViewDisplayType;
     enableReinitialize?: boolean;
     isLoading?: boolean;
     maxWidth?: number;
-    onClose?: () => any;
+    onClose?: () => unknown;
     promptBeforeUnload?: boolean;
     ref?: any;
-    style?: { [key: string]: any };
+    style?: { [x: string]: string | number | null };
     validationSchema?: any;
 }
 
@@ -51,41 +53,43 @@ export interface BaseObjectFormProps<T> extends FormikProps<T> {
     isCreate: boolean;
     isLoading: boolean;
     isOpen: boolean;
-    onCancel: () => void;
+    onCancel: () => unknown;
     ref: React.RefObject<any>;
     zIndex: number;
 }
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    onSubmit: (values: any) => any;
+    onSubmit: (values: any) => void;
     zIndex: number;
 }
 
 export interface FormProps {
-    onFormChange?: (form: Forms) => any;
+    onFormChange?: (form: Forms) => unknown;
+    zIndex: number;
 }
 
 export interface ForgotPasswordFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => unknown;
 }
 
 export interface LogInFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => unknown;
 }
 
 export interface ResetPasswordFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => unknown;
 }
 
 export interface SignUpFormProps extends FormProps {
-    onClose: () => any;
+    onClose?: () => unknown;
 }
 
 export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
 export type BookmarkListFormProps = BaseObjectFormProps<BookmarkListShape>
+export type BotFormProps = BaseObjectFormProps<BotShape>
 export type ChatFormProps = BaseObjectFormProps<ChatShape>
 export type CommentFormProps = BaseObjectFormProps<CommentShape>
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };

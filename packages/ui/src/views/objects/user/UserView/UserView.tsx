@@ -1,4 +1,4 @@
-import { BookmarkFor, BotIcon, CommentIcon, EditIcon, EllipsisIcon, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, getLastUrlPart, LINKS, OrganizationIcon, ProjectIcon, SvgComponent, useLocation, User, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -15,9 +15,14 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
+import { BotIcon, CommentIcon, EditIcon, EllipsisIcon, OrganizationIcon, ProjectIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getLastUrlPart, useLocation } from "route";
 import { OverviewContainer } from "styles";
+import { SvgComponent } from "types";
+import { getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -58,7 +63,7 @@ export const UserView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -81,6 +86,7 @@ export const UserView = ({
         setUser(userData ?? profileData ?? partialData as any);
     }, [userData, profileData, partialData]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
+    console.log("permissions", permissions, user);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
@@ -119,15 +125,12 @@ export const UserView = ({
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
-    const onEdit = useCallback(() => {
-        setLocation(LINKS.SettingsProfile);
-    }, [setLocation]);
-
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
+        if (!user?.id) return { searchType: SearchType.Project, placeholder: "SearchProject", where: {} };
         if (currTab.value === TabOptions.Organization)
-            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user?.id!], visibility: VisibilityType.All });
-        return toSearchListData("Project", "SearchProject", { ownedByUserId: user?.id!, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
+            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
+        return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab.value, user?.id, permissions.canUpdate]);
 
     // More menu
@@ -151,7 +154,7 @@ export const UserView = ({
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
             <Avatar
-                src="/broken-image.jpg" //TODO
+                src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
                 sx={{
                     backgroundColor: profileColors[0],
                     color: profileColors[1],
@@ -173,16 +176,15 @@ export const UserView = ({
                     height="75%"
                 />}
             </Avatar>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
                         display: "block",
                         marginLeft: "auto",
                         marginRight: 1,
-                        paddingRight: "1em",
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -203,6 +205,7 @@ export const UserView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -225,6 +228,7 @@ export const UserView = ({
                     textBeforeDate="Joined"
                     timestamp={user?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -234,7 +238,12 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
+                        <MarkdownDisplay
+                            variant="body1"
+                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                            content={bio ?? "No bio set"}
+                            zIndex={zIndex}
+                        />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -245,7 +254,7 @@ export const UserView = ({
                     </Tooltip> */}
                     <ShareButton object={user} zIndex={zIndex} />
                     <BookmarkButton
-                        disabled={permissions.canUpdate}
+                        disabled={user?.id === getCurrentUser(session).id}
                         objectId={user?.id ?? ""}
                         bookmarkFor={BookmarkFor.User}
                         isBookmarked={user?.you?.isBookmarked ?? false}
@@ -257,7 +266,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, handle, user, bio, zIndex, actionData]);
+    ), [profileColors, user, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, isLoading, name, permissions.canUpdate, t, zIndex, handle, bio, session, actionData]);
 
     /**
      * Opens add new page
@@ -271,6 +280,7 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

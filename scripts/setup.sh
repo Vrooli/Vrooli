@@ -51,6 +51,9 @@ sudo apt-get update
 header "Running upgrade"
 RUNLEVEL=1 sudo apt-get -y upgrade
 
+header "Setting script permissions"
+chmod +x "${HERE}/"*.sh
+
 # If this script is being run on the remote server, enable PasswordAuthentication
 if [ -z "${ON_REMOTE}" ]; then
     prompt "Is this script being run on the remote server? (Y/n)"

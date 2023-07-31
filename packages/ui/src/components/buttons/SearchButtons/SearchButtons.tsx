@@ -26,6 +26,7 @@ export const SearchButtons = ({
             <TimeButton
                 setTimeFrame={setTimeFrame}
                 timeFrame={timeFrame}
+                zIndex={zIndex}
             />
             <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}

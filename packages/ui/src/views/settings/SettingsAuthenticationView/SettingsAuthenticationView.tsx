@@ -1,4 +1,4 @@
-import { DeleteIcon, Email, EmailIcon, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutIcon, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, useLocation, User, Wallet, WalletIcon } from "@local/shared";
+import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, Session, User, Wallet } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
@@ -8,8 +8,10 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { SettingsAuthenticationForm } from "forms/settings";
+import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
@@ -80,26 +82,30 @@ export const SettingsAuthenticationView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Authentication")}
+                zIndex={zIndex}
             />
-            <Stack direction="row">
+            <Stack direction="row" mt={2}>
                 <SettingsList />
-                <Box>
+                <Box m="auto">
                     <Title
                         help={t("WalletListHelp")}
                         Icon={WalletIcon}
                         title={t("Wallet", { count: 2 })}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
+                        zIndex={zIndex}
                     />
                     <Title
                         help={t("EmailListHelp")}
                         Icon={EmailIcon}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <EmailList
                         handleUpdate={updateEmails}
@@ -110,6 +116,7 @@ export const SettingsAuthenticationView = ({
                         help={t("PasswordChangeHelp")}
                         title={t("ChangePassword")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <Formik
                         enableReinitialize={true}

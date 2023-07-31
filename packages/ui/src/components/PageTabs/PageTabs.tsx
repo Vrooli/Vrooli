@@ -7,10 +7,11 @@ import { useWindowSize } from "utils/hooks/useWindowSize";
  * Tabs for a page. Ensures that all page tabs are consistent, 
  * and leave room on the sides for drawer swiping
  */
-export const PageTabs = <T extends any>({
+export const PageTabs = <T extends string | number | object>({
     ariaLabel,
     currTab,
     fullWidth = false,
+    id,
     onChange,
     tabs,
 }: PageTabsProps<T>) => {
@@ -22,7 +23,7 @@ export const PageTabs = <T extends any>({
     }, [onChange, tabs]);
 
     return (
-        <Box display="flex" justifyContent="center" width="100%">
+        <Box display="flex" id={id} justifyContent="center" width="100%">
             <Tabs
                 value={currTab.index}
                 onChange={handleTabChange}

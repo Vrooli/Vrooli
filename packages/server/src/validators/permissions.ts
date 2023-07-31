@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
@@ -270,18 +270,21 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const { delegate, validate } = getLogic(["delegate", "validate"], type, userData?.languages ?? ["en"], "getSingleTypePermissions");
     // Get auth data for all objects
     let select: any;
-    let authData: any = [];
+    let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-        authData = await delegate(prisma).findMany({
+        const authData = await delegate(prisma).findMany({
             where: { id: { in: ids } },
             select,
         });
+        dataById = Object.fromEntries(authData.map(item => [item.id, item]));
     } catch (error) {
         throw new CustomError("0388", "InternalError", userData?.languages ?? ["en"], { ids, select, objectType: type });
     }
-    // Loop through each object and calculate permissions
-    for (const authDataItem of authData) {
+    // Loop through each id and calculate permissions
+    for (const id of ids) {
+        // Get permissions object for this ID
+        const authDataItem = dataById[id];
         const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ["en"]);
         const isLoggedIn = !!userData?.id;
@@ -319,6 +322,8 @@ export async function permissionsCheck(
         const ids = idsByAction[action];
         // Loop through each ID and validate permissions
         for (const id of ids) {
+            // Skip placeholder IDs
+            if (id === DUMMY_ID) continue;
             // Get permissions for this ID
             const permissions = permissionsById[id];
             // Make sure permissions exists. If not, and not create, something went wrong.

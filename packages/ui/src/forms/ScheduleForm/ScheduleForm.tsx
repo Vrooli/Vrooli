@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, scheduleValidation, Session, uuid } from "@local/shared";
 import { Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
@@ -8,8 +8,9 @@ import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSel
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleFormProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -45,7 +46,7 @@ export const validateScheduleValues = async (values: ScheduleShape, existing?: S
 };
 
 
-export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
+export const ScheduleForm = forwardRef<BaseFormRef | undefined, ScheduleFormProps>(({
     canSetScheduleFor,
     display,
     dirty,
@@ -108,6 +109,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                         title="Schedule Time Frame"
                         help="This section is used to define the overall time frame for the schedule.\n\n*Start time* and *End time* specify the beginning and the end of the period during which the schedule is active.\n\nThe *Timezone* is used to set the time zone for the entire schedule."
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2}>
                         <DateInput
@@ -120,13 +122,14 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                             label="End time"
                             type="datetime-local"
                         />
-                        <TimezoneSelector name="timezone" label="Timezone" />
+                        <TimezoneSelector name="timezone" label="Timezone" zIndex={zIndex} />
                     </Stack>
                     {/* Set up recurring events */}
                     <Title
                         title="Recurring events"
                         help="Recurring events are used to set up repeated occurrences of the event in the schedule, such as daily, weekly, monthly, or yearly. *Recurrence type* determines the frequency of the repetition. *Interval* is the number of units between repetitions (e.g., every 2 weeks). Depending on the recurrence type, you may need to specify additional information such as *Day of week*, *Day of month*, or *Month of year*. Optionally, you can set an *End date* for the recurrence."
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     {recurrencesField.value.length ? <Box>
                         {recurrencesField.value.map((recurrence, index) => (
@@ -250,6 +253,7 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

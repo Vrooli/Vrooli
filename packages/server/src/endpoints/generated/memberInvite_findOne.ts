@@ -8,7 +8,9 @@ export const memberInvite_findOne = {
   "willHavePermissions": true,
   "organization": {
     "id": true,
+    "bannerImage": true,
     "handle": true,
+    "profileImage": true,
     "you": {
       "canAddMembers": true,
       "canDelete": true,
@@ -30,9 +32,11 @@ export const memberInvite_findOne = {
   },
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

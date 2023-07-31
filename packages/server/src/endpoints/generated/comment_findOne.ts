@@ -94,9 +94,11 @@ export const comment_findOne = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "hasAcceptedAnswer": true,
@@ -119,7 +121,9 @@ export const comment_findOne = {
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -188,9 +192,11 @@ export const comment_findOne = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "score": true,
@@ -276,14 +282,18 @@ export const comment_findOne = {
   "owner": {
     "User": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "Organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,

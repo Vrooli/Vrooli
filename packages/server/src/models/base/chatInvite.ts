@@ -5,7 +5,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { ChatInviteFormat } from "../format/chatInvite";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
-import { ChatInviteModelLogic } from "./types";
+import { ChatInviteModelLogic, ChatModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatInvite" as const;
@@ -17,7 +17,7 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         // Label is the user label
         label: {
             select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
         },
     },
     format: ChatInviteFormat,
@@ -55,8 +55,8 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "message",
-                { chat: ChatModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { chat: ChatModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {
@@ -76,8 +76,8 @@ export const ChatInviteModel: ModelLogic<ChatInviteModelLogic, typeof suppFields
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as any).organization,
-            User: (data.chat as any).user,
+            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
+            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isYourInvite = uuidValidate(userId) && data.userId === userId;

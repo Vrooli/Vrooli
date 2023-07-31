@@ -1,16 +1,16 @@
-import { endpointPostWalletHandles, FindHandlesInput, userTranslationValidation } from "@local/shared";
-import { Grid, TextField, useTheme } from "@mui/material";
+import { userTranslationValidation } from "@local/shared";
+import { TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { Field, useField } from "formik";
+import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { SettingsProfileFormProps } from "../types";
 
@@ -25,7 +25,6 @@ export const SettingsProfileForm = ({
     ...props
 }: SettingsProfileFormProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -42,36 +41,38 @@ export const SettingsProfileForm = ({
         validationSchema: userTranslationValidation.update({}),
     });
 
-    // Handle handles
-    const [handlesField, , handlesHelpers] = useField("handle");
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyFetch<FindHandlesInput, string[]>(endpointPostWalletHandles);
-    const [handles, setHandles] = useState<string[]>([]);
-    const fetchHandles = useCallback(() => {
-        if (numVerifiedWallets > 0) {
-            findHandles({}); // Intentionally empty
-        } else {
-            PubSub.get().publishSnack({ messageKey: "NoVerifiedWallets", severity: "Error" });
-        }
-    }, [numVerifiedWallets, findHandles]);
-    useEffect(() => {
-        if (handlesData) {
-            setHandles(handlesData);
-        }
-    }, [handlesData]);
+    // // Handle handles
+    // const [handlesField, , handlesHelpers] = useField("handle");
+    // const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyFetch<FindHandlesInput, string[]>(endpointPostWalletHandles);
+    // const [handles, setHandles] = useState<string[]>([]);
+    // const fetchHandles = useCallback(() => {
+    //     if (numVerifiedWallets > 0) {
+    //         findHandles({}); // Intentionally empty
+    //     } else {
+    //         PubSub.get().publishSnack({ messageKey: "NoVerifiedWallets", severity: "Error" });
+    //     }
+    // }, [numVerifiedWallets, findHandles]);
+    // useEffect(() => {
+    //     if (handlesData) {
+    //         setHandles(handlesData);
+    //     }
+    // }, [handlesData]);
 
     return (
-        <BaseForm
-            dirty={dirty}
-            display={display}
-            isLoading={isLoading}
-        >
-            <Grid container spacing={2} sx={{
-                paddingBottom: 4,
-                paddingLeft: 2,
-                paddingRight: 2,
-                paddingTop: 2,
-            }}>
-                <Grid item xs={12}>
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+                maxWidth={500}
+            >
+                <ProfilePictureInput
+                    onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                    name="profileImage"
+                    profile={{ __typename: "User", ...values }}
+                    zIndex={zIndex}
+                />
+                <FormSection sx={{ marginTop: 2 }}>
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
@@ -80,9 +81,7 @@ export const SettingsProfileForm = ({
                         languages={languages}
                         zIndex={zIndex}
                     />
-                </Grid>
-                {/* <Grid item xs={12}>
-                    <Stack direction="row" spacing={0}>
+                    {/* <Stack direction="row" spacing={0}>
                         <Autocomplete
                             disablePortal
                             id="ada-handle-select"
@@ -112,12 +111,8 @@ export const SettingsProfileForm = ({
                         >
                             <RefreshIcon />
                         </ColorIconButton>
-                    </Stack>
-                </Grid> */}
-                <Grid item xs={12}>
+                    </Stack> */}
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
-                </Grid>
-                <Grid item xs={12}>
                     <TranslatedMarkdownInput
                         language={language}
                         maxChars={2048}
@@ -126,8 +121,8 @@ export const SettingsProfileForm = ({
                         placeholder={t("Bio")}
                         zIndex={zIndex}
                     />
-                </Grid>
-            </Grid>
+                </FormSection>
+            </BaseForm>
             <GridSubmitButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
@@ -136,7 +131,8 @@ export const SettingsProfileForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
-        </BaseForm>
+        </>
     );
 };

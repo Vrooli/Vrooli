@@ -1,5 +1,6 @@
-import { NodeLink, OpenInNewIcon } from "@local/shared";
+import { NodeLink } from "@local/shared";
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
+import { OpenInNewIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
 import { EndStep, RoutineStep } from "types";

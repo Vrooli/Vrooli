@@ -8,7 +8,7 @@ export type BaseFormRef = {
     handleClose: (onClose: () => void, closeAnyway?: boolean) => void
 }
 
-export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
+export const BaseForm = forwardRef<BaseFormRef | undefined, BaseFormProps>(({
     children,
     dirty,
     display,

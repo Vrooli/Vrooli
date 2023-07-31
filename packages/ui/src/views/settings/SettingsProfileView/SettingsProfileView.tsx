@@ -1,5 +1,5 @@
 import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
@@ -13,6 +13,7 @@ import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProfile } from "utils/shape/models/profile";
+import { createPrims } from "utils/shape/models/tools";
 import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
@@ -32,46 +33,60 @@ export const SettingsProfileView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Profile")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
-                <Formik
-                    enableReinitialize={true}
-                    initialValues={{
-                        handle: profile?.handle ?? null,
-                        name: profile?.name ?? "",
-                        translations: profile?.translations?.length ? profile.translations : [{
-                            id: DUMMY_ID,
-                            language: getUserLanguages(session)[0],
-                            bio: "",
-                        }],
-                    }}
-                    onSubmit={(values, helpers) => {
-                        if (!profile) {
-                            PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
-                            return;
-                        }
-                        fetchLazyWrapper<ProfileUpdateInput, User>({
-                            fetch,
-                            inputs: shapeProfile.update(profile, {
+                <Box m="auto" mt={2}>
+                    <Formik
+                        enableReinitialize={true}
+                        initialValues={{
+                            bannerImage: null,
+                            handle: profile?.handle ?? null,
+                            name: profile?.name ?? "",
+                            profileImage: profile?.profileImage ?? null,
+                            translations: profile?.translations?.length ? profile.translations : [{
+                                id: DUMMY_ID,
+                                language: getUserLanguages(session)[0],
+                                bio: "",
+                            }],
+                            updated_at: profile?.updated_at ?? null, // Used for cache busting on profile image
+                        }}
+                        onSubmit={(values, helpers) => {
+                            if (!profile) {
+                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                return;
+                            }
+                            console.log("submitting profile update: values", values);
+                            console.log("submitting profile update: profile", profile);
+                            console.log("submitting profile update: shapeProfile.update(profile, values)", shapeProfile.update(profile, {
                                 id: profile.id,
                                 ...values,
-                            }),
-                            successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                            onError: () => { helpers.setSubmitting(false); },
-                        });
-                    }}
-                    validationSchema={userValidation.update({})}
-                >
-                    {(formik) => <SettingsProfileForm
-                        display={display}
-                        isLoading={isProfileLoading || isUpdating}
-                        numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
-                        onCancel={formik.resetForm}
-                        zIndex={zIndex}
-                        {...formik}
-                    />}
-                </Formik>
+                            }));
+                            console.log("test1", createPrims(values, "profileImage"));
+                            fetchLazyWrapper<ProfileUpdateInput, User>({
+                                fetch,
+                                inputs: shapeProfile.update(profile, {
+                                    id: profile.id,
+                                    ...values,
+                                }),
+                                successMessage: () => ({ messageKey: "SettingsUpdated" }),
+                                onSuccess: (updated) => { helpers.setSubmitting(false); onProfileUpdate(updated); },
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
+                        }}
+                        validationSchema={userValidation.update({})}
+                    >
+                        {(formik) => <SettingsProfileForm
+                            display={display}
+                            isLoading={isProfileLoading || isUpdating}
+                            numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
+                            onCancel={formik.resetForm}
+                            zIndex={zIndex}
+                            {...formik}
+                        />}
+                    </Formik>
+                </Box>
             </Stack>
         </>
     );

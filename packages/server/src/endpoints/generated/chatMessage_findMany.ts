@@ -12,9 +12,11 @@ export const chatMessage_findMany = {
       "updated_at": true,
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "score": true,
       "reportsCount": true,

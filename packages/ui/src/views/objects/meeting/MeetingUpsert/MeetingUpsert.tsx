@@ -18,7 +18,7 @@ export const MeetingUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: MeetingUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const MeetingUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

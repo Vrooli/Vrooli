@@ -1,6 +1,6 @@
-import { openLink, useLocation } from "@local/shared";
 import { Breadcrumbs, Link } from "@mui/material";
 import { useMemo } from "react";
+import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
 import { BreadcrumbsBaseProps } from "../types";
 

@@ -34,7 +34,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
         }
         // If value is an object, recursively convert it
         else if (isRelationshipObject(value)) {
-            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value);
+            where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value as any);
         }
         // If value is a string, convert it to a Prisma query
         else if (typeof value === "string" && SearchStringMap[value]) {
@@ -65,7 +65,7 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
 }): Where {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
-    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery");
+    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery", true);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
 }

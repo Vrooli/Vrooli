@@ -4,7 +4,7 @@ import { defaultPermissions, translationShapeHelper } from "../../utils";
 import { NodeLinkWhenFormat } from "../format/nodeLinkWhen";
 import { ModelLogic } from "../types";
 import { NodeLinkModel } from "./nodeLink";
-import { NodeLinkWhenModelLogic } from "./types";
+import { NodeLinkModelLogic, NodeLinkWhenModelLogic } from "./types";
 
 const __typename = "NodeLinkWhen" as const;
 const suppFields = [] as const;
@@ -35,14 +35,15 @@ export const NodeLinkWhenModel: ModelLogic<NodeLinkWhenModelLogic, typeof suppFi
         },
         yup: nodeLinkWhenValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, link: "NodeLink" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeLinkModel.validate.owner(data.link as any, userId),
-        isDeleted: (data, languages) => NodeLinkModel.validate.isDeleted(data.link as any, languages),
-        isPublic: (data, languages) => NodeLinkModel.validate.isPublic(data.link as any, languages),
+        owner: (data, userId) => NodeLinkModel.validate.owner(data.link as NodeLinkModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => NodeLinkModel.validate.isDeleted(data.link as NodeLinkModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => NodeLinkModel.validate.isPublic(data.link as NodeLinkModelLogic["PrismaModel"], languages),
         visibility: {
             private: { link: NodeLinkModel.validate.visibility.private },
             public: { link: NodeLinkModel.validate.visibility.public },

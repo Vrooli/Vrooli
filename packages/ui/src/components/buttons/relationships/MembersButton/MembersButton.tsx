@@ -1,12 +1,14 @@
-import { AddIcon, BotIcon, LockIcon, SvgComponent, User, UserIcon } from "@local/shared";
+import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { AddIcon, BotIcon, LockIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SvgComponent } from "types";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { MembersButtonProps } from "../types";
@@ -41,7 +43,7 @@ export const MembersButton = ({
     const handleMemberSelect = useCallback((member: RelationshipItemUser) => {
         membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
         closeDialog();
-    }, [membersFieldHelpers, closeDialog]);
+    }, [membersFieldHelpers, membersField.value, closeDialog]);
 
     const searchData = useMemo(() => ({
         searchType: "User" as const,
@@ -76,7 +78,7 @@ export const MembersButton = ({
                 id="members-dialog"
                 onClose={closeDialog}
                 isOpen={isDialogOpen}
-                zIndex={zIndex + 1}
+                zIndex={zIndex}
                 sxs={{
                     paper: {
                         minHeight: "min(100vh - 64px, 600px)",
@@ -86,7 +88,7 @@ export const MembersButton = ({
                 <MemberManageView
                     onClose={closeDialog}
                     organizationId={idField.value ?? ""}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1000}
                 />
             </LargeDialog>
             <Stack

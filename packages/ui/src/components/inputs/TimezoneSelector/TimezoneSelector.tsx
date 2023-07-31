@@ -1,7 +1,7 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { useField } from "formik";
+import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
 import { TimezoneSelectorProps } from "../types";
@@ -30,6 +30,7 @@ const getTimezoneOffset = (timezone) => {
 
 export const TimezoneSelector = ({
     onChange,
+    zIndex,
     ...props
 }: TimezoneSelectorProps) => {
     const { palette } = useTheme();
@@ -93,6 +94,7 @@ export const TimezoneSelector = ({
                     ariaLabel={""}
                     title={"Select Timezone"}
                     onClose={onClose}
+                    zIndex={zIndex + 1}
                 />
                 <Stack direction="column" spacing={2} p={2}>
                     <TextField

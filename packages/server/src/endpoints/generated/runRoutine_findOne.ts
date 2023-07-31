@@ -131,7 +131,9 @@ export const runRoutine_findOne = {
   "wasRunAutomatically": true,
   "organization": {
     "id": true,
+    "bannerImage": true,
     "handle": true,
+    "profileImage": true,
     "you": {
       "canAddMembers": true,
       "canDelete": true,
@@ -153,9 +155,11 @@ export const runRoutine_findOne = {
   },
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

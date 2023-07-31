@@ -1,6 +1,6 @@
-import { CloseIcon } from "@local/shared";
 import { IconButton, InputAdornment, TextField, useTheme } from "@mui/material";
 import { useField } from "formik";
+import { CloseIcon } from "icons";
 import { useCallback } from "react";
 import { DateInputProps } from "../types";
 

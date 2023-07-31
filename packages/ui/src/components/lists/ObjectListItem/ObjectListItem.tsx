@@ -29,6 +29,7 @@ export function ObjectListItem<T extends ListObjectType>({
     ...props
 }: ObjectListItemProps<T>) {
     const ListItem = useMemo(() => getListItemComponent(objectType), [objectType]);
+    console.log("in object list item", objectType, props);
     return (
         <ListItem
             objectType={objectType}

@@ -1,9 +1,10 @@
-import { endpointGetMeeting, Meeting, useLocation } from "@local/shared";
+import { endpointGetMeeting, Meeting } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
@@ -16,7 +17,7 @@ export const MeetingView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -35,7 +36,7 @@ export const MeetingView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing]);
+    const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -60,6 +61,7 @@ export const MeetingView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

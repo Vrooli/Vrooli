@@ -11,4 +11,4 @@
 export const isOfType = <T extends string>(obj: any, ...types: T[]): obj is { __typename: T } => {
     if (!obj || !obj.__typename) return false;
     return types.includes(obj.__typename);
-}
+};

@@ -1,11 +1,13 @@
-import { AddIcon, CommonKey, HistoryIcon, LockIcon, MemberInviteStatus, UnlockIcon, useLocation, UserIcon } from "@local/shared";
+import { CommonKey, MemberInviteStatus } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
+import { AddIcon, HistoryIcon, LockIcon, UnlockIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { useTabs } from "utils/hooks/useTabs";
 import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";
@@ -102,7 +104,7 @@ export const MemberManageView = ({
                     isCreate={true}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />
             </LargeDialog> */}
             {/* Main dialog */}
@@ -115,6 +117,7 @@ export const MemberManageView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>

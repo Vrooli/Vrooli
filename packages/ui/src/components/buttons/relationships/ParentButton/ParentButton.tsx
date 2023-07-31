@@ -1,4 +1,4 @@
-import { exists, ProjectIcon, RoutineIcon, useLocation } from "@local/shared";
+import { exists } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -6,8 +6,10 @@ import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { ProjectIcon, RoutineIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
@@ -35,7 +37,7 @@ export function ParentButton({
 
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
-    const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleParentClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const parent = versionField?.value ?? rootField?.value;
@@ -56,7 +58,7 @@ export function ParentButton({
                         messageKey: "ParentOverrideConfirm",
                         buttons: [
                             { labelKey: "Yes", onClick: () => { setParentDialogOpen(true); } },
-                            { labelKey: "No", onClick: () => { } },
+                            { labelKey: "No" },
                         ],
                     });
                 }
@@ -75,8 +77,9 @@ export function ParentButton({
     }, [closeParentDialog, rootField?.value?.id, rootHelpers, versionField?.value?.id, versionHelpers]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isParentDialogOpen) return [objectType as SelectOrCreateObjectType, handleParentSelect, closeParentDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
     }, [isParentDialogOpen, objectType, handleParentSelect, closeParentDialog]);
 
@@ -84,7 +87,7 @@ export function ParentButton({
         const parent = versionField?.value ?? rootField?.value;
         if (!parent) return {
             Icon: null,
-            tooltip: isEditing ? "" : "Press to copy from a parent (will override entered data)",
+            tooltip: t(`ParentNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
         // If parent is project, use project icon
         if (parent.__typename === "ProjectVersion") {
@@ -92,7 +95,7 @@ export function ParentButton({
             const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, "project");
             return {
                 Icon,
-                tooltip: `${t("Parent")}: ${parentName}`,
+                tooltip: t(`ParentTogglePress${isEditing ? "Editable" : ""}`, { parent: parentName }),
             };
         }
         // If parent is routine, use routine icon
@@ -100,7 +103,7 @@ export function ParentButton({
         const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, "routine");
         return {
             Icon,
-            tooltip: `${t("Parent")}: ${parentName}`,
+            tooltip: t(`ParentTogglePress${isEditing ? "Editable" : ""}`, { parent: parentName }),
         };
     }, [isEditing, languages, rootField?.value, t, versionField?.value]);
 

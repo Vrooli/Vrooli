@@ -7,7 +7,7 @@
  */
 export function getDotNotationValue(obj: object, keyPath: string) {
     // Split the key path into an array of keys
-    const keys = keyPath.split('.');
+    const keys = keyPath.split(".");
     // Set the current value to the input object
     let currentValue: any = obj;
     // Loop through all the keys in the key path

@@ -37,6 +37,7 @@ export const NodeEndDialog = ({
                 onClose={handleClose}
                 title={t(isEditing ? "NodeEndEdit" : "NodeEndInfo")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <Formik
                 enableReinitialize={true}
@@ -54,7 +55,7 @@ export const NodeEndDialog = ({
                     isOpen={isOpen}
                     onCancel={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
+                    zIndex={zIndex + 1000}
                     {...formik}
                 />}
             </Formik>

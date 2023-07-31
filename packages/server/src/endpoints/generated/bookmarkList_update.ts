@@ -48,14 +48,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -85,14 +89,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -155,14 +163,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -250,14 +262,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -287,14 +303,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -352,6 +372,7 @@ export const bookmarkList_update = {
       },
       "Organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
         "created_at": true,
         "updated_at": true,
@@ -359,6 +380,7 @@ export const bookmarkList_update = {
         "isPrivate": true,
         "commentsCount": true,
         "membersCount": true,
+        "profileImage": true,
         "reportsCount": true,
         "bookmarks": true,
         "tags": {
@@ -478,14 +500,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -515,14 +541,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -590,9 +620,11 @@ export const bookmarkList_update = {
         "updated_at": true,
         "createdBy": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "hasAcceptedAnswer": true,
@@ -615,7 +647,9 @@ export const bookmarkList_update = {
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -689,9 +723,11 @@ export const bookmarkList_update = {
         "updated_at": true,
         "createdBy": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "score": true,
@@ -712,9 +748,11 @@ export const bookmarkList_update = {
         "updated_at": true,
         "createdBy": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "score": true,
@@ -794,14 +832,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -831,14 +873,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -944,14 +990,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -981,14 +1031,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -1095,14 +1149,18 @@ export const bookmarkList_update = {
           "owner": {
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true,
+              "profileImage": true,
               "__typename": "User"
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1132,14 +1190,18 @@ export const bookmarkList_update = {
         "owner": {
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -1219,9 +1281,11 @@ export const bookmarkList_update = {
         },
         "id": true,
         "created_at": true,
+        "bannerImage": true,
         "handle": true,
         "isBot": true,
         "name": true,
+        "profileImage": true,
         "bookmarks": true,
         "reportsReceivedCount": true,
         "you": {

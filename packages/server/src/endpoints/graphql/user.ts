@@ -16,6 +16,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date
+        bannerImage: String
         botSettings: String
         handle: String
         isBot: Boolean!
@@ -39,6 +40,7 @@ export const typeDef = gql`
         isPrivateBookmarks: Boolean!
         isPrivateVotes: Boolean!
         name: String!
+        profileImage: String
         theme: String
         status: AccountStatus
         bookmarks: Int!
@@ -136,9 +138,33 @@ export const typeDef = gql`
         bio: String
     }
 
+    input BotCreateInput {
+        id: ID!
+        bannerImage: Upload
+        botSettings: String!
+        isPrivate: Boolean
+        name: String!
+        profileImage: Upload
+        translationsCreate: [UserTranslationCreateInput!]
+    }
+
+    input BotUpdateInput {
+        id: ID!
+        bannerImage: Upload
+        botSettings: String
+        isPrivate: Boolean
+        name: String
+        profileImage: Upload
+        translationsDelete: [ID!]
+        translationsCreate: [UserTranslationCreateInput!]
+        translationsUpdate: [UserTranslationUpdateInput!]
+    }
+
     input ProfileUpdateInput {
+        bannerImage: Upload
         handle: String
         name: String
+        profileImage: Upload
         theme: String
         isPrivate: Boolean
         isPrivateApis: Boolean
@@ -219,9 +245,11 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
+        botCreate(input: BotCreateInput!): User!
+        botUpdate(input: BotUpdateInput!): User!
         profileUpdate(input: ProfileUpdateInput!): User!
         profileEmailUpdate(input: ProfileEmailUpdateInput!): User!
-        userDeleteOne(input: UserDeleteInput!): Success!
+        userDeleteOne(input: UserDeleteInput!): Session!
         importCalendar(input: ImportCalendarInput!): Success!
         # importUserData(input: ImportUserDataInput!): Success!
         exportCalendar: String!

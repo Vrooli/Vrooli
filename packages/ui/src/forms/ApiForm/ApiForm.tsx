@@ -1,5 +1,5 @@
-import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, CompleteIcon, DUMMY_ID, orDefault, Session } from "@local/shared";
-import { Button, Grid, Stack, TextField, useTheme } from "@mui/material";
+import { ApiVersion, apiVersionTranslationValidation, apiVersionValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
+import { Button, Grid, Stack, TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -11,8 +11,9 @@ import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { Field } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
+import { CompleteIcon } from "icons";
 import { forwardRef, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -69,7 +70,7 @@ export const validateApiValues = async (values: ApiVersionShape, existing?: ApiV
     return result;
 };
 
-export const ApiForm = forwardRef<any, ApiFormProps>(({
+export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
     display,
     dirty,
     isCreate,
@@ -82,7 +83,6 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // useEffect(() => {
@@ -171,6 +171,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                                 title="Use URL for schema?"
                                 help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -233,6 +234,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

@@ -1,12 +1,16 @@
-import { LINKS, LogInIcon, openLink, ProfileIcon, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Avatar, Button, Container, Palette, useTheme } from "@mui/material";
 import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
-import { AccountMenu } from "components/dialogs/AccountMenu/AccountMenu";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
+import { LogInIcon, ProfileIcon } from "icons";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from "utils/navigation/userActions";
+import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { ContactInfo } from "../ContactInfo/ContactInfo";
 
@@ -22,24 +26,15 @@ const navItemStyle = (palette: Palette) => ({
 
 export const NavList = () => {
     const session = useContext(SessionContext);
+    const user = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
-    // Handle account menu
-    const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
-    const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
-        ev.stopPropagation();
-        setAccountMenuAnchor(ev.currentTarget);
-    }, [setAccountMenuAnchor]);
-    const closeAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
-        ev.stopPropagation();
-        setAccountMenuAnchor(null);
-    }, []);
+    const toggleSideMenu = useCallback(() => { PubSub.get().publishSideMenu(); }, []);
 
     return (
         <Container sx={{
@@ -58,11 +53,8 @@ export const NavList = () => {
             >
                 <ContactInfo />
             </PopupMenu>}
-            {/* Account menu */}
-            <AccountMenu
-                anchorEl={accountMenuAnchor}
-                onClose={closeAccountMenu}
-            />
+            {/* Side menu */}
+            <SideMenu />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
                 actions: nav_actions,
@@ -92,8 +84,9 @@ export const NavList = () => {
             {/* Profile icon */}
             {checkIfLoggedIn(session) && (
                 <Avatar
-                    src="/broken-image.jpg" //TODO
-                    onClick={openAccountMenu}
+                    id="side-menu-profile-icon"
+                    src={extractImageUrl(user.profileImage, user.updated_at, 50)}
+                    onClick={toggleSideMenu}
                     sx={{
                         background: palette.primary.contrastText,
                         width: "40px",

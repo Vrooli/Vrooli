@@ -395,7 +395,9 @@ export async function init(prisma: PrismaType) {
         where: {
             id: valyxaId,
         },
-        update: {},
+        update: {
+            invitedByUser: { connect: { id: adminId } },
+        },
         create: {
             id: valyxaId,
             isBot: true,
@@ -403,6 +405,7 @@ export async function init(prisma: PrismaType) {
             password: hashPassword(process.env.VALYXA_PASSWORD ?? ""),
             reputation: 1000000, // TODO temporary until community grows
             status: "Unlocked",
+            invitedByUser: { connect: { id: adminId } },
             languages: {
                 create: [{ language: EN }],
             },
@@ -443,10 +446,6 @@ export async function init(prisma: PrismaType) {
     });
     //==============================================================
     /* #endregion Create Admin */
-    //==============================================================
-
-    //==============================================================
-    /* #endregion Create Resources */
     //==============================================================
 
     //==============================================================
@@ -683,7 +682,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Routines */
     //==============================================================
-    const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9"; // <- DO NOT CHANGE. This is used as a reference routine
+    const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9";
     let mintToken: any = await prisma.routine.findFirst({
         where: { id: mintTokenId },
     });

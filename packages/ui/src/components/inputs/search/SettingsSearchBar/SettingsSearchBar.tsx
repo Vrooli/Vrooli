@@ -1,5 +1,5 @@
-import { SearchIcon } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from "@mui/material";
+import { SearchIcon } from "icons";
 import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { findSearchResults, SearchItem, shapeSearchText } from "utils/search/siteToSearch";
@@ -18,7 +18,7 @@ export const SettingsSearchBar = ({
     options = [],
     onChange,
     onInputChange,
-    placeholder = "Search...",
+    placeholder,
     value,
     ...props
 }: SettingsSearchBarProps) => {
@@ -158,7 +158,7 @@ export const SettingsSearchBar = ({
                         fullWidth={params.fullWidth}
                         value={internalValue}
                         onChange={handleChange}
-                        placeholder={placeholder}
+                        placeholder={placeholder ?? t("SearchEllipsis")}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
                         inputProps={params.inputProps}

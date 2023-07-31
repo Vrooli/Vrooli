@@ -1,11 +1,11 @@
 import { MaxObjects, nodeLinkValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../../builders";
+import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions } from "../../utils";
 import { NodeLinkFormat } from "../format/nodeLink";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
 import { RoutineVersionModel } from "./routineVersion";
-import { NodeLinkModelLogic } from "./types";
+import { NodeLinkModelLogic, NodeModelLogic, RoutineVersionModelLogic } from "./types";
 
 const __typename = "NodeLink" as const;
 const suppFields = [] as const;
@@ -16,12 +16,12 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
         label: {
             select: () => ({
                 id: true,
-                from: selPad(NodeModel.display.label.select),
-                to: selPad(NodeModel.display.label.select),
+                from: { select: NodeModel.display.label.select() },
+                to: { select: NodeModel.display.label.select() },
             }),
             // Label combines from and to labels
             get: (select, languages) => {
-                return `${NodeModel.display.label.get(select.from as any, languages)} -> ${NodeModel.display.label.get(select.to as any, languages)}`;
+                return `${NodeModel.display.label.get(select.from as NodeModelLogic["PrismaModel"], languages)} -> ${NodeModel.display.label.get(select.to as NodeModelLogic["PrismaModel"], languages)}`;
             },
         },
     },
@@ -46,14 +46,15 @@ export const NodeLinkModel: ModelLogic<NodeLinkModelLogic, typeof suppFields> = 
         },
         yup: nodeLinkValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
-        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as any, languages),
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => RoutineVersionModel.validate.isDeleted(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
         visibility: {
             private: { routineVersion: RoutineVersionModel.validate.visibility.private },
             public: { routineVersion: RoutineVersionModel.validate.visibility.public },

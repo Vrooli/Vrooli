@@ -1,7 +1,7 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, OrArray } from "@local/shared";
 import { getLogic } from "../getters";
 import { ObjectMap } from "../models/base";
-import { PrismaType, SessionUserToken, SingleOrArray } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
@@ -20,7 +20,7 @@ export const addSupplementalFields = async (
     prisma: PrismaType,
     userData: SessionUserToken | null,
     data: ({ [x: string]: any } | null | undefined)[],
-    partialInfo: SingleOrArray<PartialGraphQLInfo>,
+    partialInfo: OrArray<PartialGraphQLInfo>,
 ): Promise<{ [x: string]: any }[]> => {
     if (data.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier

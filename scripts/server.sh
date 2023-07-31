@@ -9,10 +9,15 @@ if [ "${NODE_ENV}" = "development" ]; then
     . "${HERE}/shared.sh"
 fi
 
-success 'Prisma schema generated'
-info 'Waiting for database and redis to start...'
-${PROJECT_DIR}/scripts/wait-for.sh db:5432 -t 120 -- echo 'Database is up'
-${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 60 -- echo 'Redis is up'
+# Get secrets, which will be stored in a temporary file
+info "Getting ${NODE_ENV} secrets..."
+TMP_FILE=$(mktemp)
+${HERE}/getSecrets.sh ${NODE_ENV} ${TMP_FILE} VALYXA_API_KEY DB_PASSWORD ADMIN_WALLET ADMIN_PASSWORD VALYXA_PASSWORD VAPID_PRIVATE_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET SITE_EMAIL_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+# Source and remove the temporary file
+. "$TMP_FILE"
+rm "$TMP_FILE"
+export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+echo "Got DB_URL: $DB_URL"
 
 # Install prisma dependency
 # TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
@@ -46,9 +51,6 @@ if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
 fi
-
-info 'Getting secrets...'
-. ${HERE}/getSecrets.sh -e ${NODE_ENV} -s VALYXA_API_KEY -s DB_PASSWORD -s ADMIN_WALLET -s ADMIN_PASSWORD -s VALYXA_PASSWORD -s VAPID_PRIVATE_KEY -s STRIPE_SECRET_KEY -s STRIPE_WEBHOOK_SECRET -s SITE_EMAIL_PASSWORD
 
 info 'Starting server...'
 cd ${PROJECT_DIR}/packages/server

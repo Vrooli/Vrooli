@@ -20,6 +20,7 @@ export type EndpointsAuth = {
     }
 }
 
+/** Expiry time for wallet authentication */
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**

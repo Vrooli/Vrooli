@@ -1,6 +1,7 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, SvgComponent, Tag, User } from "@local/shared";
+import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
-import { AwardDisplay, NavigableObject } from "types";
+import { ReactNode } from "react";
+import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { ListObjectType } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
@@ -42,7 +43,7 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
     loading: boolean;
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
-    onClick?: (dat: T) => void;
+    onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
@@ -58,6 +59,11 @@ export type NotificationListItemActions = {
     MarkAsRead: (id: string) => void;
     Delete: (id: string) => void;
 };
+export type ReminderListItemActions = {
+    Delete: (id: string) => void;
+    Update: (data: Reminder) => void;
+};
+
 /**
  * Maps object types to their list item's custom actions.
  * Not all object types have custom actions.
@@ -65,6 +71,7 @@ export type NotificationListItemActions = {
 export interface ListActions {
     Chat: ChatListItemActions;
     Notification: NotificationListItemActions;
+    Reminder: ReminderListItemActions;
 }
 
 
@@ -72,24 +79,13 @@ export type ChatListItemProps = ObjectListItemProps<Chat, ChatListItemActions>
 
 export type MemberListItemProps = ObjectListItemProps<Member>
 
-
 export type NotificationListItemProps = ObjectListItemProps<Notification, NotificationListItemActions>
+
+export type ReminderListItemProps = ObjectListItemProps<Reminder, ReminderListItemActions>
 
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
-
-
-export interface SortMenuProps {
-    sortOptions: any[];
-    anchorEl: HTMLElement | null;
-    onClose: (label?: string, value?: string) => void;
-}
-
-export interface TimeMenuProps {
-    anchorEl: HTMLElement | null;
-    onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
-}
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
@@ -103,6 +99,7 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
+    zIndex: number;
 }
 
 export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
@@ -151,13 +148,13 @@ export interface RelationshipListProps {
     isFormDirty?: boolean;
     objectType: ObjectType;
     zIndex: number;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 export interface RoleListProps {
     maxCharacters?: number;
     roles: Role[];
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 /**
@@ -182,22 +179,21 @@ export interface SearchListProps {
      * an annoying grow/shrink effect.
      */
     dummyLength?: number;
-    handleAdd?: (event?: any) => void; // Not shown if not passed
-    /**
-     * True if update button should be hidden
-     */
+    handleAdd?: (event?: any) => unknown; // Not shown if not passed
+    /** If update button on list items should be hidden */
     hideUpdateButton?: boolean;
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    resolve?: (data: any) => any;
+    resolve?: (data: any) => unknown;
     searchType: SearchType | `${SearchType}`;
     sxs?: {
-        search?: { [x: string]: any };
+        search?: SxType;
     }
-    onItemClick?: (item: any) => void;
-    onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
-    where?: any; // Additional where clause to pass to the query
+    onItemClick?: (item: any) => unknown;
+    onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
+    /** Additional where clause to pass to the query */
+    where?: { [key: string]: object };
     zIndex: number;
 }
 
@@ -222,7 +218,7 @@ export interface TagListProps {
      */
     maxCharacters?: number;
     parentId: string;
-    sx?: { [x: string]: any };
+    sx?: SxType;
     tags: Partial<Tag>[];
 }
 
@@ -232,10 +228,10 @@ export interface AwardCardProps {
 }
 
 export interface CardGridProps {
-    children: JSX.Element | (JSX.Element | null)[] | null;
+    children: ReactNode;
     disableMargin?: boolean;
     minWidth: number;
-    sx?: { [x: string]: any };
+    sx?: SxType;
 }
 
 export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
@@ -248,6 +244,7 @@ export interface TIDCardProps {
     description: string;
     key: string | number;
     Icon: SvgComponent | null | undefined;
+    id?: string;
     onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
     title: string;
 }

@@ -21,9 +21,11 @@ export const quizQuestionResponse_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "score": true,
           "bookmarks": true,
@@ -51,9 +53,11 @@ export const quizQuestionResponse_findMany = {
         },
         "user": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true
+          "profileImage": true
         },
         "you": {
           "canDelete": true,

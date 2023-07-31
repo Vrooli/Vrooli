@@ -1,9 +1,9 @@
 import { Count, GqlModelType, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
-import { onlyValidIds, selPad } from "../../builders";
+import { onlyValidIds } from "../../builders";
 import { CustomError } from "../../events";
 import { getLabels, getLogic } from "../../getters";
-import { initializeRedis } from "../../redisConn";
+import { withRedis } from "../../redisConn";
 import { PrismaType, SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils";
 import { ViewFormat } from "../format/view";
@@ -12,7 +12,7 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { ViewModelLogic } from "./types";
+import { ApiModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, UserModelLogic, ViewModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const toWhere = (key: string, nestedKey: string | null, id: string) => {
@@ -157,28 +157,28 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         label: {
             select: () => ({
                 id: true,
-                api: selPad(ApiModel.display.label.select),
-                organization: selPad(OrganizationModel.display.label.select),
-                question: selPad(QuestionModel.display.label.select),
-                note: selPad(NoteModel.display.label.select),
-                post: selPad(PostModel.display.label.select),
-                project: selPad(ProjectModel.display.label.select),
-                routine: selPad(RoutineModel.display.label.select),
-                smartContract: selPad(SmartContractModel.display.label.select),
-                standard: selPad(StandardModel.display.label.select),
-                user: selPad(UserModel.display.label.select),
+                api: { select: ApiModel.display.label.select() },
+                organization: { select: OrganizationModel.display.label.select() },
+                question: { select: QuestionModel.display.label.select() },
+                note: { select: NoteModel.display.label.select() },
+                post: { select: PostModel.display.label.select() },
+                project: { select: ProjectModel.display.label.select() },
+                routine: { select: RoutineModel.display.label.select() },
+                smartContract: { select: SmartContractModel.display.label.select() },
+                standard: { select: StandardModel.display.label.select() },
+                user: { select: UserModel.display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
-                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
-                if (select.post) return PostModel.display.label.get(select.post as any, languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
-                if (select.user) return UserModel.display.label.get(select.user as any, languages);
+                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
+                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
+                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                if (select.user) return UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages);
                 return "";
             },
         },
@@ -193,17 +193,17 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { api: ApiModel.search!.searchStringQuery() },
-                { issue: IssueModel.search!.searchStringQuery() },
-                { note: NoteModel.search!.searchStringQuery() },
-                { organization: OrganizationModel.search!.searchStringQuery() },
-                { question: QuestionModel.search!.searchStringQuery() },
-                { post: PostModel.search!.searchStringQuery() },
-                { project: ProjectModel.search!.searchStringQuery() },
-                { routine: RoutineModel.search!.searchStringQuery() },
-                { smartContract: SmartContractModel.search!.searchStringQuery() },
-                { standard: StandardModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { api: ApiModel.search.searchStringQuery() },
+                { issue: IssueModel.search.searchStringQuery() },
+                { note: NoteModel.search.searchStringQuery() },
+                { organization: OrganizationModel.search.searchStringQuery() },
+                { question: QuestionModel.search.searchStringQuery() },
+                { post: PostModel.search.searchStringQuery() },
+                { project: ProjectModel.search.searchStringQuery() },
+                { routine: RoutineModel.search.searchStringQuery() },
+                { smartContract: SmartContractModel.search.searchStringQuery() },
+                { standard: StandardModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
     },
@@ -347,21 +347,26 @@ export const ViewModel: ModelLogic<ViewModelLogic, typeof suppFields> = ({
         }
         // If user is owner, don't do anything else
         if (isOwn) return true;
-        // Check the last time the user viewed this object
-        const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
-        const client = await initializeRedis();
-        const lastViewed = await client.get(redisKey);
-        // If object viewed more than 1 hour ago, update view count
-        if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
-            // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-            const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view3");
-            await rootObjectDelegate(prisma).update({
-                where: { id: input.forId },
-                data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
-            });
-        }
-        // Update last viewed time
-        await client.set(redisKey, new Date().toISOString());
+        // Update view count
+        await withRedis({
+            process: async (redisClient) => {
+                // Check the last time the user viewed this object
+                const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
+                const lastViewed = await redisClient.get(redisKey);
+                // If object viewed more than 1 hour ago, update view count
+                if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
+                    // View counts don't exist on versioned objects, so we must make sure we are updating the root object
+                    const { delegate: rootObjectDelegate } = getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, userData.languages, "ViewModel.view3");
+                    await rootObjectDelegate(prisma).update({
+                        where: { id: input.forId },
+                        data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
+                    });
+                }
+                // Update last viewed time
+                await redisClient.set(redisKey, new Date().toISOString());
+            },
+            trace: "0513",
+        });
         return true;
     },
     deleteViews,

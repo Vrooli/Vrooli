@@ -200,6 +200,8 @@ export async function generateSessionJwt(
             hasPremium: user.hasPremium ?? false,
             languages: user.languages ?? [],
             name: user.name ?? undefined,
+            profileImage: user.profileImage ?? undefined,
+            updated_at: user.updated_at,
         }])).values()],
     };
     const token = jwt.sign(tokenContents, privateKey, { algorithm: "RS256" });
@@ -291,6 +293,8 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
                     hasPremium: user.hasPremium ?? false,
                     languages: user.languages ?? [],
                     name: user.name ?? undefined,
+                    profileImage: user.profileImage ?? undefined,
+                    updated_at: user.updated_at,
                 },
             }, ...payload.users.slice(1)] : [],
         };

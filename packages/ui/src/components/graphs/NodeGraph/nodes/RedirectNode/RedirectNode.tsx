@@ -1,5 +1,5 @@
-import { RedirectIcon } from "@local/shared";
 import { IconButton, Tooltip, Typography } from "@mui/material";
+import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import usePress from "utils/hooks/usePress";

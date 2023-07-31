@@ -1,4 +1,4 @@
-import { AddIcon, addSearchParams, ApiIcon, FindByIdInput, FindVersionInput, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, removeSearchParams, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, UserIcon, VisibleIcon } from "@local/shared";
+import { FindByIdInput, FindVersionInput } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -8,10 +8,12 @@ import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
+import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
-import { AutocompleteOption } from "types";
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
+import { AutocompleteOption, SvgComponent } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -209,12 +211,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     // Info for querying full object data
     const [{ advancedSearchSchema, endpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
-        const fetchParams = async () => {
-            const params = searchTypeToParams[createObjectType!];
-            if (!params) return;
-            setSearchParams(await params());
-        };
-        createObjectType !== null && fetchParams();
+        if (createObjectType !== null && createObjectType in searchTypeToParams) setSearchParams(searchTypeToParams[createObjectType]());
     }, [createObjectType]);
     /**
      * Before closing, remove all URL search params for advanced search
@@ -393,7 +390,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     isCreate={true}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />}
             </LargeDialog>
             {/* Menu for selecting create object type */}
@@ -437,6 +434,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
+                    zIndex={zIndex + 1000}
                 />
                 <Box sx={{
                     minHeight: "500px",
@@ -445,7 +443,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 }}>
                     {/* Create object button. Convenient for when you can't find 
                 what you're looking for */}
-                    <SideActionButtons display="dialog" zIndex={zIndex + 1}>
+                    <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
                         <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
                             <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                         </ColorIconButton>
@@ -476,7 +474,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                             return result;
                         }}
                         searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
-                        zIndex={zIndex}
+                        zIndex={zIndex + 1000}
                         where={searchData?.where ?? { ...(where ?? {}) }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}

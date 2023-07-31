@@ -1,4 +1,4 @@
-import { AddIcon, calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MonthIcon, Note, NoteIcon, NoteVersion, OpenInNewIcon, Reminder, ResourceList, useLocation, uuid } from "@local/shared";
+import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
 import { Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
@@ -10,8 +10,10 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
 import { PageTab } from "components/types";
+import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
@@ -28,9 +30,7 @@ import { SessionContext } from "utils/SessionContext";
 import { NoteUpsert } from "views/objects/note";
 import { DashboardViewProps } from "../types";
 
-/**
- * View displayed for Home page when logged in
- */
+/** View displayed for Home page when logged in */
 export const DashboardView = ({
     display = "page",
     onClose,
@@ -76,9 +76,10 @@ export const DashboardView = ({
     }, [searchString, activeFocusMode]);
     useDisplayServerError(errors);
 
-    // Only show tabs if:
-    // 1. The user is logged in 
-    // 2. The user has at least two focusModes
+    /** Only show tabs if:
+    * 1. The user is logged in 
+    * 2. The user has at least two focusModes
+    **/
     const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab]);
 
     // Converts resources to a resource list
@@ -255,7 +256,7 @@ export const DashboardView = ({
                     isCreate={true}
                     onCancel={closeCreateNote}
                     onCompleted={onNoteCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main content */}
@@ -266,12 +267,14 @@ export const DashboardView = ({
                 below={showTabs && (
                     <PageTabs
                         ariaLabel="home-tabs"
+                        id="home-tabs"
                         currTab={currTab!}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
                     />
                 )}
+                zIndex={zIndex}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: "5vh", sm: "20vh" } }}>
@@ -293,6 +296,7 @@ export const DashboardView = ({
             <Stack spacing={10} direction="column" mt={10}>
                 {/* Resources */}
                 <ResourceListHorizontal
+                    id="main-resource-list"
                     list={resourceList}
                     canUpdate={true}
                     handleUpdate={setResourceList}
@@ -303,6 +307,7 @@ export const DashboardView = ({
                 {/* Events */}
                 <ListTitleContainer
                     Icon={MonthIcon}
+                    id="main-event-list"
                     isEmpty={upcomingEvents.length === 0}
                     title={t("Schedule")}
                     options={[{
@@ -310,12 +315,14 @@ export const DashboardView = ({
                         label: t("Open"),
                         onClick: openSchedule,
                     }]}
+                    zIndex={zIndex}
                 >
                     {upcomingEvents}
                 </ListTitleContainer>
                 {/* Reminders */}
                 <ReminderList
                     handleUpdate={handleReminderUpdate}
+                    id="main-reminder-list"
                     loading={loading}
                     listId={reminderListId}
                     reminders={reminders}
@@ -324,6 +331,7 @@ export const DashboardView = ({
                 {/* Notes */}
                 <ListTitleContainer
                     Icon={NoteIcon}
+                    id="main-note-list"
                     isEmpty={noteItems.length === 0}
                     title={t("Note", { count: 2 })}
                     options={[{
@@ -335,6 +343,7 @@ export const DashboardView = ({
                         label: t("Create"),
                         onClick: openCreateNote,
                     }]}
+                    zIndex={zIndex}
                 >
                     {noteItems}
                 </ListTitleContainer>

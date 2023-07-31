@@ -4,6 +4,7 @@ export const member_findMany = {
     "node": {
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
         "created_at": true,
         "updated_at": true,
@@ -11,6 +12,7 @@ export const member_findMany = {
         "isPrivate": true,
         "commentsCount": true,
         "membersCount": true,
+        "profileImage": true,
         "reportsCount": true,
         "bookmarks": true,
         "tags": {
@@ -60,9 +62,11 @@ export const member_findMany = {
         },
         "id": true,
         "created_at": true,
+        "bannerImage": true,
         "handle": true,
         "isBot": true,
         "name": true,
+        "profileImage": true,
         "bookmarks": true,
         "reportsReceivedCount": true,
         "you": {
@@ -87,7 +91,9 @@ export const member_findMany = {
         "membersCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,

@@ -6,6 +6,7 @@ import { AsyncConfetti } from "components/AsyncConfetti/AsyncConfett";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
+import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
@@ -23,6 +24,7 @@ import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { CI_MODE } from "./i18n";
 
 /**
  * Adds font size to theme
@@ -51,8 +53,8 @@ const findThemeWithoutSession = (): Theme => {
     // Get isLeftHanded from cookie
     const isLefthanded = getCookieIsLeftHanded(false);
     // Get theme. First check cookie, then window
-    const windowPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = getCookieTheme(windowPrefersDark ? "dark" : "light");
+    const windowPrefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    const theme = getCookieTheme(windowPrefersLight ? "light" : "dark");
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 };
@@ -60,7 +62,6 @@ const findThemeWithoutSession = (): Theme => {
 const useStyles = makeStyles(() => ({
     "@global": {
         body: {
-            backgroundColor: "black",
             overflowX: "hidden",
             overflowY: "auto",
             "&::-webkit-scrollbar": {
@@ -119,7 +120,8 @@ export function App() {
 
     // Applies language change
     useEffect(() => {
-        i18next.changeLanguage(language);
+        // Ignore if cimode (for testing) is enabled
+        if (!CI_MODE) i18next.changeLanguage(language);
     }, [language]);
     useEffect(() => {
         if (!session) return;
@@ -156,7 +158,7 @@ export function App() {
      * Sets up google adsense
      */
     useEffect(() => {
-        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+        ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
     }, []);
 
     // If anchor tag in url, scroll to element
@@ -182,35 +184,29 @@ export function App() {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
-        console.info(`
-               @@@                 @@@                  
-            @@     @@           @@     @@               
-           @@       @@         @@       @@              
-            @@     @@           @@     @@               
-               @@@   @@        @   @@@                  
-                        @   @@                   @@@      
-                         @@                   @@     @@
-                         @@             @@@@@@@       @@
-            @@           @@          @@       @@     @@
-    @@@  @@    @@    @@@    @@@   @@             @@@ 
- @@     @@         @@          @@                     
-@@       @@       @@            @@                                  
- @@     @@        @             @@@@@@@@@@                Consider developing with us!  
-    @@@           @@            @@        @@@@@           https://github.com/Vrooli/Vrooli
-                   @@          @@                @      
-                     @@@    @@@                  @      
-                         @@                     @@@   
-       @@@              @@@@                 @@     @@  
-    @@     @@@@@@@@@@@@      @@             @@       @@ 
-   @@       @@      @@        @@             @@     @@ 
-    @@     @@        @@      @@                 @@@           
-       @@@              @@@@                             
-                         @@ 
-                       @@@@@@                        
-                     @@      @@                        
-                     @@      @@                        
-                       @@@@@@  
-        `);
+        console.info(`                                               
+                               !G!              
+                               #@@!   :?J.      
+                              .&@@#.:5@@&.      
+                               B@@@?#@@@?       
+                               J@@@Y#@@Y        
+                               .B@@JB#!         
+                                J@@GGPJ?7^.     
+                             .J#@@@@@@@@###Y:   
+ :!!:                       ~G@@@@@@@@@  ^&@&~  
+?@@@&?#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@##@@@5  
+!#@@#?&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#~  
+ .^^ :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&BJ:   
+     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@GY?~:      
+     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&#GY^      
+     :@@@@@&#####################&&&@@@@@@^     
+     :@@@@@J                       :^!YBBY.     
+      5&@@#^                                    
+       :^^.                                     
+                                                
+         Consider developing with us!                                         
+       https://github.com/Vrooli/Vrooli                            
+`);
     }, []);
 
     useEffect(() => {
@@ -344,7 +340,7 @@ export function App() {
         });
         // Handle theme updates
         const themeSub = PubSub.get().subscribeTheme((data) => {
-            const newTheme = themes[data] ?? themes.light;
+            const newTheme = themes[data] ?? themes.dark;
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates
@@ -398,7 +394,7 @@ export function App() {
         });
         // Handle tutorial popup
         const tutorialSub = PubSub.get().subscribeTutorial(() => {
-            setIsTutorialOpen(true); //TODO
+            setIsTutorialOpen(true);
         });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
@@ -466,6 +462,7 @@ export function App() {
                         {isCelebrating && <AsyncConfetti />}
                         <AlertDialog />
                         <SnackStack />
+                        <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
                         <Box id="content-wrap" sx={{
                             background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
                             minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },

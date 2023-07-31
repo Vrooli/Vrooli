@@ -4,7 +4,7 @@ import { defaultPermissions } from "../../utils";
 import { ScheduleExceptionFormat } from "../format/scheduleException";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
-import { ScheduleExceptionModelLogic } from "./types";
+import { ScheduleExceptionModelLogic, ScheduleModelLogic } from "./types";
 
 const __typename = "ScheduleException" as const;
 const suppFields = [] as const;
@@ -14,7 +14,7 @@ export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typ
     display: {
         label: {
             select: () => ({ id: true, schedule: { select: ScheduleModel.display.label.select() } }),
-            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as any, languages),
+            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as ScheduleModelLogic["PrismaModel"], languages),
         },
     },
     format: ScheduleExceptionFormat,
@@ -39,14 +39,15 @@ export const ScheduleExceptionModel: ModelLogic<ScheduleExceptionModelLogic, typ
         },
         yup: scheduleExceptionValidation,
     },
+    search: {} as any,
     validate: {
         isTransferable: false,
         maxObjects: 100000,
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as any, userId),
-        isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as any, languages),
-        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as any, languages),
+        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as ScheduleModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
         visibility: {
             private: { schedule: ScheduleModel.validate.visibility.private },
             public: { schedule: ScheduleModel.validate.visibility.public },

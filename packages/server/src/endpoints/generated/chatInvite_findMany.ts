@@ -12,7 +12,9 @@ export const chatInvite_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -33,9 +35,11 @@ export const chatInvite_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "you": {
@@ -55,7 +59,9 @@ export const chatInvite_findMany = {
         "openToAnyoneWithInvite": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -90,7 +96,9 @@ export const chatInvite_findMany = {
               "membersCount": true,
               "organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -124,7 +132,9 @@ export const chatInvite_findMany = {
           "membersCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -152,9 +162,11 @@ export const chatInvite_findMany = {
         "participants": {
           "user": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "id": true,
           "created_at": true,
@@ -175,9 +187,11 @@ export const chatInvite_findMany = {
       "status": true,
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "you": {
         "canDelete": true,

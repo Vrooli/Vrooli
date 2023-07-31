@@ -1,10 +1,12 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { AddIcon, Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
+import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
@@ -19,6 +21,7 @@ export const ResourceListVertical = ({
     loading,
     zIndex,
 }: ResourceListVerticalProps) => {
+    const { t } = useTranslation();
 
     const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
@@ -156,7 +159,7 @@ export const ResourceListVertical = ({
                     fullWidth onClick={openDialog}
                     startIcon={<AddIcon />}
                     variant="outlined"
-                >Add Resource</Button>
+                >{t("CreateResource")}</Button>
             </Box>}
         </>
     );

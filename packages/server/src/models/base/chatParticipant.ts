@@ -3,7 +3,7 @@ import { defaultPermissions } from "../../utils";
 import { ChatParticipantFormat } from "../format/chatParticipant";
 import { ModelLogic } from "../types";
 import { ChatModel } from "./chat";
-import { ChatParticipantModelLogic } from "./types";
+import { ChatModelLogic, ChatParticipantModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "ChatParticipant" as const;
@@ -15,7 +15,7 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         // Label is the user's label
         label: {
             select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
         },
     },
     format: ChatParticipantFormat,
@@ -36,8 +36,8 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         sortBy: ChatParticipantSortBy,
         searchStringQuery: () => ({
             OR: [
-                { chat: ChatModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { chat: ChatModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
     },
@@ -47,8 +47,8 @@ export const ChatParticipantModel: ModelLogic<ChatParticipantModelLogic, typeof 
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data.chat as any).organization,
-            User: (data.chat as any).user,
+            Organization: (data.chat as ChatModelLogic["PrismaModel"]).organization,
+            User: (data.chat as ChatModelLogic["PrismaModel"]).creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

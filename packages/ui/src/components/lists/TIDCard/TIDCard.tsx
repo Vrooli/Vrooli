@@ -9,6 +9,7 @@ export const TIDCard = ({
     description,
     key,
     Icon,
+    id,
     onClick,
     title,
 }: TIDCardProps) => {
@@ -17,6 +18,7 @@ export const TIDCard = ({
     return (
         <Box
             key={key}
+            id={id}
             onClick={onClick}
             sx={{
                 width: "100%",
@@ -52,10 +54,10 @@ export const TIDCard = ({
                 justifyContent: "space-between",
             }}>
                 <Box>
-                    <Typography variant='h6' component='div'>
+                    <Typography variant='h6' component='div' sx={{ overflowWrap: "anywhere" }}>
                         {title}
                     </Typography>
-                    <Typography variant='body2' color={palette.background.textSecondary}>
+                    <Typography variant='body2' color={palette.background.textSecondary} sx={{ overflowWrap: "anywhere" }}>
                         {description}
                     </Typography>
                 </Box>
@@ -70,6 +72,6 @@ export const TIDCard = ({
                     variant="text"
                 >{buttonText}</Button>
             </Box>
-        </Box>
+        </Box >
     );
 };

@@ -170,11 +170,6 @@ export const shortcuts: PreSearchItem[] = [
     //     label: 'Search your completed projects and routines advanced',
     //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
     // },
-    // {
-    //     label: "Tutorial", //TODO bring back when interactive popup tutorial is ready
-    //     keywords: viewKeywords,
-    //     value: `${LINKS.Tutorial}`,
-    // },
 ];
 
 /**
@@ -196,6 +191,11 @@ export const actions: ActionItem[] = [
         label: "Activate light mode",
         id: "activate-light-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "light",
+    },
+    {
+        label: "Tutorial",
+        id: "tutorial",
+        canPerform: (session: Session) => session.isLoggedIn,
     },
 ];
 
@@ -243,6 +243,13 @@ export const performAction = async (option: ActionOption, session: Session | nul
             }
             // Otherwise, just publish theme change.
             else PubSub.get().publishTheme("light");
+            break;
+        case "tutorial":
+            if (session?.isLoggedIn) {
+                PubSub.get().publishTutorial();
+            } else {
+                PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
+            }
             break;
     }
 };

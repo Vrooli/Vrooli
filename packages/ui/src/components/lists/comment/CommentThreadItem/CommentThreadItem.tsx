@@ -1,4 +1,4 @@
-import { BookmarkFor, Comment, CommentFor, DeleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, ReactionFor, ReplyIcon, ReportFor, Success } from "@local/shared";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, endpointPostDeleteOne, ReactionFor, ReportFor, Success } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -8,6 +8,7 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
+import { DeleteIcon, ReplyIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";

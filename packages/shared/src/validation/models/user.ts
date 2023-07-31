@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { bio, blankToUndefined, bool, email, handle, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from "../utils";
+import { bio, blankToUndefined, bool, email, handle, imageFile, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from "../utils";
 import { emailValidation } from "./email";
 import { focusModeValidation } from "./focusMode";
 
@@ -22,11 +22,11 @@ export const userTranslationValidation: YupModel = transRel({
 });
 
 export const userValidation: YupModel<false, true> = {
-    // Can't create a user directly - must use sign up form(s)
+    // Can't create a non-bot user directly - must use sign up form(s)
     update: ({ o }) => yupObj({
+        bannerImage: opt(imageFile),
         handle: opt(handle),
         name: opt(name),
-        theme: opt(theme),
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
@@ -46,6 +46,8 @@ export const userValidation: YupModel<false, true> = {
         isPrivateStandardsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
+        profileImage: opt(imageFile),
+        theme: opt(theme),
     }, [
         ["focusModes", ["Create", "Update", "Delete"], "many", "opt", focusModeValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", userTranslationValidation],

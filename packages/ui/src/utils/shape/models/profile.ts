@@ -11,7 +11,9 @@ export type ProfileTranslationShape = Pick<UserTranslation, "id" | "language" | 
 export type ProfileShape = Partial<Pick<User, "handle" | "isPrivate" | "isPrivateApis" | "isPrivateApisCreated" | "isPrivateMemberships" | "isPrivateOrganizationsCreated" | "isPrivateProjects" | "isPrivateProjectsCreated" | "isPrivatePullRequests" | "isPrivateQuestionsAnswered" | "isPrivateQuestionsAsked" | "isPrivateQuizzesCreated" | "isPrivateRoles" | "isPrivateRoutines" | "isPrivateRoutinesCreated" | "isPrivateStandards" | "isPrivateStandardsCreated" | "isPrivateBookmarks" | "isPrivateVotes" | "name" | "theme">> & {
     __typename?: "User",
     id: string;
+    bannerImage?: string | File | null;
     focusModes?: FocusModeShape[] | null;
+    profileImage?: string | File | null;
     translations?: ProfileTranslationShape[] | null;
 }
 
@@ -22,7 +24,9 @@ export const shapeProfileTranslation: ShapeModel<ProfileTranslationShape, UserTr
 
 export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = {
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, null, "handle",
+        ...updatePrims(o, u, null,
+            "bannerImage",
+            "handle",
             "isPrivate",
             "isPrivateApis",
             "isPrivateApisCreated",
@@ -42,6 +46,7 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             "isPrivateBookmarks",
             "isPrivateVotes",
             "name",
+            "profileImage",
             "theme",
         ),
         ...updateRel(o, u, "focusModes", ["Create", "Update", "Delete"], "many", shapeFocusMode),

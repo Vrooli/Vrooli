@@ -132,26 +132,20 @@ spec:
         io.kompose.service: db
     spec:
       containers:
-        - env:
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: DB_PASSWORD
+        - args:
+            - /bin/sh
+            - -c
+            - /srv/app/scripts/getSecrets.sh production DB_PASSWORD && export POSTGRES_PASSWORD=$(DB_PASSWORD) && exec docker-entrypoint.sh postgres
+          env:
             - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: DB_USER
+              value: site
             - name: PROJECT_DIR
               value: /srv/app
           image: ankane/pgvector:v0.4.1
           livenessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - $(DB_USER)
+                - pg_isready -U site && psql -U site -d postgres -c 'SELECT 1'
             failureThreshold: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -164,6 +158,10 @@ spec:
               name: db-claim0
             - mountPath: /docker-entrypoint-initdb.d
               name: db-claim1
+            - mountPath: /srv/app/scripts
+              name: db-claim2
+            - mountPath: /run/secrets/vrooli/prod
+              name: db-claim3
       restartPolicy: Always
       volumes:
         - name: db-claim0
@@ -172,6 +170,12 @@ spec:
         - name: db-claim1
           persistentVolumeClaim:
             claimName: db-claim1
+        - name: db-claim2
+          persistentVolumeClaim:
+            claimName: db-claim2
+        - name: db-claim3
+          persistentVolumeClaim:
+            claimName: db-claim3
 status: {}
 
 ---
@@ -198,6 +202,38 @@ metadata:
   labels:
     io.kompose.service: db-claim1
   name: db-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim2
+  name: db-claim2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: db-claim3
+  name: db-claim3
 spec:
   accessModes:
     - ReadWriteOnce
@@ -352,7 +388,7 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/
+            - /srv/app/scripts/redis.sh
           image: redis:7-alpine
           livenessProbe:
             exec:
@@ -369,11 +405,16 @@ spec:
           volumeMounts:
             - mountPath: /srv/app/data/redis
               name: redis-claim0
+            - mountPath: /srv/app/scripts
+              name: redis-claim1
       restartPolicy: Always
       volumes:
         - name: redis-claim0
           persistentVolumeClaim:
             claimName: redis-claim0
+        - name: redis-claim1
+          persistentVolumeClaim:
+            claimName: redis-claim1
 status: {}
 
 ---
@@ -384,6 +425,22 @@ metadata:
   labels:
     io.kompose.service: redis-claim0
   name: redis-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: redis-claim1
+  name: redis-claim1
 spec:
   accessModes:
     - ReadWriteOnce
@@ -425,44 +482,14 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/server.sh
+            - /srv/app/scripts/server.sh
           env:
-            - name: ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: ADMIN_PASSWORD
-            - name: ADMIN_WALLET
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: ADMIN_WALLET
-            - name: BLOCKFROST_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: BLOCKFROST_API_KEY
             - name: CREATE_MOCK_DATA
               value: "false"
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: DB_PASSWORD
             - name: DB_PULL
               value: "false"
-            - name: DB_URL
-              value: postgresql://$(DB_USER):$(DB_PASSWORD)@db:5432
             - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: DB_USER
-            - name: HUGGINGFACE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: HUGGINGFACE_API_KEY
+              value: site
             - name: LETSENCRYPT_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -494,11 +521,6 @@ spec:
                 secretKeyRef:
                   name: vrooli-secrets
                   key: SITE_EMAIL_FROM
-            - name: SITE_EMAIL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: SITE_EMAIL_PASSWORD
             - name: SITE_EMAIL_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -509,31 +531,6 @@ spec:
                 secretKeyRef:
                   name: vrooli-secrets
                   key: SITE_IP
-            - name: STRIPE_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: STRIPE_SECRET_KEY
-            - name: STRIPE_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: STRIPE_WEBHOOK_SECRET
-            - name: VALYXA_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: VALYXA_API_KEY
-            - name: VALYXA_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: VALYXA_PASSWORD
-            - name: VAPID_PRIVATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: vrooli-secrets
-                  key: VAPID_PRIVATE_KEY
             - name: VAPID_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
@@ -553,6 +550,14 @@ spec:
             - name: VITE_SERVER_LOCATION
               value: dns
           image: server:prod
+          livenessProbe:
+            exec:
+              command:
+                - 'node -e "require(''http'').request({hostname: ''localhost'', port: process.env.PORT_SERVER || 5329, path: ''/healthcheck''}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on(''error'', err => { process.exit(1) }).end()"'
+            failureThreshold: 10
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
           name: server
           ports:
             - containerPort: 5329
@@ -566,6 +571,8 @@ spec:
               name: server-claim2
             - mountPath: /srv/app/packages/ui/dist
               name: server-claim3
+            - mountPath: /run/secrets/vrooli/prod
+              name: server-claim4
       restartPolicy: Always
       volumes:
         - name: server-claim0
@@ -580,6 +587,9 @@ spec:
         - name: server-claim3
           persistentVolumeClaim:
             claimName: server-claim3
+        - name: server-claim4
+          persistentVolumeClaim:
+            claimName: server-claim4
 status: {}
 
 ---
@@ -647,6 +657,22 @@ spec:
 status: {}
 
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server-claim4
+  name: server-claim4
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -679,7 +705,7 @@ spec:
         - args:
             - /bin/sh
             - -c
-            - chmod +x /srv/app/scripts/* && /srv/app/scripts/ui.sh
+            - /srv/app/scripts/ui.sh
           env:
             - name: LETSENCRYPT_EMAIL
               valueFrom:

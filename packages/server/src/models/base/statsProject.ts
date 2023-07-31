@@ -1,12 +1,11 @@
 import { StatsProjectSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsProjectFormat } from "../format/statsProject";
 import { ModelLogic } from "../types";
 import { ProjectModel } from "./project";
-import { StatsProjectModelLogic } from "./types";
+import { ProjectModelLogic, StatsProjectModelLogic } from "./types";
 
 const __typename = "StatsProject" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
     delegate: (prisma) => prisma.stats_project,
     display: {
         label: {
-            select: () => ({ id: true, project: selPad(ProjectModel.display.label.select) }),
+            select: () => ({ id: true, project: { select: ProjectModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ProjectModel.display.label.get(select.project as any, languages),
+                objectName: ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ project: ProjectModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ project: ProjectModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsProjectModel: ModelLogic<StatsProjectModelLogic, typeof suppFi
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ProjectModel.validate.owner(data.project as any, userId),
+        owner: (data, userId) => ProjectModel.validate.owner(data.project as ProjectModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_projectSelect>(data, [
             ["project", "Project"],

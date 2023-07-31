@@ -1,11 +1,58 @@
-import { CommonKey, SortIcon } from "@local/shared";
-import { Box, Tooltip, Typography, useTheme } from "@mui/material";
-import { SortMenu } from "components/lists/SortMenu/SortMenu";
+import { CommonKey } from "@local/shared";
+import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
+import i18next from "i18next";
+import { SortIcon } from "icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { labelledSortOptions } from "utils/display/sorting";
 import { searchButtonStyle } from "../styles";
 import { SortButtonProps } from "../types";
+
+export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
+
+const SortMenu = ({
+    sortOptions,
+    anchorEl,
+    onClose,
+}: {
+    sortOptions: LabelledSortOption<string>[];
+    anchorEl: HTMLElement | null;
+    onClose: (label?: string, value?: string) => void;
+}) => {
+    const { t } = useTranslation();
+    const open = Boolean(anchorEl);
+
+    const menuItems = useMemo(() => {
+        const menuItems: JSX.Element[] = [];
+        sortOptions.forEach(option => {
+            const optionLabel = t(`${option.value}` as CommonKey);
+            if (optionLabel) {
+                menuItems.push(
+                    <MenuItem
+                        key={option.value}
+                        value={option.value}
+                        onClick={() => onClose(optionLabel, option.value)}
+                    >
+                        {optionLabel}
+                    </MenuItem>,
+                );
+            }
+        });
+        return menuItems;
+    }, [sortOptions, t, onClose]);
+
+    return (
+        <Menu
+            id="sort-results-menu"
+            disableScrollLock={true}
+            anchorEl={anchorEl}
+            open={open}
+            onClose={() => onClose()}
+            MenuListProps={{ "aria-labelledby": "sort-results-menu-list" }}
+        >
+            {menuItems}
+        </Menu>
+    );
+};
 
 export const SortButton = ({
     options,
@@ -17,20 +64,22 @@ export const SortButton = ({
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
 
-    const handleSortOpen = (event: any) => setSortAnchorEl(event.currentTarget);
-    const handleSortClose = (label?: string, selected?: string) => {
+    const handleSortOpen = (event: { currentTarget: HTMLElement }) => setSortAnchorEl(event.currentTarget);
+    const handleSortClose = (_label?: string, selected?: string) => {
         setSortAnchorEl(null);
         if (selected) setSortBy(selected);
     };
 
-    /**
-     * Wrap options with labels
-     */
-    const sortOptionsLabelled = useMemo(() => labelledSortOptions(options), [options]);
+    /** Wrap options with labels */
+    const sortOptionsLabelled = useMemo<LabelledSortOption<string>[]>(() => {
+        if (!options) return [];
+        return Object.keys(options).map((key) => ({
+            label: (i18next.t(key as CommonKey, key)) as unknown as string,
+            value: key,
+        }));
+    }, [options]);
 
-    /**
-     * Find sort by label when sortBy changes
-     */
+    /** Find sort by label when sortBy changes */
     const sortByLabel = useMemo(() => t(sortBy as CommonKey, sortBy), [sortBy, t]);
 
     return (
@@ -40,7 +89,7 @@ export const SortButton = ({
                 anchorEl={sortAnchorEl}
                 onClose={handleSortClose}
             />
-            <Tooltip title={t(`SortBy`)} placement="top">
+            <Tooltip title={t("SortBy")} placement="top">
                 <Box
                     onClick={handleSortOpen}
                     sx={searchButtonStyle(palette)}
@@ -50,5 +99,5 @@ export const SortButton = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

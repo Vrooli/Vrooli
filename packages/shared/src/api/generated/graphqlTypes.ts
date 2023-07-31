@@ -553,6 +553,28 @@ export type BookmarkUpdateInput = {
   listUpdate?: InputMaybe<BookmarkListUpdateInput>;
 };
 
+export type BotCreateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
+  botSettings: Scalars['String'];
+  id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  name: Scalars['String'];
+  profileImage?: InputMaybe<Scalars['Upload']>;
+  translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
+};
+
+export type BotUpdateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
+  botSettings?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  name?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
+  translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
+};
+
 export type Chat = {
   __typename: 'Chat';
   created_at: Scalars['Date'];
@@ -1098,6 +1120,7 @@ export enum DeleteType {
   Standard = 'Standard',
   StandardVersion = 'StandardVersion',
   Transfer = 'Transfer',
+  User = 'User',
   Wallet = 'Wallet'
 }
 
@@ -2008,6 +2031,7 @@ export type MemberUpdateInput = {
 
 export type Mutation = {
   __typename: 'Mutation';
+  _empty?: Maybe<Scalars['String']>;
   apiCreate: Api;
   apiKeyCreate: ApiKey;
   apiKeyDeleteOne: Success;
@@ -2020,6 +2044,8 @@ export type Mutation = {
   bookmarkListCreate: BookmarkList;
   bookmarkListUpdate: BookmarkList;
   bookmarkUpdate: Bookmark;
+  botCreate: User;
+  botUpdate: User;
   chatCreate: Chat;
   chatInviteAccept: ChatInvite;
   chatInviteCreate: ChatInvite;
@@ -2154,12 +2180,11 @@ export type Mutation = {
   transferRequestReceive: Transfer;
   transferRequestSend: Transfer;
   transferUpdate: Transfer;
-  userDeleteOne: Success;
+  userDeleteOne: Session;
   validateSession: Session;
   walletComplete: WalletComplete;
   walletInit: Scalars['String'];
   walletUpdate: Wallet;
-  writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -2220,6 +2245,16 @@ export type MutationBookmarkListUpdateArgs = {
 
 export type MutationBookmarkUpdateArgs = {
   input: BookmarkUpdateInput;
+};
+
+
+export type MutationBotCreateArgs = {
+  input: BotCreateInput;
+};
+
+
+export type MutationBotUpdateArgs = {
+  input: BotUpdateInput;
 };
 
 
@@ -2885,11 +2920,6 @@ export type MutationWalletInitArgs = {
 
 export type MutationWalletUpdateArgs = {
   input: WalletUpdateInput;
-};
-
-
-export type MutationWriteAssetsArgs = {
-  input: WriteAssetsInput;
 };
 
 export type Node = {
@@ -3606,6 +3636,7 @@ export type Organization = {
   __typename: 'Organization';
   apis: Array<Api>;
   apisCount: Scalars['Int'];
+  bannerImage?: Maybe<Scalars['String']>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
   comments: Array<Comment>;
@@ -3633,6 +3664,7 @@ export type Organization = {
   posts: Array<Post>;
   postsCount: Scalars['Int'];
   premium?: Maybe<Premium>;
+  profileImage?: Maybe<Scalars['String']>;
   projects: Array<Project>;
   projectsCount: Scalars['Int'];
   questions: Array<Question>;
@@ -3662,12 +3694,14 @@ export type Organization = {
 };
 
 export type OrganizationCreateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   permissions?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -3742,6 +3776,7 @@ export type OrganizationTranslationUpdateInput = {
 };
 
 export type OrganizationUpdateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
@@ -3750,6 +3785,7 @@ export type OrganizationUpdateInput = {
   memberInvitesDelete?: InputMaybe<Array<Scalars['ID']>>;
   membersDelete?: InputMaybe<Array<Scalars['ID']>>;
   permissions?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
@@ -4038,6 +4074,7 @@ export type ProfileEmailUpdateInput = {
 };
 
 export type ProfileUpdateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
   focusModesCreate?: InputMaybe<Array<FocusModeCreateInput>>;
   focusModesDelete?: InputMaybe<Array<Scalars['ID']>>;
   focusModesUpdate?: InputMaybe<Array<FocusModeUpdateInput>>;
@@ -4064,6 +4101,7 @@ export type ProfileUpdateInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   name?: InputMaybe<Scalars['String']>;
   notificationSettings?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
   theme?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -4824,6 +4862,7 @@ export type PushDeviceUpdateInput = {
 
 export type Query = {
   __typename: 'Query';
+  _empty?: Maybe<Scalars['String']>;
   api?: Maybe<Api>;
   apiVersion?: Maybe<ApiVersion>;
   apiVersions: ApiVersionSearchResult;
@@ -4900,7 +4939,6 @@ export type Query = {
   quizQuestions: QuizQuestionSearchResult;
   quizzes: QuizSearchResult;
   reactions: ReactionSearchResult;
-  readAssets: Array<Maybe<Scalars['String']>>;
   reminder?: Maybe<Reminder>;
   reminders: ReminderSearchResult;
   report?: Maybe<Report>;
@@ -5321,11 +5359,6 @@ export type QueryQuizzesArgs = {
 
 export type QueryReactionsArgs = {
   input: ReactionSearchInput;
-};
-
-
-export type QueryReadAssetsArgs = {
-  input: ReadAssetsInput;
 };
 
 
@@ -8118,12 +8151,14 @@ export type SessionUser = {
   membershipsCount: Scalars['Int'];
   name?: Maybe<Scalars['String']>;
   notesCount: Scalars['Int'];
+  profileImage?: Maybe<Scalars['String']>;
   projectsCount: Scalars['Int'];
   questionsAskedCount: Scalars['Int'];
   routinesCount: Scalars['Int'];
   smartContractsCount: Scalars['Int'];
   standardsCount: Scalars['Int'];
   theme?: Maybe<Scalars['String']>;
+  updated_at: Scalars['Date'];
 };
 
 export type SetActiveFocusModeInput = {
@@ -9388,6 +9423,7 @@ export type User = {
   apisCount: Scalars['Int'];
   apisCreated?: Maybe<Array<Api>>;
   awards?: Maybe<Array<Award>>;
+  bannerImage?: Maybe<Scalars['String']>;
   bookmarked?: Maybe<Array<Bookmark>>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
@@ -9438,6 +9474,7 @@ export type User = {
   organizationsCreate?: Maybe<Array<Organization>>;
   paymentHistory?: Maybe<Array<Payment>>;
   premium?: Maybe<Premium>;
+  profileImage?: Maybe<Scalars['String']>;
   projects?: Maybe<Array<Project>>;
   projectsCount: Scalars['Int'];
   projectsCreated?: Maybe<Array<Project>>;
@@ -9767,6 +9804,8 @@ export type ResolversTypes = {
   BookmarkTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
+  BotCreateInput: BotCreateInput;
+  BotUpdateInput: BotUpdateInput;
   Chat: ResolverTypeWrapper<Chat>;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ResolverTypeWrapper<ChatEdge>;
@@ -10519,6 +10558,8 @@ export type ResolversParentTypes = {
   BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: Scalars['Boolean'];
+  BotCreateInput: BotCreateInput;
+  BotUpdateInput: BotUpdateInput;
   Chat: Chat;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ChatEdge;
@@ -11856,6 +11897,7 @@ export type MemberSearchResultResolvers<ContextType = any, ParentType extends Re
 };
 
 export type MutationResolvers<ContextType = any, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
+  _empty?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   apiCreate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationApiCreateArgs, 'input'>>;
   apiKeyCreate?: Resolver<ResolversTypes['ApiKey'], ParentType, ContextType, RequireFields<MutationApiKeyCreateArgs, 'input'>>;
   apiKeyDeleteOne?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationApiKeyDeleteOneArgs, 'input'>>;
@@ -11868,6 +11910,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   bookmarkListCreate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListCreateArgs, 'input'>>;
   bookmarkListUpdate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListUpdateArgs, 'input'>>;
   bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
+  botCreate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotCreateArgs, 'input'>>;
+  botUpdate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotUpdateArgs, 'input'>>;
   chatCreate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatCreateArgs, 'input'>>;
   chatInviteAccept?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteAcceptArgs, 'input'>>;
   chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;
@@ -12002,12 +12046,11 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   transferRequestReceive?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferRequestReceiveArgs, 'input'>>;
   transferRequestSend?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferRequestSendArgs, 'input'>>;
   transferUpdate?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferUpdateArgs, 'input'>>;
-  userDeleteOne?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
+  userDeleteOne?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
   validateSession?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationValidateSessionArgs, 'input'>>;
   walletComplete?: Resolver<ResolversTypes['WalletComplete'], ParentType, ContextType, RequireFields<MutationWalletCompleteArgs, 'input'>>;
   walletInit?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationWalletInitArgs, 'input'>>;
   walletUpdate?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType, RequireFields<MutationWalletUpdateArgs, 'input'>>;
-  writeAssets?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<MutationWriteAssetsArgs, 'input'>>;
 };
 
 export type NodeResolvers<ContextType = any, ParentType extends ResolversParentTypes['Node'] = ResolversParentTypes['Node']> = {
@@ -12289,6 +12332,7 @@ export type NotificationSubscriptionSearchResultResolvers<ContextType = any, Par
 export type OrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['Organization'] = ResolversParentTypes['Organization']> = {
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  bannerImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
@@ -12316,6 +12360,7 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
   postsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
+  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
@@ -12777,6 +12822,7 @@ export type PushDeviceResolvers<ContextType = any, ParentType extends ResolversP
 };
 
 export type QueryResolvers<ContextType = any, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
+  _empty?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   api?: Resolver<Maybe<ResolversTypes['Api']>, ParentType, ContextType, RequireFields<QueryApiArgs, 'input'>>;
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType, RequireFields<QueryApiVersionArgs, 'input'>>;
   apiVersions?: Resolver<ResolversTypes['ApiVersionSearchResult'], ParentType, ContextType, RequireFields<QueryApiVersionsArgs, 'input'>>;
@@ -12853,7 +12899,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   quizQuestions?: Resolver<ResolversTypes['QuizQuestionSearchResult'], ParentType, ContextType, RequireFields<QueryQuizQuestionsArgs, 'input'>>;
   quizzes?: Resolver<ResolversTypes['QuizSearchResult'], ParentType, ContextType, RequireFields<QueryQuizzesArgs, 'input'>>;
   reactions?: Resolver<ResolversTypes['ReactionSearchResult'], ParentType, ContextType, RequireFields<QueryReactionsArgs, 'input'>>;
-  readAssets?: Resolver<Array<Maybe<ResolversTypes['String']>>, ParentType, ContextType, RequireFields<QueryReadAssetsArgs, 'input'>>;
   reminder?: Resolver<Maybe<ResolversTypes['Reminder']>, ParentType, ContextType, RequireFields<QueryReminderArgs, 'input'>>;
   reminders?: Resolver<ResolversTypes['ReminderSearchResult'], ParentType, ContextType, RequireFields<QueryRemindersArgs, 'input'>>;
   report?: Resolver<Maybe<ResolversTypes['Report']>, ParentType, ContextType, RequireFields<QueryReportArgs, 'input'>>;
@@ -13862,12 +13907,14 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   membershipsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14479,6 +14526,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   apisCreated?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   awards?: Resolver<Maybe<Array<ResolversTypes['Award']>>, ParentType, ContextType>;
+  bannerImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -14529,6 +14577,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   organizationsCreate?: Resolver<Maybe<Array<ResolversTypes['Organization']>>, ParentType, ContextType>;
   paymentHistory?: Resolver<Maybe<Array<ResolversTypes['Payment']>>, ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
+  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   projectsCreated?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;

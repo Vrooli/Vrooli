@@ -27,8 +27,8 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             get: ({ translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    bio: trans.bio,
-                    name: trans.name,
+                    bio: trans?.bio,
+                    name: trans?.name,
                 }, languages[0]);
             },
         },
@@ -48,10 +48,12 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
+                    bannerImage: data.bannerImage,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
                     permissions: JSON.stringify({}), //TODO
+                    profileImage: data.profileImage,
                     createdBy: { connect: { id: rest.userData.id } },
                     members: {
                         create: {
@@ -68,10 +70,12 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
                 };
             },
             update: async ({ data, ...rest }) => ({
+                bannerImage: noNull(data.bannerImage),
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
                 permissions: JSON.stringify({}), //TODO
+                profileImage: noNull(data.profileImage),
                 ...(await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
                 ...(await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, isRequired: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest })),
                 ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, isRequired: false, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest })),

@@ -60,6 +60,7 @@ export const CommentDialog = ({
                 onClose={onCancel}
                 title={t(isCreate ? "AddComment" : "EditComment")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <BaseForm
                 dirty={dirty}
@@ -85,7 +86,7 @@ export const CommentDialog = ({
                             background: palette.background.paper,
                         },
                     }}
-                    zIndex={zIndex}
+                    zIndex={zIndex + 1000}
                 />
                 {/* Display parent underneath */}
                 {parent && (
@@ -104,6 +105,7 @@ export const CommentDialog = ({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex + 1000}
                 />
             </BaseForm>
         </LargeDialog>

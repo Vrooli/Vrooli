@@ -2,12 +2,13 @@ import { DUMMY_ID, orDefault, Organization, organizationTranslationValidation, o
 import { useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,7 +51,7 @@ export const validateOrganizationValues = async (values: OrganizationShape, exis
     return result;
 };
 
-export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
+export const OrganizationForm = forwardRef<BaseFormRef | undefined, OrganizationFormProps>(({
     display,
     dirty,
     isCreate,
@@ -94,8 +95,10 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         objectType={"Organization"}
                         zIndex={zIndex}
                     />
-                    <ResourceListHorizontalInput
-                        isCreate={true}
+                    <ProfilePictureInput
+                        onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        name="profileImage"
+                        profile={{ __typename: "Organization", ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection>
@@ -127,17 +130,22 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             zIndex={zIndex}
                         />
                     </FormSection>
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
                 </FormContainer>
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                zIndex={zIndex}
+            />
         </>
     );
 });

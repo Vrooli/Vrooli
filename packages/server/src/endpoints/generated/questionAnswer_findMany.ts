@@ -12,9 +12,11 @@ export const questionAnswer_findMany = {
       "updated_at": true,
       "createdBy": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "score": true,
       "bookmarks": true,

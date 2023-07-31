@@ -19,9 +19,11 @@ export const quizAttempt_findOne = {
         "updated_at": true,
         "createdBy": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "score": true,
@@ -53,9 +55,11 @@ export const quizAttempt_findOne = {
       },
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "you": {
@@ -84,9 +88,11 @@ export const quizAttempt_findOne = {
     "updated_at": true,
     "createdBy": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "score": true,
@@ -118,9 +124,11 @@ export const quizAttempt_findOne = {
   },
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

@@ -1,4 +1,4 @@
-import { CommentFor, exists, ResourceList, RoutineVersion, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, exists, ResourceList, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -16,7 +16,10 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -52,6 +55,7 @@ export const SubroutineView = ({
 }: SubroutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
@@ -224,6 +228,7 @@ export const SubroutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             <Box sx={{
                 marginLeft: "auto",
@@ -265,12 +270,24 @@ export const SubroutineView = ({
                 {/* Box with description and instructions */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                     {/* Description */}
-                    <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                    <TextCollapse
+                        title="Description"
+                        text={description}
+                        loading={loading}
+                        loadingLines={2}
+                        zIndex={zIndex}
+                    />
                     {/* Instructions */}
-                    <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                    <TextCollapse
+                        title="Instructions"
+                        text={instructions}
+                        loading={loading}
+                        loadingLines={4}
+                        zIndex={zIndex}
+                    />
                 </Stack>
                 <Box sx={containerProps(palette)}>
-                    <ContentCollapse title="Inputs">
+                    <ContentCollapse title="Inputs" zIndex={zIndex}>
                         {inputComponents}
                         <Button
                             startIcon={<SuccessIcon />}
@@ -279,7 +296,7 @@ export const SubroutineView = ({
                             color="secondary"
                             sx={{ marginTop: 2 }}
                             variant="contained"
-                        >Submit</Button>
+                        >{t("Submit")}</Button>
                     </ContentCollapse>
                 </Box>
                 {/* Action buttons */}
@@ -290,7 +307,11 @@ export const SubroutineView = ({
                     zIndex={zIndex}
                 />
                 <Box sx={containerProps(palette)}>
-                    <ContentCollapse isOpen={false} title="Additional Information">
+                    <ContentCollapse
+                        isOpen={false}
+                        title="Additional Information"
+                        zIndex={zIndex}
+                    >
                         {/* Relationships */}
                         <RelationshipList
                             isEditing={false}
@@ -311,11 +332,13 @@ export const SubroutineView = ({
                                 loading={loading}
                                 showIcon={true}
                                 timestamp={internalRoutineVersion?.created_at}
+                                zIndex={zIndex}
                             />
                             <VersionDisplay
                                 currentVersion={internalRoutineVersion}
                                 prefix={" - "}
                                 versions={internalRoutineVersion?.root?.versions}
+                                zIndex={zIndex}
                             />
                         </Stack>
                         {/* Votes, reports, and other basic stats */}

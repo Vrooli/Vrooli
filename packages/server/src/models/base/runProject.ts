@@ -81,7 +81,7 @@ export const RunProjectModel: ModelLogic<RunProjectModelLogic, typeof suppFields
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { projectVersion: ProjectVersionModel.search!.searchStringQuery() },
+                { projectVersion: ProjectVersionModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {

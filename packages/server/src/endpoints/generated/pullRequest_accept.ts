@@ -12,9 +12,11 @@ export const pullRequest_accept = {
   "status": true,
   "createdBy": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

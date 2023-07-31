@@ -6,12 +6,12 @@ import { DotNotation } from "@local/shared";
 export const setDotNotationValue = <T extends Record<string, any>>(
     object: T,
     notation: DotNotation<T>,
-    value: any
+    value: any,
 ) => {
     if (!object || !notation) return null;
-    const keys = (notation as string).split('.');
+    const keys = (notation as string).split(".");
     const lastKey = keys.pop() as string;
     const lastObj: Record<string, any> = keys.reduce((obj: Record<string, any>, key) => obj[key] = obj[key] || {}, object);
     lastObj[lastKey] = value;
     return object;
-}
+};

@@ -1,6 +1,6 @@
 import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@local/shared";
 import { BoxProps } from "@mui/material";
-import { MouseEvent } from "react";
+import { MouseEvent, ReactNode } from "react";
 import { BuildAction } from "utils/consts";
 import { NodeShape } from "utils/shape/models/node";
 
@@ -111,17 +111,11 @@ export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps
 }
 
 export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, "isLinked"> {
-    /**
-     * ID of node in this cell. Used for drag events
-     */
+    /** ID of node in this cell. Used for drag events */
     nodeId: string;
-    children: JSX.Element;
-    /**
-     * Threshold for dragging to start
-     */
+    children: ReactNode;
+    /** Threshold for dragging to start */
     dragThreshold?: number;
-    /**
-     * Callback when the node is clicked, but not dragged
-     */
+    /** Callback when the node is clicked, but not dragged */
     onClick?: (event: MouseEvent) => void;
 }

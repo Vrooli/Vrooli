@@ -1,7 +1,8 @@
-import { FocusModeStopCondition, LINKS, MaxObjects, useLocation } from "@local/shared";
+import { FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -41,6 +42,7 @@ export const FocusModeSelector = () => {
             <Formik
                 enableReinitialize={true}
                 initialValues={{ active }}
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 onSubmit={() => { }} // no-op
             >
                 <Selector

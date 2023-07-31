@@ -18,4 +18,4 @@ export const currentFocusMode = (session: Session | null | undefined): FocusMode
         const events = s.schedule ? calculateOccurrences(s.schedule, now, new Date(now.getTime() + 1000)) : [];
         return events.length > 0;
     }) ?? [];
-}
+};

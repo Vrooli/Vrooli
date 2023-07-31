@@ -4,7 +4,7 @@ import { defaultPermissions } from "../../utils";
 import { ReminderListFormat } from "../format/reminderList";
 import { ModelLogic } from "../types";
 import { FocusModeModel } from "./focusMode";
-import { ReminderListModelLogic } from "./types";
+import { FocusModeModelLogic, ReminderListModelLogic } from "./types";
 
 const __typename = "ReminderList" as const;
 const suppFields = [] as const;
@@ -15,7 +15,7 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
         label: {
             select: () => ({ id: true, focusMode: { select: FocusModeModel.display.label.select() } }),
             // Label is schedule's label
-            get: (select, languages) => FocusModeModel.display.label.get(select.focusMode as any, languages),
+            get: (select, languages) => FocusModeModel.display.label.get(select.focusMode as FocusModeModelLogic["PrismaModel"], languages),
         },
     },
     format: ReminderListFormat,
@@ -33,6 +33,7 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
         },
         yup: reminderListValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
@@ -41,7 +42,7 @@ export const ReminderListModel: ModelLogic<ReminderListModelLogic, typeof suppFi
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as any, userId),
+        owner: (data, userId) => FocusModeModel.validate.owner(data.focusMode as FocusModeModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {

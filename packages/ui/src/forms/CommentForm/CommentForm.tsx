@@ -1,7 +1,7 @@
 import { Comment, CommentFor, commentTranslationValidation, commentValidation, DUMMY_ID, orDefault, Session } from "@local/shared";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { CommentFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,7 +44,7 @@ export const validateCommentValues = async (values: CommentShape, existing?: Com
     return result;
 };
 
-export const CommentForm = forwardRef<any, CommentFormProps>(({
+export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>(({
     display,
     dirty,
     isCreate,
@@ -94,6 +94,7 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

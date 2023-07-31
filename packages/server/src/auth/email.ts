@@ -1,8 +1,9 @@
-import { Session } from "@local/shared";
+import { ErrorKey, Session } from "@local/shared";
 import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { CustomError } from "../events";
+import { UserModelLogic } from "../models/base/types";
 import { Notify } from "../notify";
 import { sendResetPasswordLink, sendVerificationLink } from "../tasks";
 import { PrismaType } from "../types";
@@ -10,9 +11,9 @@ import { toSession } from "./session";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
-const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
-const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
-const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
+const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 5;
+const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 15;
+const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Generates a URL-safe code for account confirmations and password resets
@@ -43,6 +44,13 @@ export const hashPassword = (password: string): string => {
     return bcrypt.hashSync(password, HASHING_ROUNDS);
 };
 
+const statusToError = (status: AccountStatus): ErrorKey | null => {
+    if (status === "HardLocked") return "HardLockout";
+    if (status === "SoftLocked") return "SoftLockout";
+    if (status === "Deleted") return "AccountDeleted";
+    return null;
+};
+
 /**
  * Validates a user's password, taking into account the user's account status
  * @param plaintext Plaintext password to check
@@ -50,18 +58,14 @@ export const hashPassword = (password: string): string => {
  * @param languages Preferred languages to display error messages in
  * @returns Boolean indicating if the password is valid
  */
-export const validatePassword = (plaintext: string, user: { status: AccountStatus, password?: string }, languages: string[]): boolean => {
+export const validatePassword = (plaintext: string, user: Pick<UserModelLogic["PrismaModel"], "status" | "password">, languages: string[]): boolean => {
     if (!user.password) return false;
     // A password is only valid if the user is:
     // 1. Not deleted
     // 2. Not locked out
     // If account is deleted or locked, throw error
-    if (user.status === "HardLocked")
-        throw new CustomError("0060", "HardLockout", languages);
-    if (user.status === "SoftLocked")
-        throw new CustomError("0330", "SoftLockout", languages);
-    if (user.status === "Deleted")
-        throw new CustomError("0061", "AccountDeleted", languages);
+    const accountError = statusToError(user.status);
+    if (accountError !== null) throw new CustomError("0060", accountError, languages);
     // Validate plaintext password against hash
     return bcrypt.compareSync(plaintext, user.password);
 };
@@ -76,7 +80,7 @@ export const validatePassword = (plaintext: string, user: { status: AccountStatu
  */
 export const logIn = async (
     password: string,
-    user: { id: string, lastLoginAttempt: Date, logInAttempts: number, status: AccountStatus, password: string },
+    user: Pick<UserModelLogic["PrismaModel"], "id" | "lastLoginAttempt" | "logInAttempts" | "status" | "password">,
     prisma: PrismaType,
     req: Request,
 ): Promise<Session | null> => {
@@ -90,12 +94,8 @@ export const logIn = async (
         });
     }
     // If account is deleted or locked, throw error
-    if (user.status === AccountStatus.HardLocked)
-        throw new CustomError("0060", "HardLockout", req.session.languages);
-    if (user.status === AccountStatus.SoftLocked)
-        throw new CustomError("0331", "SoftLockout", req.session.languages);
-    if (user.status === AccountStatus.Deleted)
-        throw new CustomError("0061", "AccountDeleted", req.session.languages);
+    const accountError = statusToError(user.status);
+    if (accountError !== null) throw new CustomError("0060", accountError, req.session.languages);
     // If password is valid
     if (validatePassword(password, user, req.session.languages)) {
         const userData = await prisma.user.update({
@@ -111,7 +111,7 @@ export const logIn = async (
         return await toSession(userData, prisma, req);
     }
     // If password is invalid
-    let new_status: any = AccountStatus.Unlocked;
+    let new_status: AccountStatus = AccountStatus.Unlocked;
     const log_in_attempts = user.logInAttempts++;
     if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
         new_status = AccountStatus.HardLocked;
@@ -177,7 +177,7 @@ export const setupVerificationCode = async (emailAddress: string, prisma: Prisma
  */
 export const validateVerificationCode = async (emailAddress: string, userId: string, code: string, prisma: PrismaType, languages: string[]): Promise<boolean> => {
     // Find email data
-    const email: any = await prisma.email.findUnique({
+    const email = await prisma.email.findUnique({
         where: { emailAddress },
         select: {
             id: true,

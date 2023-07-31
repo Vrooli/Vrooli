@@ -1,4 +1,4 @@
-import { ArticleIcon, DiscordIcon, GitHubIcon, LINKS, openLink, PlayIcon, SOCIALS, SvgComponent, TwitterIcon, useLocation, WHITE_PAPER_URL } from "@local/shared";
+import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@local/shared";
 import { Box, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
@@ -7,9 +7,13 @@ import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
+import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
+import { SvgComponent } from "types";
+import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -20,7 +24,6 @@ const slide3Id = "routines";
 const slide4Id = "organizations";
 const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
-const slideContentIds = [slide1Id, slide2Id, slide3Id, slide4Id, slide5Id, slide6Id];
 
 const externalLinks: [string, string, SvgComponent][] = [
     ["Read the white paper", WHITE_PAPER_URL, ArticleIcon],
@@ -35,6 +38,7 @@ const externalLinks: [string, string, SvgComponent][] = [
 export const LandingView = ({
     display = "page",
     onClose,
+    zIndex,
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -89,8 +93,11 @@ export const LandingView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
-            <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
+            <SlidePage id="landing-slides" sx={{
+                background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
+            }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
                     <SlideContent id={slide1Id} sx={{
                         minHeight: {
@@ -120,7 +127,7 @@ export const LandingView = ({
                         <PulseButton
                             variant="outlined"
                             color="secondary"
-                            onClick={() => openLink(setLocation, LINKS.Start)}
+                            onClick={() => openLink(setLocation, LINKS.Start, { form: Forms.SignUp })}
                             startIcon={<PlayIcon fill='#0fa' />}
                             sx={{
                                 marginLeft: "auto !important",
@@ -132,7 +139,7 @@ export const LandingView = ({
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
                             {externalLinks.map(([tooltip, link, Icon]) => (
                                 <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                    <SlideIconButton onClick={() => openLink(setLocation, link)}>
+                                    <SlideIconButton onClick={() => openLink(setLocation, link, { form: Forms.SignUp })}>
                                         <Icon fill='#0fa' />
                                     </SlideIconButton>
                                 </Tooltip>

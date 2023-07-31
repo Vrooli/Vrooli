@@ -1,12 +1,13 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
 import { Stack, TextField, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
+import { AddIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -112,7 +113,7 @@ export const EmailList = ({
             <Stack direction="row" sx={{
                 display: "flex",
                 justifyContent: "center",
-                paddingTop: 2,
+                paddingTop: 4,
                 paddingBottom: 6,
             }}>
                 <TextField
@@ -120,7 +121,7 @@ export const EmailList = ({
                     fullWidth
                     id="emailAddress"
                     name="emailAddress"
-                    label="New Email Address"
+                    label={t("NewEmailAddress")}
                     value={formik.values.emailAddress}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
@@ -128,7 +129,6 @@ export const EmailList = ({
                     helperText={formik.touched.emailAddress && formik.errors.emailAddress}
                     sx={{
                         height: "56px",
-                        maxWidth: "400px",
                         "& .MuiInputBase-root": {
                             borderRadius: "5px 0 0 5px",
                         },

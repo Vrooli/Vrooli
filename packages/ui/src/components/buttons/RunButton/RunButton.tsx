@@ -1,9 +1,12 @@
-import { GqlModelType, parseSearchParams, PlayIcon, ProjectVersion, RoutineVersion, RunProject, RunRoutine, setSearchParams, useLocation, uuidValidate } from "@local/shared";
+import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
+import { PlayIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { parseSearchParams, setSearchParams, useLocation } from "route";
 import { Status } from "utils/consts";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -27,6 +30,7 @@ export const RunButton = ({
     zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     // Check object status to see if it is valid and complete
@@ -85,10 +89,10 @@ export const RunButton = ({
         setErrorAnchorEl(null);
     }, []);
 
-    const runStart = useCallback((e: any) => {
+    const runStart = useCallback((event: React.MouseEvent<Element>) => {
         // If invalid, don't run
         if (status === Status.Invalid) {
-            openError(e);
+            openError(event);
             return;
         }
         // If incomplete, confirm user wants to run
@@ -96,14 +100,14 @@ export const RunButton = ({
             PubSub.get().publishAlertDialog({
                 messageKey: "RunInvalidRoutineConfirm",
                 buttons: [
-                    { labelKey: "Yes", onClick: () => { startRun(e); } },
+                    { labelKey: "Yes", onClick: () => { startRun(event); } },
                     { labelKey: "Cancel" },
                 ],
             });
         }
         // Otherwise, run
         else {
-            startRun(e);
+            startRun(event);
         }
     }, [openError, startRun, status]);
 
@@ -118,9 +122,8 @@ export const RunButton = ({
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
                 handleClose={closeError}
-            >
-                Routine cannot be run because it is invalid.
-            </PopoverWithArrow>
+                zIndex={zIndex + 1}
+            >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
             <LargeDialog
                 id="run-routine-view-dialog"
@@ -132,7 +135,7 @@ export const RunButton = ({
                 {runnableObject && <RunView
                     onClose={runStop}
                     runnableObject={runnableObject}
-                    zIndex={zIndex + 3}
+                    zIndex={zIndex + 1003}
                 />}
             </LargeDialog>
             {/* Chooses which run to use */}
@@ -143,6 +146,7 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
+                zIndex={zIndex + 2}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

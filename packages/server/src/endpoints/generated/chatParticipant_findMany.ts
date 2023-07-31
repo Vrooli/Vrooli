@@ -4,9 +4,11 @@ export const chatParticipant_findMany = {
     "node": {
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "id": true,
       "created_at": true,

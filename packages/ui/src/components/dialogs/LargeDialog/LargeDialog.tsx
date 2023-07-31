@@ -22,10 +22,10 @@ export const LargeDialog = ({
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: zIndex + 1000,
+                zIndex: zIndex + 999,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: zIndex + 1000,
+                        zIndex: zIndex + 999,
                         margin: { xs: 0, sm: 2, md: 4 },
                         minWidth: { xs: "100vw", sm: "unset" },
                         maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },

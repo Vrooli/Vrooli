@@ -6,7 +6,7 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../
 import { ApiVersionFormat } from "../format/apiVersion";
 import { ModelLogic } from "../types";
 import { ApiModel } from "./api";
-import { ApiVersionModelLogic } from "./types";
+import { ApiModelLogic, ApiVersionModelLogic } from "./types";
 
 const __typename = "ApiVersion" as const;
 const suppFields = ["you"] as const;
@@ -18,7 +18,7 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
                 // Return name if exists, or callLink host
-                const name = bestTranslation(translations, languages).name ?? "";
+                const name = bestTranslation(translations, languages)?.name ?? "";
                 if (name.length > 0) return name;
                 const url = new URL(callLink);
                 return url.host;
@@ -35,8 +35,8 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
                     callLink,
-                    name: trans.name,
-                    summary: trans.summary,
+                    name: trans?.name,
+                    summary: trans?.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
                 }, languages[0]);
             },
@@ -132,10 +132,10 @@ export const ApiVersionModel: ModelLogic<ApiVersionModelLogic, typeof suppFields
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            ApiModel.validate.isPublic(data.root as any, languages),
+            ApiModel.validate.isPublic(data.root as ApiModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ApiModel.validate.owner(data.root as any, userId),
+        owner: (data, userId) => ApiModel.validate.owner(data.root as ApiModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

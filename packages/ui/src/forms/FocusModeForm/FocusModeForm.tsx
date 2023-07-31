@@ -1,4 +1,4 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, FocusMode, focusModeValidation, HeartFilledIcon, InvisibleIcon, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, FocusMode, focusModeValidation, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -7,8 +7,9 @@ import { ResourceListHorizontalInput } from "components/inputs/ResourceListHoriz
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
@@ -52,7 +53,7 @@ export const validateFocusModeValues = async (values: FocusModeShape, existing?:
     return result;
 };
 
-export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
+export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormProps>(({
     display,
     dirty,
     isCreate,
@@ -103,7 +104,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -207,6 +208,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         title={t("TopicsFavorite")}
                         help={t("TopicsFavoriteHelp")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <TagSelector
                         name="favorites"
@@ -217,6 +219,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         title={t("TopicsHidden")}
                         help={t("TopicsHiddenHelp")}
                         variant="subheader"
+                        zIndex={zIndex}
                     />
                     <TagSelector
                         name="hidden"
@@ -232,6 +235,7 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

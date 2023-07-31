@@ -6,7 +6,7 @@ import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,7 +54,7 @@ export const validateResourceValues = async (values: ResourceShape, existing?: R
     return result;
 };
 
-export const ResourceForm = forwardRef<any, ResourceFormProps>(({
+export const ResourceForm = forwardRef<BaseFormRef | undefined, ResourceFormProps>(({
     display,
     dirty,
     isCreate,
@@ -67,6 +67,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
 }, ref) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    console.log("resource form", isCreate, values);
 
     // Handle translations
     const {
@@ -114,7 +115,6 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                     />
                     {/* Enter link or search for object */}
                     <LinkInput onObjectData={foundLinkData} zIndex={zIndex} />
-                    {/* Select resource type */}
                     <Selector
                         name="usedFor"
                         options={Object.keys(ResourceUsedFor)}
@@ -123,14 +123,12 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         fullWidth
                         label={t("Type")}
                     />
-                    {/* Enter name */}
                     <TranslatedTextField
                         fullWidth
                         label={t("NameOptional")}
                         language={language}
                         name="name"
                     />
-                    {/* Enter description */}
                     <TranslatedTextField
                         fullWidth
                         label={t("DescriptionOptional")}
@@ -149,6 +147,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

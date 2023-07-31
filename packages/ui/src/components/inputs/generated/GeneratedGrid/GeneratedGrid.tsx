@@ -1,7 +1,7 @@
 import { Grid, GridSpacing, Stack } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FieldData, GridContainer } from "forms/types";
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 import { GeneratedInputComponent } from "../GeneratedInputComponent/GeneratedInputComponent";
 import { GeneratedGridProps } from "../types";
 
@@ -12,7 +12,7 @@ import { GeneratedGridProps } from "../types";
  * @param index The index of the grid
  * @returns Grid item component
  */
-export const generateGridItem = (component: React.ReactElement, index: number): React.ReactElement => (
+export const generateGridItem = (component: ReactNode, index: number): ReactNode => (
     <Grid item key={`grid-${index}`}>
         {component}
     </Grid>
@@ -79,13 +79,13 @@ export const GeneratedGrid = ({
     const grids = useMemo(() => {
         console.log('generating grid.grids')
         // Generate grid for each container
-        let grids: React.ReactElement[] = [];
+        let grids: ReactNode[] = [];
         console.log('split fields', splitFields);
         for (let i = 0; i < splitFields.length; i++) {
             const currFields: FieldData[] = splitFields[i];
             const currLayout: GridContainer = containers[i];
             // Generate component for each field in the grid, and wrap it in a grid item
-            const gridItems: Array<React.ReactElement | null> = currFields.map((fieldData, index) => {
+            const gridItems: ReactNode[] = currFields.map((fieldData, index) => {
                 const inputComponent = <GeneratedInputComponent
                     fieldData={fieldData}
                     index={index}
@@ -119,6 +119,7 @@ export const GeneratedGrid = ({
                         helpText={currLayout.description ?? undefined}
                         title={currLayout.title}
                         titleComponent="legend"
+                        zIndex={zIndex}
                     >
                         {itemsContainer}
                     </ContentCollapse> : itemsContainer}

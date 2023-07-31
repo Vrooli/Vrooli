@@ -1,7 +1,8 @@
-import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from "@local/shared";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "components/dialogs/types";
+import { CopyIcon, DeleteIcon, ShareIcon } from "icons";
 import { useContext } from "react";
+import { SvgComponent } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -50,7 +51,7 @@ export const DirectoryListItemContextMenu = ({
             case DirectoryContextMenuOption.Delete:
                 onDelete(index);
                 break;
-            case DirectoryContextMenuOption.Share:
+            case DirectoryContextMenuOption.Share: {
                 if (!data) return;
                 const { title, subtitle } = getDisplay(data as any, getUserLanguages(session));
                 navigator.share({
@@ -59,6 +60,7 @@ export const DirectoryListItemContextMenu = ({
                     url: getObjectUrl(data as any) ?? undefined,
                 });
                 break;
+            }
         }
         onClose();
     };

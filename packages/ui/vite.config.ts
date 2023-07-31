@@ -17,6 +17,8 @@ export default defineConfig({
             { find: "assets", replacement: path.resolve(__dirname, "./src/assets") },
             { find: "components", replacement: path.resolve(__dirname, "./src/components") },
             { find: "forms", replacement: path.resolve(__dirname, "./src/forms") },
+            { find: "icons", replacement: path.resolve(__dirname, "./src/icons") },
+            { find: "route", replacement: path.resolve(__dirname, "./src/route") },
             { find: "tools", replacement: path.resolve(__dirname, "./src/tools") },
             { find: "utils", replacement: path.resolve(__dirname, "./src/utils") },
             { find: "views", replacement: path.resolve(__dirname, "./src/views") },

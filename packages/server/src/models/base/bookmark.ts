@@ -1,7 +1,7 @@
 import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, lowercaseFirstLetter, MaxObjects, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
-import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../../builders";
+import { findFirstRel, onlyValidIds, shapeHelper } from "../../builders";
 import { Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";
@@ -15,7 +15,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { BookmarkModelLogic } from "./types";
+import { ApiModelLogic, BookmarkModelLogic, CommentModelLogic, IssueModelLogic, NoteModelLogic, OrganizationModelLogic, PostModelLogic, ProjectModelLogic, QuestionAnswerModelLogic, QuestionModelLogic, QuizModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TagModelLogic, UserModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
@@ -44,38 +44,38 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         label: {
             select: () => ({
                 id: true,
-                api: selPad(ApiModel.display.label.select),
-                comment: selPad(CommentModel.display.label.select),
-                issue: selPad(IssueModel.display.label.select),
-                note: selPad(NoteModel.display.label.select),
-                organization: selPad(OrganizationModel.display.label.select),
-                post: selPad(PostModel.display.label.select),
-                project: selPad(ProjectModel.display.label.select),
-                question: selPad(QuestionModel.display.label.select),
-                questionAnswer: selPad(QuestionAnswerModel.display.label.select),
-                quiz: selPad(QuizModel.display.label.select),
-                routine: selPad(RoutineModel.display.label.select),
-                smartContract: selPad(SmartContractModel.display.label.select),
-                standard: selPad(StandardModel.display.label.select),
-                tag: selPad(TagModel.display.label.select),
-                user: selPad(UserModel.display.label.select),
+                api: { select: ApiModel.display.label.select() },
+                comment: { select: CommentModel.display.label.select() },
+                issue: { select: IssueModel.display.label.select() },
+                note: { select: NoteModel.display.label.select() },
+                organization: { select: OrganizationModel.display.label.select() },
+                post: { select: PostModel.display.label.select() },
+                project: { select: ProjectModel.display.label.select() },
+                question: { select: QuestionModel.display.label.select() },
+                questionAnswer: { select: QuestionAnswerModel.display.label.select() },
+                quiz: { select: QuizModel.display.label.select() },
+                routine: { select: RoutineModel.display.label.select() },
+                smartContract: { select: SmartContractModel.display.label.select() },
+                standard: { select: StandardModel.display.label.select() },
+                tag: { select: TagModel.display.label.select() },
+                user: { select: UserModel.display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as any, languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as any, languages);
-                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
-                if (select.post) return PostModel.display.label.get(select.post as any, languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
-                if (select.questionAnswer) return QuestionAnswerModel.display.label.get(select.questionAnswer as any, languages);
-                if (select.quiz) return QuizModel.display.label.get(select.quiz as any, languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
-                if (select.tag) return TagModel.display.label.get(select.tag as any, languages);
-                if (select.user) return UserModel.display.label.get(select.user as any, languages);
+                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
+                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
+                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
+                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
+                if (select.post) return PostModel.display.label.get(select.post as PostModelLogic["PrismaModel"], languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
+                if (select.questionAnswer) return QuestionAnswerModel.display.label.get(select.questionAnswer as QuestionAnswerModelLogic["PrismaModel"], languages);
+                if (select.quiz) return QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                if (select.tag) return TagModel.display.label.get(select.tag as TagModelLogic["PrismaModel"], languages);
+                if (select.user) return UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages);
                 return "";
             },
         },
@@ -193,22 +193,22 @@ export const BookmarkModel: ModelLogic<BookmarkModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { list: BookmarkListModel.search!.searchStringQuery() },
-                { api: ApiModel.search!.searchStringQuery() },
-                { comment: CommentModel.search!.searchStringQuery() },
-                { issue: IssueModel.search!.searchStringQuery() },
-                { note: NoteModel.search!.searchStringQuery() },
-                { organization: OrganizationModel.search!.searchStringQuery() },
-                { post: PostModel.search!.searchStringQuery() },
-                { project: ProjectModel.search!.searchStringQuery() },
-                { question: QuestionModel.search!.searchStringQuery() },
-                { questionAnswer: QuestionAnswerModel.search!.searchStringQuery() },
-                { quiz: QuizModel.search!.searchStringQuery() },
-                { routine: RoutineModel.search!.searchStringQuery() },
-                { smartContract: SmartContractModel.search!.searchStringQuery() },
-                { standard: StandardModel.search!.searchStringQuery() },
-                { tag: TagModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { list: BookmarkListModel.search.searchStringQuery() },
+                { api: ApiModel.search.searchStringQuery() },
+                { comment: CommentModel.search.searchStringQuery() },
+                { issue: IssueModel.search.searchStringQuery() },
+                { note: NoteModel.search.searchStringQuery() },
+                { organization: OrganizationModel.search.searchStringQuery() },
+                { post: PostModel.search.searchStringQuery() },
+                { project: ProjectModel.search.searchStringQuery() },
+                { question: QuestionModel.search.searchStringQuery() },
+                { questionAnswer: QuestionAnswerModel.search.searchStringQuery() },
+                { quiz: QuizModel.search.searchStringQuery() },
+                { routine: RoutineModel.search.searchStringQuery() },
+                { smartContract: SmartContractModel.search.searchStringQuery() },
+                { standard: StandardModel.search.searchStringQuery() },
+                { tag: TagModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {

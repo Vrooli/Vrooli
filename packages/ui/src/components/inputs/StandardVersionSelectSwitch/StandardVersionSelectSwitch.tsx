@@ -1,6 +1,6 @@
-import { AddIcon, CompleteIcon } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Tooltip, Typography } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";

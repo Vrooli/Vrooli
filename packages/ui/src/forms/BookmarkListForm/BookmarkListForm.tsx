@@ -1,11 +1,12 @@
-import { AddIcon, Bookmark, BookmarkList, bookmarkListValidation, DeleteIcon, DUMMY_ID, Session, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, bookmarkListValidation, DUMMY_ID, Session, uuid } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemText, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListFormProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { forwardRef, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
@@ -39,7 +40,7 @@ export const validateBookmarkListValues = async (values: BookmarkListShape, exis
     return result;
 };
 
-export const BookmarkListForm = forwardRef<any, BookmarkListFormProps>(({
+export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkListFormProps>(({
     display,
     dirty,
     isCreate,
@@ -142,6 +143,7 @@ export const BookmarkListForm = forwardRef<any, BookmarkListFormProps>(({
                                     <MarkdownDisplay
                                         content={getDisplay(bookmark as Bookmark).subtitle}
                                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                                        zIndex={zIndex}
                                     />
                                 </Stack>
                                 <IconButton
@@ -173,6 +175,7 @@ export const BookmarkListForm = forwardRef<any, BookmarkListFormProps>(({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </>

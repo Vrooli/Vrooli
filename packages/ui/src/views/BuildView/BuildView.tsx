@@ -1,4 +1,4 @@
-import { CloseIcon, exists, isEqual, keepSearchParams, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, useLocation, uuid, uuidValidate } from "@local/shared";
+import { exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -13,11 +13,14 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph, NodeR
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { NodeWithRoutineListShape } from "forms/types";
+import { CloseIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { keepSearchParams, useLocation } from "route";
 import { BuildAction, Status } from "utils/consts";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useStableObject } from "utils/hooks/useStableObject";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
@@ -53,7 +56,7 @@ export const BuildView = ({
     onClose,
     routineVersion,
     translationData,
-    zIndex = 200,
+    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -306,7 +309,7 @@ export const BuildView = ({
         } else {
             keepSearchParams(setLocation, []);
             if (!uuidValidate(id)) window.history.back();
-            else onClose();
+            else tryOnClose(onClose, setLocation);
         }
     }, [onClose, id, isEditing, setLocation, revertChanges]);
 
@@ -1102,11 +1105,11 @@ export const BuildView = ({
                     },
                 }}
             >
-                <StatusButton status={status.status} messages={status.messages} />
+                <StatusButton status={status.status} messages={status.messages} zIndex={zIndex} />
                 {/* Language */}
                 {languageComponent}
                 {/* Help button */}
-                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
+                <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} zIndex={zIndex} />
                 {/* Close Icon */}
                 <IconButton
                     edge="start"
@@ -1177,6 +1180,7 @@ export const BuildView = ({
                 isEditing={isEditing}
                 loading={loading}
                 scale={scale}
+                zIndex={zIndex}
             />
         </Box>
     );

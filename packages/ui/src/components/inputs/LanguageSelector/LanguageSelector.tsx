@@ -18,6 +18,7 @@ export function LanguageSelector() {
         <Formik
             enableReinitialize={true}
             initialValues={{ language: getSiteLanguage(session) }}
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
             onSubmit={() => { }} // no-op
         >
             <Selector

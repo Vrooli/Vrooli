@@ -18,7 +18,7 @@ export const OrganizationUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: OrganizationUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const OrganizationUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateOrganization" : "UpdateOrganization")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

@@ -1,6 +1,6 @@
-import { HelpIcon } from "@local/shared";
 import { Box, IconButton, Menu, Tooltip, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
+import { HelpIcon } from "icons";
 import { useCallback, useState } from "react";
 import { linkColors, noSelect } from "styles";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
@@ -12,6 +12,7 @@ export const HelpButton = ({
     onClick,
     sxRoot,
     sx,
+    zIndex,
 }: HelpButtonProps) => {
     const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -66,9 +67,9 @@ export const HelpButton = ({
                             },
                         }}
                     >
-                        <MenuTitle onClose={closeMenu} />
+                        <MenuTitle onClose={closeMenu} zIndex={zIndex} />
                         <Box sx={{ padding: 2, ...linkColors(palette), ...noSelect }}>
-                            <MarkdownDisplay content={markdown} />
+                            <MarkdownDisplay content={markdown} zIndex={zIndex} />
                         </Box>
                     </Menu>
                 </IconButton>

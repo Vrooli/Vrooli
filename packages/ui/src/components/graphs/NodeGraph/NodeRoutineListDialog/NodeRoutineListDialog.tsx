@@ -38,6 +38,7 @@ export const NodeRoutineListDialog = ({
                 onClose={handleClose}
                 title={t(isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <Formik
                 enableReinitialize={true}
@@ -55,7 +56,7 @@ export const NodeRoutineListDialog = ({
                     isOpen={isOpen}
                     onCancel={handleClose}
                     ref={formRef}
-                    zIndex={zIndex}
+                    zIndex={zIndex + 1000}
                     {...formik}
                 />}
             </Formik>

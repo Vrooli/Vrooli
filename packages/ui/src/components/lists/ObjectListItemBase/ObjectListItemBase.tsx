@@ -1,4 +1,4 @@
-import { BotIcon, Chat, EditIcon, isOfType, Member, OrganizationIcon, ReactionFor, SvgComponent, useLocation, User, UserIcon, uuid } from "@local/shared";
+import { Chat, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -7,10 +7,14 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
+import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -131,7 +135,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
             }
             return (
                 <Avatar
-                    src="/broken-image.jpg" //TODO
+                    src={extractImageUrl((object as any).profileImage, (object as any).updated_at, 50)}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
@@ -180,7 +184,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                 sx={{
                     pointerEvents: "none",
                     justifyContent: isMobile ? "right" : "center",
-                    alignItems: isMobile ? "center" : "start",
+                    alignItems: "center",
                 }}
             >
                 {!hideUpdateButton && canUpdate &&
@@ -299,6 +303,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     {loading ? <TextLoading /> : <MarkdownDisplay
                         content={subtitleOverride ?? subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
+                        zIndex={zIndex}
                     />}
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}

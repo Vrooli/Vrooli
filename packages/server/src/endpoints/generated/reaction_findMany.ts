@@ -49,7 +49,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -70,9 +72,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -83,7 +87,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -104,9 +110,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -153,9 +161,11 @@ export const reaction_findMany = {
           "updated_at": true,
           "user": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "score": true,
           "reportsCount": true,
@@ -180,7 +190,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -201,9 +213,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "score": true,
@@ -244,7 +258,9 @@ export const reaction_findMany = {
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -295,7 +311,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -316,9 +334,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -379,7 +399,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -400,9 +422,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -413,7 +437,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -434,9 +460,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -544,7 +572,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -565,9 +595,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -578,7 +610,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -599,9 +633,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -649,9 +685,11 @@ export const reaction_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "hasAcceptedAnswer": true,
           "isPrivate": true,
@@ -671,7 +709,9 @@ export const reaction_findMany = {
             },
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -738,9 +778,11 @@ export const reaction_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "score": true,
           "bookmarks": true,
@@ -759,9 +801,11 @@ export const reaction_findMany = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "score": true,
           "bookmarks": true,
@@ -836,7 +880,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -857,9 +903,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -870,7 +918,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -891,9 +941,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -978,7 +1030,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -999,9 +1053,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -1012,7 +1068,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1033,9 +1091,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,
@@ -1121,7 +1181,9 @@ export const reaction_findMany = {
             "owner": {
               "Organization": {
                 "id": true,
+                "bannerImage": true,
                 "handle": true,
+                "profileImage": true,
                 "you": {
                   "canAddMembers": true,
                   "canDelete": true,
@@ -1142,9 +1204,11 @@ export const reaction_findMany = {
               },
               "User": {
                 "id": true,
+                "bannerImage": true,
+                "handle": true,
                 "isBot": true,
                 "name": true,
-                "handle": true
+                "profileImage": true
               }
             },
             "you": {
@@ -1155,7 +1219,9 @@ export const reaction_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -1176,9 +1242,11 @@ export const reaction_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "permissions": true,

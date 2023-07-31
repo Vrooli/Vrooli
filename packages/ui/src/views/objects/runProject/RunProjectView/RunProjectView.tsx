@@ -1,8 +1,9 @@
-import { endpointGetRunProject, RunProject, useLocation } from "@local/shared";
+import { endpointGetRunProject, RunProject } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -12,7 +13,7 @@ export const RunProjectView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: RunProjectViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -42,6 +43,7 @@ export const RunProjectView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Run", { count: 1 })}
+                zIndex={zIndex}
             />
             <>
                 {/* TODO */}

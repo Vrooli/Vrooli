@@ -3,7 +3,7 @@ import { defaultPermissions } from "../../utils";
 import { RunProjectStepFormat } from "../format/runProjectStep";
 import { ModelLogic } from "../types";
 import { RunProjectModel } from "./runProject";
-import { RunProjectStepModelLogic } from "./types";
+import { RunProjectModelLogic, RunProjectStepModelLogic } from "./types";
 
 const __typename = "RunProjectStep" as const;
 const suppFields = [] as const;
@@ -30,12 +30,13 @@ export const RunProjectStepModel: ModelLogic<RunProjectStepModelLogic, typeof su
         },
         yup: runProjectStepValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => RunProjectModel.validate.isPublic(data.runProject as any, languages),
+        isPublic: (data, languages) => RunProjectModel.validate.isPublic(data.runProject as RunProjectModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RunProjectModel.validate.owner(data.runProject as any, userId),
+        owner: (data, userId) => RunProjectModel.validate.owner(data.runProject as RunProjectModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {

@@ -4,7 +4,7 @@ import { bestTranslation, defaultPermissions, translationShapeHelper } from "../
 import { RoleFormat } from "../format/role";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { RoleModelLogic } from "./types";
+import { OrganizationModelLogic, RoleModelLogic } from "./types";
 
 const __typename = "Role" as const;
 const suppFields = [] as const;
@@ -68,9 +68,9 @@ export const RoleModel: ModelLogic<RoleModelLogic, typeof suppFields> = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, organization: "Organization" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
-        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as any, languages),
-        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as any, languages),
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => OrganizationModel.validate.isDeleted(data.organization as OrganizationModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => OrganizationModel.validate.isPublic(data.organization as OrganizationModelLogic["PrismaModel"], languages),
         visibility: {
             private: { organization: OrganizationModel.validate.visibility.private },
             public: { organization: OrganizationModel.validate.visibility.public },

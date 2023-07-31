@@ -1,5 +1,5 @@
-import { DarkModeIcon, LightModeIcon } from "@local/shared";
 import { Stack, Typography, useTheme } from "@mui/material";
+import { DarkModeIcon, LightModeIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";

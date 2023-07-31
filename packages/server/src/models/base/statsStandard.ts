@@ -1,12 +1,11 @@
 import { StatsStandardSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsStandardFormat } from "../format/statsStandard";
 import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
-import { StatsStandardModelLogic } from "./types";
+import { StandardModelLogic, StatsStandardModelLogic } from "./types";
 
 const __typename = "StatsStandard" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
     delegate: (prisma) => prisma.stats_standard,
     display: {
         label: {
-            select: () => ({ id: true, standard: selPad(StandardModel.display.label.select) }),
+            select: () => ({ id: true, standard: { select: StandardModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: StandardModel.display.label.get(select.standard as any, languages),
+                objectName: StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ standard: StandardModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ standard: StandardModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsStandardModel: ModelLogic<StatsStandardModelLogic, typeof supp
             standard: "Standard",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => StandardModel.validate.owner(data.standard as any, userId),
+        owner: (data, userId) => StandardModel.validate.owner(data.standard as StandardModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_standardSelect>(data, [
             ["standard", "Standard"],

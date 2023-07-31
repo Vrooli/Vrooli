@@ -273,6 +273,8 @@ export * from "./translate_translate";
 export * from "./user_profile";
 export * from "./user_findOne";
 export * from "./user_findMany";
+export * from "./user_botCreate";
+export * from "./user_botUpdate";
 export * from "./user_profileUpdate";
 export * from "./user_profileEmailUpdate";
 export * from "./user_deleteOne";

@@ -1,9 +1,11 @@
 export const chatParticipant_update = {
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "id": true,

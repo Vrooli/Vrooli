@@ -217,14 +217,12 @@ export const typeDef = gql`
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {
-        # _empty: String
-        readAssets(input: ReadAssetsInput!): [String]!
+        _empty: String
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
     type Mutation {
-        # _empty: String
-        writeAssets(input: WriteAssetsInput!): Boolean
+        _empty: String
     }
 `;
 

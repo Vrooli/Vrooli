@@ -3,9 +3,11 @@ export const chatMessage_update = {
     "participants": {
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "id": true,
@@ -21,9 +23,11 @@ export const chatMessage_update = {
       "status": true,
       "user": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "you": {
@@ -51,14 +55,18 @@ export const chatMessage_update = {
       "owner": {
         "User": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "Organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -97,7 +105,9 @@ export const chatMessage_update = {
     "openToAnyoneWithInvite": true,
     "organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,
@@ -133,7 +143,9 @@ export const chatMessage_update = {
           "membersCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -170,7 +182,9 @@ export const chatMessage_update = {
       "membersCount": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -216,9 +230,11 @@ export const chatMessage_update = {
   "updated_at": true,
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "score": true,

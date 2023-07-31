@@ -16,7 +16,9 @@ export const member_update = {
           "membersCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -59,6 +61,7 @@ export const member_update = {
       "__typename": "Role"
     },
     "id": true,
+    "bannerImage": true,
     "handle": true,
     "created_at": true,
     "updated_at": true,
@@ -66,6 +69,7 @@ export const member_update = {
     "isPrivate": true,
     "commentsCount": true,
     "membersCount": true,
+    "profileImage": true,
     "reportsCount": true,
     "bookmarks": true,
     "tags": {
@@ -118,9 +122,11 @@ export const member_update = {
     },
     "id": true,
     "created_at": true,
+    "bannerImage": true,
     "handle": true,
     "isBot": true,
     "name": true,
+    "profileImage": true,
     "bookmarks": true,
     "reportsReceivedCount": true,
     "you": {
@@ -146,7 +152,9 @@ export const member_update = {
     "membersCount": true,
     "organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,

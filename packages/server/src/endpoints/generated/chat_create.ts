@@ -2,9 +2,11 @@ export const chat_create = {
   "participants": {
     "user": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "id": true,
@@ -20,9 +22,11 @@ export const chat_create = {
     "status": true,
     "user": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "you": {
@@ -42,9 +46,11 @@ export const chat_create = {
     "updated_at": true,
     "user": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "score": true,
@@ -78,14 +84,18 @@ export const chat_create = {
     "owner": {
       "User": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "Organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -124,7 +134,9 @@ export const chat_create = {
   "openToAnyoneWithInvite": true,
   "organization": {
     "id": true,
+    "bannerImage": true,
     "handle": true,
+    "profileImage": true,
     "you": {
       "canAddMembers": true,
       "canDelete": true,
@@ -160,7 +172,9 @@ export const chat_create = {
         "membersCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -197,7 +211,9 @@ export const chat_create = {
     "membersCount": true,
     "organization": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
+      "profileImage": true,
       "you": {
         "canAddMembers": true,
         "canDelete": true,

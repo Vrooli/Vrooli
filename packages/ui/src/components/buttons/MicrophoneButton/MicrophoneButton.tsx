@@ -1,6 +1,6 @@
-import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { TranscriptDialog } from "components/dialogs/TranscriptDialog/TranscriptDialog";
+import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSpeech } from "utils/hooks/useSpeech";
@@ -17,7 +17,9 @@ const HINT_AFTER_MILLI = 3000;
 export const MicrophoneButton = ({
     disabled = false,
     onTranscriptChange,
+    zIndex,
 }: MicrophoneButtonProps) => {
+    console.log("MicrophoneButton", zIndex);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -90,6 +92,7 @@ export const MicrophoneButton = ({
                 isListening={status === "On"}
                 showHint={showHint}
                 transcript={transcript}
+                zIndex={zIndex + 1}
             />
         </Box>
     );

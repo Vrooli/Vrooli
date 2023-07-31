@@ -1,4 +1,4 @@
-import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkList, EditIcon, endpointGetBookmarkList, endpointPostBookmark, useLocation, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -7,8 +7,10 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { listToAutocomplete, listToListItems } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -24,7 +26,7 @@ export const BookmarkListView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -92,7 +94,7 @@ export const BookmarkListView = ({
         console.log("onBookmarkSelect", data);
     }, []);
 
-    const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [existing?.bookmarks, session]);
+    const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [bookmarks, session]);
     const bookmarkListItems = useMemo(() => (
         listToListItems({
             dummyItems: new Array(5).fill("Routine"),
@@ -136,6 +138,7 @@ export const BookmarkListView = ({
                         zIndex={zIndex}
                     />
                 </Box>}
+                zIndex={zIndex}
             />
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>

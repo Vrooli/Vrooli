@@ -10,6 +10,7 @@ export const Title = ({
     title,
     titleComponent,
     variant,
+    zIndex,
 }: TitleProps) => {
     const { palette } = useTheme();
 
@@ -46,6 +47,7 @@ export const Title = ({
                     width: variant === "header" ? "40px" : "30px",
                     height: variant === "header" ? "40px" : "30px",
                 }}
+                zIndex={zIndex}
             /> : null}
             {/* Additional options */}
             {options?.filter(({ Icon }) => Icon).map(({ Icon, label, onClick }, index) => (

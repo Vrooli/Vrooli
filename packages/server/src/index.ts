@@ -1,4 +1,4 @@
-import { i18nConfig } from "@local/shared";
+import { HttpStatus, i18nConfig } from "@local/shared";
 import { ApolloServer } from "apollo-server-express";
 import cookie from "cookie";
 import cors from "cors";
@@ -15,19 +15,13 @@ import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { initializeRedis } from "./redisConn";
 import { initCountsCronJobs, initEventsCronJobs, initExpirePremiumCronJob, initGenerateEmbeddingsCronJob, initModerationCronJobs, initSitemapCronJob, initStatsCronJobs } from "./schedules";
-import { server } from "./server";
+import { server, SERVER_URL } from "./server";
 import { setupStripe, setupValyxa } from "./services";
 import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
 import { loadSecrets } from "./utils/loadSecrets";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
-
-const SERVER_URL = process.env.VITE_SERVER_LOCATION === "local" ?
-    "http://localhost:5329/api" :
-    process.env.SERVER_URL ?
-        process.env.SERVER_URL :
-        `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
     logger.info("Starting server...");
@@ -82,8 +76,20 @@ const main = async () => {
         next();
     });
 
+    // Set up health check endpoint
+    app.get("/healthcheck", (_req, res) => {
+        res.status(HttpStatus.Ok).send("OK");
+    });
+
     // For authentication
-    app.use(auth.authenticate);
+    app.use((req, res, next) => {
+        // Exclude webhooks, as they have their own authentication methods
+        if (req.originalUrl.startsWith("/webhooks")) {
+            next();
+        } else {
+            auth.authenticate(req, res, next);
+        }
+    });
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // Disable if API is open to the public
@@ -96,7 +102,7 @@ const main = async () => {
     // For parsing application/json. 
     app.use((req, res, next) => {
         // Exclude on stripe webhook endpoint
-        if (req.originalUrl === "/webhook/stripe") {
+        if (req.originalUrl === "/webhooks/stripe") {
             next();
         } else {
             express.json({ limit: "20mb" })(req, res, next);
@@ -110,17 +116,17 @@ const main = async () => {
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
-    // Set up image uploading
-    app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
-
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
         app.use("/api/v2/rest", restRoutes[key]);
     });
 
+    // Set up image uploading for GraphQL
+    app.use("/api/v2/graphql", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
+
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({
-        cache: "bounded" as any,
+        cache: "bounded",
         introspection: debug,
         schema,
         context: (c) => context(c), // Allows request and response to be included in the context

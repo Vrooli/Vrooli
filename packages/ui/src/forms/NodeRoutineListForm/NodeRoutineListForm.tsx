@@ -3,7 +3,7 @@ import { Checkbox, FormControlLabel } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeRoutineListFormProps, NodeWithRoutineListShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,7 +59,7 @@ export const validateNodeRoutineListValues = async (values: NodeWithRoutineListS
     return result;
 };
 
-export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
+export const NodeRoutineListForm = forwardRef<BaseFormRef | undefined, NodeRoutineListFormProps>(({
     display,
     dirty,
     isCreate,
@@ -107,6 +107,7 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
                             multiline: true,
                         }}
                         title={t("Label")}
+                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -117,9 +118,9 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
                             maxChars: 2048,
                             minRows: 4,
                             maxRows: 8,
-                            zIndex,
                         }}
                         title={t("Description")}
+                        zIndex={zIndex}
                     />
                     <FormControlLabel
                         disabled={!isEditing}
@@ -157,6 +158,7 @@ export const NodeRoutineListForm = forwardRef<any, NodeRoutineListFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

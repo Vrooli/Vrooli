@@ -420,7 +420,10 @@ export const MaxObjects = {
         User: 5000,
         Organization: 5000,
     },
-    User: 0,
+    User: {
+        User: 1,
+        Organization: 0,
+    },
     Wallet: {
         User: {
             private: 5,

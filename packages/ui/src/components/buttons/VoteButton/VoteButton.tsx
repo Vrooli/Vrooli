@@ -1,5 +1,6 @@
-import { DownvoteTallIcon, DownvoteWideIcon, getReactionScore, removeModifiers, Success, UpvoteTallIcon, UpvoteWideIcon } from "@local/shared";
+import { getReactionScore, removeModifiers, Success } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";

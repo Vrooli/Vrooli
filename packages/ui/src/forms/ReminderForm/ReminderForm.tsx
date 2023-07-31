@@ -1,12 +1,13 @@
-import { AddIcon, DeleteIcon, DragIcon, DUMMY_ID, ListNumberIcon, Reminder, reminderValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Reminder, reminderValidation, Session, uuid } from "@local/shared";
 import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Title } from "components/text/Title/Title";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
 import { forwardRef } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
@@ -23,11 +24,9 @@ export const reminderInitialValues = (
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,
-    description: "",
     dueDate: null,
     index: 0,
     isComplete: false,
-    name: "",
     reminderList: {
         __typename: "ReminderList" as const,
         id: reminderListId ?? DUMMY_ID,
@@ -38,6 +37,8 @@ export const reminderInitialValues = (
     },
     reminderItems: [],
     ...existing,
+    description: existing?.description ?? "",
+    name: existing?.name ?? "",
 });
 
 export function transformReminderValues(values: ReminderShape, existing?: ReminderShape) {
@@ -53,7 +54,7 @@ export const validateReminderValues = async (values: ReminderShape, existing?: R
     return result;
 };
 
-export const ReminderForm = forwardRef<any, ReminderFormProps>(({
+export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProps>(({
     display,
     dirty,
     index,
@@ -128,19 +129,20 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                             maxRows={10}
                             minRows={4}
                             name="description"
-                            placeholder="Description (optional)"
+                            placeholder={t("DescriptionOptional")}
                             zIndex={zIndex}
                         />
                         <DateInput
                             name="dueDate"
-                            label="Due date (optional)"
+                            label={t("DueDateOptional")}
                             type="datetime-local"
                         />
                         {/* Steps to complete reminder */}
                         <Title
                             Icon={ListNumberIcon}
-                            title="Steps"
+                            title={t("Step", { count: 2 })}
                             variant="subheader"
+                            zIndex={zIndex}
                         />
                         <Droppable droppableId="reminderItems">
                             {(provided) => (
@@ -181,7 +183,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                 />
                                                                 <DateInput
                                                                     name={`reminderItems[${i}].dueDate`}
-                                                                    label="Due date (optional)"
+                                                                    label={t("DueDateOptional")}
                                                                     type="datetime-local"
                                                                 />
                                                                 <FormControlLabel
@@ -192,7 +194,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                         size="small"
                                                                         color="secondary"
                                                                     />}
-                                                                    label="Complete?"
+                                                                    label={t("CompleteQuestion")}
                                                                 />
                                                             </Stack>
                                                             <Stack spacing={1} width={32}>
@@ -226,7 +228,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                             variant="outlined"
                             sx={{ alignSelf: "center", mt: 1 }}
                         >
-                            Add Step
+                            {t("StepAdd")}
                         </Button>
                     </FormContainer>
                 </BaseForm>
@@ -239,6 +241,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

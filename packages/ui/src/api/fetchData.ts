@@ -1,15 +1,16 @@
-import { stringifySearchParams } from "@local/shared";
 import { Method, ServerResponse } from "api";
+import { stringifySearchParams } from "route";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.0.");
 const serverUrlProvided: boolean = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0;
 const portServer: string = import.meta.env.VITE_PORT_SERVER ?? "5329";
 export const urlBase: string = isLocalhost ?
-    `http://${window.location.hostname}:${portServer}/api/v2/rest` :
+    `http://${window.location.hostname}:${portServer}/api` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}/v2/rest` :
-        `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api/v2/rest`;
+        `${import.meta.env.VITE_SERVER_URL}` :
+        `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api`;
+export const restBase = "/v2/rest";
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?
@@ -21,6 +22,8 @@ type FetchDataProps<Input extends object | undefined> = {
     method: Method;
     inputs: Input;
     options?: RequestInit;
+    /** Omits rest endpoint base from URL */
+    omitRestBase?: boolean;
 };
 
 /**
@@ -46,6 +49,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     method,
     inputs,
     options,
+    omitRestBase = false,
 }: FetchDataProps<Input>): Promise<ServerResponse<Output>> => {
 
     // Replace variables in the endpoint with their values from inputs.
@@ -57,8 +61,8 @@ export const fetchData = async <Input extends object | undefined, Output>({
         });
     }
 
-    let url = `${urlBase}${endpoint}`;
-    let body: string | null = null;
+    let url = `${urlBase}${omitRestBase ? "" : restBase}${endpoint}`;
+    let body: string | FormData | null = null;
 
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
@@ -67,8 +71,12 @@ export const fetchData = async <Input extends object | undefined, Output>({
         }
     }
     // Other requests should have their inputs converted to JSON and sent in the body.
-    else if (["POST", "PUT"].includes(method)) {
-        body = JSON.stringify(inputs);
+    else if (["DELETE", "POST", "PUT"].includes(method)) {
+        if (inputs instanceof FormData) {
+            body = inputs;
+        } else {
+            body = JSON.stringify(inputs);
+        }
     }
 
     const finalOptions: RequestInit = {
@@ -76,7 +84,8 @@ export const fetchData = async <Input extends object | undefined, Output>({
         method,
         headers: {
             ...options?.headers,
-            "Content-Type": "application/json",
+            // Only set the Content-Type to "application/json" if the body is not FormData.
+            ...(!(inputs instanceof FormData) && { "Content-Type": "application/json" }),
         },
         body,
         credentials: "include",

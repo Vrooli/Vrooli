@@ -1,7 +1,7 @@
-import { AddIcon } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { routineVersionIOInitialValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
+import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
@@ -116,6 +116,7 @@ export const InputOutputContainer = ({
                             fill: palette.mode === "light" ? palette.secondary.light : palette.secondary.dark,
                         },
                     }}
+                    zIndex={zIndex}
                 >
                     <Droppable droppableId="inputOutputItems">
                         {(provided) => (

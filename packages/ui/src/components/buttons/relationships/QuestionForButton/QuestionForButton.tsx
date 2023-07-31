@@ -1,12 +1,15 @@
-import { AddIcon, ApiIcon, exists, NoteIcon, OrganizationIcon, ProjectIcon, QuestionForType, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation } from "@local/shared";
+import { exists, QuestionForType } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemQuestionForObject } from "components/lists/types";
 import { useField } from "formik";
+import { AddIcon, ApiIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
+import { SvgComponent } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
@@ -39,7 +42,7 @@ export function QuestionForButton({
     const isAvailable = useMemo(() => ["Question"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Select object dialog
-    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const forObject = field?.value;
@@ -65,8 +68,9 @@ export function QuestionForButton({
     }, [field?.value?.id, helpers, closeDialog]);
 
     // FindObjectDialog
-    const [findHandleAdd, findHandleClose] = useMemo<[(item: any) => any, () => void]>(() => {
+    const [findHandleAdd, findHandleClose] = useMemo<[(item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return [handleSelect, closeDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [() => { }, () => { }];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
@@ -75,14 +79,14 @@ export function QuestionForButton({
         // If no data, marked as unset
         if (!forObject) return {
             Icon: AddIcon,
-            tooltip: isEditing ? "" : "Press to link an object",
+            tooltip: t(`QuestionForNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
-        const forObjectName = getDisplay(forObject).title ?? "";
+        const questionForName = getDisplay(forObject).title ?? "";
         return {
             Icon: questionForTypeIcons[forObject.__typename],
-            tooltip: `For: ${forObjectName}`,
+            tooltip: t(`QuestionForTogglePress${isEditing ? "Editable" : ""}`, { questionFor: questionForName }),
         };
-    }, [isEditing, field?.value]);
+    }, [isEditing, field?.value, t]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -122,7 +126,7 @@ export function QuestionForButton({
                             <Icon width={"48px"} height={"48px"} fill="white" />
                         </IconButton>
                         <Typography variant="body1" sx={{ color: "white" }}>
-                            {field?.value ? getDisplay(field?.value).title : "Question for..."}
+                            {field?.value ? getDisplay(field?.value).title : t("QuestionFor")}
                         </Typography>
                     </Stack>
                 </Tooltip>

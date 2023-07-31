@@ -4,7 +4,7 @@ import { defaultPermissions } from "../../utils";
 import { ScheduleRecurrenceFormat } from "../format/scheduleRecurrence";
 import { ModelLogic } from "../types";
 import { ScheduleModel } from "./schedule";
-import { ScheduleRecurrenceModelLogic } from "./types";
+import { ScheduleModelLogic, ScheduleRecurrenceModelLogic } from "./types";
 
 const __typename = "ScheduleRecurrence" as const;
 const suppFields = [] as const;
@@ -14,7 +14,7 @@ export const ScheduleRecurrenceModel: ModelLogic<ScheduleRecurrenceModelLogic, t
     display: {
         label: {
             select: () => ({ id: true, schedule: { select: ScheduleModel.display.label.select() } }),
-            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as any, languages),
+            get: (select, languages) => ScheduleModel.display.label.get(select.schedule as ScheduleModelLogic["PrismaModel"], languages),
         },
     },
     format: ScheduleRecurrenceFormat,
@@ -32,7 +32,7 @@ export const ScheduleRecurrenceModel: ModelLogic<ScheduleRecurrenceModelLogic, t
                     ...(await shapeHelper({ relation: "schedule", relTypes: ["Connect", "Create"], isOneToOne: true, isRequired: true, objectType: "Schedule", parentRelationshipName: "recurrences", data, ...rest })),
                 };
             },
-            update: async ({ data, ...rest }) => {
+            update: async ({ data }) => {
                 return {
                     recurrenceType: noNull(data.recurrenceType),
                     interval: noNull(data.interval),
@@ -45,14 +45,15 @@ export const ScheduleRecurrenceModel: ModelLogic<ScheduleRecurrenceModelLogic, t
         },
         yup: scheduleRecurrenceValidation,
     },
+    search: {} as any,
     validate: {
         isTransferable: false,
         maxObjects: 100000,
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as any, userId),
-        isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as any, languages),
-        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as any, languages),
+        owner: (data, userId) => ScheduleModel.validate.owner(data.schedule as ScheduleModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => ScheduleModel.validate.isDeleted(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => ScheduleModel.validate.isPublic(data.schedule as ScheduleModelLogic["PrismaModel"], languages),
         visibility: {
             private: { schedule: ScheduleModel.validate.visibility.private },
             public: { schedule: ScheduleModel.validate.visibility.public },

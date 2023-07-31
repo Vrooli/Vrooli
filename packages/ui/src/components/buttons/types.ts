@@ -1,18 +1,17 @@
-import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine, SvgProps } from "@local/shared";
+import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject } from "types";
+import { NavigableObject, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
-import { SingleOrArray } from "../../../../server/src/types";
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (params: object | null) => void;
+    setAdvancedSearchParams: (params: object | null) => unknown;
     zIndex: number;
 }
 
@@ -20,18 +19,19 @@ export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
     errors: GridSubmitButtonsProps["errors"];
-    handleCancel: () => void;
-    handleScaleChange: (delta: number) => void;
-    handleSubmit: () => void;
+    handleCancel: () => unknown;
+    handleScaleChange: (delta: number) => unknown;
+    handleSubmit: () => unknown;
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
     scale: number;
+    zIndex: number;
 }
 
 export type CameraButtonProps = {
     disabled?: boolean;
-    onTranscriptChange: (result: string) => void;
+    onTranscriptChange: (result: string) => unknown;
 }
 
 export interface ColorIconButtonProps extends IconButtonProps {
@@ -39,22 +39,23 @@ export interface ColorIconButtonProps extends IconButtonProps {
     children: JSX.Element | null | undefined;
     disabled?: boolean;
     href?: string;
-    onClick?: (event: React.MouseEvent<any>) => void;
-    sx?: { [key: string]: any };
+    onClick?: (event: React.MouseEvent<HTMLElement>) => unknown;
+    sx?: SxType;
 }
 
 export interface CommentsButtonProps {
-    commentsCount: number | null; // Defaults to 0
+    /** Defaults to 0 */
+    commentsCount: number | null;
     disabled?: boolean;
     object: NavigableObject | null | undefined;
 }
 
 export interface EllipsisActionButtonProps {
-    children: SingleOrArray<JSX.Element | null>;
+    children: JSX.Element | null | undefined;
 }
 
 export interface GridActionButtonsProps {
-    children: SingleOrArray<JSX.Element | null>;
+    children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
 }
 
@@ -65,40 +66,35 @@ export interface GridSubmitButtonsProps {
     errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
     loading?: boolean;
-    onCancel: () => void;
-    onSetSubmitting?: (isSubmitting: boolean) => void;
-    onSubmit?: () => void;
+    onCancel: () => unknown;
+    onSetSubmitting?: (isSubmitting: boolean) => unknown;
+    onSubmit?: () => unknown;
     sideActionButtons?: Omit<SideActionButtonsProps, "hasGridActions">;
+    zIndex: number;
 }
 
 export interface HelpButtonProps extends ButtonProps {
     id?: string;
-    /**
-     * Markdown displayed in the popup menu
-     */
+    /** Markdown displayed in the popup menu */
     markdown: string;
-    /**
-     * On click event. Not needed to open the menu
-     */
-    onClick?: (event: React.MouseEvent) => void;
-    /**
-     * Style applied to the root element
-     */
+    /** On click event. Not needed to open the menu */
+    onClick?: (event: React.MouseEvent) => unknown;
+    /** Style applied to the root element */
     sxRoot?: object;
-    /**
-     * Style applied to the question mark icon
-     */
+    /** Style applied to the question mark icon */
     sx?: SvgProps;
+    zIndex: number;
 }
 
 export type MicrophoneButtonProps = {
     disabled?: boolean;
-    onTranscriptChange: (result: string) => void;
+    onTranscriptChange: (result: string) => unknown;
+    zIndex: number;
 }
 
 export interface PopupMenuProps extends ButtonProps {
     text?: string;
-    children: any
+    children: JSX.Element | null | undefined;
 }
 
 export interface ReportButtonProps {
@@ -118,8 +114,8 @@ export interface ReportsLinkProps {
 
 export interface RunButtonProps {
     canUpdate: boolean;
-    handleRunAdd: (run: RunProject | RunRoutine) => void;
-    handleRunDelete: (run: RunProject | RunRoutine) => void;
+    handleRunAdd: (run: RunProject | RunRoutine) => unknown;
+    handleRunDelete: (run: RunProject | RunRoutine) => unknown;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
     runnableObject: ProjectVersion | RoutineVersion | null;
@@ -130,9 +126,9 @@ export interface SearchButtonsProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (params: object | null) => void;
-    setSortBy: (sortBy: string) => void;
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    setAdvancedSearchParams: (params: object | null) => unknown;
+    setSortBy: (sortBy: string) => unknown;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     sortBy: string;
     sortByOptions: any; // No way to specify generic enum
     timeFrame: TimeFrame | undefined;
@@ -145,17 +141,18 @@ export interface ShareButtonProps {
 }
 
 export interface SideActionButtonsProps {
-    children: JSX.Element | null | boolean | undefined | (JSX.Element | null | boolean | undefined)[];
+    children: OrArray<JSX.Element | null | undefined>;
     display: ViewDisplayType;
-    hasGridActions?: boolean; // If to, displays higher up
+    /** If true, displays higher up */
+    hasGridActions?: boolean;
     isLeftHanded?: boolean;
-    sx?: { [key: string]: any };
+    sx?: SxType;
     zIndex: number;
 }
 
 export interface SortButtonProps {
     options: any; // No way to specify generic enum
-    setSortBy: (sortBy: string) => void;
+    setSortBy: (sortBy: string) => unknown;
     sortBy: string;
 }
 
@@ -163,11 +160,11 @@ export interface BookmarkButtonProps {
     disabled?: boolean;
     isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
-    onChange?: (isBookmarked: boolean, event?: any) => void;
+    onChange?: (isBookmarked: boolean, event?: any) => unknown;
     showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
-    sxs?: { root?: { [key: string]: any } };
+    sxs?: { root?: SxType };
     zIndex: number;
 }
 
@@ -179,6 +176,7 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
+    zIndex: number;
 }
 
 export type TimeFrame = {
@@ -187,8 +185,9 @@ export type TimeFrame = {
 }
 
 export interface TimeButtonProps {
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     timeFrame: TimeFrame | undefined;
+    zIndex: number;
 }
 
 export interface VoteButtonProps {
@@ -198,5 +197,5 @@ export interface VoteButtonProps {
     emoji?: string | null; // If not passed, then there is neither an upvote nor a downvote
     objectId: string;
     voteFor: ReactionFor;
-    onChange: (newEmoji: string | null, newScore: number) => void;
+    onChange: (newEmoji: string | null, newScore: number) => unknown;
 }

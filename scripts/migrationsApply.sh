@@ -11,10 +11,6 @@ else
     error "Could not find .env file. This may break the script."
 fi
 
-# Wait until the database is ready
-info "Waiting for database to be ready..."
-${HERE}/wait-for.sh "localhost:${PORT_DB}" -t 60 -- echo 'Database is up'
-
 # Read argument
 if [ $# -ne 1 ]; then
     error "Usage: $0 <migration_name>"

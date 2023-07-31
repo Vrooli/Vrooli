@@ -1,7 +1,8 @@
-import { Link, LINKS } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useTranslation } from "react-i18next";
+import { Link } from "route";
 
 export const NotFoundView = () => {
     const { t } = useTranslation();
@@ -10,8 +11,8 @@ export const NotFoundView = () => {
         <>
             <TopBar
                 display="page"
-                onClose={() => { }}
                 title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
+                zIndex={200}
             />
             <Box
                 sx={{

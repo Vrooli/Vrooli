@@ -7,7 +7,7 @@ export const Selector = <T extends string | number | { [x: string]: any }>({
     onChange,
     ...props
 }: SelectorProps<T>) => {
-    const [field, meta] = useField(name);
+    const [field, meta, helpers] = useField(name);
 
     return (
         <SelectorBase
@@ -19,7 +19,7 @@ export const Selector = <T extends string | number | { [x: string]: any }>({
             onBlur={field.onBlur}
             onChange={(newValue) => {
                 if (onChange) onChange(newValue);
-                field.onChange(newValue);
+                helpers.setValue(newValue);
             }}
         />
     );

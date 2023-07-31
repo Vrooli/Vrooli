@@ -61,7 +61,7 @@ export type ModelLogic<
      * */
     idField?: keyof Model["GqlModel"];
     /** Functions and data for searching the object */
-    search?: Model["GqlSearch"] extends undefined ? undefined :
+    search: Model["GqlSearch"] extends undefined ? undefined :
     Model["GqlSort"] extends undefined ? undefined :
     Model["PrismaWhere"] extends undefined ? undefined :
     Searcher<{
@@ -402,6 +402,13 @@ export type Duplicator<
     }
 }
 
+/** 
+ * Result of pre function on every model included in the mutation, by model type.
+ * 
+ * This means you can reference pre function results by using `preMap[__typename]`.
+ **/
+type PreMap = { [key in GqlModelType]?: any };
+
 /**
  * Describes shape of component that can be mutated
  */
@@ -440,29 +447,23 @@ export type Mutater<Model extends {
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             deletedIds: string[],
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,
-        /**
-         * Shapes data for create mutations. Can reference pre function results by using 
-         * `preMap[__typename]`.
-         */
+        /** Shapes data for create mutations */
         create?: Model["GqlCreate"] extends Record<string, any> ?
         Model["PrismaCreate"] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
             data: Model["GqlCreate"],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap;
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
-        /**
-         * Shapes data for update mutations. Can reference pre function results by using
-         * `preMap[__typename]`.
-         */
+        /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends Record<string, any> ?
         Model["PrismaUpdate"] extends Record<string, any> ? ({ data, preMap, prisma, userData, where }: {
             data: Model["GqlUpdate"],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
             where: { id: string },
@@ -489,7 +490,7 @@ export type Mutater<Model extends {
             updateAuthData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             updateInput: Model["GqlUpdate"][],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,
@@ -497,7 +498,7 @@ export type Mutater<Model extends {
         onCreated?: Model["GqlCreate"] extends Record<string, any> ? ({ created, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void> : never,
@@ -506,7 +507,7 @@ export type Mutater<Model extends {
             authData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model["GqlModel"]> & { id: string })[],
             updateInput: Model["GqlUpdate"][],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void> : never,
@@ -523,10 +524,10 @@ export type Mutater<Model extends {
          * A trigger for delete mutations
          */
         onDeleted?: ({ beforeDeletedData, deleted, deletedIds, prisma, userData }: {
-            beforeDeletedData: any,
+            beforeDeletedData: object,
             deleted: Count,
             deletedIds: string[],
-            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
+            preMap: PreMap,
             prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,

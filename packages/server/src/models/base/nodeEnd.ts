@@ -1,10 +1,10 @@
 import { MaxObjects, nodeEndValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../../builders";
+import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, nodeEndNextShapeHelper } from "../../utils";
 import { NodeEndFormat } from "../format/nodeEnd";
 import { ModelLogic } from "../types";
 import { NodeModel } from "./node";
-import { NodeEndModelLogic } from "./types";
+import { NodeEndModelLogic, NodeModelLogic } from "./types";
 
 const __typename = "NodeEnd" as const;
 const suppFields = [] as const;
@@ -13,8 +13,8 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
     delegate: (prisma) => prisma.node_end,
     display: {
         label: {
-            select: () => ({ id: true, node: selPad(NodeModel.display.label.select) }),
-            get: (select, languages) => NodeModel.display.label.get(select.node as any, languages),
+            select: () => ({ id: true, node: { select: NodeModel.display.label.select() } }),
+            get: (select, languages) => NodeModel.display.label.get(select.node as NodeModelLogic["PrismaModel"], languages),
         },
     },
     format: NodeEndFormat,
@@ -37,14 +37,15 @@ export const NodeEndModel: ModelLogic<NodeEndModelLogic, typeof suppFields> = ({
         },
         yup: nodeEndValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeModel.validate.owner(data.node as any, userId),
-        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as any, languages),
-        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as any, languages),
+        owner: (data, userId) => NodeModel.validate.owner(data.node as NodeModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => NodeModel.validate.isDeleted(data.node as NodeModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => NodeModel.validate.isPublic(data.node as NodeModelLogic["PrismaModel"], languages),
         visibility: {
             private: { node: NodeModel.validate.visibility.private },
             public: { node: NodeModel.validate.visibility.public },

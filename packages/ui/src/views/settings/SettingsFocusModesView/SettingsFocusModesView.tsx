@@ -1,12 +1,14 @@
-import { AddIcon, DeleteIcon, DeleteOneInput, DeleteType, EditIcon, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success, useLocation } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -165,20 +167,18 @@ export const SettingsFocusModesView = ({
                     onCancel={handleCloseDialog}
                     onCompleted={handleCompleted}
                     partialData={editingFocusMode ?? undefined}
-                    zIndex={zIndex + 2}
+                    zIndex={zIndex + 1002}
                 />
             </LargeDialog>
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
-                <Stack direction="column" sx={{
-                    margin: "auto",
-                    display: "block",
-                }}>
+                <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
@@ -266,7 +266,7 @@ export const SettingsFocusModesView = ({
                             </ListItem>
                         ))}
                     </ListContainer>
-                </Stack>
+                </Box>
             </Stack>
         </>
     );

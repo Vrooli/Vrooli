@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, LINKS, parseSearchParams, ResourceList, RoutineIcon, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, setSearchParams, SuccessIcon, Tag, useLocation } from "@local/shared";
+import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
 import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -22,8 +22,10 @@ import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
+import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parseSearchParams, setSearchParams, useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
@@ -31,6 +33,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
@@ -48,7 +51,7 @@ export const RoutineView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: RoutineViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -153,10 +156,13 @@ export const RoutineView = ({
                 name: name ?? "Unnamed Routine",
                 ...runInputsCreate(formikToRunInputs(formik.values), existing.id),
             },
-            successMessage: () => ({ messageKey: "RoutineCompleted" }),
-            onSuccess: () => {
+            successMessage: (data) => ({
+                messageKey: "RoutineCompleted",
+                buttonKey: "View",
+                buttonClicked: () => { openObject(data, setLocation); },
+            }),
+            onSuccess: (data) => {
                 PubSub.get().publishCelebration();
-                setLocation(LINKS.Home);
             },
         });
     }, [formik.values, existing, runComplete, setLocation, name]);
@@ -204,6 +210,7 @@ export const RoutineView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -266,15 +273,28 @@ export const RoutineView = ({
                     {/* Box with description and instructions */}
                     {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                         {/* Description */}
-                        <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
+                        <TextCollapse
+                            title="Description"
+                            text={description}
+                            loading={isLoading}
+                            loadingLines={2}
+                            zIndex={zIndex}
+                        />
                         {/* Instructions */}
-                        <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
+                        <TextCollapse
+                            title="Instructions"
+                            text={instructions}
+                            loading={isLoading}
+                            loadingLines={4}
+                            zIndex={zIndex}
+                        />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
                     {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
+                            zIndex={zIndex}
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
                                 <GeneratedInputComponentWithLabel
@@ -301,9 +321,10 @@ export const RoutineView = ({
                     {
                         existing?.nodes?.length ? <Box>
                             <Title
-                                title={"This is a multi-step routine."}
-                                help={"Multi-step routines use a graph to connect various subroutines together.\n\nClick the button below to view the graph.\n\nIf the routine is valid, press the *Play* button to run it."}
+                                title={t("ThisIsMultiStep")}
+                                help={"ThisIsMultiStepHelp"}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             <Button
                                 startIcon={<RoutineIcon />}
@@ -311,7 +332,7 @@ export const RoutineView = ({
                                 onClick={viewGraph}
                                 color="secondary"
                                 variant="outlined"
-                            >View Graph</Button>
+                            >{t("ViewGraph")}</Button>
                         </Box> : null
                     }
                     {/* Tags */}
@@ -328,11 +349,13 @@ export const RoutineView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
+                            zIndex={zIndex}
                         />
                         <VersionDisplay
                             currentVersion={existing}
                             prefix={" - "}
                             versions={existing?.root?.versions}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     {/* Votes, reports, and other basic stats */}

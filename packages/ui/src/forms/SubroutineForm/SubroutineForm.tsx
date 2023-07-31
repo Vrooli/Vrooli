@@ -1,4 +1,4 @@
-import { CloseIcon, DUMMY_ID, exists, nodeRoutineListItemValidation, OpenInNewIcon, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, exists, nodeRoutineListItemValidation, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -14,9 +14,10 @@ import { TagList } from "components/lists/TagList/TagList";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
+import { CloseIcon, OpenInNewIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
@@ -61,7 +62,7 @@ export const validateSubroutineValues = async (values: NodeRoutineListItemShape,
     return result;
 };
 
-export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
+export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineFormProps>(({
     canUpdateRoutineVersion,
     dirty,
     handleViewFull,
@@ -142,12 +143,17 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 padding: 1,
             }}>
                 {/* Subroutine name */}
-                <Title variant="header" title={nameField.value} />
+                <Title
+                    variant="header"
+                    title={nameField.value}
+                    zIndex={zIndex}
+                />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
                     versions={versionsField.value ?? []}
+                    zIndex={zIndex}
                 />
                 {/* Position */}
                 {isEditing ? <Box sx={{ margin: "auto" }}>
@@ -238,6 +244,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                         language,
                                     }}
                                     title={t("Name")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Description */}
@@ -252,9 +259,9 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                         maxRows: 4,
                                         minRows: 4,
                                         placeholder: "Description",
-                                        zIndex,
                                     }}
                                     title={t("Description")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             {/* Instructions */}
@@ -269,9 +276,9 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                         maxChars: 8192,
                                         maxRows: 10,
                                         minRows: 4,
-                                        zIndex,
                                     }}
                                     title={t("Instructions")}
+                                    zIndex={zIndex}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
@@ -325,6 +332,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />}
         </>
     );

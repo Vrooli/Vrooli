@@ -1,6 +1,6 @@
-import { ScheduleIcon } from "@local/shared";
 import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { ScheduleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
 import usePress from "utils/hooks/usePress";
@@ -15,6 +15,7 @@ export const DateDisplay = ({
     showIcon = true,
     textBeforeDate = "",
     timestamp,
+    zIndex,
     ...props
 }: DateDisplayProps) => {
     const { palette } = useTheme();
@@ -44,6 +45,7 @@ export const DateDisplay = ({
             <PopoverWithArrow
                 anchorEl={anchorEl}
                 handleClose={close}
+                zIndex={(zIndex ?? 100000) + 1}
             >
                 <Typography variant="body2" color={palette.background.textPrimary}>
                     {displayDate(timestamp, true)}

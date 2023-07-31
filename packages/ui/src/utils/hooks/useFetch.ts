@@ -14,6 +14,8 @@ type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
     inputs?: TInput;
     method?: Method;
     options?: RequestInit;
+    /** Omits rest endpoint base from URL */
+    omitRestBase?: boolean;
 };
 
 /**
@@ -32,6 +34,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
     inputs = {} as TInput,
     method = "GET",
     options = {} as RequestInit,
+    omitRestBase = false,
     debounceMs = 0,
 }: UseFetchProps<TInput, TData>, deps: any[] = []):
     RequestState<TData> & { refetch: (input?: TInput) => void } {
@@ -59,6 +62,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
             inputs,
             method,
             options,
+            omitRestBase,
         })
             .then(({ data, errors, version }: ServerResponse) => {
                 setState({ loading: false, data, errors });
