@@ -20,7 +20,7 @@ Vrooli is a collaborative and self-improving automation platform, aiming to auto
 - Routines, bots, and other components can be combined together to create an organization, where each bot takes on various roles.
 
 ## 🤔 Why use Vrooli?
-Vrooli keeps you organized and focused on your personal and professional goals. Here are some reasons this approach differs from other projects: 
+Vrooli keeps you organized and focused on your personal and professional goals. Here's how it differs from other projects:
 - Routines can be shared and improved by anyone, and can be combined together to create new routines.
 - The output of a routine can change drastically depending on the bot running it. An Edgar Allan Pot bot would complete a "Write a Book" routine differently than a Stephen King bot, for example.
 - Anyone can copy a public organization, meaning they have access to business processes and on-demand employees for any purpose, for free.
