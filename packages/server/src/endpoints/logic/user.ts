@@ -83,9 +83,9 @@ export const UserEndpoints: EndpointsUser = {
             await logIn(input?.password as string, user, prisma, req);
             // TODO anonymize public data
             // Delete user
-            const success = await deleteOneHelper({ input: { id }, objectType, prisma, req });
+            const result = await deleteOneHelper({ input: { id }, objectType, prisma, req });
             // If successful, remove user from session
-            if (success) {
+            if (result.success) {
                 return AuthEndpoints.Mutation.logOut(undefined, { input: { id } }, { prisma, req, res }, info) as any;
             } else {
                 throw new CustomError("0123", "InternalError", req.session.languages);

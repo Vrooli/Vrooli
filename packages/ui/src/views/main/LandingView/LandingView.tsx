@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
 import { SvgComponent } from "types";
+import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -94,7 +95,9 @@ export const LandingView = ({
                 onClose={onClose}
                 zIndex={zIndex}
             />
-            <SlidePage id="landing-slides" sx={{ background: "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" }}>
+            <SlidePage id="landing-slides" sx={{
+                background: theme.palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
+            }}>
                 <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 6 }}>
                     <SlideContent id={slide1Id} sx={{
                         minHeight: {
@@ -124,7 +127,7 @@ export const LandingView = ({
                         <PulseButton
                             variant="outlined"
                             color="secondary"
-                            onClick={() => openLink(setLocation, LINKS.Start)}
+                            onClick={() => openLink(setLocation, LINKS.Start, { form: Forms.SignUp })}
                             startIcon={<PlayIcon fill='#0fa' />}
                             sx={{
                                 marginLeft: "auto !important",
@@ -136,7 +139,7 @@ export const LandingView = ({
                         <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
                             {externalLinks.map(([tooltip, link, Icon]) => (
                                 <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                    <SlideIconButton onClick={() => openLink(setLocation, link)}>
+                                    <SlideIconButton onClick={() => openLink(setLocation, link, { form: Forms.SignUp })}>
                                         <Icon fill='#0fa' />
                                     </SlideIconButton>
                                 </Tooltip>

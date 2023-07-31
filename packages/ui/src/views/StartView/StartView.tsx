@@ -11,14 +11,12 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from "forms/auth";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
 import { Forms } from "utils/consts";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
 import { PubSub } from "utils/pubsub";
-import { setupPush } from "utils/push";
 import { SessionContext } from "utils/SessionContext";
 import { StartViewProps } from "../types";
 
@@ -40,12 +38,23 @@ export const StartView = ({
     }), [search]);
 
     const [emailLogIn] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
-    // Handles email authentication popup
-    const [emailPopupOpen, setEmailPopupOpen] = useState(false);
-    const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
-    const handleFormChange = useCallback((type: Forms = Forms.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
+    const [formType, setFormType] = useState<Forms>(() => {
+        // Default to log in form
+        let form: Forms = Forms.LogIn;
+        // Check search params
+        const searchParams = parseSearchParams();
+        if (searchParams.form && Object.values(Forms).includes(searchParams.form as Forms)) {
+            form = searchParams.form as Forms;
+        }
+        return form;
+    });
+    const handleFormChange = useCallback((type: Forms = Forms.LogIn) => {
+        if (type === formType) return;
+        setFormType(type);
+        addSearchParams(setLocation, { form: type });
+    }, [formType, setLocation]);
     const Form = useMemo(() => {
-        switch (popupForm) {
+        switch (formType) {
             case Forms.ForgotPassword:
                 return ForgotPasswordForm;
             case Forms.LogIn:
@@ -57,7 +66,7 @@ export const StartView = ({
             default:
                 return LogInForm;
         }
-    }, [popupForm]);
+    }, [formType]);
 
     /**
      * If verification code supplied
@@ -88,65 +97,57 @@ export const StartView = ({
             }
             // Otherwise, open log in form
             else {
-                setEmailPopupOpen(true);
-                setPopupForm(Forms.LogIn);
+                setFormType(Forms.LogIn);
             }
         }
     }, [emailLogIn, verificationCode, redirect, setLocation, userId]);
 
-    // Wallet provider popups
-    const [connectOpen, setConnectOpen] = useState(false);
-    const [installOpen, setInstallOpen] = useState(false);
-    const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
-    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
+    // // Wallet provider popups
+    // const [connectOpen, setConnectOpen] = useState(false);
+    // const [installOpen, setInstallOpen] = useState(false);
+    // const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
+    // const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
 
-    const toEmailLogIn = useCallback(() => {
-        setPopupForm(Forms.LogIn);
-        setEmailPopupOpen(true);
-    }, []);
+    // // Performs handshake to establish trust between site backend and user's wallet.
+    // // 1. Whitelist website on wallet
+    // // 2. Send public address to backend
+    // // 3. Store public address and nonce in database
+    // // 4. Sign human-readable message (which includes nonce) using wallet
+    // // 5. Send signed message to backend for verification
+    // // 6. Receive JWT and user session
+    // const walletLogin = useCallback(async (providerKey: string) => {
+    //     // Check if wallet extension installed
+    //     if (!hasWalletExtension(providerKey)) {
+    //         PubSub.get().publishAlertDialog({
+    //             messageKey: "WalletProviderNotFoundDetails",
+    //             buttons: [
+    //                 { labelKey: "TryAgain", onClick: openWalletConnectDialog },
+    //                 { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
+    //                 { labelKey: "EmailLogin", onClick: toEmailLogIn },
+    //             ],
+    //         });
+    //         return;
+    //     }
+    //     // Validate wallet
+    //     const walletCompleteResult = await validateWallet(providerKey);
+    //     if (walletCompleteResult?.session) {
+    //         PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
+    //         PubSub.get().publishSession(walletCompleteResult.session);
+    //         // Redirect to main dashboard
+    //         setLocation(redirect ?? LINKS.Home);
+    //         // Set up push notifications
+    //         setupPush();
+    //     }
+    // }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
 
-    const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), []);
+    // const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
+    //     setConnectOpen(false);
+    //     if (providerKey) {
+    //         walletLogin(providerKey);
+    //     }
+    // }, [walletLogin]);
 
-    // Performs handshake to establish trust between site backend and user's wallet.
-    // 1. Whitelist website on wallet
-    // 2. Send public address to backend
-    // 3. Store public address and nonce in database
-    // 4. Sign human-readable message (which includes nonce) using wallet
-    // 5. Send signed message to backend for verification
-    // 6. Receive JWT and user session
-    const walletLogin = useCallback(async (providerKey: string) => {
-        // Check if wallet extension installed
-        if (!hasWalletExtension(providerKey)) {
-            PubSub.get().publishAlertDialog({
-                messageKey: "WalletProviderNotFoundDetails",
-                buttons: [
-                    { labelKey: "TryAgain", onClick: openWalletConnectDialog },
-                    { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
-                    { labelKey: "EmailLogin", onClick: toEmailLogIn },
-                ],
-            });
-            return;
-        }
-        // Validate wallet
-        const walletCompleteResult = await validateWallet(providerKey);
-        if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
-            PubSub.get().publishSession(walletCompleteResult.session);
-            // Redirect to main dashboard
-            setLocation(redirect ?? LINKS.Home);
-            // Set up push notifications
-            setupPush();
-        }
-    }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
-
-    const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
-        setConnectOpen(false);
-        if (providerKey) {
-            walletLogin(providerKey);
-        }
-    }, [walletLogin]);
-
-    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
+    // const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
 
     return (
         <>
@@ -161,19 +162,7 @@ export const StartView = ({
                 open={installOpen}
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
-            />
-            <LargeDialog
-                id="email-auth-dialog"
-                isOpen={emailPopupOpen}
-                onClose={closeEmailPopup}
-                titleId={emailTitleId}
-                zIndex={zIndex + 1}
-            >
-                <Form
-                    onClose={closeEmailPopup}
-                    onFormChange={handleFormChange}
-                />
-            </LargeDialog> */}
+            /> */}
             {/* App bar */}
             <TopBar
                 display={display}
@@ -232,7 +221,6 @@ export const StartView = ({
                         >{t("Email")}</Button>
                     </Stack> */}
                     <Form
-                        onClose={closeEmailPopup}
                         onFormChange={handleFormChange}
                         zIndex={zIndex}
                     />

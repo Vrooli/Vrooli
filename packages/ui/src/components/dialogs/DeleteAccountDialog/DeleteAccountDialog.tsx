@@ -1,4 +1,4 @@
-import { endpointDeleteUser, LINKS, Session, Success, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
@@ -32,7 +32,7 @@ export const DeleteAccountDialog = ({
     const [, setLocation] = useLocation();
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
-    const [deleteAccount] = useLazyFetch<UserDeleteInput, Success>(endpointDeleteUser);
+    const [deleteAccount] = useLazyFetch<UserDeleteInput, Session>(endpointDeleteUser);
 
     return (
         <LargeDialog
@@ -62,7 +62,6 @@ export const DeleteAccountDialog = ({
                     fetchLazyWrapper<UserDeleteInput, Session>({
                         fetch: deleteAccount,
                         inputs: values,
-                        successCondition: (data) => data.success,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
                         onSuccess: (data) => {
                             PubSub.get().publishSession(data);
