@@ -1,8 +1,8 @@
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "@local/shared";
 import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { Status } from "utils/consts";
@@ -32,6 +32,7 @@ export const StatusButton = ({
     status,
     messages,
     sx,
+    zIndex,
 }: StatusButtonProps) => {
     const { palette } = useTheme();
 
@@ -68,10 +69,10 @@ export const StatusButton = ({
                 </IconButton>
             </Box>
             <Box sx={{ padding: 1 }}>
-                <MarkdownDisplay content={statusMarkdown} />
+                <MarkdownDisplay content={statusMarkdown} zIndex={zIndex} />
             </Box>
         </Box>
-    ), [statusMarkdown, palette.primary.dark, palette.primary.contrastText]);
+    ), [palette.primary.dark, palette.primary.contrastText, statusMarkdown, zIndex]);
 
     return (
         <>
@@ -81,7 +82,7 @@ export const StatusButton = ({
                     spacing={1}
                     onClick={openMenu}
                     sx={{
-                        ...(noSelect as any),
+                        ...noSelect,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",

@@ -1,4 +1,4 @@
-import { Box, keyframes, styled } from "@mui/material";
+import { Box, keyframes, styled, SxProps, Theme } from "@mui/material";
 import { DiagonalWaveLoaderProps } from "components/types";
 
 const fade = keyframes`
@@ -12,7 +12,7 @@ const fade = keyframes`
 
 interface LoaderProps {
     size?: number;
-    sx?: any;
+    sx?: SxProps<Theme>;
 }
 
 const Loader = styled(Box, { shouldForwardProp: (prop) => prop !== "size" })<LoaderProps>(({ theme, size }) => ({

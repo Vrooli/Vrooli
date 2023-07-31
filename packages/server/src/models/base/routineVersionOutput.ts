@@ -1,11 +1,10 @@
 import { routineVersionOutputValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../../builders";
+import { noNull, shapeHelper } from "../../builders";
 import { defaultPermissions, translationShapeHelper } from "../../utils";
 import { RoutineVersionOutputFormat } from "../format/routineVersionOutput";
 import { ModelLogic } from "../types";
-import { RoutineModel } from "./routine";
 import { RoutineVersionModel } from "./routineVersion";
-import { RoutineVersionOutputModelLogic } from "./types";
+import { RoutineVersionModelLogic, RoutineVersionOutputModelLogic } from "./types";
 
 const __typename = "RoutineVersionOutput" as const;
 const suppFields = [] as const;
@@ -17,9 +16,9 @@ export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutputModelLogi
             select: () => ({
                 id: true,
                 name: true,
-                routineVersion: selPad(RoutineModel.display.label.select),
+                routineVersion: { select: RoutineVersionModel.display.label.select() },
             }),
-            get: (select, languages) => select.name ?? RoutineModel.display.label.get(select.routineVersion as any, languages),
+            get: (select, languages) => select.name ?? RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
         },
     },
     format: RoutineVersionOutputFormat,
@@ -42,12 +41,13 @@ export const RoutineVersionOutputModel: ModelLogic<RoutineVersionOutputModelLogi
         },
         yup: routineVersionOutputValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as any, languages),
+        isPublic: (data, languages) => RoutineVersionModel.validate.isPublic(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as any, userId),
+        owner: (data, userId) => RoutineVersionModel.validate.owner(data.routineVersion as RoutineVersionModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {

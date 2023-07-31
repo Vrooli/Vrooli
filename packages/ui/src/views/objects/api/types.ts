@@ -1,5 +1,5 @@
 import { ApiVersion } from "@local/shared";
 import { UpsertProps, ViewProps } from "../types";
 
-export interface ApiUpsertProps extends UpsertProps<ApiVersion> { }
-export interface ApiViewProps extends ViewProps<ApiVersion> { }
+export type ApiUpsertProps = UpsertProps<ApiVersion>
+export type ApiViewProps = ViewProps<ApiVersion>

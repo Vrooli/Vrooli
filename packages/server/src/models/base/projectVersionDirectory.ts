@@ -4,7 +4,7 @@ import { bestTranslation, defaultPermissions, translationShapeHelper } from "../
 import { ProjectVersionDirectoryFormat } from "../format/projectVersionDirectory";
 import { ModelLogic } from "../types";
 import { ProjectVersionModel } from "./projectVersion";
-import { ProjectVersionDirectoryModelLogic } from "./types";
+import { ProjectVersionDirectoryModelLogic, ProjectVersionModelLogic } from "./types";
 
 const __typename = "ProjectVersionDirectory" as const;
 const suppFields = [] as const;
@@ -56,10 +56,10 @@ export const ProjectVersionDirectoryModel: ModelLogic<ProjectVersionDirectoryMod
     search: {} as any,
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => ProjectVersionModel.validate.isPublic(data.projectVersion as any, languages),
+        isPublic: (data, languages) => ProjectVersionModel.validate.isPublic(data.projectVersion as ProjectVersionModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ProjectVersionModel.validate.owner(data.projectVersion as any, userId),
+        owner: (data, userId) => ProjectVersionModel.validate.owner(data.projectVersion as ProjectVersionModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

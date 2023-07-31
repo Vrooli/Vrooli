@@ -6,7 +6,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { MemberInviteFormat } from "../format/memberInvite";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { MemberInviteModelLogic } from "./types";
+import { MemberInviteModelLogic, UserModelLogic } from "./types";
 import { UserModel } from "./user";
 
 const __typename = "MemberInvite" as const;
@@ -18,7 +18,7 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
         // Label is the member label
         label: {
             select: () => ({ id: true, user: { select: UserModel.display.label.select() } }),
-            get: (select, languages) => UserModel.display.label.get(select.user as any, languages),
+            get: (select, languages) => UserModel.display.label.get(select.user as UserModelLogic["PrismaModel"], languages),
         },
     },
     format: MemberInviteFormat,
@@ -54,8 +54,8 @@ export const MemberInviteModel: ModelLogic<MemberInviteModelLogic, typeof suppFi
         searchStringQuery: () => ({
             OR: [
                 "messageWrapped",
-                { organization: OrganizationModel.search!.searchStringQuery() },
-                { user: UserModel.search!.searchStringQuery() },
+                { organization: OrganizationModel.search.searchStringQuery() },
+                { user: UserModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {

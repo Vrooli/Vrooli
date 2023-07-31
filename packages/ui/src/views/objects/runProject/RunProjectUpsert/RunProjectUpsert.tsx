@@ -18,7 +18,7 @@ export const RunProjectUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: RunProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const RunProjectUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

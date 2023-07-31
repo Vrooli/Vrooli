@@ -4,6 +4,7 @@ export interface WalletListProps {
     handleUpdate: (wallets: Wallet[]) => void;
     numVerifiedEmails: number;
     list: Wallet[];
+    zIndex: number;
 }
 
 export interface WalletListItemProps {

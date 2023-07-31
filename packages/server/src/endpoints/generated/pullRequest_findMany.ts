@@ -15,9 +15,11 @@ export const pullRequest_findMany = {
       "status": true,
       "createdBy": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true
+        "profileImage": true
       },
       "you": {
         "canComment": true,

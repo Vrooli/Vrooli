@@ -1,6 +1,6 @@
-import { Router } from "@local/shared";
 import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
 import ReactDOM from "react-dom/client";
+import { Router } from "route";
 import { App } from "./App";
 import "./i18n"; // Must import for translations to work
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";

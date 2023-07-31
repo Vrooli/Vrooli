@@ -1,11 +1,11 @@
 import { MaxObjects, nodeRoutineListItemValidation } from "@local/shared";
-import { noNull, selPad, shapeHelper } from "../../builders";
+import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, translationShapeHelper } from "../../utils";
 import { NodeRoutineListItemFormat } from "../format/nodeRoutineListItem";
 import { ModelLogic } from "../types";
 import { NodeRoutineListModel } from "./nodeRoutineList";
-import { RoutineModel } from "./routine";
-import { NodeRoutineListItemModelLogic } from "./types";
+import { RoutineVersionModel } from "./routineVersion";
+import { NodeRoutineListItemModelLogic, NodeRoutineListModelLogic, RoutineVersionModelLogic } from "./types";
 
 const __typename = "NodeRoutineListItem" as const;
 const suppFields = [] as const;
@@ -16,14 +16,14 @@ export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic,
         label: {
             select: () => ({
                 id: true,
-                translations: selPad({ id: true, name: true }),
-                routineVersion: selPad(RoutineModel.display.label.select),
+                translations: { select: { id: true, name: true } },
+                routineVersion: { select: RoutineVersionModel.display.label.select() },
             }),
             get: (select, languages) => {
                 // Prefer item translations over routineVersion's
                 const itemLabel = bestTranslation(select.translations, languages)?.name ?? "";
                 if (itemLabel.length > 0) return itemLabel;
-                return RoutineModel.display.label.get(select.routineVersion as any, languages);
+                return RoutineVersionModel.display.label.get(select.routineVersion as RoutineVersionModelLogic["PrismaModel"], languages);
             },
         },
     },
@@ -47,14 +47,15 @@ export const NodeRoutineListItemModel: ModelLogic<NodeRoutineListItemModelLogic,
         },
         yup: nodeRoutineListItemValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, list: "NodeRoutineList" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => NodeRoutineListModel.validate.owner(data.list as any, userId),
-        isDeleted: (data, languages) => NodeRoutineListModel.validate.isDeleted(data.list as any, languages),
-        isPublic: (data, languages) => NodeRoutineListModel.validate.isPublic(data.list as any, languages),
+        owner: (data, userId) => NodeRoutineListModel.validate.owner(data.list as NodeRoutineListModelLogic["PrismaModel"], userId),
+        isDeleted: (data, languages) => NodeRoutineListModel.validate.isDeleted(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
+        isPublic: (data, languages) => NodeRoutineListModel.validate.isPublic(data.list as NodeRoutineListModelLogic["PrismaModel"], languages),
         visibility: {
             private: { list: NodeRoutineListModel.validate.visibility.private },
             public: { list: NodeRoutineListModel.validate.visibility.public },

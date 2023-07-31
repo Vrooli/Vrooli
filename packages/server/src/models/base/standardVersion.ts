@@ -9,7 +9,7 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../
 import { StandardVersionFormat } from "../format/standardVersion";
 import { ModelLogic } from "../types";
 import { StandardModel } from "./standard";
-import { StandardVersionModelLogic } from "./types";
+import { StandardModelLogic, StandardVersionModelLogic } from "./types";
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -107,9 +107,9 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans.description,
+                    description: trans?.description,
                 }, languages[0]);
             },
         },
@@ -251,10 +251,10 @@ export const StandardVersionModel: ModelLogic<StandardVersionModelLogic, typeof 
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            StandardModel.validate.isPublic(data.root as any, languages),
+            StandardModel.validate.isPublic(data.root as StandardModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => StandardModel.validate.owner(data.root as any, userId),
+        owner: (data, userId) => StandardModel.validate.owner(data.root as StandardModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

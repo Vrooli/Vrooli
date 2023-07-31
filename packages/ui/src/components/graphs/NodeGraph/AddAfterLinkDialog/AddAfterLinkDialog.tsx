@@ -57,6 +57,7 @@ export const AddAfterLinkDialog = ({
                 onClose={handleClose}
                 title={t("LinkSelect")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 <List>

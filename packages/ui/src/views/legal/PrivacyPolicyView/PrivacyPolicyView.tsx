@@ -1,4 +1,4 @@
-import { LINKS, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -6,6 +6,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { useMarkdown } from "utils/hooks/useMarkdown";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
@@ -37,6 +38,7 @@ enum TabOptions {
 export const PrivacyPolicyView = ({
     display = "page",
     onClose,
+    zIndex,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -70,9 +72,10 @@ export const PrivacyPolicyView = ({
                 onChange={handleTabChange}
                 tabs={tabs}
             />}
+            zIndex={zIndex}
         />
         <Box m={2}>
-            <MarkdownDisplay content={privacy} />
+            <MarkdownDisplay content={privacy} zIndex={zIndex} />
         </Box>
     </>;
 };

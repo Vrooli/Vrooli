@@ -13,7 +13,7 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArrayPro
     const objects = await prismaDelegate.findMany({
         where,
         select: { id: true },
-    })
+    });
     // Convert to array of booleans
     return idsToQuery.map(id => objects.some(({ id: objectId }: { id: string }) => objectId === id));
 }

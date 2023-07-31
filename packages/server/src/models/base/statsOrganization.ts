@@ -1,12 +1,11 @@
 import { StatsOrganizationSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsOrganizationFormat } from "../format/statsOrganization";
 import { ModelLogic } from "../types";
 import { OrganizationModel } from "./organization";
-import { StatsOrganizationModelLogic } from "./types";
+import { OrganizationModelLogic, StatsOrganizationModelLogic } from "./types";
 
 const __typename = "StatsOrganization" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
     delegate: (prisma) => prisma.stats_organization,
     display: {
         label: {
-            select: () => ({ id: true, organization: selPad(OrganizationModel.display.label.select) }),
+            select: () => ({ id: true, organization: { select: OrganizationModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: OrganizationModel.display.label.get(select.organization as any, languages),
+                objectName: OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ organization: OrganizationModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ organization: OrganizationModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsOrganizationModel: ModelLogic<StatsOrganizationModelLogic, typ
             organization: "Organization",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as any, userId),
+        owner: (data, userId) => OrganizationModel.validate.owner(data.organization as OrganizationModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
             ["organization", "Organization"],

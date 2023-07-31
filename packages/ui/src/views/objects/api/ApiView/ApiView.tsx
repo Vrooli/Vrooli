@@ -1,4 +1,4 @@
-import { ApiIcon, ApiVersion, BookmarkFor, EditIcon, EllipsisIcon, endpointGetApiVersion, ResourceList, useLocation } from "@local/shared";
+import { ApiVersion, BookmarkFor, endpointGetApiVersion, ResourceList } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -9,8 +9,10 @@ import { ResourceListVertical } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
+import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -23,7 +25,7 @@ export const ApiView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -114,9 +116,9 @@ export const ApiView = ({
             >
                 <ApiIcon fill="white" width='75%' height='75%' />
             </Avatar>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
@@ -143,6 +145,7 @@ export const ApiView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Joined date */}
@@ -152,6 +155,7 @@ export const ApiView = ({
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -179,13 +183,14 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
+    ), [palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, t, apiVersion, summary, zIndex, canBookmark, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

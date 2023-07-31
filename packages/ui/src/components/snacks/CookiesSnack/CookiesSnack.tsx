@@ -1,6 +1,6 @@
-import { CloseIcon, LargeCookieIcon } from "@local/shared";
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { CookieSettingsDialog } from "components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { CloseIcon, LargeCookieIcon } from "icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";

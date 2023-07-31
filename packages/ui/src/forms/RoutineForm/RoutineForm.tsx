@@ -1,4 +1,4 @@
-import { CompleteIcon, DUMMY_ID, Node, NodeLink, orDefault, RoutineIcon, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -12,8 +12,9 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Title } from "components/text/Title/Title";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
+import { CompleteIcon, RoutineIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -86,7 +87,7 @@ export const validateRoutineValues = async (values: RoutineVersionShape, existin
 
 const helpTextSubroutines = "A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.";
 
-export const RoutineForm = forwardRef<any, RoutineFormProps>(({
+export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>(({
     display,
     dirty,
     isCreate,
@@ -264,6 +265,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                 title="Use subroutines?"
                                 help={helpTextSubroutines}
                                 variant="subheader"
+                                zIndex={zIndex}
                             />
                             {/* Yes/No buttons */}
                             <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
@@ -314,7 +316,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                                 handleDeleteLanguage,
                                                 languages,
                                             }}
-                                            zIndex={zIndex + 1300}
+                                            zIndex={zIndex + 2300}
                                         />
                                     </LargeDialog>
                                     {/* Button to display graph */}
@@ -369,6 +371,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

@@ -1,6 +1,6 @@
-import { CloseIcon } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { CloseIcon } from "icons";
 import { noSelect } from "styles";
 import { MenuTitleProps } from "../types";
 
@@ -9,6 +9,7 @@ export const MenuTitle = ({
     helpText,
     onClose,
     title,
+    zIndex,
 }: MenuTitleProps) => {
     const { palette } = useTheme();
 
@@ -40,6 +41,7 @@ export const MenuTitle = ({
                     marginTop: "auto",
                     marginBottom: "auto",
                 }}
+                zIndex={zIndex}
             />}
             <IconButton
                 aria-label="close"

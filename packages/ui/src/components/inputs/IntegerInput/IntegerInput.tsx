@@ -1,7 +1,7 @@
-import { MinusIcon, PlusIcon } from "@local/shared";
 import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from "formik";
+import { MinusIcon, PlusIcon } from "icons";
 import { useCallback, useEffect, useRef } from "react";
 import { IntegerInputProps } from "../types";
 

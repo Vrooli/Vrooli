@@ -1,4 +1,4 @@
-import { Count, GqlModelType, reqArr } from "@local/shared";
+import { Count, DUMMY_ID, GqlModelType, reqArr } from "@local/shared";
 import { modelToGql, selectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
@@ -34,9 +34,10 @@ export async function cudHelper<
     userData,
 }: CUDHelperInput): Promise<CUDResult<GqlModel>> {
     // Get functions for manipulating model logic
-    const { delegate, mutate, validate } = getLogic(["delegate", "mutate", "validate"], objectType, userData.languages, "cudHelper");
+    const { delegate, mutate } = getLogic(["delegate", "mutate", "validate"], objectType, userData.languages, "cudHelper");
     // Initialize results
-    let created: GqlModel[] = [], updated: GqlModel[] = [], deleted: Count = { __typename: "Count" as const, count: 0 };
+    const created: GqlModel[] = [], updated: GqlModel[] = [];
+    let deleted: Count = { __typename: "Count" as const, count: 0 };
     // Initialize auth data by type
     let createAuthData: { [x: string]: any } = {}, updateAuthData: { [x: string]: any } = {};
     // Validate yup
@@ -86,9 +87,15 @@ export async function cudHelper<
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
     // Max objects check
-    maxObjectsCheck(authDataById, idsByAction, prisma, userData);
+    await maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     if (shapedCreate.length > 0) {
         for (const data of shapedCreate) {
+            // Make sure no objects with placeholder ids are created. These could potentially bypass permissions/api checks, 
+            // since they're typically used to satisfy validation for relationships that aren't needed for the create 
+            // (e.g. `listConnect` on a resource item that's already being created in a list)
+            if (data?.id === DUMMY_ID) {
+                throw new CustomError("0501", "InternalError", userData.languages, { data, objectType });
+            }
             // Create
             let createResult: any = {};
             let select: { [key: string]: any } | undefined;
@@ -116,11 +123,11 @@ export async function cudHelper<
             userData,
         });
     }
-    if (shapedUpdate.length > 0) {
+    if (shapedUpdate.length > 0 && updateMany) {
         for (const update of shapedUpdate) {
             // Update
-            let updateResult: any = {};
-            let select: { [key: string]: any } | undefined;
+            let updateResult: object = {};
+            let select: object | undefined;
             try {
                 select = selectHelper(partialInfo)?.select;
                 updateResult = await delegate(prisma).update({
@@ -133,7 +140,7 @@ export async function cudHelper<
             }
             // Convert
             const converted = modelToGql<GqlModel>(updateResult, partialInfo);
-            updated.push(converted as any);
+            updated.push(converted as GqlModel);
         }
         // Filter authDataById to only include objects which were updated
         updateAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
@@ -143,12 +150,12 @@ export async function cudHelper<
             preMap,
             prisma,
             updated,
-            updateInput: updateMany!.map(u => u.data), userData,
+            updateInput: updateMany.map(u => u.data), userData,
         });
     }
     if (deleteMany && deleteMany.length > 0) {
         // Call beforeDeleted
-        let beforeDeletedData: any;
+        let beforeDeletedData: object = [];
         if (mutate.trigger?.beforeDeleted) {
             beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
         }

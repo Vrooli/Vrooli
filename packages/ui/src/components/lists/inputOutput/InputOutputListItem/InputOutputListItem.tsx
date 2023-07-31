@@ -1,10 +1,11 @@
-import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon, StandardVersion } from "@local/shared";
+import { StandardVersion } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableText } from "components/containers/EditableText/EditableText";
 import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { linkColors } from "styles";
@@ -163,6 +164,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 isEditing={isEditing}
                                 name='name'
                                 props={{ label: t("Identifier"), fullWidth: true }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -176,6 +178,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                     language,
                                     fullWidth: true,
                                 }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -183,7 +186,8 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                 component='TranslatedMarkdown'
                                 isEditing={isEditing}
                                 name='helpText'
-                                props={{ placeholder: t("DetailsOptional"), language, zIndex }}
+                                props={{ placeholder: t("DetailsOptional"), language }}
+                                zIndex={zIndex}
                             />
                         </Grid>
                         {isInput && <Grid item xs={12}>

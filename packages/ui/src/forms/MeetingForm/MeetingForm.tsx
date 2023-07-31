@@ -1,11 +1,12 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, Meeting, meetingValidation, orDefault, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, Meeting, meetingValidation, orDefault, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MeetingFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -53,7 +54,7 @@ export const validateMeetingValues = async (values: MeetingShape, existing?: Mee
     return result;
 };
 
-export const MeetingForm = forwardRef<any, MeetingFormProps>(({
+export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>(({
     display,
     dirty,
     isCreate,
@@ -104,7 +105,7 @@ export const MeetingForm = forwardRef<any, MeetingFormProps>(({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -126,7 +127,7 @@ export const MeetingForm = forwardRef<any, MeetingFormProps>(({
                                 display: "flex",
                                 margin: "auto",
                             }}
-                        >{"Add schedule"}</Button>
+                        >{t("ScheduleCreate")}</Button>
                     )}
                     {scheduleField.value && <ListContainer
                         isEmpty={false}
@@ -197,6 +198,7 @@ export const MeetingForm = forwardRef<any, MeetingFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

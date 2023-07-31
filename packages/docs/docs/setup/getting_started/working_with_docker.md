@@ -34,7 +34,9 @@ If the repo you're working on has both a `docker-compose.yml` and `docker-compos
 To stop the docker containers, enter: `docker-compose down` (or `docker-compose -f docker-compose-prod.yml down` for production). This will stop the containers, but will not remove them. To remove the containers, enter: `docker-compose down --rmi all`. This will stop the containers and remove them. If you want to remove the containers and the volumes, enter: `docker-compose down --rmi all -v`. This will stop the containers, remove them, and remove the volumes. **Note:** If you remove the volumes, you will lose all data stored in the database.
 
 ## Logging  
-To view the logs for a container, enter: `docker logs <container-name>`. To follow the logs in real time, enter: `docker logs -f <container-name>`.
+- To view the logs for a container, enter: `docker logs <container-name>`. 
+- To follow the logs in real time, enter: `docker logs -f <container-name>`.
+- To debug an unhealthy container, enter `docker inspect <container-name>`.
 
 ## Entering a Container
 Sometimes you'll need to view the contents of a container. To do this, enter: `docker exec -it <container-name> sh`. This will open a bash terminal in the container. To exit the container, enter: `exit`.

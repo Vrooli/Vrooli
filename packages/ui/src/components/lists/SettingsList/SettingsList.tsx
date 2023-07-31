@@ -1,7 +1,8 @@
-import { LINKS, useLocation } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { accountSettingsData, displaySettingsData } from "views/settings";
 
@@ -11,16 +12,16 @@ export const SettingsList = () => {
     const [, setLocation] = useLocation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const onSelect = useCallback((newValue: any) => {
-        if (!newValue) return;
-        setLocation(LINKS[newValue]);
+    const onSelect = useCallback((link: LINKS) => {
+        if (!link) return;
+        setLocation(link);
     }, [setLocation]);
 
     const [accountListOpen, setAccountListOpen] = useState(false);
     const toggleAccountList = useCallback(() => setAccountListOpen(!accountListOpen), [accountListOpen]);
     const accountList = useMemo(() => {
-        const isSelected = (link: string) => window.location.pathname.includes(link);
-        return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
+        const isSelected = (link: LINKS) => window.location.pathname.includes(link);
+        return Object.entries(accountSettingsData).map(([_, { title, titleVariables, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -34,7 +35,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, { count: 2 })} />
+                <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
@@ -42,8 +43,8 @@ export const SettingsList = () => {
     const [displayListOpen, setDisplayListOpen] = useState(false);
     const toggleDisplayList = useCallback(() => setDisplayListOpen(!displayListOpen), [displayListOpen]);
     const displayList = useMemo(() => {
-        const isSelected = (link: string) => window.location.pathname.includes(link);
-        return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
+        const isSelected = (link: LINKS) => window.location.pathname.includes(link);
+        return Object.entries(displaySettingsData).map(([_, { title, titleVariables, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -57,7 +58,7 @@ export const SettingsList = () => {
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(title, { count: 2 })} />
+                <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} />
             </ListItem>
         ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
@@ -65,11 +66,14 @@ export const SettingsList = () => {
 
     if (isMobile) return null;
     return (
-        // Full width on mobile, and 500px on desktop. 
         <Box sx={{
             width: "min(100%, 300px)",
-            marginLeft: "auto",
-            borderRight: { xs: "none", md: "1px solid" },
+            height: "fit-content",
+            marginLeft: 0,
+            marginTop: 4,
+            background: palette.background.paper,
+            boxShadow: 2,
+            borderRadius: 2,
         }}>
             <List>
                 {/* Account-related items */}

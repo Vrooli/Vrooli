@@ -11,7 +11,9 @@ export const meeting_findMany = {
         "owner": {
           "Organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -32,9 +34,11 @@ export const meeting_findMany = {
           },
           "User": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           }
         },
         "you": {
@@ -52,7 +56,9 @@ export const meeting_findMany = {
           "owner": {
             "Organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -73,9 +79,11 @@ export const meeting_findMany = {
             },
             "User": {
               "id": true,
+              "bannerImage": true,
+              "handle": true,
               "isBot": true,
               "name": true,
-              "handle": true
+              "profileImage": true
             }
           },
           "you": {
@@ -124,7 +132,9 @@ export const meeting_findMany = {
           "stepsCount": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -145,9 +155,11 @@ export const meeting_findMany = {
           },
           "user": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "you": {
             "canDelete": true,
@@ -193,7 +205,9 @@ export const meeting_findMany = {
           "wasRunAutomatically": true,
           "organization": {
             "id": true,
+            "bannerImage": true,
             "handle": true,
+            "profileImage": true,
             "you": {
               "canAddMembers": true,
               "canDelete": true,
@@ -214,9 +228,11 @@ export const meeting_findMany = {
           },
           "user": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true
+            "profileImage": true
           },
           "you": {
             "canDelete": true,
@@ -258,7 +274,9 @@ export const meeting_findMany = {
       "showOnOrganizationProfile": true,
       "organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -293,7 +311,9 @@ export const meeting_findMany = {
             "membersCount": true,
             "organization": {
               "id": true,
+              "bannerImage": true,
               "handle": true,
+              "profileImage": true,
               "you": {
                 "canAddMembers": true,
                 "canDelete": true,
@@ -327,7 +347,9 @@ export const meeting_findMany = {
         "membersCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,

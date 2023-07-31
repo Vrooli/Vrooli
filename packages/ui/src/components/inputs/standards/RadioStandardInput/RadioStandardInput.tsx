@@ -2,10 +2,10 @@
  * Input for entering (and viewing format of) Radio data that 
  * must match a certain schema.
  */
-import { AddIcon, DeleteIcon } from "@local/shared";
 import { Button, IconButton, Radio, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { RadioProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { RadioStandardInputProps } from "../types";

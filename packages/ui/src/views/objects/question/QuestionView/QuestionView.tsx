@@ -1,4 +1,4 @@
-import { CommentFor, EditIcon, endpointGetQuestion, exists, Question, Tag, useLocation } from "@local/shared";
+import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -13,8 +13,10 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Formik } from "formik";
 import { questionInitialValues } from "forms/QuestionForm/QuestionForm";
+import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -29,7 +31,7 @@ export const QuestionView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -94,6 +96,7 @@ export const QuestionView = ({
                     languages={availableLanguages}
                     zIndex={zIndex}
                 />}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -118,6 +121,7 @@ export const QuestionView = ({
                             loading={isLoading}
                             showIcon={true}
                             timestamp={existing?.created_at}
+                            zIndex={zIndex}
                         />
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
@@ -126,7 +130,7 @@ export const QuestionView = ({
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                     </Stack>
-                    <MarkdownDisplay content={subtitle} />
+                    <MarkdownDisplay content={subtitle} zIndex={zIndex} />
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}

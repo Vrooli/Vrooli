@@ -1,11 +1,12 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { AddIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostPushDevice, endpointPutPushDevice, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
-import { Button, Stack, useTheme } from "@mui/material";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostPushDevice, endpointPutPushDevice, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
+import { Button, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
+import { AddIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDeviceInfo } from "utils/display/device";
@@ -21,7 +22,6 @@ export const PushList = ({
     handleUpdate,
     list,
 }: PushListProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle add

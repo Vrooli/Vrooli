@@ -1,9 +1,10 @@
 /**
  * Displays all search options for an organization
  */
-import { AddIcon, Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
@@ -134,7 +135,7 @@ export const SelectBookmarkListDialog = ({
                     isCreate={true}
                     onCancel={closeCreate}
                     onCompleted={onCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main dialog */}
@@ -173,6 +174,7 @@ export const SelectBookmarkListDialog = ({
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}
                     onCancel={onCancel}
                     onSubmit={handleSubmit}
+                    zIndex={zIndex + 1000}
                 />
             </LargeDialog>
         </>

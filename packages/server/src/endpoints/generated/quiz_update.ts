@@ -20,9 +20,11 @@ export const quiz_update = {
           "updated_at": true,
           "createdBy": {
             "id": true,
+            "bannerImage": true,
+            "handle": true,
             "isBot": true,
             "name": true,
-            "handle": true,
+            "profileImage": true,
             "__typename": "User"
           },
           "score": true,
@@ -54,9 +56,11 @@ export const quiz_update = {
         },
         "user": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "isBot": true,
           "name": true,
-          "handle": true,
+          "profileImage": true,
           "__typename": "User"
         },
         "you": {
@@ -131,9 +135,11 @@ export const quiz_update = {
   "updated_at": true,
   "createdBy": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "score": true,

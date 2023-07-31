@@ -14,7 +14,7 @@ type GetLogicReturn<
     format: "format" extends Logic ? Required<ModelLogic<any, any>>["format"] : ModelLogic<any, any>["format"],
     idField: string,
     mutate: "mutate" extends Logic ? Required<ModelLogic<any, any>>["mutate"] : ModelLogic<any, any>["mutate"],
-    search: "search" extends Logic ? Required<ModelLogic<any, any>>["search"] : ModelLogic<any, any>["search"],
+    search: "search" extends Logic ? NonNullable<Required<ModelLogic<any, any>>["search"]> : ModelLogic<any, any>["search"],
     validate: "validate" extends Logic ? Required<ModelLogic<any, any>>["validate"] : ModelLogic<any, any>["validate"],
 }
 

@@ -131,7 +131,6 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
 
 /**
  * Creates SessionUser object from user.
- * Also updates user's lastSessionVerified time
  * @param user User object
  * @param prisma Prisma type
  * @param req Express request object
@@ -143,17 +142,18 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     const now = new Date();
     const startDate = now;
     const endDate = new Date(now.setDate(now.getDate() + 7));
-    // Update user's lastSessionVerified, and query for user data
-    const userData = await prisma.user.update({
+    // Query for user data
+    const userData = await prisma.user.findUnique({
         where: { id: user.id },
-        data: { lastSessionVerified: new Date().toISOString() },
         select: {
             id: true,
+            updated_at: true,
             handle: true,
             languages: { select: { language: true } },
             name: true,
             theme: true,
             premium: { select: { id: true, expiresAt: true } },
+            profileImage: true,
             bookmakLists: {
                 select: {
                     id: true,
@@ -182,6 +182,8 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             },
         },
     });
+    if (!userData)
+        throw new CustomError("0510", "NotFound", req.session?.languages ?? ["en"]);
     // Find active focus mode
     const currentActiveFocusMode = getUser(req.session as SessionData)?.activeFocusMode;
     const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
@@ -214,12 +216,14 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         membershipsCount: userData._count?.memberships ?? 0,
         name: userData.name,
         notesCount: userData._count?.notes ?? 0,
+        profileImage: userData.profileImage,
         projectsCount: userData._count?.projects ?? 0,
         questionsAskedCount: userData._count?.questionsAsked ?? 0,
         routinesCount: userData._count?.routines ?? 0,
         smartContractsCount: userData._count?.smartContracts ?? 0,
         standardsCount: userData._count?.standards ?? 0,
         theme: userData.theme,
+        updated_at: userData.updated_at,
     };
     return result;
 };

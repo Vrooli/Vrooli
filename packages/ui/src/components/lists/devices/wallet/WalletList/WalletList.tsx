@@ -1,12 +1,13 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { AddIcon, DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, Wallet, WalletUpdateInput } from "@local/shared";
+import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
+import { AddIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
@@ -20,6 +21,7 @@ export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
+    zIndex,
 }: WalletListProps) => {
     const { t } = useTranslation();
 
@@ -165,13 +167,13 @@ export const WalletList = ({
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
                 onClose={closeWalletConnectDialog}
-                zIndex={200}
+                zIndex={zIndex + 1}
             />
             {/* Install dialog for downloading wallet extension */}
             <WalletInstallDialog
                 open={installOpen}
                 onClose={closeWalletInstallDialog}
-                zIndex={connectOpen ? 201 : 200}
+                zIndex={zIndex + (connectOpen ? 1 : 0)}
             />
             <ListContainer
                 emptyText={t("NoWallets", { ns: "error" })}
@@ -195,19 +197,15 @@ export const WalletList = ({
                 alignItems: "center",
                 display: "flex",
                 justifyContent: "center",
-                paddingTop: 2,
+                paddingTop: 4,
                 paddingBottom: 6,
             }}>
                 <Button
                     fullWidth
                     onClick={openWalletAddDialog}
                     startIcon={<AddIcon />}
-                    sx={{
-                        maxWidth: "400px",
-                        width: "auto",
-                    }}
                     variant="outlined"
-                >Add Wallet</Button>
+                >{t("AddWallet")}</Button>
             </Box>
         </>
     );

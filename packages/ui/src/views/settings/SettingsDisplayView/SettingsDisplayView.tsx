@@ -1,10 +1,11 @@
-import { endpointPutProfile, ProfileUpdateInput, SearchIcon, User, userValidation } from "@local/shared";
+import { endpointPutProfile, ProfileUpdateInput, User, userValidation } from "@local/shared";
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsDisplayForm } from "forms/settings";
+import { SearchIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getSiteLanguage } from "utils/authentication/session";
@@ -34,13 +35,11 @@ export const SettingsDisplayView = ({
                 help={t("DisplaySettingsDescription")}
                 onClose={onClose}
                 title={t("Display")}
+                zIndex={zIndex}
             />
             <Stack direction="row">
                 <SettingsList />
-                <Stack direction="column" sx={{
-                    margin: "auto",
-                    display: "block",
-                }}>
+                <Box m="auto">
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
@@ -83,7 +82,7 @@ export const SettingsDisplayView = ({
                                 marginRight: "auto",
                             }}>{t("ClearSearchHistory")}</Button>
                     </Box>
-                </Stack>
+                </Box>
             </Stack>
         </>
     );

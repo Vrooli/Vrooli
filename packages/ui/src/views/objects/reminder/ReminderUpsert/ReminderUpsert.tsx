@@ -1,9 +1,10 @@
-import { DeleteIcon, endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
+import { endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
+import { DeleteIcon } from "icons";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -21,7 +22,7 @@ export const ReminderUpsert = ({
     onCancel,
     onCompleted,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ReminderUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -48,8 +49,9 @@ export const ReminderUpsert = ({
                 options={!isCreate ? [{
                     Icon: DeleteIcon,
                     label: t("Delete"),
-                    onClick: handleDelete,
+                    onClick: handleDelete as () => void,
                 }] : []}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

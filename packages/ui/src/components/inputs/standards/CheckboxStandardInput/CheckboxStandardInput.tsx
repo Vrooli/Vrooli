@@ -2,10 +2,10 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { AddIcon, DeleteIcon } from "@local/shared";
 import { Button, Checkbox, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { CheckboxProps } from "forms/types";
+import { AddIcon, DeleteIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckboxStandardInputProps } from "../types";

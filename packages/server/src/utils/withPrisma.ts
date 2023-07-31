@@ -13,6 +13,7 @@ interface WithPrismaProps {
 
 /**
  * Handles the Prisma connection/disconnection and error logging
+ * @returns Boolean indicating if the process was successful
  */
 export async function withPrisma({
     process,

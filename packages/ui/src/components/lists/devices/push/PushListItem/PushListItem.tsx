@@ -1,13 +1,8 @@
-import { DeleteIcon } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { DeleteIcon } from "icons";
 import { useCallback } from "react";
 import { multiLineEllipsis } from "styles";
 import { PushListItemProps } from "../types";
-
-const Status = {
-    NotVerified: "#a71c2d", // Red
-    Verified: "#19972b", // Green
-};
 
 //  TODO copied from emaillistitem. need to rewrite
 export function PushListItem({

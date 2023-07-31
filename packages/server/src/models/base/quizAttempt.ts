@@ -5,7 +5,7 @@ import { getSingleTypePermissions } from "../../validators";
 import { QuizAttemptFormat } from "../format/quizAttempt";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
-import { QuizAttemptModelLogic } from "./types";
+import { QuizAttemptModelLogic, QuizModelLogic } from "./types";
 
 const __typename = "QuizAttempt" as const;
 const suppFields = ["you"] as const;
@@ -21,7 +21,7 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
             }),
             // Label is quiz name + created_at date
             get: (select, languages) => {
-                const quizName = QuizModel.display.label.get(select.quiz as any, languages);
+                const quizName = QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages);
                 const date = new Date(select.created_at).toLocaleDateString();
                 return `${quizName} - ${date}`;
             },
@@ -74,10 +74,10 @@ export const QuizAttemptModel: ModelLogic<QuizAttemptModelLogic, typeof suppFiel
     },
     validate: {
         isDeleted: () => false,
-        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as any, languages),
+        isPublic: (data, languages) => QuizModel.validate.isPublic(data.quiz as QuizModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: 100000,
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as any, userId),
+        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {

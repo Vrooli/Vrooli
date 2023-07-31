@@ -1,6 +1,7 @@
-import { addSearchParams, exists, lowercaseFirstLetter, parseSearchParams, TimeFrame, useLocation } from "@local/shared";
+import { exists, lowercaseFirstLetter, TimeFrame } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -36,7 +37,7 @@ type FullSearchParams = Partial<SearchParams> & {
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
  */
-export const parseData = (data: any, resolve?: (data: any) => any) => {
+export const parseData = (data: any, resolve?: (data: any) => object[]) => {
     if (!data) return [];
     // query result is always returned as an object with a single key (the endpoint name), where 
     // the value is the actual data. If this is not the case, then (hopefully) it was already 
@@ -195,22 +196,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
      * Update params when search conditions change
      */
     useEffect(() => {
-        const fetchParams = async () => {
-            const newParams = searchTypeToParams[searchType];
-            if (!newParams) return;
-            const resolvedParams = await newParams();
-            const sortBy = updateSortBy(resolvedParams, params.current.sortBy);
-            after.current = {};
-            params.current = {
-                ...params.current,
-                ...resolvedParams,
-                sortBy,
-                hasMore: true,
-            };
-            updateUrl();
-            if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
+        const newParams = searchTypeToParams[searchType]();
+        if (!newParams) return;
+        const sortBy = updateSortBy(newParams, params.current.sortBy);
+        after.current = {};
+        params.current = {
+            ...params.current,
+            ...newParams,
+            sortBy,
+            hasMore: true,
         };
-        fetchParams();
+        updateUrl();
+        if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
     }, [stableCanSearch, debouncedGetPageData, updateUrl, searchType]);
 
     // Fetch more data by setting "after"
@@ -242,9 +239,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
             setAllData([]);
             return;
         }
+        // If there is "after" data, append it to the existing data
         if (Object.keys(after.current).length > 0) {
-            setAllData(curr => [...curr, ...parsedData]);
-        } else {
+            setAllData(curr => {
+                // If the last item in each array is the same, then this probably means 
+                // it has already been appended. So don't append it again.
+                if (curr.length > 0 && parsedData.length > 0 && curr[curr.length - 1].id === parsedData[parsedData.length - 1].id) return curr;
+                // Otherwise, append it
+                return [...curr, ...parsedData];
+            });
+        }
+        // Otherwise, assume this is a new search and replace the existing data
+        else {
             setAllData(parsedData);
         }
     }, [pageData, stableResolve]);

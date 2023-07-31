@@ -1,16 +1,18 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "@local/shared";
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
 import { AssistantDialogProps } from "components/dialogs/types";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { keyComboToString } from "utils/display/device";
 import { getDisplay, ListObjectType } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -27,7 +29,7 @@ interface TagItemDropdownPros {
     items: ListObjectType[];
 }
 
-/** When using "@" to tag an object, displays   */
+/** When using "@" to tag an object, displays options */
 const TagItemDropdown = ({
     anchorEl,
     focusedIndex,
@@ -211,8 +213,9 @@ export const MarkdownInputBase = ({
     sxs,
     zIndex,
 }: MarkdownInputBaseProps) => {
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
@@ -277,9 +280,7 @@ export const MarkdownInputBase = ({
         else document.getElementById(`markdown-input-${name}`)?.focus();
     }, [isPreviewOn, name]);
 
-    /**
-     * Moves back one in the change stack
-     */
+    /** Moves back one in the change stack */
     const undo = useCallback(() => {
         if (checkIfCanEdit() && changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
@@ -288,9 +289,7 @@ export const MarkdownInputBase = ({
         }
     }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
     const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.current.length > 0, [changeStackIndex]);
-    /**
-     * Moves forward one in the change stack
-     */
+    /** Moves forward one in the change stack */
     const redo = useCallback(() => {
         if (checkIfCanEdit() && changeStackIndex < changeStack.current.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
@@ -303,7 +302,6 @@ export const MarkdownInputBase = ({
      * Adds, to change stack, and removes anything from the change stack after the current index
      */
     const handleChange = useCallback((updatedText: string) => {
-        if (!checkIfCanEdit()) return;
         const newChangeStack = [...changeStack.current];
         newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
         newChangeStack.push(updatedText);
@@ -311,7 +309,7 @@ export const MarkdownInputBase = ({
         setChangeStackIndex(newChangeStack.length - 1);
         setInternalValue(updatedText);
         onChangeDebounced(updatedText);
-    }, [changeStackIndex, checkIfCanEdit, onChangeDebounced]);
+    }, [changeStackIndex, onChangeDebounced]);
 
     const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
         context: undefined,
@@ -433,6 +431,16 @@ export const MarkdownInputBase = ({
         closeList();
     }, [checkIfCanEdit, handleChange, name]);
 
+    const insertCheckboxList = useCallback(() => {
+        if (!checkIfCanEdit()) return;
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
+        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
+        const newValue = replaceText(textArea.value, lines.map(line => `- [ ] ${line}`).join("\n"), linesStart, linesEnd);
+        textArea.value = newValue;
+        handleChange(newValue);
+        closeList();
+    }, [checkIfCanEdit, handleChange, name]);
+
     // Prevents the textArea from removing its highlight when one 
     // of the buttons is clicked
     const handleMouseDown = useCallback((e) => {
@@ -499,7 +507,6 @@ export const MarkdownInputBase = ({
         setDropdownAnchorEl(null);
     }, [handleChange, name, tagString]);
 
-
     // Listen for text input changes
     useEffect(() => {
         // Map keyboard shortcuts to their respective functions
@@ -509,7 +516,8 @@ export const MarkdownInputBase = ({
             "3": () => insertHeader(Headers.H3), // ALT + 3 - Insert header 3
             "4": () => insertBulletList(), // ALT + 4 - Bullet list
             "5": () => insertNumberList(), // ALT + 5 - Number list
-            "6": () => togglePreview(), // ALT + 6 - Toggle preview
+            "6": () => insertCheckboxList(), // ALT + 6 - Checkbox list
+            "7": () => togglePreview(), // ALT + 7 - Toggle preview
             "b": () => bold(), // CTRL + B - Bold
             "i": () => italic(), // CTRL + I - Italic
             "k": () => insertLink(), // CTRL + K - Insert link
@@ -583,13 +591,25 @@ export const MarkdownInputBase = ({
                 const { selectionStart, selectionEnd, value } = e.target;
                 let [trimmedLine] = getLineAtIndex(value, selectionStart);
                 trimmedLine = trimmedLine.trimStart();
-                const isBullet = trimmedLine.startsWith("* ") || trimmedLine.trim()?.startsWith("- ");
-                const isNumber = /^\d+\.\s/.test(trimmedLine);
-                // If the current line is a bullet or numbered list
-                if (isBullet || isNumber) {
+                const isNumberList = /^\d+\.\s/.test(trimmedLine);
+                const isCheckboxList = trimmedLine.startsWith("- [ ] ") || trimmedLine.startsWith("- [x] ");
+                const isBulletDashList = trimmedLine.startsWith("- ");
+                const isBulletStarList = trimmedLine.startsWith("* ");
+                // If the current line is a list
+                if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
                     const { textArea } = getSelection(`markdown-input-${name}`);
-                    const textToInsert = isBullet ? "\n* " : `\n${Number(trimmedLine.match(/^\d+/)![0]) + 1}. `;
+                    let textToInsert = "\n";
+                    if (isNumberList) {
+                        const number = Number(trimmedLine.match(/^\d+/)![0]) + 1;
+                        textToInsert += `${number}. `;
+                    } else if (isCheckboxList) {
+                        textToInsert += "- [ ] ";
+                    } else if (isBulletDashList) {
+                        textToInsert += "- ";
+                    } else if (isBulletStarList) {
+                        textToInsert += "* ";
+                    }
                     textArea.value = replaceText(value, textToInsert, selectionStart, selectionEnd);
                     handleChange(textArea.value);
                 }
@@ -622,27 +642,21 @@ export const MarkdownInputBase = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
+    }, [bold, dropdownAnchorEl, dropdownList, dropdownTabIndex, getTaggableItems, handleChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, selectDropdownItem, startDebounce, strikethrough, tagString, togglePreview, togglePreviewDebounce, undo]);
 
     // Resize textarea to fit content
-    const MIN_HEIGHT = 50;
+    const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
         if (!textAreaRef.current) return;
-        textAreaRef.current.style.height = "inherit";
-        if (maxRows) {
-            textAreaRef.current.style.height = `${Math.min(Math.max(
-                MIN_HEIGHT,
-                textAreaRef.current.scrollHeight),
-                Number.parseInt(maxRows + "") * 20,
-            )}px`;
-        } else {
-            textAreaRef.current.style.height = `${Math.max(
-                MIN_HEIGHT,
-                textAreaRef.current.scrollHeight,
-            )}px`;
-        }
-    }, [maxRows, value]);
+        const lines = (value.match(/\n/g)?.length || 0) + 1;
+        const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
+        const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
+        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : lines;
+        const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
+        const padding = 34;
+        textAreaRef.current.style.height = `${linesShown * lineHeight + padding}px`;
+    }, [isPreviewOn, minRows, maxRows, typography, value]);
 
     return (
         <>
@@ -681,7 +695,7 @@ export const MarkdownInputBase = ({
                         sx={{ marginRight: "auto" }}
                     >
                         {/* AI assistant */}
-                        {hasPremium && !disableAssistant && <Tooltip title="AI assistant" placement="top">
+                        {hasPremium && !disableAssistant && <Tooltip title={t("AIAssistant")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-assistant-popover-${name}`}
                                 disabled={disabled}
@@ -692,7 +706,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Insert header selector */}
-                        <Tooltip title="Insert header (Title)" placement="top">
+                        <Tooltip title={t("HeaderInsert")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-header-popover-${name}`}
                                 disabled={disabled}
@@ -717,7 +731,7 @@ export const MarkdownInputBase = ({
                                 background: palette.primary.light,
                                 color: palette.primary.contrastText,
                             }}>
-                                <Tooltip title="Header 1 (ALT + 1)" placement="top">
+                                <Tooltip title={`${t("Header1")} (${keyComboToString("Alt", "1")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H1)}
                                         sx={dropDownButtonProps}
@@ -725,7 +739,7 @@ export const MarkdownInputBase = ({
                                         <Header1Icon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Header 2 (ALT + 2)" placement="top">
+                                <Tooltip title={`${t("Header2")} (${keyComboToString("Alt", "2")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H2)}
                                         sx={dropDownButtonProps}
@@ -733,7 +747,7 @@ export const MarkdownInputBase = ({
                                         <Header2Icon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Header 3 (ALT + 3)" placement="top">
+                                <Tooltip title={`${t("Header3")} (${keyComboToString("Alt", "3")})`} placement="top">
                                     <IconButton
                                         onClick={() => insertHeader(Headers.H3)}
                                         sx={dropDownButtonProps}
@@ -744,7 +758,7 @@ export const MarkdownInputBase = ({
                             </Stack>
                         </Popover>
                         {/* Button for bold */}
-                        <Tooltip title="Bold (CTRL + B)" placement="top">
+                        <Tooltip title={`${t("Bold")} (${keyComboToString("Ctrl", "B")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -754,7 +768,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Button for italic */}
-                        <Tooltip title="Italic (CTRL + I)" placement="top">
+                        <Tooltip title={`${t("Italic")} (${keyComboToString("Ctrl", "I")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -764,7 +778,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Button for strikethrough */}
-                        <Tooltip title="Strikethrough (CTRL + SHIFT + S)" placement="top">
+                        <Tooltip title={`${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -774,7 +788,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>
                         {/* Insert bulleted or numbered list selector */}
-                        <Tooltip title="Insert list" placement="top">
+                        <Tooltip title={t("ListInsert")} placement="top">
                             <IconButton
                                 aria-describedby={`markdown-input-list-popover-${name}`}
                                 disabled={disabled}
@@ -798,7 +812,7 @@ export const MarkdownInputBase = ({
                                 background: palette.primary.light,
                                 color: palette.primary.contrastText,
                             }}>
-                                <Tooltip title="Bulleted list (ALT + 4)" placement="top">
+                                <Tooltip title={`${t("ListBulleted")} (${keyComboToString("Alt", "4")})`} placement="top">
                                     <IconButton
                                         onClick={insertBulletList}
                                         sx={dropDownButtonProps}
@@ -806,7 +820,7 @@ export const MarkdownInputBase = ({
                                         <ListBulletIcon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Numbered list (ALT + 5)" placement="top">
+                                <Tooltip title={`${t("ListNumbered")} (${keyComboToString("Alt", "5")})`} placement="top">
                                     <IconButton
                                         onClick={insertNumberList}
                                         sx={dropDownButtonProps}
@@ -814,10 +828,18 @@ export const MarkdownInputBase = ({
                                         <ListNumberIcon fill={palette.primary.contrastText} />
                                     </IconButton>
                                 </Tooltip>
+                                <Tooltip title={`${t("ListCheckbox")} (${keyComboToString("Alt", "6")})`} placement="top">
+                                    <IconButton
+                                        onClick={insertCheckboxList}
+                                        sx={dropDownButtonProps}
+                                    >
+                                        <ListCheckIcon fill={palette.primary.contrastText} />
+                                    </IconButton>
+                                </Tooltip>
                             </Stack>
                         </Popover>
                         {/* Button for inserting link */}
-                        <Tooltip title="Insert link (CTRL + K)" placement="top">
+                        <Tooltip title={`${t("LinkInsert")} (${keyComboToString("Ctrl", "K")})`} placement="top">
                             <IconButton
                                 disabled={disabled}
                                 size="small"
@@ -833,7 +855,7 @@ export const MarkdownInputBase = ({
                         spacing={{ xs: 0, sm: 0.5, md: 1 }}
                     >
                         {/* Undo */}
-                        {(canUndo || canRedo) && <Tooltip title={canUndo ? "Undo (CTRL + Z)" : ""}>
+                        {(canUndo || canRedo) && <Tooltip title={canUndo ? `${t("Undo")} (${keyComboToString("Ctrl", "Z")})` : ""}>
                             <IconButton
                                 id="undo-button"
                                 disabled={!canUndo}
@@ -845,7 +867,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Redo */}
-                        {(canUndo || canRedo) && <Tooltip title={canRedo ? "Redo (CTRL + Y)" : ""}>
+                        {(canUndo || canRedo) && <Tooltip title={canRedo ? `${t("Redo")} (${keyComboToString("Ctrl", "Y")})` : ""}>
                             <IconButton
                                 id="redo-button"
                                 disabled={!canRedo}
@@ -857,7 +879,7 @@ export const MarkdownInputBase = ({
                             </IconButton>
                         </Tooltip>}
                         {/* Preview */}
-                        <Tooltip title={isPreviewOn ? "Press to edit (ALT + 6)" : "Press to preview (ALT + 6)"} placement="top">
+                        <Tooltip title={isPreviewOn ? `${t("PressToEdit")} (${keyComboToString("Alt", "7")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "7")})`} placement="top">
                             <IconButton
                                 size="small"
                                 onClick={togglePreview}
@@ -892,7 +914,12 @@ export const MarkdownInputBase = ({
                                     ...linkColors(palette),
                                     ...sxs?.textArea,
                                 }}>
-                                <MarkdownDisplay content={internalValue} />
+                                <MarkdownDisplay
+                                    content={internalValue}
+                                    isEditable={!disabled}
+                                    onChange={handleChange}
+                                    zIndex={zIndex}
+                                />
                             </Box>
                         ) :
                         (
@@ -917,13 +944,13 @@ export const MarkdownInputBase = ({
                                     borderColor: error ? "red" : palette.divider,
                                     borderRadius: "0 0 4px 4px",
                                     borderTop: "none",
-                                    fontFamily: "inherit",
-                                    fontSize: "inherit",
-                                    lineHeight: "inherit",
+                                    fontFamily: typography.fontFamily,
+                                    fontSize: typography.fontSize + 2,
+                                    lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
                                     backgroundColor: palette.background.paper,
                                     color: palette.text.primary,
                                     ...sxs?.textArea,
-                                }}
+                                } as const}
                             />
                         )
                 }

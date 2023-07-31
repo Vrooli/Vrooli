@@ -1,8 +1,9 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { CancelIcon, CreateIcon, exists, SaveIcon } from "@local/shared";
+import { exists } from "@local/shared";
 import { Box, Button, CircularProgress, Grid } from "@mui/material";
+import { CancelIcon, CreateIcon, SaveIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "utils/hooks/useErrorPopover";
@@ -21,11 +22,12 @@ export const GridSubmitButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
+    zIndex,
 }: GridSubmitButtonsProps) => {
     const { t } = useTranslation();
 
     // Errors popup
-    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
+    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting, zIndex });
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
     const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);

@@ -10,6 +10,6 @@ export interface ViewProps<T> extends BaseViewProps {
 
 export interface UpsertProps<T> extends Omit<BaseViewProps, "onClose"> {
     isCreate: boolean;
-    onCancel?: () => any;
-    onCompleted?: (data: T) => any;
+    onCancel?: () => unknown;
+    onCompleted?: (data: T) => unknown;
 }

@@ -1,7 +1,9 @@
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, endpointGetTranslate, LanguageIcon, Translate, TranslateInput } from "@local/shared";
+import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -60,6 +62,7 @@ export const SelectLanguageMenu = ({
 }: SelectLanguageMenuProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [searchString, setSearchString] = useState("");
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,18 +213,19 @@ export const SelectLanguageMenu = ({
                 {/* Title */}
                 <MenuTitle
                     ariaLabel={titleId}
-                    title={"Select Language"}
+                    title={t("LanguageSelect")}
                     onClose={onClose}
+                    zIndex={zIndex + 1}
                 />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{
-                    width: "min(100vw, 400px)",
+                    // width: "min(100vw, 400px)",
                     maxHeight: "min(100vh, 600px)",
                     maxWidth: "100%",
                     overflowX: "auto",
                     overflowY: "hidden",
                     background: palette.background.default,
-                    borderRadius: "8px",
+                    borderRadius: "0 4px 4px",
                     padding: "8px",
                     "&::-webkit-scrollbar": {
                         width: 10,
@@ -235,7 +239,7 @@ export const SelectLanguageMenu = ({
                     },
                 }}>
                     <TextField
-                        placeholder="Enter language..."
+                        placeholder={t("LanguageEnter")}
                         autoFocus={true}
                         value={searchString}
                         onChange={updateSearchString}
@@ -246,7 +250,7 @@ export const SelectLanguageMenu = ({
                     />
                     <FixedSizeList
                         height={600}
-                        width={384}
+                        width={400}
                         itemSize={46}
                         itemCount={languageOptions.length}
                         overscanCount={5}

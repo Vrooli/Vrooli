@@ -4,6 +4,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from "forms/ResourceForm/ResourceForm";
 import { useCallback, useContext, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -28,6 +29,7 @@ export const ResourceDialog = ({
     zIndex,
 }: ResourceDialogProps) => {
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
@@ -52,22 +54,23 @@ export const ResourceDialog = ({
             >
                 <DialogTitle
                     id={titleId}
-                    title={(index < 0) ? "Add Resource" : "Update Resource"}
+                    title={(index < 0) ? t("CreateResource") : t("UpdateResource")}
                     help={helpText}
                     onClose={handleClose}
+                    zIndex={zIndex + 1000}
                 />
                 <Formik
                     enableReinitialize={true}
                     initialValues={initialValues}
                     onSubmit={(values, helpers) => {
+                        console.log("resource dialog onsubmit", mutate, index, values, partialData);
+                        const isCreating = index < 0;
                         if (mutate) {
                             const onSuccess = (data: Resource) => {
                                 (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                                 helpers.resetForm();
                                 onClose();
                             };
-                            // If index is negative, create
-                            const isCreating = index < 0;
                             if (!isCreating && (!partialData || !partialData.id)) {
                                 PubSub.get().publishSnack({ messageKey: "ResourceNotFound", severity: "Error" });
                                 return;
@@ -81,11 +84,15 @@ export const ResourceDialog = ({
                                 onError: () => { helpers.setSubmitting(false); },
                             });
                         } else {
-                            onCreated({
-                                ...values,
-                                created_at: partialData?.created_at ?? new Date().toISOString(),
-                                updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                            } as Resource);
+                            if (isCreating) {
+                                onCreated({
+                                    ...values,
+                                    created_at: partialData?.created_at ?? new Date().toISOString(),
+                                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                                } as Resource);
+                            } else {
+                                onUpdated(index ?? 0, values as Resource);
+                            }
                             helpers.resetForm();
                             onClose();
                         }
@@ -99,7 +106,7 @@ export const ResourceDialog = ({
                         isOpen={isOpen}
                         onCancel={handleClose}
                         ref={formRef}
-                        zIndex={zIndex}
+                        zIndex={zIndex + 1000}
                         {...formik}
                     />}
                 </Formik>

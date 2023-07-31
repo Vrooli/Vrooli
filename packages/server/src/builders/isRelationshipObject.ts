@@ -5,4 +5,4 @@ import { isObject } from "@local/shared";
  * @param obj - object to check
  * @returns True if obj is a relationship object, false otherwise
  */
-export const isRelationshipObject = (obj: any): obj is Object => isObject(obj) && Object.prototype.toString.call(obj) !== "[object Date]";
+export const isRelationshipObject = (obj: any): obj is object => isObject(obj) && Object.prototype.toString.call(obj) !== "[object Date]";

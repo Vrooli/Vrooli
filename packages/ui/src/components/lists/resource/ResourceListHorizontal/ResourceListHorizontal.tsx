@@ -1,12 +1,14 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, endpointPostDeleteMany, LinkIcon, Resource } from "@local/shared";
+import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { cardRoot } from "components/lists/styles";
+import { LinkIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
 import { ResourceCard } from "../ResourceCard/ResourceCard";
@@ -14,15 +16,17 @@ import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/Reso
 import { ResourceListHorizontalProps } from "../types";
 
 export const ResourceListHorizontal = ({
-    title,
     canUpdate = true,
     handleUpdate,
-    mutate = true,
+    id,
     list,
     loading = false,
+    mutate = true,
+    title,
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
@@ -160,6 +164,7 @@ export const ResourceListHorizontal = ({
                     {(provided) => (
                         <Stack
                             ref={provided.innerRef}
+                            id={id}
                             {...provided.droppableProps}
                             direction="row"
                             justifyContent="center"
@@ -216,10 +221,10 @@ export const ResourceListHorizontal = ({
                                 )
                             }
                             {/* Add resource button */}
-                            {canUpdate ? <Tooltip placement="top" title="Add resource">
+                            {canUpdate ? <Tooltip placement="top" title={t("CreateResource")}>
                                 <Box
                                     onClick={openDialog}
-                                    aria-label="Add resource"
+                                    aria-label={t("CreateResource")}
                                     sx={{
                                         ...cardRoot,
                                         background: palette.primary.light,

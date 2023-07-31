@@ -45,6 +45,7 @@ export const ApiKeyModel: ModelLogic<ApiKeyModelLogic, typeof suppFields> = ({
         },
         yup: apiKeyValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

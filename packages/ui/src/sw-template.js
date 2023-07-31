@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 /* global importScripts workbox */
 // Import the necessary Workbox scripts using importScripts
-importScripts("https://storage.googleapis.com/workbox-cdn/releases/6.3.0/workbox-sw.js");
+importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 
 // This service worker can be customized!
 // See https://developers.google.com/web/tools/workbox/modules
@@ -17,7 +17,7 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = "vrooli-cache";
-const CURRENT_CACHE_VERSION = "2023-06-30"; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = "2023-07-24"; // Change this value to force a cache update
 
 clientsClaim();
 

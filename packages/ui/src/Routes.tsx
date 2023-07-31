@@ -1,10 +1,12 @@
-import { LINKS, Route, RouteProps, Switch } from "@local/shared";
+import { LINKS } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
 import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
 import { lazily } from "react-lazily";
+import { Route, RouteProps, Switch } from "route";
+import { BotUpsert } from "views/objects/bot";
 import { PageProps } from "views/wrapper/types";
 import { Page } from "./components/Page/Page";
 
@@ -18,9 +20,12 @@ const {
 } = lazily(() => import("./views/main"));
 const {
     SettingsView,
+    SettingsApiView,
     SettingsAuthenticationView,
+    SettingsDataView,
     SettingsDisplayView,
     SettingsNotificationsView,
+    SettingsPaymentView,
     SettingsProfileView,
     SettingsPrivacyView,
     SettingsFocusModesView,
@@ -84,9 +89,9 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     );
 };
 
-/**
- * Style for pages that don't use left/right padding
- */
+const zIndex = 200;
+
+/** Style for pages that don't use left/right padding */
 const noSidePadding = {
     paddingLeft: 0,
     paddingRight: 0,
@@ -94,9 +99,7 @@ const noSidePadding = {
 
 const viewProps = ({
     display: "page" as const,
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    onClose: () => { },
-    zIndex: 200,
+    zIndex,
 });
 
 export const Routes = (props: { sessionChecked: boolean }) => {
@@ -160,8 +163,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
-                        <ForgotPasswordForm onClose={() => { }} />
+                    <FormView title="Forgot Password" maxWidth="700px" zIndex={zIndex} {...props}>
+                        <ForgotPasswordForm zIndex={zIndex} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
@@ -227,6 +230,12 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <PrivacyPolicyView {...viewProps} />
                 </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/add`} mustBeLoggedIn={true} {...props}>
+                    <BotUpsert {...viewProps} isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <BotUpsert {...viewProps} isCreate={false} />
+                </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView {...viewProps} />
                 </NavRoute>
@@ -249,10 +258,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <QuestionView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} handleDelete={() => { }} isCreate={true} />
+                    <ReminderUpsert {...viewProps} isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} handleDelete={() => { }} isCreate={false} />
+                    <ReminderUpsert {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderView {...viewProps} />
@@ -264,8 +273,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Reset Password" maxWidth="700px" {...props}>
-                        <ResetPasswordForm onClose={() => { }} />
+                    <FormView title="Reset Password" maxWidth="700px" zIndex={zIndex} {...props}>
+                        <ResetPasswordForm zIndex={zIndex} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
@@ -289,14 +298,23 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
                     <SettingsView {...viewProps} />
                 </NavRoute>
+                <NavRoute path={LINKS.SettingsApi} mustBeLoggedIn={true} {...props}>
+                    <SettingsApiView {...viewProps} />
+                </NavRoute>
                 <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
                     <SettingsAuthenticationView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsData} mustBeLoggedIn={true} {...props}>
+                    <SettingsDataView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
                     <SettingsDisplayView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
                     <SettingsNotificationsView {...viewProps} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsPayments} mustBeLoggedIn={true} {...props}>
+                    <SettingsPaymentView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
                     <SettingsProfileView {...viewProps} />

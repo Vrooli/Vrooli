@@ -1,11 +1,12 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Comment, CommentThread as ThreadType, CreateIcon, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Palette, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
 import { CommentThread } from "components/lists/comment";
+import { CreateIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFindMany } from "utils/hooks/useFindMany";
@@ -97,7 +98,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title="Comments">
+        <ContentCollapse isOpen={isOpen} title="Comments" zIndex={zIndex}>
             {/* Add comment */}
             {
                 isAddCommentOpen && <CommentUpsertInput

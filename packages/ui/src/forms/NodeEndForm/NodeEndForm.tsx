@@ -3,7 +3,7 @@ import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,7 +56,7 @@ export const validateNodeEndValues = async (values: NodeWithEndShape, existing?:
     return result;
 };
 
-export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
+export const NodeEndForm = forwardRef<BaseFormRef | undefined, NodeEndFormProps>(({
     display,
     dirty,
     isCreate,
@@ -103,6 +103,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                             multiline: true,
                         }}
                         title={t("Label")}
+                        zIndex={zIndex}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
@@ -113,9 +114,9 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                             maxChars: 2048,
                             minRows: 4,
                             maxRows: 8,
-                            zIndex,
                         }}
                         title={t("Description")}
+                        zIndex={zIndex}
                     />
                     <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
                         <FormControlLabel
@@ -143,6 +144,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

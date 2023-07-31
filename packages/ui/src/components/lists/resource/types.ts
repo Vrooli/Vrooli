@@ -16,6 +16,7 @@ export interface ResourceListHorizontalProps {
     title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
+    id?: string;
     list: ResourceList | null;
     loading?: boolean;
     mutate?: boolean;

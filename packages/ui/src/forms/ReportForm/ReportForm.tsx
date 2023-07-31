@@ -1,15 +1,18 @@
-import { DUMMY_ID, Report, ReportFor, Session } from "@local/shared";
+import { DUMMY_ID, Report, ReportFor, reportValidation, Session } from "@local/shared";
 import { TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
 import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
-import { ReportShape } from "utils/shape/models/report";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ReportShape, shapeReport } from "utils/shape/models/report";
 
 enum ReportOptions {
     Inappropriate = "Inappropriate",
@@ -43,8 +46,21 @@ export const reportInitialValues = (
     ...existing,
 });
 
+export const transformReportValues = (values: ReportShape, existing?: ReportShape) => {
+    return existing === undefined
+        ? shapeReport.create(values)
+        : shapeReport.update(existing, values);
+};
 
-export const ReportForm = forwardRef<any, ReportFormProps>(({
+export const validateReportValues = async (values: ReportShape, existing?: ReportShape) => {
+    const transformedValues = transformReportValues(values, existing);
+    console.log("transformed report", transformedValues);
+    const validationSchema = reportValidation[existing === undefined ? "create" : "update"]({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+};
+
+export const ReportForm = forwardRef<BaseFormRef | undefined, ReportFormProps>(({
     display,
     dirty,
     isCreate,
@@ -70,50 +86,51 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                 dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                maxWidth={600}
+                maxWidth={700}
                 ref={ref}
             >
-                <SelectLanguageMenu
-                    currentLanguage={languageField.value}
-                    handleCurrent={setLanguage}
-                    languages={[languageField.value]}
-                    zIndex={zIndex}
-                />
-                <Selector
-                    name="reason"
-                    disabled={isLoading}
-                    options={Object.keys(ReportReasons)}
-                    getOptionLabel={(r) => ReportReasons[r]}
-                    fullWidth
-                    inputAriaLabel="select reason"
-                    label={t("Reason")}
-                />
-                {reasonField.value === ReportOptions.Other && <Field
-                    fullWidth
-                    name="otherReason"
-                    label={t("ReasonCustom")}
-                    helperText={t("ReasonCustomHelp")}
-                    as={TextField}
-                />}
-                <Field
-                    fullWidth
-                    multiline
-                    rows={4}
-                    name="details"
-                    label={t("DetailsOptional")}
-                    helperText={t("ReportDetailsHelp")}
-                    as={TextField}
-                />
-                <GridSubmitButtons
-                    display={display}
-                    errors={props.errors as any}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
+                <FormContainer>
+                    <SelectLanguageMenu
+                        currentLanguage={languageField.value}
+                        handleCurrent={setLanguage}
+                        languages={[languageField.value]}
+                        zIndex={zIndex}
+                    />
+                    <Selector
+                        name="reason"
+                        disabled={isLoading}
+                        options={Object.keys(ReportReasons)}
+                        getOptionLabel={(r) => ReportReasons[r]}
+                        fullWidth
+                        label={t("Reason")}
+                    />
+                    {reasonField.value === ReportOptions.Other && <Field
+                        fullWidth
+                        name="otherReason"
+                        label={t("ReasonCustom")}
+                        helperText={t("ReasonCustomHelp")}
+                        as={TextField}
+                    />}
+                    <MarkdownInput
+                        maxChars={8192}
+                        maxRows={10}
+                        minRows={4}
+                        name="details"
+                        placeholder={t("DetailsOptional")}
+                        zIndex={zIndex}
+                    />
+                </FormContainer>
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={props.errors as any}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                zIndex={zIndex}
+            />
         </>
     );
 });

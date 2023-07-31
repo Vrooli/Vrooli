@@ -1,7 +1,8 @@
-import { BUSINESS_NAME, LINKS, useLocation } from "@local/shared";
+import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Box, Stack, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "route";
 import { noSelect } from "styles";
 import { useDimensions } from "utils/hooks/useDimensions";
 import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
@@ -10,6 +11,8 @@ import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
 import { NavbarLogo } from "../NavbarLogo/NavbarLogo";
 import { NavList } from "../NavList/NavList";
 import { NavbarLogoState, NavbarProps } from "../types";
+
+const zIndex = 300;
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -29,11 +32,12 @@ import { NavbarLogoState, NavbarProps } from "../types";
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
 export const Navbar = forwardRef(({
+    below,
+    help,
+    options,
     shouldHideTitle = false,
     title,
     titleComponent,
-    help,
-    below,
 }: NavbarProps, ref) => {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -63,6 +67,7 @@ export const Navbar = forwardRef(({
             onClick={toHome}
             sx={{
                 padding: 0,
+                paddingTop: "4px",
                 display: "flex",
                 alignItems: "center",
                 marginRight: isMobile && isLeftHanded ? 1 : "auto",
@@ -95,7 +100,7 @@ export const Navbar = forwardRef(({
                         background: palette.primary.dark,
                         minHeight: "64px!important",
                         position: "fixed", // Allows items to be displayed below the navbar
-                        zIndex: 300,
+                        zIndex,
                     }}>
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
                         paddingLeft: 1,
@@ -113,8 +118,10 @@ export const Navbar = forwardRef(({
                         {/* Title displayed here on mobile */}
                         {isMobile && title && !titleComponent && <Title
                             help={help}
+                            options={options}
                             title={title}
                             variant="header"
+                            zIndex={zIndex}
                         />}
                         {isMobile && titleComponent}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
@@ -131,8 +138,10 @@ export const Navbar = forwardRef(({
             {/* Title displayed here on desktop */}
             {!isMobile && title && !titleComponent && !shouldHideTitle && <Title
                 help={help}
+                options={options}
                 title={title}
                 variant="header"
+                zIndex={zIndex}
             />}
             {!isMobile && !shouldHideTitle && titleComponent}
             {/* "below" and title displayered here on desktop */}

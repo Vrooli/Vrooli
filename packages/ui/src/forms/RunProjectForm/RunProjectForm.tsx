@@ -1,11 +1,12 @@
-import { AddIcon, DeleteIcon, DUMMY_ID, EditIcon, RunProject, runProjectValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, RunProject, runProjectValidation, RunStatus, Schedule, Session } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectFormProps } from "forms/types";
+import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
@@ -45,7 +46,7 @@ export const validateRunProjectValues = async (values: RunProjectShape, existing
     return result;
 };
 
-export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
+export const RunProjectForm = forwardRef<BaseFormRef | undefined, RunProjectFormProps>(({
     display,
     dirty,
     isCreate,
@@ -96,7 +97,7 @@ export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
                     partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             <BaseForm
@@ -189,6 +190,7 @@ export const RunProjectForm = forwardRef<any, RunProjectFormProps>(({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
         </>
     );

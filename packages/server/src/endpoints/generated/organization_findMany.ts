@@ -3,6 +3,7 @@ export const organization_findMany = {
     "cursor": true,
     "node": {
       "id": true,
+      "bannerImage": true,
       "handle": true,
       "created_at": true,
       "updated_at": true,
@@ -10,6 +11,7 @@ export const organization_findMany = {
       "isPrivate": true,
       "commentsCount": true,
       "membersCount": true,
+      "profileImage": true,
       "reportsCount": true,
       "bookmarks": true,
       "tags": {

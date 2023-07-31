@@ -1,7 +1,8 @@
 import { TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
+import i18next from "i18next";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel, UserModel } from ".";
-import { noNull, permissionsSelectHelper, selPad } from "../../builders";
+import { noNull, permissionsSelectHelper } from "../../builders";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { CustomError } from "../../events";
 import { getLogic } from "../../getters";
@@ -10,7 +11,7 @@ import { PrismaType, SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { TransferFormat } from "../format/transfer";
 import { ModelLogic } from "../types";
-import { TransferModelLogic } from "./types";
+import { ApiModelLogic, NoteModelLogic, ProjectModelLogic, RoutineModelLogic, SmartContractModelLogic, StandardModelLogic, TransferModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
 const suppFields = [] as const;
@@ -266,21 +267,21 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         label: {
             select: () => ({
                 id: true,
-                api: selPad(ApiModel.display.label.select),
-                note: selPad(NoteModel.display.label.select),
-                project: selPad(ProjectModel.display.label.select),
-                routine: selPad(RoutineModel.display.label.select),
-                smartContract: selPad(SmartContractModel.display.label.select),
-                standard: selPad(StandardModel.display.label.select),
+                api: { select: ApiModel.display.label.select() },
+                note: { select: NoteModel.display.label.select() },
+                project: { select: ProjectModel.display.label.select() },
+                routine: { select: RoutineModel.display.label.select() },
+                smartContract: { select: SmartContractModel.display.label.select() },
+                standard: { select: StandardModel.display.label.select() },
             }),
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
-                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
-                if (select.standard) return StandardModel.display.label.get(select.standard as any, languages);
-                return "";
+                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
+                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
+                return i18next.t("common:Transfer", { lng: languages[0] });
             },
         },
     },
@@ -312,16 +313,16 @@ export const TransferModel: ModelLogic<TransferModelLogic, typeof suppFields> = 
         },
         searchStringQuery: () => ({
             OR: [
-                { fromUser: UserModel.search!.searchStringQuery() },
-                { fromOrganization: OrganizationModel.search!.searchStringQuery() },
-                { toUser: UserModel.search!.searchStringQuery() },
-                { toOrganization: OrganizationModel.search!.searchStringQuery() },
-                { api: ApiModel.search!.searchStringQuery() },
-                { note: NoteModel.search!.searchStringQuery() },
-                { project: ProjectModel.search!.searchStringQuery() },
-                { routine: RoutineModel.search!.searchStringQuery() },
-                { smartContract: SmartContractModel.search!.searchStringQuery() },
-                { standard: StandardModel.search!.searchStringQuery() },
+                { fromUser: UserModel.search.searchStringQuery() },
+                { fromOrganization: OrganizationModel.search.searchStringQuery() },
+                { toUser: UserModel.search.searchStringQuery() },
+                { toOrganization: OrganizationModel.search.searchStringQuery() },
+                { api: ApiModel.search.searchStringQuery() },
+                { note: NoteModel.search.searchStringQuery() },
+                { project: ProjectModel.search.searchStringQuery() },
+                { routine: RoutineModel.search.searchStringQuery() },
+                { smartContract: SmartContractModel.search.searchStringQuery() },
+                { standard: StandardModel.search.searchStringQuery() },
             ],
         }),
         supplemental: {

@@ -18,7 +18,7 @@ export const BookmarkListUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: BookmarkListUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const BookmarkListUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateBookmarkList" : "UpdateBookmarkList")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

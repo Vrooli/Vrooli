@@ -17,10 +17,10 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
 }) => {
     // Get prisma delegate for root object
     const { delegate } = getLogic(
-        ['delegate'],
-        objectType.replace('Version', '') as GqlModelType,
+        ["delegate"],
+        objectType.replace("Version", "") as GqlModelType,
         userData.languages,
-        'onCommonVersion'
+        "onCommonVersion",
     );
     // Get ids from created, updated, and deletedIds
     const versionIds = [
@@ -39,17 +39,17 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
                     isLatest: true,
                     versionIndex: true,
                     versionLabel: true,
-                }
-            }
-        }
-    })
+                },
+            },
+        },
+    });
     // Because of the versionsCheck function, we can assume that all versions 
     // of a root object have unique versionLabels. Using this, we can sort
     // them to determine the latest version and versionIndex
-    let updatedRoots: any[] = [];
+    const updatedRoots: any[] = [];
     for (const root of rootData) {
         // Sort versions by versionLabel
-        let versionsUpdated = root.versions.sort((a, b) => {
+        const versionsUpdated = root.versions.sort((a, b) => {
             const { major: majorA, moderate: moderateA, minor: minorA } = calculateVersionsFromString(a.versionLabel);
             const { major: majorB, moderate: moderateB, minor: minorB } = calculateVersionsFromString(b.versionLabel);
             if (majorA > majorB) return 1;
@@ -72,7 +72,7 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
             updatedRoots.push({
                 id: root.id,
                 versions: versionsUpdated,
-            })
+            });
         }
     }
     // Update root objects
@@ -80,6 +80,6 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
         await (delegate as any)(prisma).updateMany({
             where: { id: { in: updatedRoots.map(({ id }) => id) } },
             data: updatedRoots,
-        })
+        });
     }
-}
+};

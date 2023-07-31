@@ -1,8 +1,8 @@
-import { EditIcon, ErrorIcon } from "@local/shared";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
 import { ChatBubbleStatusProps } from "components/types";
+import { EditIcon, ErrorIcon } from "icons";
 import { useEffect, useState } from "react";
 
 /**

@@ -34,6 +34,7 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}
+                zIndex={zIndex + 1000}
             />
             <Box sx={{ padding: 2 }}>
                 {/* Bookmarks, votes, and other info */}

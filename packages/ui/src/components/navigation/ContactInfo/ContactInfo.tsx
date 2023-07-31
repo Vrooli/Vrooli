@@ -1,10 +1,13 @@
-import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, LINKS, openLink, SOCIALS, StatsIcon, SvgComponent, TwitterIcon, useLocation } from "@local/shared";
+import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, TwitterIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
+import { SvgComponent } from "types";
 import { ContactInfoProps } from "../types";
 
 type NavActionListData = [string, string, string, SvgComponent]
@@ -20,14 +23,14 @@ export const ContactInfo = ({
     const { additionalInfo, contactInfo } = useMemo(() => {
         return {
             additionalInfo: [
-                [t("AboutUs"), "About", LINKS.About, InfoIcon],
-                [t("DocumentationShort"), "Docs", "https://docs.vrooli.com", ArticleIcon],
-                [t("StatisticsShort"), "Stats", LINKS.Stats, StatsIcon],
+                [t("AboutUs"), t("About"), LINKS.About, InfoIcon],
+                [t("DocumentationShort"), t("DocumentationShort"), "https://docs.vrooli.com", ArticleIcon],
+                [t("StatisticsShort"), t("StatisticsShort"), LINKS.Stats, StatsIcon],
             ] as NavActionListData[],
             contactInfo: [
-                [t("ContactHelpTwitter"), "Twitter", SOCIALS.Twitter, TwitterIcon],
-                [t("ContactHelpDiscord"), "Discord", SOCIALS.Discord, DiscordIcon],
-                [t("ContactHelpCode"), "Code", SOCIALS.GitHub, GitHubIcon],
+                [t("ContactHelpTwitter"), t("Twitter"), SOCIALS.Twitter, TwitterIcon],
+                [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
+                [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
         };
     }, [t]);

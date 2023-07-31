@@ -92,11 +92,11 @@ export function hasObjectChanged(original: any, updated: any, fields: string[] =
  * with the letter after the prefix capitalized.
  */
 export const stringSpread = <
-    Object extends { [key: string]: any },
-    Fields extends keyof Object & string,
+    Obj extends { [key: string]: any },
+    Fields extends keyof Obj & string,
     Prefix extends string = ""
 >(
-    object: Object | null | undefined,
+    object: Obj | null | undefined,
     fields: readonly Fields[],
     prefix?: Prefix,
 ): (Prefix extends "" ? { [key in Fields]: string } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: string }) => {
@@ -119,11 +119,11 @@ export const stringSpread = <
  * with the letter after the prefix capitalized.
  */
 export const booleanSpread = <
-    Object extends { [key: string]: any },
-    Fields extends keyof Object & string,
+    Obj extends { [key: string]: any },
+    Fields extends keyof Obj & string,
     Prefix extends string = ""
 >(
-    object: Object | null | undefined,
+    object: Obj | null | undefined,
     fields: readonly Fields[],
     prefix?: Prefix,
 ): (Prefix extends "" ? { [key in Fields]: boolean } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: boolean }) => {

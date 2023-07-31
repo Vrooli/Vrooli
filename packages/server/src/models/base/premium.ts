@@ -22,6 +22,7 @@ export const PremiumModel: ModelLogic<PremiumModelLogic, typeof suppFields> = ({
         },
     },
     format: PremiumFormat,
+    search: undefined,
     validate: {
         isDeleted: () => false,
         isPublic: () => true,

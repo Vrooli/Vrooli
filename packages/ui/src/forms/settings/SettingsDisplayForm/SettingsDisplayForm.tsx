@@ -16,44 +16,50 @@ export const SettingsDisplayForm = ({
     isLoading,
     onCancel,
     values,
+    zIndex,
     ...props
 }: SettingsDisplayFormProps) => {
     const { t } = useTranslation();
 
     return (
-        <BaseForm
-            dirty={dirty}
-            display={display}
-            isLoading={isLoading}
-        >
-            <Title
-                help={t("DisplayAccountHelp")}
-                title={t("DisplayAccount")}
-                variant="subheader"
-            />
-            <Stack direction="column" spacing={2} p={1}>
-                <LanguageSelector />
-                <FocusModeSelector />
-            </Stack>
-            <Title
-                help={t("DisplayDeviceHelp")}
-                title={t("DisplayDevice")}
-                variant="subheader"
-            />
-            <Stack direction="column" spacing={2} p={1}>
-                <ThemeSwitch />
-                <TextSizeButtons />
-                <LeftHandedCheckbox />
-            </Stack>
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                <Title
+                    help={t("DisplayAccountHelp")}
+                    title={t("DisplayAccount")}
+                    variant="subheader"
+                    zIndex={zIndex}
+                />
+                <Stack direction="column" spacing={2} p={1}>
+                    <LanguageSelector />
+                    <FocusModeSelector />
+                </Stack>
+                <Title
+                    help={t("DisplayDeviceHelp")}
+                    title={t("DisplayDevice")}
+                    variant="subheader"
+                    zIndex={zIndex}
+                />
+                <Stack direction="column" spacing={2} p={1}>
+                    <ThemeSwitch />
+                    <TextSizeButtons />
+                    <LeftHandedCheckbox />
+                </Stack>
+            </BaseForm>
             <GridSubmitButtons
                 display={display}
-                errors={props.errors}
+                errors={props.errors as any}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={zIndex}
             />
-        </BaseForm>
+        </>
     );
 };

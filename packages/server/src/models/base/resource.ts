@@ -4,7 +4,7 @@ import { bestTranslation, translationShapeHelper } from "../../utils";
 import { ResourceFormat } from "../format/resource";
 import { ModelLogic } from "../types";
 import { ResourceListModel } from "./resourceList";
-import { ResourceModelLogic } from "./types";
+import { ResourceListModelLogic, ResourceModelLogic } from "./types";
 
 const __typename = "Resource" as const;
 const suppFields = [] as const;
@@ -63,9 +63,9 @@ export const ResourceModel: ModelLogic<ResourceModelLogic, typeof suppFields> = 
             list: "ResourceList",
         }),
         permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ResourceListModel.validate.owner(data.list as any, userId),
+        owner: (data, userId) => ResourceListModel.validate.owner(data.list as ResourceListModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as any, languages),
+        isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as ResourceListModelLogic["PrismaModel"], languages),
         visibility: {
             private: {},
             public: {},

@@ -1,9 +1,11 @@
-import { EllipsisIcon, endpointGetSchedule, Schedule, useLocation } from "@local/shared";
+import { endpointGetSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -13,7 +15,7 @@ export const ScheduleView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -48,9 +50,9 @@ export const ScheduleView = ({
      */
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
@@ -63,7 +65,7 @@ export const ScheduleView = ({
                 </IconButton>
             </Tooltip>
         </OverviewContainer>
-    ), [palette.background.paper, palette.background.textSecondary, openMoreMenu]);
+    ), [t, openMoreMenu, palette.background.textSecondary]);
 
     return (
         <>
@@ -71,6 +73,7 @@ export const ScheduleView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Schedule")}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

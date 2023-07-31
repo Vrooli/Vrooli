@@ -11,14 +11,18 @@ export const questionAnswer_create = {
     "owner": {
       "User": {
         "id": true,
+        "bannerImage": true,
+        "handle": true,
         "isBot": true,
         "name": true,
-        "handle": true,
+        "profileImage": true,
         "__typename": "User"
       },
       "Organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -60,9 +64,11 @@ export const questionAnswer_create = {
     "updated_at": true,
     "createdBy": {
       "id": true,
+      "bannerImage": true,
+      "handle": true,
       "isBot": true,
       "name": true,
-      "handle": true,
+      "profileImage": true,
       "__typename": "User"
     },
     "hasAcceptedAnswer": true,
@@ -85,7 +91,9 @@ export const questionAnswer_create = {
       },
       "Organization": {
         "id": true,
+        "bannerImage": true,
         "handle": true,
+        "profileImage": true,
         "you": {
           "canAddMembers": true,
           "canDelete": true,
@@ -158,9 +166,11 @@ export const questionAnswer_create = {
   "updated_at": true,
   "createdBy": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "score": true,

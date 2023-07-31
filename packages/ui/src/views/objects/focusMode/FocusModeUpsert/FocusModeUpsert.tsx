@@ -18,7 +18,7 @@ export const FocusModeUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: FocusModeUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const FocusModeUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateFocusMode" : "UpdateFocusMode")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

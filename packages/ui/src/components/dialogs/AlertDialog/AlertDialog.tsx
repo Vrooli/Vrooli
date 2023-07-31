@@ -23,6 +23,7 @@ const defaultState = (): AlertDialogState => ({
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
+const zIndex = 30000;
 
 export const AlertDialog = () => {
     const { t } = useTranslation();
@@ -61,10 +62,10 @@ export const AlertDialog = () => {
             aria-labelledby={state.title ? titleId : undefined}
             aria-describedby={descriptionAria}
             sx={{
-                zIndex: 30000,
+                zIndex,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: 30000,
+                        zIndex,
                         borderRadius: 4,
                         background: palette.background.paper,
                     },
@@ -75,6 +76,7 @@ export const AlertDialog = () => {
                 id={titleId}
                 title={state.title}
                 onClose={resetState}
+                zIndex={zIndex}
             />}
             <DialogContent>
                 <DialogContentText id={descriptionAria} sx={{

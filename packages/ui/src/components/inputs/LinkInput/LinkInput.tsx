@@ -1,9 +1,9 @@
-import { SearchIcon } from "@local/shared";
 import { Box, Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
+import { SearchIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
@@ -46,18 +46,18 @@ export const LinkInput = ({
                 displayData = displayDataJson ? JSON.parse(displayDataJson) : null;
             } catch (e) { /* empty */ }
             if (displayData) {
-                let { title, subtitle } = getDisplay(displayData);
+                const { title, subtitle } = getDisplay(displayData);
                 // Pass data to parent, in case we want to use it.
                 // Only do this if a new URL was selected, not for the initial value
                 if (hasSelectedObject.current) {
                     onObjectData?.({ title, subtitle });
                     hasSelectedObject.current = false;
                 }
-                // Limit subtitle to 100 characters
-                if (subtitle && subtitle.length > 100) {
-                    subtitle = subtitle.substring(0, 100) + "...";
-                }
-                return { title, subtitle };
+                return {
+                    title,
+                    // Limit subtitle to 100 characters
+                    subtitle: subtitle && subtitle.length > 100 ? subtitle.substring(0, 100) + "..." : subtitle,
+                };
             }
         }
         return {};
@@ -95,6 +95,7 @@ export const LinkInput = ({
                         sx={{
                             borderRadius: "0 5px 5px 0",
                             height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
+                            color: palette.secondary.contrastText,
                         }}>
                         <SearchIcon />
                     </ColorIconButton>
@@ -102,7 +103,11 @@ export const LinkInput = ({
                 {/* Title/Subtitle */}
                 {title && (
                     <Tooltip title={subtitle}>
-                        <MarkdownDisplay sx={{ marginLeft: "8px" }} content={`${title}${subtitle ? " - " + subtitle : ""}`} />
+                        <MarkdownDisplay
+                            sx={{ marginLeft: "8px" }}
+                            content={`${title}${subtitle ? " - " + subtitle : ""}`}
+                            zIndex={zIndex}
+                        />
                     </Tooltip>
                 )}
             </Box>

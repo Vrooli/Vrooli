@@ -27,4 +27,4 @@ export const fromDatetimeLocal = (datetimeLocal: string) => {
     const [hh, min] = time.split(":");
 
     return new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), parseInt(hh), parseInt(min));
-}
+};

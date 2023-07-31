@@ -6,125 +6,120 @@ services:
       context: .
       dockerfile: ./packages/ui/Dockerfile
       args:
-        PROJECT_DIR: "${PROJECT_DIR}"
+        PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: ui
     image: ui:dev
     restart: always
     environment:
       NODE_ENV: "development"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: "${PORT_SERVER}"
+      VITE_PORT_SERVER: "${PORT_SERVER:-5329}"
       VITE_SERVER_URL: "${SERVER_URL}"
       VITE_SITE_IP: "${SITE_IP}"
       VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VITE_STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
       VITE_GOOGLE_ADSENSE_PUBLISHER_ID: "${GOOGLE_ADSENSE_PUBLISHER_ID}"
       VITE_GOOGLE_TRACKING_ID: "${GOOGLE_TRACKING_ID}"
-      PROJECT_DIR: "${PROJECT_DIR}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PATH: "/"
-      VIRTUAL_PORT: "${PORT_UI}"
+      VIRTUAL_PORT: "${PORT_UI:-3000}"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
-      - ${PORT_UI}:${PORT_UI}
+      - ${PORT_UI:-3000}:${PORT_UI:-3000}
     networks:
       - proxy
       - app
     volumes:
-      - ./node_modules:${PROJECT_DIR}/node_modules
-      - ./packages/ui:${PROJECT_DIR}/packages/ui:z
-      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+      - ./node_modules:${PROJECT_DIR:-/srv/app}/node_modules
+      - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
+      - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
     depends_on:
-      - server
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
+      server:
+        condition: service_healthy
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
   server:
     build:
       context: .
       dockerfile: ./packages/server/Dockerfile
       args:
-        PROJECT_DIR: "${PROJECT_DIR}"
+        PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: server
     image: server:dev
     restart: always
     environment:
       NODE_ENV: "development"
-      PROJECT_DIR: "${PROJECT_DIR}"
-      VALYXA_API_KEY: "/run/secrets/vrooli/dev/VALYXA_API_KEY"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: "${PORT_SERVER}"
-      REDIS_CONN: "redis:${PORT_REDIS}"
-      DB_CONN: "db:${PORT_DB}"
-      DB_USER: "${DB_USER}"
-      DB_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
-      DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
+      VITE_PORT_SERVER: "${PORT_SERVER:-5329}"
+      REDIS_CONN: "redis:${PORT_REDIS:-6379}"
+      DB_CONN: "db:${PORT_DB:-5432}"
+      DB_USER: "${DB_USER:-site}"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
-      PORT_TRANSLATE: "${PORT_TRANSLATE}"
+      PORT_TRANSLATE: "${PORT_TRANSLATE:-3457}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
-      ADMIN_WALLET: "/run/secrets/vrooli/dev/ADMIN_WALLET"
-      ADMIN_PASSWORD: "/run/secrets/vrooli/dev/ADMIN_PASSWORD"
-      VALYXA_PASSWORD: "/run/secrets/vrooli/dev/VALYXA_PASSWORD"
-      BLOCKFROST_API_KEY: "/run/secrets/vrooli/dev/BLOCKFROST_API_KEY"
-      HUGGINGFACE_API_KEY: "/run/secrets/vrooli/dev/HUGGINGFACE_API_KEY"
       VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
-      VAPID_PRIVATE_KEY: "/run/secrets/vrooli/dev/VAPID_PRIVATE_KEY"
-      STRIPE_SECRET_KEY: "/run/secrets/vrooli/dev/STRIPE_SECRET_KEY"
-      STRIPE_WEBHOOK_SECRET: "/run/secrets/vrooli/dev/STRIPE_WEBHOOK_SECRET"
       SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
-      SITE_EMAIL_PASSWORD: "/run/secrets/vrooli/dev/SITE_EMAIL_PASSWORD"
       SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
       SITE_IP: "${SITE_IP}"
       SERVER_URL: "${SERVER_URL}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: "${PORT_SERVER}"
+      VIRTUAL_PORT: "${PORT_SERVER:-5329}"
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
-      - ${PORT_SERVER}:${PORT_SERVER}
+      - ${PORT_SERVER:-5329}:${PORT_SERVER:-5329}
       - "9229:9229"
     networks:
       - proxy
       - app
     volumes:
-      # - ./node_modules:${PROJECT_DIR}/node_modules
-      - ./packages/server:${PROJECT_DIR}/packages/server:z
-      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-      - ./packages/ui/dist:${PROJECT_DIR}/packages/ui/dist:z
-      - ./data/logs:${PROJECT_DIR}/data/logs:z
-      - ./data/uploads:${PROJECT_DIR}/data/uploads:z
-      - ./data/stats:${PROJECT_DIR}/data/stats:z
-      - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
+      # - ./node_modules:${PROJECT_DIR:-/srv/app}/node_modules
+      - ./packages/server:${PROJECT_DIR:-/srv/app}/packages/server:z
+      - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
+      - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
+      - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
+      - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
+      - ./data/stats:${PROJECT_DIR:-/srv/app}/data/stats:z
+      - ./packages/server/src/db/migrations:${PROJECT_DIR:-/srv/app}/packages/server/src/db/migrations
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     depends_on:
-      - redis
-      - db
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_SERVER || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
+      start_period: 90s
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
   db:
     image: ankane/pgvector:v0.4.1
     restart: always
     container_name: db
     environment:
-      NODE_ENV: "development"
-      POSTGRES_USER: "${DB_USER}"
-      POSTGRES_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
-      PROJECT_DIR: "${PROJECT_DIR}"
+      POSTGRES_USER: "${DB_USER:-site}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     expose:
-      - ${PORT_DB}
+      - ${PORT_DB:-5432}
     networks:
       - app
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
-      - ./scripts:${PROJECT_DIR}/scripts
+      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${DB_USER}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/db.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh development /tmp/secrets.$$ DB_PASSWORD:POSTGRES_PASSWORD && . /tmp/secrets.$$ && rm /tmp/secrets.$$ && exec docker-entrypoint.sh postgres"
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -132,11 +127,11 @@ services:
     networks:
       - app
     volumes:
-      - ./data/redis:${PROJECT_DIR}/data/redis:z
-      - ./scripts:${PROJECT_DIR}/scripts
+      - ./data/redis:${PROJECT_DIR:-/srv/app}/data/redis:z
+      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
     expose:
-      - ${PORT_REDIS}
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/redis.sh"
+      - ${PORT_REDIS:-6379}
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/redis.sh"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -150,14 +145,14 @@ services:
     volumes:
       - ./packages/docs:/docs
     ports:
-      - "${PORT_DOCS}:${PORT_DOCS}"
+      - "${PORT_DOCS:-4000}:${PORT_DOCS:-4000}"
     networks:
       - proxy
       - app
-    command: serve --dev-addr=0.0.0.0:${PORT_DOCS}
+    command: serve --dev-addr=0.0.0.0:${PORT_DOCS:-4000}
     environment:
       VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-      VIRTUAL_PORT: "${PORT_DOCS}"
+      VIRTUAL_PORT: "${PORT_DOCS:-4000}"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
   # Used to view the database. Open http://localhost:8080
@@ -166,23 +161,22 @@ services:
     container_name: adminer
     restart: always
     environment:
-      NODE_ENV: "development"
       ADMINER_PLUGINS: login-env-vars
       ADMINER_DRIVER: pgsql
       ADMINER_SERVER: db
-      ADMINER_USERNAME: "${DB_USER}"
-      ADMINER_PASSWORD: "/run/secrets/vrooli/dev/DB_PASSWORD"
+      ADMINER_USERNAME: "${DB_USER:-site}"
       ADMINER_DB: "${DB_NAME}"
     networks:
       - app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - 8080:8080
     volumes:
-      - ./scripts:${PROJECT_DIR}/scripts
+      - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
       - /run/secrets/vrooli/dev:/run/secrets/vrooli/dev
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/adminer.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/getSecrets.sh development /tmp/secrets.$$ DB_PASSWORD:ADMINER_PASSWORD && ./tmp/secrets.$$ && rm /tmp/secrets.$$ && exec php -S [::]:8080 -t /var/www/html/"
   # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
   # translate:
   #   image: libretranslate/libretranslate:v1.2.9
@@ -191,7 +185,7 @@ services:
   #   networks:
   #     - app
   #   expose:
-  #     - ${PORT_TRANSLATE}
+  #     - ${PORT_TRANSLATE:-3457}
 
 networks:
   proxy:

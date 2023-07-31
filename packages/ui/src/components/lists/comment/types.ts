@@ -3,7 +3,7 @@ import { NavigableObject } from "types";
 
 export interface CommentConnectorProps {
     isOpen: boolean;
-    parentType: 'User' | 'Organization';
+    parentType: "User" | "Organization";
     onToggle: () => void;
 }
 
@@ -25,5 +25,5 @@ export interface CommentThreadItemProps {
      * Object which has a comment, not the comment itself or the comment thread
      */
     object: NavigableObject | null | undefined;
-    zIndex;
+    zIndex: number;
 }

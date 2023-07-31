@@ -21,12 +21,23 @@ export const TranscriptDialog = ({
     isListening,
     showHint,
     transcript,
+    zIndex,
 }: TranscriptDialogProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
 
     return (
-        <Dialog onClose={handleClose} open={isListening}>
+        <Dialog
+            onClose={handleClose}
+            open={isListening}
+            sx={{
+                zIndex: zIndex + 999,
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
+                        zIndex: zIndex + 999,
+                    },
+                },
+            }}>
             <DialogTitle>{t("Listening")}</DialogTitle>
             <DialogContent>
                 {/* Waveform animation */}

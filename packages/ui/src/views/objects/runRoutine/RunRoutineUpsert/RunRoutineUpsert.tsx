@@ -18,7 +18,7 @@ export const RunRoutineUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: RunRoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const RunRoutineUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

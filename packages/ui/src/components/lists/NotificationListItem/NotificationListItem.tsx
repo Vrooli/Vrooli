@@ -1,5 +1,5 @@
-import { DeleteIcon, VisibleIcon } from "@local/shared";
 import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { DeleteIcon, VisibleIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { NotificationListItemProps } from "../types";

@@ -1,6 +1,6 @@
-import { CopyIcon } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { CopyIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { GeneratedInputComponent } from "../GeneratedInputComponent/GeneratedInputComponent";
@@ -43,7 +43,7 @@ export const GeneratedInputComponentWithLabel = ({
                         </IconButton>
                     </Tooltip>
                     <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`Input`)}</Typography>
-                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
+                    {fieldData.helpText && <HelpButton markdown={fieldData.helpText} zIndex={zIndex} />}
                 </Stack>
                 {inputComponent}
             </>

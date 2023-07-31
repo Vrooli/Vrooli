@@ -1,12 +1,11 @@
 import { StatsRoutineSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsRoutineFormat } from "../format/statsRoutine";
 import { ModelLogic } from "../types";
 import { RoutineModel } from "./routine";
-import { StatsRoutineModelLogic } from "./types";
+import { RoutineModelLogic, StatsRoutineModelLogic } from "./types";
 
 const __typename = "StatsRoutine" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
     delegate: (prisma) => prisma.stats_routine,
     display: {
         label: {
-            select: () => ({ id: true, routine: selPad(RoutineModel.display.label.select) }),
+            select: () => ({ id: true, routine: { select: RoutineModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: RoutineModel.display.label.get(select.routine as any, languages),
+                objectName: RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ routine: RoutineModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ routine: RoutineModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsRoutineModel: ModelLogic<StatsRoutineModelLogic, typeof suppFi
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => RoutineModel.validate.owner(data.routine as any, userId),
+        owner: (data, userId) => RoutineModel.validate.owner(data.routine as RoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_routineSelect>(data, [
             ["routine", "Routine"],

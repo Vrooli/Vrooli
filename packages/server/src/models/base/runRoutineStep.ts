@@ -3,7 +3,7 @@ import { defaultPermissions } from "../../utils";
 import { RunRoutineStepFormat } from "../format/runRoutineStep";
 import { ModelLogic } from "../types";
 import { RunRoutineModel } from "./runRoutine";
-import { RunRoutineStepModelLogic } from "./types";
+import { RunRoutineModelLogic, RunRoutineStepModelLogic } from "./types";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -47,6 +47,7 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         },
         yup: runRoutineStepValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
@@ -56,9 +57,9 @@ export const RunRoutineStepModel: ModelLogic<RunRoutineStepModelLogic, typeof su
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as any, userId),
+        owner: (data, userId) => RunRoutineModel.validate.owner(data.runRoutine as RunRoutineModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
+        isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as RunRoutineModelLogic["PrismaModel"], languages),
         visibility: {
             private: { runRoutine: { isPrivate: true } },
             public: { runRoutine: { isPrivate: false } },

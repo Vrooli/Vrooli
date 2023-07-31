@@ -6,7 +6,7 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../
 import { NoteVersionFormat } from "../format/noteVersion";
 import { ModelLogic } from "../types";
 import { NoteModel } from "./note";
-import { NoteVersionModelLogic } from "./types";
+import { NoteModelLogic, NoteVersionModelLogic } from "./types";
 
 const __typename = "NoteVersion" as const;
 const suppFields = ["you"] as const;
@@ -27,9 +27,9 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    text: trans.text?.slice(0, 512),
+                    text: trans?.text?.slice(0, 512),
                 }, languages[0]);
             },
         },
@@ -114,10 +114,10 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
-            NoteModel.validate.isPublic(data.root as any, languages),
+            NoteModel.validate.isPublic(data.root as NoteModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => NoteModel.validate.owner(data.root as any, userId),
+        owner: (data, userId) => NoteModel.validate.owner(data.root as NoteModelLogic["PrismaModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

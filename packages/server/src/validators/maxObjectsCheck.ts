@@ -181,8 +181,8 @@ export async function maxObjectsCheck(
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
-            let currCountPrivate = await delegate(prisma).count({ where: validate.visibility.private });
-            let currCountPublic = await delegate(prisma).count({ where: validate.visibility.public });
+            let currCountPrivate = await delegate(prisma).count({ where: { AND: [validate.visibility.owner(ownerId), validate.visibility.private] } });
+            let currCountPublic = await delegate(prisma).count({ where: { AND: [validate.visibility.owner(ownerId), validate.visibility.public] } });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;

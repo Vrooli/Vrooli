@@ -6,7 +6,7 @@ import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInp
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -58,7 +58,7 @@ export const validateNoteValues = async (values: NoteVersionShape, existing?: No
     return result;
 };
 
-export const NoteForm = forwardRef<any, NoteFormProps>(({
+export const NoteForm = forwardRef<BaseFormRef | undefined, NoteFormProps>(({
     display,
     dirty,
     isCreate,
@@ -93,6 +93,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                     name="name"
                     placeholder={t("Name")}
                 />}
+                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -162,6 +163,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                         </EllipsisActionButton>
                     ),
                 }}
+                zIndex={zIndex}
             />
         </>
     );

@@ -123,6 +123,7 @@
     "ReportExists": "Report already submitted.",
     "ReportExistsDetails": "You have already submitted a report for this object.",
     "ResourceNotFound": "Resource not found.",
+    "RoutineCannotRunInvalid": "Routine cannot be run because it is invalid.",
     "ScheduleCreated": "Schedule created.",
     "ScheduleUpdated": "Schedule updated.",
     "ScheduleDeleted": "Schedule deleted.",

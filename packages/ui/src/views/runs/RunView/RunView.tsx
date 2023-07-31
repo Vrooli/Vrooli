@@ -1,17 +1,19 @@
-import { addSearchParams, ArrowLeftIcon, ArrowRightIcon, CloseIcon, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, removeSearchParams, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SuccessIcon, useLocation, uuid, uuidValidate } from "@local/shared";
+import { endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete, locationArraysMatch, routineVersionHasSubroutines, runInputsUpdate } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
@@ -843,7 +845,7 @@ export const RunView = ({
                 onSuccess: () => {
                     PubSub.get().publishCelebration();
                     removeSearchParams(setLocation, ["run", "step"]);
-                    onClose();
+                    tryOnClose(onClose, setLocation);
                 },
             });
         }
@@ -860,7 +862,7 @@ export const RunView = ({
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
             removeSearchParams(setLocation, ["run", "step"]);
-            onClose();
+            tryOnClose(onClose, setLocation);
             return;
         }
         // Log complete. No step data because this function was called from a decision node, 
@@ -878,7 +880,7 @@ export const RunView = ({
             onSuccess: () => {
                 PubSub.get().publishCelebration();
                 removeSearchParams(setLocation, ["run", "step"]);
-                onClose();
+                tryOnClose(onClose, setLocation);
             },
         });
     }, [testMode, run, runnableObject, logRunComplete, setLocation, onClose]);
@@ -916,7 +918,7 @@ export const RunView = ({
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
         removeSearchParams(setLocation, ["run", "step"]);
-        onClose();
+        tryOnClose(onClose, setLocation);
     }, [onClose, saveProgress, setLocation]);
 
     /**
@@ -1009,7 +1011,7 @@ export const RunView = ({
                                 <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                 : null}
                             {/* Help icon */}
-                            {instructions && <HelpButton markdown={instructions} />}
+                            {instructions && <HelpButton markdown={instructions} zIndex={zIndex} />}
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog

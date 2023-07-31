@@ -1,4 +1,4 @@
-import { exists, OrganizationIcon, useLocation, UserIcon } from "@local/shared";
+import { exists } from "@local/shared";
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -8,7 +8,10 @@ import { userFromSession } from "components/lists/RelationshipList/RelationshipL
 import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
+import { OrganizationIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -21,13 +24,11 @@ import { OwnerButtonProps } from "../types";
 enum OwnerTypesEnum {
     Self = "Self",
     Organization = "Organization",
-    AnotherUser = "AnotherUser",
 }
 
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
-    { label: "Self", value: OwnerTypesEnum.Self },
-    { label: "Organization", value: OwnerTypesEnum.Organization },
-    // { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
+    { labelKey: "Self", value: OwnerTypesEnum.Self },
+    { labelKey: "Organization", value: OwnerTypesEnum.Organization },
 ];
 
 export function OwnerButton({
@@ -37,6 +38,7 @@ export function OwnerButton({
 }: OwnerButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -49,21 +51,17 @@ export function OwnerButton({
     const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
     const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true); }, [setOrganizationDialogOpen]);
     const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
-    const [isAnotherUserDialogOpen, setAnotherUserDialogOpen] = useState<boolean>(false);
-    const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true); }, [setAnotherUserDialogOpen]);
-    const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
     const handleOwnerSelect = useCallback((owner: OwnerShape) => {
         const ownerId = versionField?.value?.id ?? rootField?.value?.id;
         if (owner?.id === ownerId) return;
         exists(versionHelpers) && versionHelpers.setValue(owner);
         exists(rootHelpers) && rootHelpers.setValue(owner);
         closeOrganizationDialog();
-        closeAnotherUserDialog();
-    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog, closeAnotherUserDialog]);
+    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog]);
 
     // Owner list dialog (select self, organization, or another user)
     const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
-    const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const owner = versionField?.value ?? rootField?.value;
@@ -78,29 +76,27 @@ export function OwnerButton({
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
         if (ownerType === OwnerTypesEnum.Organization) {
             openOrganizationDialog();
-        } else if (ownerType === OwnerTypesEnum.AnotherUser) {
-            openAnotherUserDialog();
         } else {
             const owner = session ? userFromSession(session) : undefined;
             exists(versionHelpers) && versionHelpers.setValue(owner);
             exists(rootHelpers) && rootHelpers.setValue(owner);
         }
         closeOwnerDialog();
-    }, [closeOwnerDialog, openOrganizationDialog, openAnotherUserDialog, session, versionHelpers, rootHelpers]);
+    }, [closeOwnerDialog, openOrganizationDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
-        else if (isAnotherUserDialogOpen) return ["User", handleOwnerSelect, closeAnotherUserDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
-    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog, isAnotherUserDialogOpen, closeAnotherUserDialog]);
+    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
         const owner = versionField?.value ?? rootField?.value;
         // If no owner data, marked as anonymous
         if (!owner) return {
             Icon: null,
-            tooltip: `Marked as anonymous${isEditing ? "" : ". Press to set owner"}`,
+            tooltip: t(`OwnerNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
         // If owner is organization, use organization icon
         if (owner.__typename === "Organization") {
@@ -108,7 +104,7 @@ export function OwnerButton({
             const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, "organization");
             return {
                 Icon,
-                tooltip: `Owner: ${ownerName}`,
+                tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: ownerName }),
             };
         }
         // If owner is user, use self icon
@@ -117,9 +113,9 @@ export function OwnerButton({
         const ownerName = (owner as RelationshipItemUser).name;
         return {
             Icon,
-            tooltip: `Owner: ${isSelf ? "Self" : ownerName}`,
+            tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: isSelf ? t("Self") : ownerName }),
         };
-    }, [isEditing, languages, rootField?.value, session, versionField?.value]);
+    }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -130,7 +126,7 @@ export function OwnerButton({
             <ListMenu
                 id={"select-owner-type-menu"}
                 anchorEl={ownerDialogAnchor}
-                title='Owner Type'
+                title={t("Owner")}
                 data={ownerTypes}
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}
@@ -150,7 +146,7 @@ export function OwnerButton({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="owner" sx={{ ...commonLabelProps() }}>Owner</TextShrink>
+                <TextShrink id="owner" sx={{ ...commonLabelProps() }}>{t("Owner")}</TextShrink>
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}

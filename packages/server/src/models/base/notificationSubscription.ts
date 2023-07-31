@@ -19,7 +19,7 @@ import { RoutineModel } from "./routine";
 import { ScheduleModel } from "./schedule";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { NotificationSubscriptionModelLogic } from "./types";
+import { ApiModelLogic, CommentModelLogic, IssueModelLogic, MeetingModelLogic, NoteModelLogic, NotificationSubscriptionModelLogic, OrganizationModelLogic, ProjectModelLogic, PullRequestModelLogic, QuestionModelLogic, QuizModelLogic, ReportModelLogic, RoutineModelLogic, ScheduleModelLogic, SmartContractModelLogic, StandardModelLogic } from "./types";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
     Api: "api",
@@ -66,21 +66,21 @@ export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionM
             }),
             // Label is first relation that is not null
             get: (select, languages) => {
-                if (select.api) return ApiModel.display.label.get(select.api as any, languages);
-                if (select.comment) return CommentModel.display.label.get(select.comment as any, languages);
-                if (select.issue) return IssueModel.display.label.get(select.issue as any, languages);
-                if (select.meeting) return MeetingModel.display.label.get(select.meeting as any, languages);
-                if (select.note) return NoteModel.display.label.get(select.note as any, languages);
-                if (select.organization) return OrganizationModel.display.label.get(select.organization as any, languages);
-                if (select.project) return ProjectModel.display.label.get(select.project as any, languages);
-                if (select.pullRequest) return PullRequestModel.display.label.get(select.pullRequest as any, languages);
-                if (select.question) return QuestionModel.display.label.get(select.question as any, languages);
-                if (select.quiz) return QuizModel.display.label.get(select.quiz as any, languages);
-                if (select.report) return ReportModel.display.label.get(select.report as any, languages);
-                if (select.routine) return RoutineModel.display.label.get(select.routine as any, languages);
-                if (select.schedule) return ScheduleModel.display.label.get(select.schedule as any, languages);
-                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as any, languages);
-                if (select.standard) return SmartContractModel.display.label.get(select.standard as any, languages);
+                if (select.api) return ApiModel.display.label.get(select.api as ApiModelLogic["PrismaModel"], languages);
+                if (select.comment) return CommentModel.display.label.get(select.comment as CommentModelLogic["PrismaModel"], languages);
+                if (select.issue) return IssueModel.display.label.get(select.issue as IssueModelLogic["PrismaModel"], languages);
+                if (select.meeting) return MeetingModel.display.label.get(select.meeting as MeetingModelLogic["PrismaModel"], languages);
+                if (select.note) return NoteModel.display.label.get(select.note as NoteModelLogic["PrismaModel"], languages);
+                if (select.organization) return OrganizationModel.display.label.get(select.organization as OrganizationModelLogic["PrismaModel"], languages);
+                if (select.project) return ProjectModel.display.label.get(select.project as ProjectModelLogic["PrismaModel"], languages);
+                if (select.pullRequest) return PullRequestModel.display.label.get(select.pullRequest as PullRequestModelLogic["PrismaModel"], languages);
+                if (select.question) return QuestionModel.display.label.get(select.question as QuestionModelLogic["PrismaModel"], languages);
+                if (select.quiz) return QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages);
+                if (select.report) return ReportModel.display.label.get(select.report as ReportModelLogic["PrismaModel"], languages);
+                if (select.routine) return RoutineModel.display.label.get(select.routine as RoutineModelLogic["PrismaModel"], languages);
+                if (select.schedule) return ScheduleModel.display.label.get(select.schedule as ScheduleModelLogic["PrismaModel"], languages);
+                if (select.smartContract) return SmartContractModel.display.label.get(select.smartContract as SmartContractModelLogic["PrismaModel"], languages);
+                if (select.standard) return StandardModel.display.label.get(select.standard as StandardModelLogic["PrismaModel"], languages);
                 return "";
             },
         },
@@ -114,21 +114,21 @@ export const NotificationSubscriptionModel: ModelLogic<NotificationSubscriptionM
             OR: [
                 "descriptionWrapped",
                 "titleWrapped",
-                { api: ApiModel.search!.searchStringQuery() },
-                { comment: CommentModel.search!.searchStringQuery() },
-                { issue: IssueModel.search!.searchStringQuery() },
-                { meeting: MeetingModel.search!.searchStringQuery() },
-                { note: NoteModel.search!.searchStringQuery() },
-                { organization: OrganizationModel.search!.searchStringQuery() },
-                { project: ProjectModel.search!.searchStringQuery() },
-                { pullRequest: PullRequestModel.search!.searchStringQuery() },
-                { question: QuestionModel.search!.searchStringQuery() },
-                { quiz: QuizModel.search!.searchStringQuery() },
-                { report: ReportModel.search!.searchStringQuery() },
-                { routine: RoutineModel.search!.searchStringQuery() },
-                { schedule: ScheduleModel.search!.searchStringQuery() },
-                { smartContract: SmartContractModel.search!.searchStringQuery() },
-                { standard: StandardModel.search!.searchStringQuery() },
+                { api: ApiModel.search.searchStringQuery() },
+                { comment: CommentModel.search.searchStringQuery() },
+                { issue: IssueModel.search.searchStringQuery() },
+                { meeting: MeetingModel.search.searchStringQuery() },
+                { note: NoteModel.search.searchStringQuery() },
+                { organization: OrganizationModel.search.searchStringQuery() },
+                { project: ProjectModel.search.searchStringQuery() },
+                { pullRequest: PullRequestModel.search.searchStringQuery() },
+                { question: QuestionModel.search.searchStringQuery() },
+                { quiz: QuizModel.search.searchStringQuery() },
+                { report: ReportModel.search.searchStringQuery() },
+                { routine: RoutineModel.search.searchStringQuery() },
+                { schedule: ScheduleModel.search.searchStringQuery() },
+                { smartContract: SmartContractModel.search.searchStringQuery() },
+                { standard: StandardModel.search.searchStringQuery() },
             ],
         }),
         /**

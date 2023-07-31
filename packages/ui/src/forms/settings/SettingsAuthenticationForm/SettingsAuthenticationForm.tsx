@@ -1,8 +1,9 @@
-import { Grid, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
+import { FormSection } from "styles";
 import { SettingsAuthenticationFormProps } from "../types";
 
 export const SettingsAuthenticationForm = ({
@@ -16,44 +17,39 @@ export const SettingsAuthenticationForm = ({
     const { t } = useTranslation();
 
     return (
-        <BaseForm
-            dirty={dirty}
-            display={display}
-            isLoading={isLoading}
-        >
-
-            {/* Hidden username input because some password managers require it */}
-            <TextField
-                name="username"
-                autoComplete="username"
-                sx={{ display: "none" }}
-            />
-            <Grid container spacing={1}>
-                <Grid item xs={12}>
+        <>
+            <BaseForm
+                dirty={dirty}
+                display={display}
+                isLoading={isLoading}
+            >
+                {/* Hidden username input because some password managers require it */}
+                <TextField
+                    name="username"
+                    autoComplete="username"
+                    sx={{ display: "none" }}
+                />
+                <FormSection>
                     <PasswordTextField
                         fullWidth
                         name="currentPassword"
                         label={t("PasswordCurrent")}
                         autoComplete="current-password"
                     />
-                </Grid>
-                <Grid item xs={12}>
                     <PasswordTextField
                         fullWidth
                         name="newPassword"
                         label={t("PasswordNew")}
                         autoComplete="new-password"
                     />
-                </Grid>
-                <Grid item xs={12}>
                     <PasswordTextField
                         fullWidth
                         name="newPasswordConfirmation"
                         autoComplete="new-password"
                         label={t("PasswordNewConfirm")}
                     />
-                </Grid>
-            </Grid>
+                </FormSection>
+            </BaseForm>
             <GridSubmitButtons
                 display={display}
                 errors={props.errors}
@@ -62,7 +58,8 @@ export const SettingsAuthenticationForm = ({
                 onCancel={onCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
+                zIndex={props.zIndex}
             />
-        </BaseForm>
+        </>
     );
 };

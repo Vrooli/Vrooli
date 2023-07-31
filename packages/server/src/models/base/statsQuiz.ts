@@ -1,12 +1,11 @@
 import { StatsQuizSortBy } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { selPad } from "../../builders";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsQuizFormat } from "../format/statsQuiz";
 import { ModelLogic } from "../types";
 import { QuizModel } from "./quiz";
-import { StatsQuizModelLogic } from "./types";
+import { QuizModelLogic, StatsQuizModelLogic } from "./types";
 
 const __typename = "StatsQuiz" as const;
 const suppFields = [] as const;
@@ -15,10 +14,10 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
     delegate: (prisma) => prisma.stats_quiz,
     display: {
         label: {
-            select: () => ({ id: true, quiz: selPad(QuizModel.display.label.select) }),
+            select: () => ({ id: true, quiz: { select: QuizModel.display.label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages.length > 0 ? languages[0] : "en",
-                objectName: QuizModel.display.label.get(select.quiz as any, languages),
+                objectName: QuizModel.display.label.get(select.quiz as QuizModelLogic["PrismaModel"], languages),
             }),
         },
     },
@@ -30,7 +29,7 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ quiz: QuizModel.search!.searchStringQuery() }),
+        searchStringQuery: () => ({ quiz: QuizModel.search.searchStringQuery() }),
     },
     validate: {
         isTransferable: false,
@@ -40,7 +39,7 @@ export const StatsQuizModel: ModelLogic<StatsQuizModelLogic, typeof suppFields> 
             quiz: "Quiz",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => QuizModel.validate.owner(data.quiz as any, userId),
+        owner: (data, userId) => QuizModel.validate.owner(data.quiz as QuizModelLogic["PrismaModel"], userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_quizSelect>(data, [
             ["quiz", "Quiz"],

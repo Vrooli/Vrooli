@@ -179,6 +179,7 @@ export const MoveNodeMenu = ({
                 help={t("NodeMoveDialogHelp")}
                 onClose={onClose}
                 title={t("NodeMove")}
+                zIndex={zIndex + 1000}
             />
             <DialogContent>
                 {formContent}
@@ -189,6 +190,7 @@ export const MoveNodeMenu = ({
                         isCreate={false}
                         onCancel={closeDialog}
                         onSubmit={moveNode}
+                        zIndex={zIndex + 1000}
                     />
                 </Grid>
             </DialogContent>

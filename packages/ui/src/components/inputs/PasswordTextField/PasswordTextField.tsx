@@ -1,6 +1,6 @@
-import { InvisibleIcon, VisibleIcon } from "@local/shared";
 import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
+import { InvisibleIcon, VisibleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PasswordTextFieldProps } from "../types";

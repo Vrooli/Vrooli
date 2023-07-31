@@ -63,6 +63,7 @@ export const EmailModel: ModelLogic<EmailModelLogic, typeof suppFields> = ({
         },
         yup: emailValidation,
     },
+    search: undefined,
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],

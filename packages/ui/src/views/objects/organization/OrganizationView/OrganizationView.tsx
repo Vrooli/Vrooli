@@ -1,4 +1,4 @@
-import { BookmarkFor, EditIcon, EllipsisIcon, endpointGetOrganization, HelpIcon, LINKS, Organization, OrganizationIcon, ProjectIcon, ResourceList, SvgComponent, useLocation, UserIcon, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -14,9 +14,13 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
+import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { OverviewContainer } from "styles";
+import { SvgComponent } from "types";
+import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -60,7 +64,7 @@ export const OrganizationView = ({
     display = "page",
     onClose,
     partialData,
-    zIndex = 200,
+    zIndex,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -159,7 +163,7 @@ export const OrganizationView = ({
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
             <Avatar
-                src="/broken-image.jpg" //TODO
+                src={extractImageUrl(organization?.profileImage, organization?.updated_at, 100)}
                 sx={{
                     backgroundColor: profileColors[0],
                     color: profileColors[1],
@@ -175,16 +179,15 @@ export const OrganizationView = ({
             >
                 <OrganizationIcon fill="white" width='75%' height='75%' />
             </Avatar>
-            <Tooltip title="See all options">
+            <Tooltip title={t("MoreOptions")}>
                 <IconButton
-                    aria-label="More"
+                    aria-label={t("MoreOptions")}
                     size="small"
                     onClick={openMoreMenu}
                     sx={{
                         display: "block",
                         marginLeft: "auto",
                         marginRight: 1,
-                        paddingRight: "1em",
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -205,6 +208,7 @@ export const OrganizationView = ({
                             Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
+                        zIndex={zIndex}
                     />
                 }
                 {/* Handle */}
@@ -227,6 +231,7 @@ export const OrganizationView = ({
                     textBeforeDate="Joined"
                     timestamp={organization?.created_at}
                     width={"33%"}
+                    zIndex={zIndex}
                 />
                 {/* Bio */}
                 {
@@ -236,7 +241,12 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <MarkdownDisplay variant="body1" sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }} content={bio ?? "No bio set"} />
+                        <MarkdownDisplay
+                            variant="body1"
+                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                            content={bio ?? "No bio set"}
+                            zIndex={zIndex}
+                        />
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -275,6 +285,7 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

@@ -15,7 +15,9 @@ export const organization_update = {
         "membersCount": true,
         "organization": {
           "id": true,
+          "bannerImage": true,
           "handle": true,
+          "profileImage": true,
           "you": {
             "canAddMembers": true,
             "canDelete": true,
@@ -58,6 +60,7 @@ export const organization_update = {
     "__typename": "Role"
   },
   "id": true,
+  "bannerImage": true,
   "handle": true,
   "created_at": true,
   "updated_at": true,
@@ -65,6 +68,7 @@ export const organization_update = {
   "isPrivate": true,
   "commentsCount": true,
   "membersCount": true,
+  "profileImage": true,
   "reportsCount": true,
   "bookmarks": true,
   "tags": {

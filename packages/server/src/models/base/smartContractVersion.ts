@@ -6,7 +6,7 @@ import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../
 import { SmartContractVersionFormat } from "../format/smartContractVersion";
 import { ModelLogic } from "../types";
 import { SmartContractModel } from "./smartContract";
-import { SmartContractVersionModelLogic } from "./types";
+import { SmartContractModelLogic, SmartContractVersionModelLogic } from "./types";
 
 const __typename = "SmartContractVersion" as const;
 const suppFields = ["you"] as const;
@@ -27,9 +27,9 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    name: trans.name,
+                    name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans.description,
+                    description: trans?.description,
                 }, languages[0]);
             },
         },
@@ -130,11 +130,11 @@ export const SmartContractVersionModel: ModelLogic<SmartContractVersionModelLogi
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            SmartContractModel.validate.isPublic(data.root as any, languages),
+            SmartContractModel.validate.isPublic(data.root as SmartContractModelLogic["PrismaModel"], languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => SmartContractModel.validate.owner(data.root as any, userId),
-        permissionsSelect: (...params) => ({
+        owner: (data, userId) => SmartContractModel.validate.owner(data.root as SmartContractModelLogic["PrismaModel"], userId),
+        permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,

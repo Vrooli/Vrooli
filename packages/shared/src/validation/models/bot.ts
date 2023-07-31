@@ -1,0 +1,32 @@
+import * as yup from "yup";
+import { bio, blankToUndefined, bool, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+
+const botSettings = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
+
+export const botTranslationValidation: YupModel = transRel({
+    create: {
+        bio: opt(bio),
+    },
+    update: {
+        bio: opt(bio),
+    },
+});
+
+export const botValidation: YupModel = {
+    create: ({ o }) => yupObj({
+        id: req(id),
+        botSettings: req(botSettings),
+        isPrivate: opt(bool),
+        name: req(name),
+    }, [
+        ["translations", ["Create"], "many", "opt", botTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
+        id: req(id),
+        botSettings: opt(botSettings),
+        isPrivate: opt(bool),
+        name: opt(name),
+    }, [
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", botTranslationValidation],
+    ], [], o),
+};

@@ -1,5 +1,6 @@
-import { AddIcon, exists } from "@local/shared";
+import { exists } from "@local/shared";
 import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from "@mui/material";
+import { AddIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectorBaseProps } from "../types";

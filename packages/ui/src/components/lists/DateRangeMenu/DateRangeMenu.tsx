@@ -13,6 +13,7 @@ export const DateRangeMenu = ({
     onSubmit,
     range,
     strictIntervalRange,
+    zIndex,
 }: DateRangeMenuProps) => {
     const { t } = useTranslation();
 
@@ -76,6 +77,7 @@ export const DateRangeMenu = ({
                 display="dialog"
                 onClose={onClose}
                 title={t("SelectDateRange")}
+                zIndex={zIndex}
             />
             <Stack direction="column" spacing={2} m={2}>
                 <Grid container spacing={2}>

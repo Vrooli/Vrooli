@@ -11,7 +11,7 @@ export interface DecisionViewProps extends BaseViewProps {
 }
 
 export interface RunViewProps extends ViewProps<RoutineVersion> {
-    onClose: () => void;
+    onClose?: () => void;
     runnableObject: ProjectVersion | RoutineVersion;
 }
 

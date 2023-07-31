@@ -8,7 +8,9 @@ export const memberInvite_update = {
   "willHavePermissions": true,
   "organization": {
     "id": true,
+    "bannerImage": true,
     "handle": true,
+    "profileImage": true,
     "you": {
       "canAddMembers": true,
       "canDelete": true,
@@ -30,9 +32,11 @@ export const memberInvite_update = {
   },
   "user": {
     "id": true,
+    "bannerImage": true,
+    "handle": true,
     "isBot": true,
     "name": true,
-    "handle": true,
+    "profileImage": true,
     "__typename": "User"
   },
   "you": {

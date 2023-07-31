@@ -1,18 +1,23 @@
-import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, SvgComponent, User } from "@local/shared";
+import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
+import { SvgComponent, SxType } from "types";
 import { ObjectType } from "utils/navigation/openObject";
 
-export interface DateDisplayProps extends BoxProps {
+export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;
+    zIndex: number;
 }
 
 export interface MarkdownDisplayProps {
     content: string | undefined;
-    sx?: { [x: string]: any; };
+    isEditable?: boolean;
+    onChange?: (content: string) => void;
+    sx?: SxType;
     variant?: TypographyProps["variant"];
+    zIndex: number;
 }
 
 export interface OwnerLabelProps {
@@ -21,7 +26,7 @@ export interface OwnerLabelProps {
     objectType: ObjectType;
     owner: Routine["owner"] | null | undefined
     sxs?: {
-        label?: { [x: string]: any };
+        label?: SxType;
     }
 }
 
@@ -47,14 +52,15 @@ export interface TitleProps {
         onClick: (e?: any) => void;
     }[];
     sxs?: {
-        stack?: { [x: string]: any; };
-        text?: { [x: string]: any; };
+        stack?: SxType;
+        text?: SxType;
     }
     title?: string;
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     /** Determines size */
     variant: "header" | "subheader";
+    zIndex: number;
 }
 
 export interface VersionDisplayProps extends BoxProps {
@@ -63,6 +69,7 @@ export interface VersionDisplayProps extends BoxProps {
     loading?: boolean;
     prefix?: string;
     versions?: { versionLabel: string }[];
+    zIndex: number;
 }
 
 export interface ViewsDisplayProps {

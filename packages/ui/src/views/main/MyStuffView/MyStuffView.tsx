@@ -1,15 +1,18 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { AddIcon, addSearchParams, ApiIcon, CommonKey, GqlModelType, HelpIcon, LINKS, MonthIcon, NoteIcon, OrganizationIcon, parseSearchParams, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent, useLocation, VisibilityType } from "@local/shared";
+import { CommonKey, GqlModelType, LINKS, VisibilityType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
+import { AddIcon, ApiIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { centeredDiv } from "styles";
+import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -25,7 +28,7 @@ type BaseParams = {
     where: (userId: string) => { [x: string]: any };
 }
 
-// Data for each tab
+// Data for each tab TODO add bot tab
 const tabParams: BaseParams[] = [{
     Icon: RoutineIcon,
     searchType: SearchType.Routine,
@@ -184,6 +187,7 @@ export const MyStuffView = ({
                     onClick={onAddClick}
                     size="large"
                     variant="contained"
+                    startIcon={<AddIcon />}
                     sx={{
                         zIndex: 100,
                         minWidth: "min(100%, 200px)",
@@ -209,11 +213,13 @@ export const MyStuffView = ({
                 onClose={onClose}
                 title={t("MyStuff")}
                 below={<PageTabs
-                    ariaLabel="search-tabs"
+                    ariaLabel="my-stuff-tabs"
+                    id="my-stuff-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>

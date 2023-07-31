@@ -1,4 +1,4 @@
-import { AddIcon, Chat, CommentIcon, CommonKey, CompleteIcon, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, NotificationsAllIcon, openLink, Success, useLocation } from "@local/shared";
+import { Chat, CommonKey, DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPutNotification, endpointPutNotificationsMarkAllAsRead, FindByIdInput, Notification, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -8,8 +8,10 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { AddIcon, CommentIcon, CompleteIcon, NotificationsAllIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { listToListItems } from "utils/display/listTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";
@@ -154,8 +156,8 @@ export const InboxView = ({
         loading,
         onAction,
         onClick: (item) => onClick(item as InboxObject),
-        zIndex: 200,
-    }), [allData, searchType, loading, onAction, onClick]);
+        zIndex,
+    }), [searchType, allData, loading, onAction, zIndex, onClick]);
 
     // If near the bottom of the page, load more data
     const handleScroll = useCallback(() => {
@@ -187,7 +189,7 @@ export const InboxView = ({
                     isCreate={true}
                     onCancel={closeCreateChat}
                     onCompleted={onChatCreated}
-                    zIndex={zIndex + 1}
+                    zIndex={zIndex + 1001}
                 />
             </LargeDialog>
             {/* Main content */}
@@ -201,6 +203,7 @@ export const InboxView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}
+                zIndex={zIndex}
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}

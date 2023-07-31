@@ -1,19 +1,21 @@
-import { AddIcon, Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, useLocation, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
+import { AddIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
@@ -236,16 +238,19 @@ export const ChatView = ({
                             PubSub.get().publishAlertDialog({
                                 messageKey: "UnsavedChangesBeforeCancel",
                                 buttons: [
-                                    { labelKey: "Yes", onClick: () => { onClose(); } },
+                                    { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
                                     { labelKey: "No" },
                                 ],
                             });
                         } else {
-                            onClose();
+                            tryOnClose(onClose, setLocation);
                         }
                     }}
+                    // TODO change title so that when pressed, you can switch chats or add a new chat
                     title={firstString(title, botSettings ? "AI Chat" : "Chat")}
+                    zIndex={zIndex}
                 />
+                {/* TODO add ChatSideMenu component */}
                 <Stack direction="column" spacing={4}>
                     <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
                         {messages.map((message: ChatMessage, index) => {

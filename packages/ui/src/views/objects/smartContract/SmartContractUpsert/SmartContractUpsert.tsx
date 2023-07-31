@@ -18,7 +18,7 @@ export const SmartContractUpsert = ({
     isCreate,
     onCancel,
     onCompleted,
-    zIndex = 200,
+    zIndex,
 }: SmartContractUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -41,6 +41,7 @@ export const SmartContractUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

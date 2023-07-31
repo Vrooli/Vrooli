@@ -1,6 +1,7 @@
-import { CloseIcon, EllipsisIcon } from "@local/shared";
 import { Collapse, Stack, Tooltip, useTheme } from "@mui/material";
+import { CloseIcon, EllipsisIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { EllipsisActionButtonProps } from "../types";
 
@@ -8,6 +9,7 @@ export function EllipsisActionButton({
     children,
 }: EllipsisActionButtonProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
@@ -33,7 +35,7 @@ export function EllipsisActionButton({
                     {children}
                 </Stack>
             </Collapse>
-            <Tooltip title="More options" placement="top">
+            <Tooltip title={t("MoreOptions")} placement="top">
                 <ColorIconButton
                     aria-label="run-routine"
                     background={palette.secondary.main}

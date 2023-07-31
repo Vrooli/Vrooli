@@ -1,7 +1,9 @@
-import { BotIcon, SvgComponent, User, UserIcon } from "@local/shared";
+import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ProfileGroupProps } from "components/types";
+import { BotIcon, UserIcon } from "icons";
 import { useContext, useMemo } from "react";
+import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { SessionContext } from "utils/SessionContext";
 
@@ -42,7 +44,7 @@ export const ProfileGroup = ({
         // Add null icons to fill the remaining space up to the max
         while (newIcons.length < maxIconsDisplayed) newIcons.push(null);
         return newIcons as [IconType, IconType, IconType, IconType];
-    }, [users]);
+    }, [session, users]);
 
     return (
         <Box

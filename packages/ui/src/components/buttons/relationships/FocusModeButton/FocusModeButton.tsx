@@ -1,12 +1,14 @@
-import { AddIcon, exists, FocusModeIcon, LINKS, useLocation } from "@local/shared";
+import { exists, LINKS } from "@local/shared";
 import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { buttonSx } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
 import { useField } from "formik";
+import { AddIcon, FocusModeIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
@@ -24,7 +26,7 @@ export function FocusModeButton({
     const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
 
     // Focus mode dialog
-    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         if (!isAvailable) return;
         ev.stopPropagation();
         const focusMode = field?.value;
@@ -50,8 +52,9 @@ export function FocusModeButton({
     }, [field?.value?.id, helpers, closeDialog]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
         if (isDialogOpen) return ["FocusMode", handleSelect, closeDialog];
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         return [null, () => { }, () => { }];
     }, [isDialogOpen, handleSelect, closeDialog]);
 
@@ -60,14 +63,14 @@ export function FocusModeButton({
         // If no data, marked as unset
         if (!focusMode) return {
             Icon: AddIcon,
-            tooltip: isEditing ? "" : "Press to assign to a focus mode",
+            tooltip: t(`FocusModeNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
         const focusModeName = focusMode?.name ?? "";
         return {
             Icon: FocusModeIcon,
-            tooltip: `Focus Mode: ${focusModeName}`,
+            tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName }),
         };
-    }, [isEditing, field?.value]);
+    }, [isEditing, field?.value, t]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;

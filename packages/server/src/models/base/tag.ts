@@ -22,7 +22,7 @@ export const TagModel: ModelLogic<TagModelLogic, typeof suppFields> = ({
             get: ({ tag, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
-                    description: trans.description,
+                    description: trans?.description,
                     tag,
                 }, languages[0]);
             },

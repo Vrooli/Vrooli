@@ -1,11 +1,12 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, endpointPostDeleteMany, LinkIcon } from "@local/shared";
+import { Count, DeleteManyInput, endpointPostDeleteMany } from "@local/shared";
 import { Box, CircularProgress, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { cardRoot } from "components/lists/styles";
+import { LinkIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";

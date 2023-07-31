@@ -23,7 +23,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
     display: {
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages).text ?? "",
+            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
     },
     format: CommentFormat,
@@ -69,9 +69,9 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const where = { ...idQuery };
             // Determine sort order
             // Make sure sort field is valid
-            const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
-            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined;
-            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
+            const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
+            const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined;
+            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,
@@ -141,7 +141,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
-            for (const field of Object.keys(CommentModel.search!.searchFields)) {
+            for (const field of Object.keys(CommentModel.search.searchFields)) {
                 if (input[field as string] !== undefined) {
                     customQueries.push(SearchMap[field as string](input[field as string], getUser(req.session), __typename));
                 }
@@ -152,9 +152,9 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
             // Make sure sort field is valid
-            const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
-            const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined;
-            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
+            const orderByField = input.sortBy ?? CommentModel.search.defaultSort;
+            const orderByIsValid = CommentModel.search.sortBy[orderByField] === undefined;
+            const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search.defaultSort] : undefined;
             // Find requested search array
             const searchResults = await prisma.comment.findMany({
                 where,
@@ -182,7 +182,7 @@ export const CommentModel: ModelLogic<CommentModelLogic, typeof suppFields> = ({
             const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? 10,
-                sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
+                sortBy: input.sortBy ?? CommentModel.search.defaultSort,
             }, info, nestLimit) : [];
             // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
             const flattenThreads = (threads: CommentThread[]) => {

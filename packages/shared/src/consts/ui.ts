@@ -29,12 +29,15 @@ export const LINKS = {
     ResetPassword: "/password-reset",
     Search: "/search",
     Settings: "/settings",
-    SettingsProfile: "/settings/profile",
-    SettingsPrivacy: "/settings/privacy",
+    SettingsApi: "/settings/api",
     SettingsAuthentication: "/settings/auth",
+    SettingsData: "/settings/data",
     SettingsDisplay: "/settings/display",
-    SettingsNotifications: "/settings/notifications",
     SettingsFocusModes: "/settings/focus",
+    SettingsNotifications: "/settings/notifications",
+    SettingsPayments: "/settings/payments",
+    SettingsPrivacy: "/settings/privacy",
+    SettingsProfile: "/settings/profile",
     SmartContract: "/contract",
     Standard: "/standard",
     Start: "/start",
@@ -42,7 +45,7 @@ export const LINKS = {
     Tag: "/tag",
     Terms: "/terms", // Terms and conditions
     User: "/profile",
-};
+} as const;
 export type LINKS = ValueOf<typeof LINKS>;
 
 export const THEME = {

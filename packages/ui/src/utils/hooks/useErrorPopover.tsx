@@ -6,6 +6,7 @@ import { MarkdownDisplay } from "../../../../../packages/ui/src/components/text/
 interface UsePopoverMenuOptions {
     errors: Record<string, string | string[] | null | undefined> | null | undefined;
     onSetSubmitting?: (isSubmitting: boolean) => void;
+    zIndex: number;
 }
 
 interface UsePopoverMenuReturn {
@@ -16,7 +17,11 @@ interface UsePopoverMenuReturn {
     Popover: () => JSX.Element;
 }
 
-export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptions): UsePopoverMenuReturn => {
+export const useErrorPopover = ({
+    errors,
+    onSetSubmitting,
+    zIndex,
+}: UsePopoverMenuOptions): UsePopoverMenuReturn => {
     // Errors popup
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
     const openPopover = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
@@ -64,11 +69,12 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
                         },
                     },
                 }}
+                zIndex={zIndex + 1}
             >
-                <MarkdownDisplay content={errorMessage} />
+                <MarkdownDisplay content={errorMessage} zIndex={zIndex} />
             </PopoverWithArrow>
         );
-    }, [closePopover, errorAnchorEl, errorMessage]);
+    }, [closePopover, errorAnchorEl, errorMessage, zIndex]);
 
     return { errorMessage, openPopover, closePopover, hasErrors, Popover };
 };

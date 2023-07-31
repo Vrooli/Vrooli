@@ -77,12 +77,14 @@ export const typeDef = gql`
         membershipsCount: Int!
         name: String
         notesCount: Int!
+        profileImage: String
         projectsCount: Int!
         questionsAskedCount: Int!
         routinesCount: Int!
         smartContractsCount: Int!
         standardsCount: Int!
         theme: String
+        updated_at: Date!
     }
 
     type Session {

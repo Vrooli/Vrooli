@@ -46,6 +46,7 @@ export const PhoneModel: ModelLogic<PhoneModelLogic, typeof suppFields> = ({
         },
         yup: phoneValidation,
     },
+    search: undefined,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
