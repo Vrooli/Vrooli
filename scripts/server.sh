@@ -17,7 +17,6 @@ ${HERE}/getSecrets.sh ${NODE_ENV} ${TMP_FILE} VALYXA_API_KEY DB_PASSWORD ADMIN_W
 . "$TMP_FILE"
 rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432"
-echo "Got DB_URL: $DB_URL"
 
 # Install prisma dependency
 # TODO shouldn't need these 2 lines, since Prisma is added in Dockerfile. But for some reason we do. Otherwise, prisma not found
