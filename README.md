@@ -197,7 +197,7 @@ Vrooli's vision is bright, but a lot of work needs to be done to get there. Plea
 
 If you'd like to work with me on this project, or create your own proposal for a feature on the roadmap, don't hesitate to reach out! My contact links can be found [here](https://matthalloran.info).
 
-### [<img align="center" alt="Website" width="36px" src="./assets/vrooli.png" style="padding-left:5px;padding-right:2px" />][start] [**Let's change the world together!🕊**][start]
+### [🌍**Let's change the world together!🕊**][start]
 
 [website]: https://vrooli.com
 [start]: https://vrooli.com/start
