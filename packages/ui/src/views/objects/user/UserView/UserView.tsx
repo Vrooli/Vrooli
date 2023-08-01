@@ -126,12 +126,12 @@ export const UserView = ({
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
     // Create search data
-    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        if (!user?.id) return { searchType: SearchType.Project, placeholder: "SearchProject", where: {} };
+    const searchData = useMemo<SearchListGenerator | null>(() => {
+        if (!user || !user.id || !uuidValidate(user.id)) return null;
         if (currTab.value === TabOptions.Organization)
             return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
         return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-    }, [currTab.value, user?.id, permissions.canUpdate]);
+    }, [user, currTab.value, permissions.canUpdate]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -166,6 +166,8 @@ export const UserView = ({
                     top: "-55px",
                     position: "absolute",
                     fontSize: "min(50px, 10vw)",
+                    // Bots show up as squares, to distinguish them from users
+                    ...(user?.isBot ? { borderRadius: "8px" } : {}),
                 }}
             >
                 {user?.isBot ? <BotIcon
@@ -321,20 +323,20 @@ export const UserView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                 />
-                <Box p={2}>
+                {searchData !== null && <Box p={2}>
                     <SearchList
-                        canSearch={() => Boolean(user?.id) && uuidValidate(user?.id)}
+                        canSearch={() => true}
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
-                        searchType={searchType}
-                        searchPlaceholder={placeholder}
+                        searchType={searchData.searchType}
+                        searchPlaceholder={searchData.placeholder}
                         take={20}
-                        where={where}
+                        where={searchData.where}
                         zIndex={zIndex}
                     />
-                </Box>
+                </Box>}
             </Box>
             <SideActionButtons
                 display={display}

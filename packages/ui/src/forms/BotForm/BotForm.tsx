@@ -18,41 +18,49 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 
-export const botInitialValues = (
-    session: Session | undefined,
-    existing?: User | null | undefined,
-): BotShape => {
-    // Try to parse stringified settings
+const parseBotSettings = (existing?: User | null | undefined): Record<string, string | number> => {
     let settings: Record<string, string | number> = {};
     try {
         settings = JSON.parse(existing?.botSettings ?? "{}");
     } catch (error) {
         console.error("Failed to parse settings", error);
     }
-    // Inject string settings into translations
-    const translations: BotTranslationShape[] = existing?.translations?.map((translation) => ({
-        ...settings.translations?.[translation.language],
-        bias: "",
-        domainKnowledge: "",
-        keyPhrases: "",
-        occupation: "",
-        persona: "",
-        startMessage: "",
-        tone: "",
-        ...translation,
-    })) ?? [{
+    return settings;
+};
+
+const generateTranslations = (
+    settings: Record<string, string | number>,
+    session: Session | undefined,
+    existing?: User | null | undefined,
+): BotTranslationShape[] => {
+    const defaultTranslation = {
+        bio: settings.bio ?? "",
+        bias: settings.bias ?? "",
+        domainKnowledge: settings.domainKnowledge ?? "",
+        keyPhrases: settings.keyPhrases ?? "",
+        occupation: settings.occupation ?? "",
+        persona: settings.persona ?? "",
+        startMessage: settings.startMessage ?? "",
+        tone: settings.tone ?? "",
         __typename: "UserTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        bio: "",
-        bias: "",
-        domainKnowledge: "",
-        keyPhrases: "",
-        occupation: "",
-        persona: "",
-        startMessage: "",
-        tone: "",
-    }];
+    };
+
+    return existing?.translations?.map((translation) => ({
+        ...defaultTranslation,
+        ...settings.translations?.[translation.language],
+        ...translation,
+    })) ?? [defaultTranslation];
+};
+
+export const botInitialValues = (
+    session: Session | undefined,
+    existing?: User | null | undefined,
+): BotShape => {
+    const settings = parseBotSettings(existing);
+    const translations = generateTranslations(settings, session, existing);
+
     return {
         __typename: "User" as const,
         id: DUMMY_ID,

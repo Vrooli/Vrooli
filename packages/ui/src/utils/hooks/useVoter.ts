@@ -30,7 +30,7 @@ export const useVoter = ({
             return;
         }
         if (!hasVotingSupport) {
-            PubSub.get().publishSnack({ messageKey: "CopyNotSupported", severity: "Error" });
+            PubSub.get().publishSnack({ messageKey: "VoteNotSupported", severity: "Error" });
             return;
         }
         fetchLazyWrapper<ReactInput, Success>({

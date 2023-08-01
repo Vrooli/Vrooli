@@ -36,7 +36,7 @@ interface NSFWCheckResult {
 
 /** Common configuration for profile images */
 export const profileImageConfig = {
-    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
+    allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
     imageSizes: [
         { width: 400, height: 400 },
         { width: 200, height: 200 },
@@ -47,7 +47,7 @@ export const profileImageConfig = {
 
 /** Common configuration for banner images */
 export const bannerImageConfig = {
-    allowedExtensions: ["png", "jpg", "jpeg", "heic", "heif"],
+    allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
     imageSizes: [
         { width: 1500, height: 500 },
         { width: 900, height: 300 },
@@ -112,11 +112,15 @@ const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult>
     });
 };
 
-
 const resizeImage = async (buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") => {
     return await sharp(buffer)
+        // Don't enlarge the image if it's already smaller than the requested size.
         .resize(width, height, { withoutEnlargement: true })
+        // Replace transparent pixels with white.
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        // Convert to the requested format.
         .toFormat(format)
+        // Convert to a buffer.
         .toBuffer();
 };
 

@@ -27,13 +27,13 @@ export type BotShape = Pick<User, "id" | "isPrivate" | "name"> & {
 }
 
 export const shapeBotTranslation: ShapeModel<BotTranslationShape, Record<string, string | number>, Record<string, string | number>> = {
-    create: (d) => createPrims(d, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
+    create: (d) => createPrims(d, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
     /** 
      * Unlike typical updates, we want to include every field so that 
      * we can stringify the entire object and store it in the `botSettings` field. 
      * This means we'll use `createPrims` again.
      **/
-    update: (_, u) => createPrims(u, "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
+    update: (_, u) => createPrims(u, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
 };
 
 export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
@@ -41,7 +41,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Extract bot settings from translations
         const textData = createRel(d, "translations", ["Create"], "many", shapeBotTranslation);
         // Convert to object, where keys are language codes and values are the bot settings
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(t => [t.language, t]));
+        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
         return {
             isBot: true,
             botSettings: JSON.stringify({
@@ -58,7 +58,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         const textData = updateRel({ ...o, translations: [] }, u, "translations", ["Create", "Update", "Delete"], "many", shapeBotTranslation); // Use empty array for original translations to ensure that all translations are included
         // Convert created to object.
         // Note: Shouldn't have to worry about updated since we set the original to empty array (making all translations seem like creates).
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(t => [t.language, t]));
+        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
         // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
         const deletedTranslations = o.translations?.filter(t => !u.translations?.some(t2 => t2.id === t.id));
         if (deletedTranslations) {

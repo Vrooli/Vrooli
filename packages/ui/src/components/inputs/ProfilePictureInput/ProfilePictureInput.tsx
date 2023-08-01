@@ -19,11 +19,12 @@ export const ProfilePictureInput = ({
 }: ProfilePictureInputProps) => {
     const { palette } = useTheme();
 
-    const profileColors = useMemo(() => placeholderColor(), []);
     const [imgUrl, setImgUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     useEffect(() => {
         setImgUrl(extractImageUrl(profile?.profileImage, profile?.updated_at, TARGET_SIZE));
     }, [profile]);
+    // Colorful placeholder if no image, or white if there is an image (in case there's transparency)
+    const profileColors = useMemo(() => imgUrl ? ["#fff", "#fff"] : placeholderColor(), [imgUrl]);
 
     const handleImagePreview = async (file: any) => {
         // Extract extension from file name or path
@@ -44,8 +45,13 @@ export const ProfilePictureInput = ({
             PubSub.get().publishLoading(false);
             // Return as object URL
             return URL.createObjectURL(outputBlob);
-        } else {
-            // If not a HEIC/HEIF file, proceed as normal
+        }
+        // If not a HEIC/HEIF file, proceed as normal
+        else {
+            // But if it's a GIF, notify the user that it will be converted to a static image
+            if (ext === "gif") {
+                PubSub.get().publishSnack({ messageKey: "GifWillBeStatic", severity: "Warning" });
+            }
             return URL.createObjectURL(file);
         }
     };

@@ -1,4 +1,4 @@
-import { Chat, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
+import { BookmarkFor, Chat, CommentFor, exists, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -123,24 +123,25 @@ export function ObjectListItemBase<T extends ListObjectType>({
         // Show icons for organizations, users, and members
         if (isOfType(object, "Organization", "User", "Member")) {
             console.log("calculating left column", object);
+            const isBot = (object as unknown as User).isBot || (object as unknown as Member).user?.isBot || (object as unknown as Chat).participants?.[0]?.user?.isBot;
             let Icon: SvgComponent;
             if (object.__typename === "Organization") {
                 Icon = OrganizationIcon;
-            } else if ((object as unknown as User).isBot ||
-                (object as unknown as Member).user?.isBot ||
-                (object as unknown as Chat).participants?.[0].user?.isBot) {
+            } else if (isBot) {
                 Icon = BotIcon;
             } else {
                 Icon = UserIcon;
             }
             return (
                 <Avatar
-                    src={extractImageUrl((object as any).profileImage, (object as any).updated_at, 50)}
+                    src={extractImageUrl((object as unknown as { profileImage: string }).profileImage, (object as unknown as { updated_at: string }).updated_at, 50)}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
                         height: isMobile ? "40px" : "50px",
                         pointerEvents: "none",
+                        // Bots show up as squares, to distinguish them from users
+                        ...(isBot ? { borderRadius: "8px" } : {}),
                     }}
                 >
                     <Icon fill={profileColors[1]} width="75%" height="75%" />
@@ -154,13 +155,13 @@ export function ObjectListItemBase<T extends ListObjectType>({
         // Otherwise, only show on wide screens
         if (isMobile) return null;
         // Show vote buttons if supported
-        if (canReact) {
+        if (canReact && object?.__typename !== undefined && (exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"]))) {
             return (
                 <VoteButton
                     disabled={!canReact}
                     emoji={reaction}
                     objectId={object?.id ?? ""}
-                    voteFor={object?.__typename as ReactionFor}
+                    voteFor={object.__typename as ReactionFor}
                     score={score}
                     onChange={(newEmoji: string | null, newScore: number) => { }}
                 />
@@ -204,18 +205,18 @@ export function ObjectListItemBase<T extends ListObjectType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && canReact && (
+                {isMobile && canReact && object?.__typename !== undefined && (exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"])) && (
                     <VoteButton
                         direction='row'
                         disabled={!canReact}
                         emoji={reaction}
                         objectId={object?.id ?? ""}
-                        voteFor={object?.__typename as ReactionFor}
+                        voteFor={object.__typename as ReactionFor}
                         score={score}
                         onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
                 )}
-                {canBookmark && bookmarkFor && <BookmarkButton
+                {canBookmark && bookmarkFor && object?.__typename !== undefined && (exists(BookmarkFor[object.__typename]) || exists(BookmarkFor[object.__typename + "Version"])) && <BookmarkButton
                     disabled={!canBookmark}
                     objectId={starForId}
                     bookmarkFor={bookmarkFor}
@@ -223,7 +224,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     bookmarks={getCounts(object).bookmarks}
                     zIndex={zIndex}
                 />}
-                {canComment && (<CommentsButton
+                {canComment && object?.__typename !== undefined && (exists(CommentFor[object.__typename]) || exists(CommentFor[object.__typename + "Version"])) && (<CommentsButton
                     commentsCount={getCounts(object).comments}
                     disabled={!canComment}
                     object={object}

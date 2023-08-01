@@ -35,11 +35,11 @@ export const Page = ({
             Color should mimic `content-wrap` component, but with sx override */}
             <Box id="yeet" sx={{
                 backgroundColor: (sx as any)?.background ?? (sx as any)?.backgroundColor ?? (palette.mode === "light" ? "#c2cadd" : palette.background.default),
-                height: "50vh",
+                height: "100vh",
                 position: "fixed",
                 top: "0",
                 width: "100%",
-                zIndex: -1,
+                zIndex: -3, // Below the footer's hidden div
             }} />
             {!excludePageContainer && <PageContainer sx={sx}>
                 {children}

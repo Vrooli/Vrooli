@@ -157,6 +157,7 @@
     "UnsafeOriginNoApiToken": "Unsafe origin with expired/missing API token",
     "UpdateNotSupported": "Cannot update this type of object",
     "ValidationFailed": "Validation failed.",
+    "VoteNotSupported": "Cannot vote on this type of object",
     "WalletAlreadyConnected": "Wallet already connected.",
     "WalletErrorUnknown": "Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet.",
     "WalletNotFound": "Wallet not found.",

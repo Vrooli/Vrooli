@@ -107,7 +107,7 @@ export const Footer = () => {
                 position: "fixed",
                 bottom: "0",
                 width: "100%",
-                zIndex: -1,
+                zIndex: -2, // Below the main content, but above the page's hidden div
             }} />
         </>
     );

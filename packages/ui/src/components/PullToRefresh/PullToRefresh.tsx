@@ -60,7 +60,7 @@ export const PullToRefresh = () => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                zIndex: -1,
+                zIndex: -1, // Below the main content, but above the page and footer's hidden divs (for coloring overscroll)
                 background: palette.background.default,
             }}
         >

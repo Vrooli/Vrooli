@@ -34,7 +34,7 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 - [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
 - [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
 
-## ⏱️ Progress
+## 🙌 Progress
  - Q1 2022 
     - ✅ Alpha launch. Users can create, comment, and vote on basic routines. 
     - ✅ Routines consist of a flowchart of steps. Each step can have a description and a list of useful resources.
@@ -63,7 +63,7 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
     - ✅ User-created markdown looks much better and is more functional
     - ✅ Interactive tutorial for new users
     - ✅ Can create and update bots
-## What's next?
+## ⁉️ What's next?
 - Push notification support
 - Transfer objects
 - Invite members to your organization
