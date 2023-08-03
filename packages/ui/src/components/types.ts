@@ -50,6 +50,7 @@ export interface PageTabsProps<T> {
     id?: string,
     onChange: (event: React.ChangeEvent<unknown>, value: any) => unknown,
     tabs: PageTab<T>[],
+    sx?: SxType,
 }
 
 export interface ProfileGroupProps {

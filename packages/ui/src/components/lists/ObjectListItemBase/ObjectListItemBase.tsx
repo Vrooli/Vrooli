@@ -1,4 +1,4 @@
-import { BookmarkFor, Chat, CommentFor, exists, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
+import { Chat, isOfType, Member, ReactionFor, User, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
@@ -155,7 +155,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
         // Otherwise, only show on wide screens
         if (isMobile) return null;
         // Show vote buttons if supported
-        if (canReact && object?.__typename !== undefined && (exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"]))) {
+        if (canReact && object) {
             return (
                 <VoteButton
                     disabled={!canReact}
@@ -205,7 +205,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && canReact && object?.__typename !== undefined && (exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"])) && (
+                {isMobile && canReact && object && (
                     <VoteButton
                         direction='row'
                         disabled={!canReact}
@@ -216,7 +216,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                         onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
                 )}
-                {canBookmark && bookmarkFor && object?.__typename !== undefined && (exists(BookmarkFor[object.__typename]) || exists(BookmarkFor[object.__typename + "Version"])) && <BookmarkButton
+                {canBookmark && bookmarkFor && <BookmarkButton
                     disabled={!canBookmark}
                     objectId={starForId}
                     bookmarkFor={bookmarkFor}
@@ -224,7 +224,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     bookmarks={getCounts(object).bookmarks}
                     zIndex={zIndex}
                 />}
-                {canComment && object?.__typename !== undefined && (exists(CommentFor[object.__typename]) || exists(CommentFor[object.__typename + "Version"])) && (<CommentsButton
+                {canComment && (<CommentsButton
                     commentsCount={getCounts(object).comments}
                     disabled={!canComment}
                     object={object}

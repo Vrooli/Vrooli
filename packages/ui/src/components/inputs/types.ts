@@ -187,10 +187,12 @@ export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
 
 export interface ProfilePictureInputProps {
     name?: string;
-    onChange: (file: File | null) => unknown;
+    onBannerImageChange: (file: File | null) => unknown;
+    onProfileImageChange: (file: File | null) => unknown;
     profile?: {
         __typename: "Organization" | "User";
         isBot?: boolean;
+        bannerImage?: string | File | null;
         profileImage?: string | File | null;
         /** Used for cache busting */
         updated_at?: string;

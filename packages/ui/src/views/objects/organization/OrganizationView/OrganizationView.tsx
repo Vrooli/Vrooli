@@ -319,14 +319,14 @@ export const OrganizationView = ({
                 {overviewComponent}
             </Box>
             {/* View routines, members, standards, and projects associated with this organization */}
-            <Box>
+            <Box sx={{ margin: "auto", maxWidth: "800px" }}>
                 <PageTabs
                     ariaLabel="organization-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
                 />
-                <Box p={2}>
+                <Box>
                     {
                         currTab.value === TabOptions.Resource ? resources : (
                             <SearchList

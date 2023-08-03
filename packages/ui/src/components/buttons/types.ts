@@ -131,6 +131,7 @@ export interface SearchButtonsProps {
     setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     sortBy: string;
     sortByOptions: any; // No way to specify generic enum
+    sx?: SxType;
     timeFrame: TimeFrame | undefined;
     zIndex: number;
 }

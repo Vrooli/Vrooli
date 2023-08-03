@@ -8,6 +8,7 @@ export type BotTranslationShape = {
     id: string;
     language: string;
     bias?: string | null;
+    bio?: string | null;
     domainKnowledge?: string | null;
     keyPhrases?: string | null;
     occupation?: string | null;

@@ -14,6 +14,7 @@ export const PageTabs = <T extends string | number | object>({
     id,
     onChange,
     tabs,
+    sx,
 }: PageTabsProps<T>) => {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
@@ -23,7 +24,7 @@ export const PageTabs = <T extends string | number | object>({
     }, [onChange, tabs]);
 
     return (
-        <Box display="flex" id={id} justifyContent="center" width="100%">
+        <Box display="flex" id={id} justifyContent="center" width="100%" sx={sx}>
             <Tabs
                 value={currTab.index}
                 onChange={handleTabChange}

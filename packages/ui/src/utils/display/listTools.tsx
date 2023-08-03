@@ -1,4 +1,4 @@
-import { BookmarkFor, CommonKey, DotNotation, exists, GqlModelType, isOfType } from "@local/shared";
+import { BookmarkFor, CommentFor, CommonKey, DotNotation, exists, GqlModelType, isOfType, ReactionFor } from "@local/shared";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
 import { ActionsType, ListActions, SearchListGenerator } from "components/lists/types";
 import { AutocompleteOption, NavigableObject } from "types";
@@ -95,7 +95,7 @@ export const defaultYou: YouInflated = {
     canDelete: false,
     canRead: false,
     canReport: false,
-    canShare: false,
+    canShare: true,
     canBookmark: false,
     canUpdate: false,
     canReact: false,
@@ -112,8 +112,8 @@ export const getYou = (
     object: ListObjectType | null | undefined,
 ): YouInflated => {
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
-    const defaultPermissions = { ...defaultYou };
-    if (!object) return defaultPermissions;
+    const objectPermissions = { ...defaultYou };
+    if (!object) return objectPermissions;
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, "Bookmark", "View", "Vote")) return getYou(object.to as ListObjectType);
     // If a run routine, use the routine version
@@ -122,17 +122,21 @@ export const getYou = (
     if (isOfType(object, "RunProject")) return getYou(object.projectVersion as ListObjectType);
     // Otherwise, get the permissions from the object
     // Loop through all permission fields
-    for (const key in defaultPermissions) {
+    for (const key in objectPermissions) {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "string") defaultPermissions[key] = field;
+        if (field === true || field === false || typeof field === "string") objectPermissions[key] = field;
         // If not, check if the field is in the root.you object
         else {
             const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false || typeof field === "string") defaultPermissions[key] = field;
+            if (field === true || field === false || typeof field === "string") objectPermissions[key] = field;
         }
     }
-    return defaultPermissions;
+    // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
+    if (objectPermissions.canReact && !(exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"]))) objectPermissions.canReact = false;
+    if (objectPermissions.canBookmark && !(exists(BookmarkFor[object.__typename]) || exists(BookmarkFor[object.__typename + "Version"]))) objectPermissions.canBookmark = false;
+    if (objectPermissions.canComment && !(exists(CommentFor[object.__typename]) || exists(CommentFor[object.__typename + "Version"]))) objectPermissions.canComment = false;
+    return objectPermissions;
 };
 
 /**
