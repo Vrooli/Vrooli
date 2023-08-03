@@ -107,10 +107,11 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, botData, name, handle } = useMemo(() => {
+    const { bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
         const { creativity, verbosity, translations } = findBotData(language, user ?? partialData as User | null | undefined);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
         return {
+            bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
             name: user?.name ?? partialData?.name,
@@ -190,9 +191,9 @@ export const UserView = ({
                         backgroundColor: profileColors[0],
                         color: profileColors[1],
                         boxShadow: 2,
-                        width: "min(100px, 25vw)",
-                        height: "min(100px, 25vw)",
-                        top: "-55px",
+                        width: "max(min(100px, 40vw), 75px)",
+                        height: "max(min(100px, 40vw), 75px)",
+                        top: "-100%",
                         fontSize: "min(50px, 10vw)",
                         marginRight: "auto",
                         // Bots show up as squares, to distinguish them from users
@@ -201,6 +202,7 @@ export const UserView = ({
                         [breakpoints.up("sm")]: {
                             position: "absolute",
                             left: "50%",
+                            top: "-25%",
                             transform: "translateX(-50%)",
                         },
                     }}
@@ -329,10 +331,16 @@ export const UserView = ({
             />
             <Box sx={{
                 display: "flex",
-                paddingTop: 5,
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
-                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                backgroundColor: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
                 position: "relative",
+                paddingTop: "40px",
+                [breakpoints.down("sm")]: {
+                    paddingTop: "120px",
+                },
             }}>
                 {/* Language display/select */}
                 <Box sx={{

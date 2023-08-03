@@ -99,7 +99,8 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         sx={{ marginBottom: 4 }}
                     />
                     <ProfilePictureInput
-                        onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
+                        onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
                         profile={{ __typename: "User", ...values }}
                         zIndex={zIndex}

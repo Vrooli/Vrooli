@@ -41,7 +41,7 @@ export const SettingsProfileView = ({
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
-                            bannerImage: null,
+                            bannerImage: profile?.bannerImage ?? null,
                             handle: profile?.handle ?? null,
                             name: profile?.name ?? "",
                             profileImage: profile?.profileImage ?? null,
