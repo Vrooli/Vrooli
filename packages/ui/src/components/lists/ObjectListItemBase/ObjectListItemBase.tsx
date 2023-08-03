@@ -155,7 +155,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
         // Otherwise, only show on wide screens
         if (isMobile) return null;
         // Show vote buttons if supported
-        if (canReact) {
+        if (canReact && object) {
             return (
                 <VoteButton
                     disabled={!canReact}

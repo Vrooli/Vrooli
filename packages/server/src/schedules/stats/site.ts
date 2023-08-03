@@ -120,6 +120,7 @@ export const logSiteStats = async (
                 where: {
                     created_at: { gte: periodStart, lte: periodEnd },
                     isDeleted: false,
+                    isInternal: false, // Exclude routines only used within other routines
                 },
             });
             // Find all routines completed within the period
@@ -127,6 +128,7 @@ export const logSiteStats = async (
                 where: {
                     completedAt: { gte: periodStart, lte: periodEnd },
                     isDeleted: false,
+                    isInternal: false, // Exclude routines only used within other routines
                 },
             });
             // Find the sum of all completion intervals (completedAt - created_at)
@@ -254,6 +256,7 @@ export const logSiteStats = async (
                 where: {
                     created_at: { gte: periodStart, lte: periodEnd },
                     isDeleted: false,
+                    isInternal: false, // Exclude standards only used within routines
                 },
             });
             // Find all standards completed within the period
@@ -261,6 +264,7 @@ export const logSiteStats = async (
                 where: {
                     completedAt: { gte: periodStart, lte: periodEnd },
                     isDeleted: false,
+                    isInternal: false, // Exclude standards only used within routines
                 },
             });
             // Find the sum of all completion intervals (completedAt - created_at)
