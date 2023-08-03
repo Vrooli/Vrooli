@@ -231,15 +231,11 @@ export const OverviewContainer = styled(Box)(({ theme }) => ({
     marginRight: "auto",
     marginTop: theme.spacing(3),
     background: theme.palette.background.paper,
-    [theme.breakpoints.down("sm")]: {
-        borderRadius: "0",
-        boxShadow: "none",
-        width: "100%",
-    },
+    borderRadius: "0",
+    width: `min(${theme.breakpoints.values.sm}px, 100%)`,
     [theme.breakpoints.up("sm")]: {
         borderRadius: theme.spacing(2),
         boxShadow: theme.shadows[2],
-        width: "min(500px, 100vw)",
     },
 }));
 

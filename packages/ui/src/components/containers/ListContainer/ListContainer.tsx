@@ -8,22 +8,23 @@ export const ListContainer = ({
     isEmpty = false,
     sx,
 }: ListContainerProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
     return (
         <Box sx={{
-            marginTop: 2,
             maxWidth: "1000px",
             marginLeft: "auto",
             marginRight: "auto",
             ...(isEmpty ? {} : {
-                boxShadow: 4,
                 background: palette.background.paper,
                 borderRadius: "8px",
                 overflow: "overlay",
                 display: "block",
             }),
+            [breakpoints.down("sm")]: {
+                borderRadius: 0,
+            },
             ...(sx ?? {}),
         }}>
             {isEmpty && (

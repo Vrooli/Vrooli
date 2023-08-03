@@ -59,6 +59,7 @@ if [ -z "$VERSION" ]; then
         VERSION=$CURRENT_VERSION
     fi
 fi
+
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
@@ -154,8 +155,7 @@ info "Pulling latest changes from repository..."
 git fetch
 git pull
 if [ $? -ne 0 ]; then
-    error "Could not pull latest changes from repository. You likely have uncommitted changes."
-    exit 1
+    warning "Could not pull latest changes from repository. You likely have uncommitted changes. This may cause issues."
 fi
 
 # Running setup.sh

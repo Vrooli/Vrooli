@@ -13,11 +13,12 @@ export const SearchButtons = ({
     setTimeFrame,
     sortBy,
     sortByOptions,
+    sx,
     timeFrame,
     zIndex,
 }: SearchButtonsProps) => {
     return (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
             <SortButton
                 options={sortByOptions}
                 setSortBy={setSortBy}

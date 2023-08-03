@@ -96,7 +96,8 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                         zIndex={zIndex}
                     />
                     <ProfilePictureInput
-                        onChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                        onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
+                        onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
                         profile={{ __typename: "Organization", ...values }}
                         zIndex={zIndex}
