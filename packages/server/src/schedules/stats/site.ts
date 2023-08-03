@@ -54,9 +54,14 @@ export const logSiteStats = async (
             // Find all users active in the past 90 days
             data.activeUsers = await prisma.user.count({
                 where: {
+                    // updated_at should be sufficient to calculate active users, 
+                    // since even if they don't explicitly update their profile, 
+                    // their streak will be updated daily
                     updated_at: {
                         gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
                     },
+                    // Make sure not to include bots
+                    isBot: false,
                 },
             });
             // Find all apis created within the period

@@ -41,9 +41,11 @@ export const findBotData = (
         ...translation,
     })) ?? [defaultTranslation];
 
+    const creativityNumber = +settings.creativity;
+    const verbosityNumber = +settings.verbosity;
     return {
-        creativity: (+settings.creativity) ?? 0.5,
-        verbosity: (+settings.verbosity) ?? 0.5,
+        creativity: creativityNumber >= 0 && creativityNumber <= 1 ? creativityNumber : 0.5,
+        verbosity: verbosityNumber >= 0 && verbosityNumber <= 1 ? verbosityNumber : 0.5,
         translations,
     };
 };
