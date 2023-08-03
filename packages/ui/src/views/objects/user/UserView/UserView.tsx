@@ -1,13 +1,13 @@
-import { BookmarkFor, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
-import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
+import { Avatar, Box, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -15,13 +15,14 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import { BotIcon, CommentIcon, EditIcon, EllipsisIcon, OrganizationIcon, ProjectIcon, UserIcon } from "icons";
+import { BotIcon, CommentIcon, EditIcon, EllipsisIcon, InfoIcon, OrganizationIcon, ProjectIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart, useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { findBotData } from "utils/botUtils";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -35,6 +36,7 @@ import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
 enum TabOptions {
+    Details = "Details",
     Project = "Project",
     Organization = "Organization",
 }
@@ -42,22 +44,31 @@ enum TabOptions {
 type TabParams = {
     Icon: SvgComponent;
     searchType: SearchType;
-    tabType: TabOptions;
+    tabType: Omit<TabOptions, TabOptions.Details>;
     where: { [x: string]: any };
+} | {
+    Icon: SvgComponent;
+    tabType: TabOptions.Details;
 }
 
 // Data for each tab
-const tabParams: TabParams[] = [{
-    Icon: ProjectIcon,
-    searchType: SearchType.Project,
-    tabType: TabOptions.Project,
-    where: {},
-}, {
-    Icon: OrganizationIcon,
-    searchType: SearchType.Organization,
-    tabType: TabOptions.Organization,
-    where: {},
-}];
+const tabParams: TabParams[] = [
+    // Only available for bots
+    {
+        Icon: InfoIcon,
+        tabType: TabOptions.Details,
+    }, {
+        Icon: ProjectIcon,
+        searchType: SearchType.Project,
+        tabType: TabOptions.Project,
+        where: {},
+    }, {
+        Icon: OrganizationIcon,
+        searchType: SearchType.Organization,
+        tabType: TabOptions.Organization,
+        where: {},
+    },
+];
 
 export const UserView = ({
     display = "page",
@@ -66,7 +77,7 @@ export const UserView = ({
     zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -96,10 +107,12 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, name, handle } = useMemo(() => {
-        const { bio } = getTranslation(user ?? partialData, [language]);
+    const { bio, botData, name, handle } = useMemo(() => {
+        const { creativity, verbosity, translations } = findBotData(language, user ?? partialData as User | null | undefined);
+        const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
+            botData: { ...botTranslations, creativity, verbosity },
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
         };
@@ -112,26 +125,33 @@ export const UserView = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        const tabs = tabParams;
+        // Remove details tab if not a bot
+        const tabs = user?.isBot ? tabParams : tabParams.filter(t => t.tabType !== TabOptions.Details);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
             color: palette.secondary.dark,
             index: i,
             Icon: tab.Icon,
-            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
+            label: t(tab.tabType as CommonKey, { count: 2, defaultValue: tab.tabType }),
             value: tab.tabType,
-        }));
-    }, [palette.secondary.dark, t]);
+        })) as PageTab<TabOptions>[];
+    }, [palette.secondary.dark, t, user?.isBot]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
+    useEffect(() => {
+        setCurrTab(tabs[0]);
+    }, [tabs]);
 
     // Create search data
     const searchData = useMemo<SearchListGenerator | null>(() => {
-        if (!user || !user.id || !uuidValidate(user.id)) return null;
+        if (!user || !user.id || !uuidValidate(user.id) || currTab.value === TabOptions.Details) return null;
         if (currTab.value === TabOptions.Organization)
             return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
         return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [user, currTab.value, permissions.canUpdate]);
+
+    const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
+    const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -153,52 +173,80 @@ export const UserView = ({
      */
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
-            <Avatar
-                src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
-                sx={{
-                    backgroundColor: profileColors[0],
-                    color: profileColors[1],
-                    boxShadow: 2,
-                    transform: "translateX(-50%)",
-                    width: "min(100px, 25vw)",
-                    height: "min(100px, 25vw)",
-                    left: "50%",
-                    top: "-55px",
-                    position: "absolute",
-                    fontSize: "min(50px, 10vw)",
-                    // Bots show up as squares, to distinguish them from users
-                    ...(user?.isBot ? { borderRadius: "8px" } : {}),
-                }}
-            >
-                {user?.isBot ? <BotIcon
-                    width="75%"
-                    height="75%"
-                /> : <UserIcon
-                    width="75%"
-                    height="75%"
-                />}
-            </Avatar>
-            <Tooltip title={t("MoreOptions")}>
-                <IconButton
-                    aria-label={t("MoreOptions")}
-                    size="small"
-                    onClick={openMoreMenu}
+            <Stack direction="row" spacing={1} sx={{
+                height: "48px",
+                marginLeft: 2,
+                marginRight: 2,
+                marginTop: 1,
+                alignItems: "flex-start",
+                // Apply auto margin to the second element to push the first one to the left
+                "& > :nth-child(2)": {
+                    marginLeft: "auto",
+                },
+            }}>
+                <Avatar
+                    src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
                     sx={{
-                        display: "block",
-                        marginLeft: "auto",
-                        marginRight: 1,
+                        backgroundColor: profileColors[0],
+                        color: profileColors[1],
+                        boxShadow: 2,
+                        width: "min(100px, 25vw)",
+                        height: "min(100px, 25vw)",
+                        top: "-55px",
+                        fontSize: "min(50px, 10vw)",
+                        marginRight: "auto",
+                        // Bots show up as squares, to distinguish them from users
+                        ...(user?.isBot ? { borderRadius: "8px" } : {}),
+                        // Show in center on large screens
+                        [breakpoints.up("sm")]: {
+                            position: "absolute",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                        },
                     }}
                 >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
-                </IconButton>
-            </Tooltip>
-            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                    {user?.isBot ? <BotIcon
+                        width="75%"
+                        height="75%"
+                    /> : <UserIcon
+                        width="75%"
+                        height="75%"
+                    />}
+                </Avatar>
+                <Tooltip title={t("MoreOptions")}>
+                    <IconButton
+                        aria-label={t("MoreOptions")}
+                        size="small"
+                        onClick={openMoreMenu}
+                        sx={{
+                            display: "block",
+                            marginLeft: "auto",
+                            marginRight: 1,
+                        }}
+                    >
+                        <EllipsisIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>
+                <BookmarkButton
+                    disabled={user?.id === getCurrentUser(session).id}
+                    objectId={user?.id ?? ""}
+                    bookmarkFor={BookmarkFor.User}
+                    isBookmarked={user?.you?.isBookmarked ?? false}
+                    bookmarks={user?.bookmarks ?? 0}
+                    onChange={(isBookmarked: boolean) => { }}
+                    zIndex={zIndex}
+                />
+            </Stack>
+            <Stack direction="column" p={2} justifyContent="center" sx={{
+                alignItems: "flex-start",
+                [breakpoints.up("sm")]: {
+                    alignItems: "center",
+                },
+            }}>
                 {/* Title */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
+                        <TextLoading size="header" sx={{ width: "50%" }} />
                     ) : <Title
                         title={name}
                         variant="header"
@@ -208,6 +256,7 @@ export const UserView = ({
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
                         zIndex={zIndex}
+                        sxs={{ stack: { padding: 0, paddingBottom: 2 } }}
                     />
                 }
                 {/* Handle */}
@@ -223,22 +272,10 @@ export const UserView = ({
                         >${handle}</Typography>
                     </Link>
                 }
-                {/* Joined date */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    textBeforeDate="Joined"
-                    timestamp={user?.created_at}
-                    width={"33%"}
-                    zIndex={zIndex}
-                />
                 {/* Bio */}
                 {
                     isLoading ? (
-                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                            <LinearProgress color="inherit" />
-                        </Stack>
+                        <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
                     ) : (
                         <MarkdownDisplay
                             variant="body1"
@@ -248,27 +285,25 @@ export const UserView = ({
                         />
                     )
                 }
-                <Stack direction="row" spacing={2} alignItems="center">
-                    {/* <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip> */}
-                    <ShareButton object={user} zIndex={zIndex} />
-                    <BookmarkButton
-                        disabled={user?.id === getCurrentUser(session).id}
-                        objectId={user?.id ?? ""}
-                        bookmarkFor={BookmarkFor.User}
-                        isBookmarked={user?.you?.isBookmarked ?? false}
-                        bookmarks={user?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
+                <Stack direction="row" spacing={2} sx={{
+                    alignItems: "center",
+                    [breakpoints.up("sm")]: {
+                        alignItems: "flex-start",
+                    },
+                }}>
+                    {/* Joined date */}
+                    <DateDisplay
+                        loading={isLoading}
+                        showIcon={true}
+                        textBeforeDate="Joined"
+                        timestamp={user?.created_at}
                         zIndex={zIndex}
                     />
                     <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>
             </Stack>
         </OverviewContainer>
-    ), [profileColors, user, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, isLoading, name, permissions.canUpdate, t, zIndex, handle, bio, session, actionData]);
+    ), [user, profileColors, breakpoints, t, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, session, zIndex, isLoading, name, permissions.canUpdate, handle, bio, actionData]);
 
     /**
      * Opens add new page
@@ -316,14 +351,33 @@ export const UserView = ({
                 {overviewComponent}
             </Box>
             {/* View routines, organizations, standards, and projects associated with this user */}
-            <Box>
+            <Box sx={{ margin: "auto", maxWidth: "800px" }}>
                 <PageTabs
                     ariaLabel="user-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
+                    sx={{
+                        [breakpoints.down("sm")]: {
+                            background: palette.background.paper,
+                            borderBottom: `1px solid ${palette.divider}`,
+                        },
+                    }}
                 />
-                {searchData !== null && <Box p={2}>
+                {currTab.value === TabOptions.Details && (
+                    <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
+                        {botData.occupation && <Typography variant="h6">Occupation: {botData.occupation}</Typography>}
+                        {botData.persona && <Typography variant="h6">Persona: {botData.persona}</Typography>}
+                        {botData.startMessage && <Typography variant="h6">Starting Message: {botData.startMessage}</Typography>}
+                        {botData.tone && <Typography variant="h6">Tone: {botData.tone}</Typography>}
+                        {botData.keyPhrases && <Typography variant="h6">Key Phrases: {botData.keyPhrases}</Typography>}
+                        {botData.domainKnowledge && <Typography variant="h6">Domain Knowledge: {botData.domainKnowledge}</Typography>}
+                        {botData.bias && <Typography variant="h6">Bias: {botData.bias}</Typography>}
+                        {botData.creativity && <Typography variant="h6">Creativity: {botData.creativity * 100}%</Typography>}
+                        {botData.verbosity && <Typography variant="h6">Verbosity: {botData.verbosity * 100}%</Typography>}
+                    </Stack>
+                )}
+                {searchData !== null && currTab.value !== TabOptions.Details && <Box>
                     <SearchList
                         canSearch={() => true}
                         dummyLength={display === "page" ? 5 : 3}
@@ -332,6 +386,12 @@ export const UserView = ({
                         id="user-view-list"
                         searchType={searchData.searchType}
                         searchPlaceholder={searchData.placeholder}
+                        sxs={showSearchFilters ? {
+                            search: { marginTop: 2 },
+                        } : {
+                            search: { display: "none" },
+                            buttons: { display: "none" },
+                        }}
                         take={20}
                         where={searchData.where}
                         zIndex={zIndex}
@@ -343,6 +403,10 @@ export const UserView = ({
                 zIndex={zIndex + 2}
                 sx={{ position: "fixed" }}
             >
+                {/* Toggle search filters */}
+                {currTab.value !== TabOptions.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton> : null}
                 {/* Message button */}
                 {user?.isBot ? (
                     <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={() => { }} >

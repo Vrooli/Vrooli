@@ -59,6 +59,7 @@ if [ -z "$VERSION" ]; then
         VERSION=$CURRENT_VERSION
     fi
 fi
+
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"

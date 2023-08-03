@@ -106,6 +106,8 @@ export const ProfilePictureInput = ({
                         height: "min(100px, 25vw)",
                         fontSize: "min(50px, 10vw)",
                         cursor: "pointer",
+                        // Bots show up as squares, to distinguish them from users
+                        ...(profile?.isBot ? { borderRadius: "8px" } : {}),
                     }}
                 >
                     <Icon

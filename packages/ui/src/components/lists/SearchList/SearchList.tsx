@@ -135,6 +135,10 @@ export function SearchList<DataType extends NavigableObject>({
                 setTimeFrame={setTimeFrame}
                 sortBy={sortBy}
                 sortByOptions={sortByOptions}
+                sx={{
+                    marginBottom: 2,
+                    ...sxs?.buttons,
+                }}
                 timeFrame={timeFrame}
                 zIndex={zIndex}
             />

@@ -189,6 +189,7 @@ export interface SearchListProps {
     searchType: SearchType | `${SearchType}`;
     sxs?: {
         search?: SxType;
+        buttons?: SxType;
     }
     onItemClick?: (item: any) => unknown;
     onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object

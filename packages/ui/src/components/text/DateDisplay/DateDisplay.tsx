@@ -1,5 +1,6 @@
-import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ScheduleIcon } from "icons";
 import { useCallback, useState } from "react";
 import { displayDate } from "utils/display/stringTools";
@@ -34,9 +35,7 @@ export const DateDisplay = ({
     });
 
     if (loading) return (
-        <Box {...props}>
-            <LinearProgress color="inherit" sx={{ height: "6px", borderRadius: "12px" }} />
-        </Box>
+        <TextLoading size="body2" sx={{ width: "100px", ...props }} />
     );
     if (!timestamp) return null;
     return (
@@ -57,13 +56,17 @@ export const DateDisplay = ({
                 {...pressEvents}
                 display="flex"
                 justifyContent="center"
+                alignItems="center"
                 sx={{
-                    ...(props.sx ?? {}),
+                    color: palette.background.textSecondary,
                     cursor: "pointer",
+                    ...(props.sx ?? {}),
                 }}
             >
-                {showIcon && <ScheduleIcon fill={palette.background.textPrimary} />}
-                {`${textBeforeDate} ${displayDate(timestamp, false)}`}
+                {showIcon && <ScheduleIcon fill={palette.background.textSecondary} style={{ marginRight: "4px" }} />}
+                <Typography variant="body2" color={palette.background.textSecondary}>
+                    {`${textBeforeDate} ${displayDate(timestamp, false)}`}
+                </Typography>
             </Box>
         </>
     );
