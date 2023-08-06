@@ -7,7 +7,6 @@ import { Prisma } from "@prisma/client";
 import { hashPassword } from "../../auth";
 import { logger } from "../../events/logger";
 import { PrismaType } from "../../types";
-import { bots } from "./bots";
 
 export async function init(prisma: PrismaType) {
     //==============================================================
@@ -446,68 +445,6 @@ export async function init(prisma: PrismaType) {
         },
     });
 
-    // Load bots.json from this directory.
-    // TODO this is temporary. Remove when these bots are added to production.
-    // Create each bot
-    for (const bot of bots) {
-        const exisingBot = await prisma.user.findFirst({
-            where: {
-                name: bot.name,
-                invitedByUser: { id: adminId },
-            },
-        });
-        const botSettings = JSON.stringify({
-            translations: {
-                [EN]: {
-                    occupation: bot.occupation,
-                    persona: bot.persona,
-                    startingMessage: bot.startingMessage,
-                    tone: bot.tone,
-                    keyPhrases: bot.keyPhrases,
-                    domainKnowledge: bot.domainKnowledge,
-                    bias: bot.bias,
-                    creativity: bot.creativity,
-                    verbosity: bot.verbosity,
-                },
-            },
-        });
-        if (exisingBot) {
-            logger.info(`🤖 Bot ${bot.name} already exists`);
-            await prisma.user.update({
-                where: { id: exisingBot.id },
-                data: {
-                    botSettings,
-                },
-            });
-            continue;
-        }
-        logger.info(`🤖 Creating bot ${bot.name}`);
-        await prisma.user.create({
-            data: {
-                name: bot.name,
-                isBot: true,
-                botSettings,
-                status: "Unlocked",
-                invitedByUser: { connect: { id: adminId } },
-                languages: {
-                    create: [{ language: EN }],
-                },
-                awards: {
-                    create: [{
-                        timeCurrentTierCompleted: new Date(),
-                        category: "AccountNew",
-                        progress: 1,
-                    }],
-                },
-                translations: {
-                    create: [{
-                        language: EN,
-                        bio: bot.bio,
-                    }],
-                },
-            },
-        });
-    }
     //==============================================================
     /* #endregion Create Admin */
     //==============================================================

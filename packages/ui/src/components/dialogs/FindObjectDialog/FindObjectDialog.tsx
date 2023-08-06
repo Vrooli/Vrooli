@@ -20,10 +20,10 @@ import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
-import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
+const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert/BotUpsert"));
 const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
 const { NoteUpsert } = lazily(() => import("../../../views/objects/note/NoteUpsert/NoteUpsert"));
@@ -37,7 +37,7 @@ const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smar
 const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/StandardUpsert/StandardUpsert"));
 
 type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
-type CreateViewTypes = Exclude<RemoveVersion<SelectOrCreateObjectType>, "User">;
+type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
 
 type AllTabOptions = "All" | SearchPageTabOption | CalendarPageTabOption;
 type BaseParams = {
@@ -136,6 +136,7 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
     RunRoutine: RunRoutineUpsert,
     SmartContract: SmartContractUpsert,
     Standard: StandardUpsert,
+    User: BotUpsert,
 };
 
 const searchTitleId = "search-vrooli-for-link-title";
@@ -199,11 +200,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [setLocation]);
 
     // Dialog for creating new object
-    const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | "User" | null>(null);
-
-    // Dialog for inviting new user
-    const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
-    const onInviteUserClose = useCallback(() => setIsInviteUserOpen(false), []);
+    const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
@@ -270,22 +267,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         e.preventDefault();
         // If tab is 'All', open menu to select type
         if (searchType === "All" || !currTab) setSelectCreateTypeAnchorEl(e.currentTarget);
-        // If tab is 'User', open invite user dialog
-        else if (searchType === "User") setIsInviteUserOpen(true);
         // Otherwise, open create dialog for current tab
         setCreateObjectType(tabParams.find(tab => tab.tabType === currTab!.value)?.searchType as any);
     }, [currTab, searchType]);
     const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
         if (type) {
-            if (type === "User") {
-                setIsInviteUserOpen(true); // Open the Invite User dialog
-                setSelectCreateTypeAnchorEl(null); // Close the Popover
-
-            } else {
-                setCreateObjectType(type as any); // Open the Create Object dialog
-                // Wait for the Create Object dialog to open fully (which is loaded asynchronously) 
-                // before closing the Popover. Otherwise, it can get stuck open.
-            }
+            setCreateObjectType(type as any); // Open the Create Object dialog
+            // Wait for the Create Object dialog to open fully (which is loaded asynchronously) 
+            // before closing the Popover. Otherwise, it can get stuck open.
         }
         else setSelectCreateTypeAnchorEl(null);
     }, []);
@@ -364,19 +353,13 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [onClose]);
 
     const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
-        ["User", null].includes(createObjectType) ? null : (createMap as any)[createObjectType!.replace("Version", "")], [createObjectType]);
+        (createMap as any)[createObjectType!.replace("Version", "")], [createObjectType]);
     useEffect(() => {
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
     return (
         <>
-            {/* Invite user dialog (when you select 'User' as create type) */}
-            <ShareSiteDialog
-                onClose={onInviteUserClose}
-                open={isInviteUserOpen}
-                zIndex={zIndex + 2}
-            />
             {/* Dialog for creating new object type */}
             <LargeDialog
                 id="create-object-dialog"

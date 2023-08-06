@@ -200,12 +200,6 @@ export interface ShareObjectDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface ShareSiteDialogProps extends DialogProps {
-    open: boolean;
-    onClose: () => unknown;
-    zIndex: number;
-}
-
 export interface TranscriptDialogProps {
     handleClose: () => void;
     isListening: boolean;

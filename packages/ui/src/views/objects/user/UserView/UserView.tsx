@@ -15,7 +15,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import { BotIcon, CommentIcon, EditIcon, EllipsisIcon, InfoIcon, OrganizationIcon, ProjectIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, InfoIcon, OrganizationIcon, ProjectIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart, useLocation } from "route";
@@ -307,12 +307,24 @@ export const UserView = ({
         </OverviewContainer>
     ), [user, profileColors, breakpoints, t, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, session, zIndex, isLoading, name, permissions.canUpdate, handle, bio, actionData]);
 
-    /**
-     * Opens add new page
-     */
-    const toAddNew = useCallback((event: any) => {
+    /** Opens add new page */
+    const toAddNew = useCallback(() => {
         setLocation(`${LINKS[currTab.value]}/add`);
     }, [currTab.value, setLocation]);
+
+    /** Opens dialog to add or invite user to an organization/meeting/chat */
+    const handleAddOrInvite = useCallback(() => {
+        if (!user) return;
+        // Users are invited, and bots are added (since you don't need permission to use a public bot)
+        const needsInvite = !user.isBot;
+        // TODO open dialog
+    }, []);
+
+    /** Starts a new chat */
+    const handleStartChat = useCallback(() => {
+        if (!user) return;
+        // TODO
+    }, []);
 
     return (
         <>
@@ -329,17 +341,19 @@ export const UserView = ({
                 onClose={closeMoreMenu}
                 zIndex={zIndex + 1}
             />
+            {/* Popup menu for adding/inviting to an organization/meeting/chat */}
+            {/* TODO */}
             <Box sx={{
                 display: "flex",
                 paddingBottom: { xs: 0, sm: 2, md: 5 },
-                backgroundColor: palette.mode === "light" ? "#b2b3b3" : "#303030",
+                backgroundColor: palette.mode === "light" ? "#c2cadd" : palette.background.default,
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 position: "relative",
                 paddingTop: "40px",
                 [breakpoints.down("sm")]: {
-                    paddingTop: "120px",
+                    paddingTop: bannerImageUrl ? "120px" : "40px",
                 },
             }}>
                 {/* Language display/select */}
@@ -415,12 +429,14 @@ export const UserView = ({
                 {currTab.value !== TabOptions.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </ColorIconButton> : null}
+                {/* Add/invite to meeting/chat button */}
+                <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={handleAddOrInvite} >
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
                 {/* Message button */}
-                {user?.isBot ? (
-                    <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={() => { }} >
-                        <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                ) : null}
+                <ColorIconButton aria-label="message" background={palette.secondary.main} onClick={handleStartChat} >
+                    <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
             </SideActionButtons>
         </>
     );

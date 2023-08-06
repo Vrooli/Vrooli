@@ -238,12 +238,12 @@ fi
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
 docker-compose --env-file ${ENV_FILE} -f docker-compose-prod.yml build
-docker pull postgres:13-alpine
+docker pull ankane/pgvector:v0.4.1
 docker pull redis:7-alpine
 
 # Save and compress Docker images
 info "Saving Docker images..."
-docker save -o production-docker-images.tar ui:prod server:prod postgres:13-alpine redis:7-alpine
+docker save -o production-docker-images.tar ui:prod server:prod ankane/pgvector:v0.4.1 redis:7-alpine
 if [ $? -ne 0 ]; then
     error "Failed to save Docker images"
     exit 1
