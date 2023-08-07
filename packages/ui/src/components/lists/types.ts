@@ -3,7 +3,7 @@ import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
@@ -25,7 +25,7 @@ export type ActionsType<A = undefined> = A extends undefined
     ? { onAction?: undefined }
     : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
 
-type ObjectListItemBaseProps<T extends ListObjectType> = {
+type ObjectListItemBaseProps<T extends ListObject> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -42,14 +42,14 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
      */
     loading: boolean;
     data: T | null;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: GqlModelType | `${GqlModelType}` | "CalendarEvent";
     onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
     zIndex: number;
 }
-export type ObjectListItemProps<T extends ListObjectType, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
 
 export type ChatListItemActions = {
     MarkAsRead: (id: string) => void;

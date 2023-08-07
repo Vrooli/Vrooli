@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
-import { getDisplay, ListObjectType } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -25,8 +25,8 @@ interface TagItemDropdownPros {
     focusedIndex: number;
     handleClose: () => void;
     handleFocusChange: (index: number) => void;
-    handleSelect: (item: ListObjectType) => void;
-    items: ListObjectType[];
+    handleSelect: (item: ListObject) => void;
+    items: ListObject[];
 }
 
 /** When using "@" to tag an object, displays options */
@@ -461,8 +461,8 @@ export const MarkdownInputBase = ({
     const [dropdownAnchorEl, setDropdownAnchorEl] = useState<HTMLElement | null>(null);
     const [dropdownTabIndex, setDropdownTabIndex] = useState(0); // The index of the currently selected item in the dropdown
     const [tagString, setTagString] = useState(""); // What has been typed after the "@"
-    const [dropdownList, setDropdownList] = useState<ListObjectType[]>([]); // The list of items currently being displayed
-    const [cachedTags, setCachedTags] = useState<Record<string, ListObjectType[]>>({}); // The cached list of items for each tag string, to prevent unnecessary queries
+    const [dropdownList, setDropdownList] = useState<ListObject[]>([]); // The list of items currently being displayed
+    const [cachedTags, setCachedTags] = useState<Record<string, ListObject[]>>({}); // The cached list of items for each tag string, to prevent unnecessary queries
     // Callback to parent to get items, or to get cached items if they exist
     useEffect(() => {
         if (!dropdownAnchorEl || typeof getTaggableItems !== "function") return;
@@ -491,7 +491,7 @@ export const MarkdownInputBase = ({
 
         fetchItems();
     }, [cachedTags, dropdownAnchorEl, getTaggableItems, tagString]);
-    const selectDropdownItem = useCallback((item: ListObjectType) => {
+    const selectDropdownItem = useCallback((item: ListObject) => {
         // Tagged item is inserted as a link
         const asLink = `[@${getDisplay(item).title}](${window.location.origin}${getObjectUrl(item)})`;
         // Insert the link, replacing the tag string and the "@" symbol

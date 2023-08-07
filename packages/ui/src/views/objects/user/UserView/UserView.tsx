@@ -20,9 +20,10 @@ import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } fro
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart, useLocation } from "route";
 import { OverviewContainer } from "styles";
-import { SvgComponent } from "types";
+import { PartialWithType, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
+import { getCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -84,20 +85,37 @@ export const UserView = ({
 
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<any, User>(endpointGetProfile);
-    const [user, setUser] = useState<User | null | undefined>(null);
+    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => partialData ?? { __typename: "User" });
     useDisplayServerError(userErrors ?? profileErrors);
-    useEffect(() => {
+    // Parse information from URL
+    const urlInfo = useMemo(() => {
         const urlEnding = getLastUrlPart({});
-        if (urlEnding && uuidValidate(base36ToUuid(urlEnding))) getUserData({ id: base36ToUuid(urlEnding) });
-        else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile") getProfileData();
-        else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getUserData, getProfileData]);
+        const isUrl = (ending: unknown) => typeof ending === "string" && uuidValidate(base36ToUuid(ending));
+        const isHandle = (ending: unknown) => typeof ending === "string" && ending.startsWith("@");
+        if (urlEnding && isUrl(urlEnding)) return { handle: undefined, id: base36ToUuid(urlEnding), isOwnProfile: false };
+        else if (urlEnding && isHandle(urlEnding)) return { handle: urlEnding, id: undefined, isOwnProfile: false };
+        else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile" && session) {
+            const currentUser = getCurrentUser(session);
+            return { handle: currentUser?.handle, id: currentUser?.id, isOwnProfile: true };
+        }
+        else {
+            PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
+            return {};
+        }
+    }, [session]);
+    // Get user or profile data
     useEffect(() => {
-        setUser(userData ?? profileData ?? partialData as any);
-    }, [userData, profileData, partialData]);
+        if (urlInfo.isOwnProfile) getProfileData();
+        else if (urlInfo.id) getUserData({ id: urlInfo.id });
+        else if (urlInfo.handle) getUserData({ handle: urlInfo.handle });
+    }, [getUserData, getProfileData, urlInfo]);
+    // Set user data
+    useEffect(() => {
+        const knownData = userData ?? profileData ?? partialData;
+        setUser(knownData ?? getCookiePartialData<PartialWithType<User>>(urlInfo.id) ?? { __typename: "User" });
+    }, [userData, profileData, partialData, urlInfo]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
-    console.log("permissions", permissions, user);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
@@ -108,16 +126,16 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { creativity, verbosity, translations } = findBotData(language, user ?? partialData as User | null | undefined);
+        const { creativity, verbosity, translations } = findBotData(language, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
         return {
             bannerImageUrl: extractImageUrl(user?.bannerImage, user?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             botData: { ...botTranslations, creativity, verbosity },
-            name: user?.name ?? partialData?.name,
-            handle: user?.handle ?? partialData?.handle,
+            name: user?.name,
+            handle: user?.handle,
         };
-    }, [language, partialData, user]);
+    }, [language, user]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;

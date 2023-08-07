@@ -1,14 +1,14 @@
 import { exists } from "@local/shared";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { ParseSearchParamsResult } from "route";
-import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/listTools";
+import { defaultYou, getYou, ListObject, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 
-type UseObjectFromUrlProps<TData extends ListObjectType> = {
+type UseObjectFromUrlProps<TData extends ListObject> = {
     endpoint: string,
     partialData?: Partial<TData>,
     idFallback?: string | null | undefined,
@@ -29,7 +29,7 @@ export type UseObjectFromUrlReturn<TData extends object> = {
 /**
  * Hook for finding an object from the URL and providing relevant properties and functions
  */
-export function useObjectFromUrl<TData extends ListObjectType>({
+export function useObjectFromUrl<TData extends ListObject>({
     endpoint,
     onInvalidUrlParams,
     partialData,

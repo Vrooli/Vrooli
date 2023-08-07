@@ -18,7 +18,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
-import { getDeviceInfo } from "utils/display/device";
 import { themes } from "utils/display/theme";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
@@ -231,7 +230,7 @@ export function App() {
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
-        if (!getDeviceInfo().isStandalone && !cookiePreferences) {
+        if (!cookiePreferences) {
             PubSub.get().publishCookies();
         }
     }, []);

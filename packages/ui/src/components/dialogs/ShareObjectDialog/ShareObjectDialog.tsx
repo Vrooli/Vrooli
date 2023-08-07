@@ -56,11 +56,6 @@ export const ShareObjectDialog = ({
     };
 
     /**
-     * Opens navigator share dialog (if supported)
-     */
-    const shareNative = () => { navigator.share({ title, url }); };
-
-    /**
     * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
@@ -102,7 +97,25 @@ export const ShareObjectDialog = ({
                 titleId={titleId}
                 zIndex={zIndex + 1000}
             />
-            <Box sx={{ padding: 2 }}>
+            <Stack direction="column" spacing={2} p={2} sx={{ justifyContent: "center", alignItems: "center" }}>
+                <Box
+                    id="qr-code-box"
+                    {...pressEvents}
+                    sx={{
+                        width: "210px",
+                        height: "210px",
+                        background: "white",
+                        borderRadius: 1,
+                        padding: 0.5,
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                    }}>
+                    <QRCode
+                        size={200}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        value={window.location.href}
+                    />
+                </Box>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title={t("CopyLink")}>
                         <ColorIconButton
@@ -143,35 +156,17 @@ export const ShareObjectDialog = ({
                             <LinkedInIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title={t("Other")}>
+                    {navigator.share && <Tooltip title={t("Other")}>
                         <ColorIconButton
-                            onClick={shareNative}
+                            onClick={() => { navigator.share({ title, url }); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <EllipsisIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
-                    </Tooltip>
+                    </Tooltip>}
                 </Stack>
-                <Box
-                    id="qr-code-box"
-                    {...pressEvents}
-                    sx={{
-                        width: "210px",
-                        height: "210px",
-                        background: palette.secondary.main,
-                        borderRadius: 1,
-                        padding: 0.5,
-                        marginLeft: "auto",
-                        marginRight: "auto",
-                    }}>
-                    <QRCode
-                        size={200}
-                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                        value={window.location.href}
-                    />
-                </Box>
-            </Box>
+            </Stack>
         </LargeDialog>
     );
 };

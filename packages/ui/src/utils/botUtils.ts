@@ -1,7 +1,7 @@
 import { DUMMY_ID, User } from "@local/shared";
 import { BotTranslationShape } from "./shape/models/bot";
 
-export const parseBotSettings = (existing?: User | null | undefined): Record<string, string | number> => {
+export const parseBotSettings = (existing?: Partial<User> | null | undefined): Record<string, string | number> => {
     let settings: Record<string, string | number> = {};
     try {
         settings = JSON.parse(existing?.botSettings ?? "{}");
@@ -13,7 +13,7 @@ export const parseBotSettings = (existing?: User | null | undefined): Record<str
 
 export const findBotData = (
     language: string,
-    existing?: User | null | undefined,
+    existing?: Partial<User> | null | undefined,
 ): {
     creativity?: number | null,
     verbosity?: number | null,

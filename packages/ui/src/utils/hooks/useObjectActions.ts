@@ -4,7 +4,7 @@ import { SetLocation } from "route";
 import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display/listTools";
+import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -17,7 +17,7 @@ export type UseObjectActionsProps = {
      * Checks if navigation away from the current page is allowed
      */
     canNavigate?: ((item: NavigableObject) => boolean | void) | null | undefined
-    object: ListObjectType | null | undefined;
+    object: ListObject | null | undefined;
     objectType: GqlModelType | `${GqlModelType}`;
     onClick?: (item: NavigableObject) => void;
     openAddCommentDialog?: () => void;

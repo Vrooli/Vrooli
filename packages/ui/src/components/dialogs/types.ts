@@ -7,7 +7,7 @@ import { ReactNode } from "react";
 import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { SearchType } from "utils/search/objectToSearch";
 import { CommentShape } from "utils/shape/models/comment";
@@ -209,7 +209,7 @@ export interface TranscriptDialogProps {
 }
 
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
-    object: ListObjectType | null | undefined;
+    object: ListObject | null | undefined;
     zIndex: number;
 }
 
@@ -217,7 +217,7 @@ export interface ObjectActionMenuProps {
     actionData: UseObjectActionsReturn;
     anchorEl: HTMLElement | null;
     exclude?: ObjectAction[];
-    object: ListObjectType | null | undefined;
+    object: ListObject | null | undefined;
     onClose: () => unknown;
     zIndex: number;
 }

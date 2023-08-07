@@ -3,7 +3,7 @@ import { ListMenuItemData } from "components/dialogs/types";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { getYou, ListObjectType } from "utils/display/listTools";
+import { getYou, ListObject } from "utils/display/listTools";
 
 /**
  * All available actions an object can possibly have
@@ -47,7 +47,7 @@ export enum ObjectActionComplete {
  * @param session Current session. Many actions require a logged in user.
  * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a star button)
  */
-export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
+export const getAvailableActions = (object: ListObject | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
     console.log("action getavailableactions", session);
     const isLoggedIn = checkIfLoggedIn(session);

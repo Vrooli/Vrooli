@@ -109,7 +109,7 @@ export interface ReportsButtonProps {
 }
 
 export interface ReportsLinkProps {
-    object: (NavigableObject & { reportsCount: number }) | null | undefined;
+    object: (NavigableObject & { reportsCount?: number }) | null | undefined;
 }
 
 export interface RunButtonProps {

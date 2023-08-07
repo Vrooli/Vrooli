@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { useMemo } from "react";
 import { lazily } from "react-lazily";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { ObjectListItemProps } from "../types";
 
@@ -12,7 +12,7 @@ const { NotificationListItem } = lazily(() => import("../NotificationListItem/No
 const { ReminderListItem } = lazily(() => import("../reminder/ReminderListItem/ReminderListItem"));
 const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem"));
 const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
-const getListItemComponent = (objectType: `${GqlModelType}`) => {
+const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") => {
     switch (objectType) {
         case "Chat": return ChatListItem;
         case "Member": return MemberListItem;
@@ -24,16 +24,16 @@ const getListItemComponent = (objectType: `${GqlModelType}`) => {
     }
 };
 
-export function ObjectListItem<T extends ListObjectType>({
+export function ObjectListItem<T extends ListObject>({
     objectType,
     ...props
 }: ObjectListItemProps<T>) {
-    const ListItem = useMemo(() => getListItemComponent(objectType), [objectType]);
+    const ListItem = useMemo<(props: any) => JSX.Element>(() => getListItemComponent(objectType), [objectType]);
     console.log("in object list item", objectType, props);
     return (
         <ListItem
             objectType={objectType}
-            {...(props as any)}
+            {...props}
         />
     );
 }

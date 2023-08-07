@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { adaHandleRegex, Bookmark, GqlModelType, isOfType, LINKS, Reaction, RunProject, RunRoutine, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { adaHandleRegex, ApiVersion, Bookmark, ChatParticipant, isOfType, LINKS, Member, NoteVersion, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, NavigableObject } from "types";
 import { ResourceType } from "utils/consts";
@@ -47,57 +47,46 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     return LINKS[object.__typename.replace("Version", "")];
 };
 
-type SluggableObject = {
-    __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
-    id: string,
-    handle?: string | null,
-    root?: { handle?: string | null, id: string } | null,
-}
-
 /**
  * Determines string used to reference object in URL slug
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: SluggableObject): string => {
+export const getObjectSlug = (object: NavigableObject | null | undefined): string => {
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Bookmark | Reaction | View).to as SluggableObject);
+    if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to);
     // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getObjectSlug((object as RunRoutine).routineVersion as SluggableObject);
+    if (isOfType(object, "RunRoutine")) return getObjectSlug((object as Partial<RunRoutine>).routineVersion);
     // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getObjectSlug((object as RunProject).projectVersion as SluggableObject);
-    // If object has root, use its handle or id
-    if (object.root) {
-        const root = object.root.handle ?? uuidToBase36(object.root.id);
-        const verion = uuidToBase36(object.id);
+    if (isOfType(object, "RunProject")) return getObjectSlug((object as Partial<RunProject>).projectVersion);
+    // If object has root, use the root and version
+    if ((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root) {
+        const root = getObjectSlug((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root);
+        const verion = (object as { handle?: string }).handle ?? uuidToBase36((object as { id?: string }).id ?? "");
         return `${root}/${verion}`;
     }
+    // If the object is a member or chat participant, use the user's slug
+    if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
     // Otherwise, use object's handle or id
-    return object.handle ?? uuidToBase36(object.id);
+    return (object as { handle?: string }).handle ?? uuidToBase36((object as { id?: string }).id ?? "");
 };
-
-type SearchParamableObject = {
-    __typename: `${GqlModelType}` | "Action" | "Shortcut" | "CalendarEvent",
-    id: string,
-}
 
 /**
  * Determines string for object's search params
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: SearchParamableObject): string | null => {
+export const getObjectSearchParams = (object: NavigableObject): string | null => {
     // If object is an action/shortcut, return blank
     if (isOfType(object, "Action", "Shortcut")) return "";
     // If object is an event, add start time to search params
     if (isOfType(object, "CalendarEvent")) return stringifySearchParams({ start: (object as CalendarEvent).start });
     // If object is a run
-    if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36((object as Partial<RunProject | RunRoutine>).id ?? "") });
     return "";
 };
-// Omit<NavigableObject, '__typename'> & { __typename: `${GqlModelType}`}
 
 /**
  * Finds view page URL for any object with an id and type
@@ -105,7 +94,7 @@ export const getObjectSearchParams = (object: SearchParamableObject): string | n
  */
 export const getObjectUrl = (object: NavigableObject): string =>
     isOfType(object, "Action") ? "" :
-        isOfType(object, "Shortcut", "CalendarEvent") ? object.id :
+        isOfType(object, "Shortcut", "CalendarEvent") ? (object.id ?? "") :
             `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**

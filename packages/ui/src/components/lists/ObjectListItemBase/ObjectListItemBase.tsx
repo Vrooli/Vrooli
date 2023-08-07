@@ -15,7 +15,7 @@ import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "utils/display/listTools";
+import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import usePress from "utils/hooks/usePress";
@@ -38,7 +38,7 @@ import { ObjectListItemProps } from "../types";
  * (On large screens, these are displayed at the bottom instead of the right.)
  * - To the right, but left of action buttons: custom component(s)
  */
-export function ObjectListItemBase<T extends ListObjectType>({
+export function ObjectListItemBase<T extends ListObject>({
     canNavigate,
     belowSubtitle,
     belowTags,
