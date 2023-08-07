@@ -176,15 +176,11 @@ export interface ReportDialogProps extends DialogProps {
 }
 
 export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
-    /**
-     * Index in resource list. -1 if new
-     */
+    /** Index in resource list. -1 if new */
     index: number;
     isOpen: boolean;
     listId: string;
-    /**
-     * Determines if add resource should be called by this dialog, or is handled later
-     */
+    /** Determines if add resource should be called by this dialog, or is handled later */
     mutate: boolean;
     onClose: () => unknown;
     onCreated: (resource: Resource) => unknown;

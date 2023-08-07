@@ -64,6 +64,8 @@
     "LineBreaksBioDetails": "You have too many line breaks in your bio. This will not display correctly in search results. Please remove some line breaks.",
     "LineBreaksDescription": "Too many line breaks in description",
     "LineBreaksDescriptionDetails": "You have too many line breaks in your description. This will not display correctly in search results. Please remove some line breaks.",
+    "MaxFilesExceeded": "Too many files uploaded.",
+    "MaxFileSizeExceeded": "One or more files are too large.",
     "MaxNodesReached": "Max nodes reached.",
     "MaxNodesReachedDetails": "Maximum number of nodes reached for this routine. This limit has been set to a high value that we didn't expect you to reach. If you believe this is a mistake, please contact us.",
     "MaxObjectsReached": "Hit account limit",

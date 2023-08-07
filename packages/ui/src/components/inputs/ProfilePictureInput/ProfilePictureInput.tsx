@@ -139,7 +139,7 @@ export const ProfilePictureInput = ({
                 <Stack direction="row" spacing={0.5} sx={{
                     position: "absolute",
                     top: "-16px",
-                    right: bannerImageUrl !== undefined ? "-56px" : "-8px",
+                    right: "0px",
                     zIndex: zIndex + 1,
                 }}>
                     <ColorIconButton background={palette.secondary.main}>
