@@ -1,4 +1,4 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
+import { ApiVersion, Chat, CommonKey, FocusMode, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
@@ -33,16 +33,12 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
-    /**
-     * True if update button should be hidden
-     */
+    /** If update button should be hidden */
     hideUpdateButton?: boolean;
-    /**
-     * True if data is still being fetched
-     */
+    /** If data is still being fetched */
     loading: boolean;
     data: T | null;
-    objectType: GqlModelType | `${GqlModelType}` | "CalendarEvent";
+    objectType: T["__typename"];
     onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;

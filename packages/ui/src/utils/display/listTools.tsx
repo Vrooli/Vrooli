@@ -1,14 +1,21 @@
 import { Api, ApiVersion, Bookmark, BookmarkFor, ChatParticipant, CommentFor, CommonKey, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
 import { ActionsType, ListActions, SearchListGenerator } from "components/lists/types";
-import { AutocompleteOption } from "types";
+import { AutocompleteOption, NavigableObject } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
 
-// NOTE: Ideally this would be a union of all possible types, but there's actually so 
-// many types that it causes a heap out of memory error :(
+/** Any object that can be displayed using ObjectListItemBase. 
+ * Typically objects from the API (e.g. users, routines), but can also be events (which 
+ * are calculated from schedules).
+ * 
+ * NOTE: This type supports partially-loaded objects, as would be the case when waiting 
+ * for full data to load. This means the only known property is the __typename.
+ * 
+ * NOTE 2: Ideally this would be a Partial union, but a union on so many types causes a 
+ * heap out of memory error  */
 export type ListObject = {
     __typename: `${GqlModelType}` | "CalendarEvent";
     id?: string;
@@ -390,7 +397,7 @@ export type ListToListItemProps<T extends keyof ListActions | undefined> = {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    canNavigate?: (item: ListObject) => boolean | void,
+    canNavigate?: (item: NavigableObject) => boolean | void,
     /** List of dummy items types to display while loading */
     dummyItems?: (GqlModelType | `${GqlModelType}`)[];
     /** True if update button should be hidden */
@@ -401,7 +408,7 @@ export type ListToListItemProps<T extends keyof ListActions | undefined> = {
     keyPrefix: string,
     /** Whether the list is loading */
     loading: boolean,
-    onClick?: (item: ListObject) => void,
+    onClick?: (item: NavigableObject) => void,
     zIndex: number,
 } & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : object);
 

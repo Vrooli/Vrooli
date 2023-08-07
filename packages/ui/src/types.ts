@@ -54,7 +54,7 @@ export type IWrap<T> = { input: T }
 
 
 /** An object connected to routing */
-export type NavigableObject = ListObject & {
+export type NavigableObject = Omit<ListObject, "__typename"> & {
     __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
     id?: string,
@@ -168,26 +168,15 @@ export interface ObjectOption {
     __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
-    root?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string
-    } | null;
-    versions?: { id: string }[] | null;
+    root?: ListObject | null;
+    versions?: ListObject[] | null;
     isFromHistory?: boolean;
     isBookmarked?: boolean;
     label: string;
     bookmarks?: number;
     [key: string]: any;
-    runnableObject?: {
-        __typename: `${GqlModelType}`
-        id: string
-    } | null,
-    to?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string,
-    }
+    runnableObject?: ListObject | null,
+    to?: ListObject
 }
 
 export interface ShortcutOption {

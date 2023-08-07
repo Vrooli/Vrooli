@@ -4,7 +4,7 @@
 
 import { adaHandleRegex, ApiVersion, Bookmark, ChatParticipant, isOfType, LINKS, Member, NoteVersion, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
-import { CalendarEvent, NavigableObject } from "types";
+import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
 import { uuidToBase36 } from "./urlTools";
 
@@ -94,7 +94,7 @@ export const getObjectSearchParams = (object: NavigableObject): string | null =>
  */
 export const getObjectUrl = (object: NavigableObject): string =>
     isOfType(object, "Action") ? "" :
-        isOfType(object, "Shortcut", "CalendarEvent") ? (object.id ?? "") :
+        isOfType(object, "Shortcut", "CalendarEvent") ? ((object as ShortcutOption | CalendarEventOption).id ?? "") :
             `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
