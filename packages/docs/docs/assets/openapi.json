@@ -3750,20 +3750,6 @@
         }
       }
     },
-    "/wallet/handles": {
-      "post": {
-        "operationId": "endpointPostWalletHandles",
-        "tags": [
-          "wallet"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
     "/wallet/{id}": {
       "put": {
         "operationId": "endpointPutWallet",
@@ -9677,18 +9663,6 @@
         "title": "FindByIdOrHandleInput",
         "type": "object"
       },
-      "FindHandlesInput": {
-        "properties": {
-          "organizationId": {
-            "title": "FindHandlesInput.organizationId",
-            "nullable": true,
-            "type": "string"
-          }
-        },
-        "additionalProperties": false,
-        "title": "FindHandlesInput",
-        "type": "object"
-      },
       "FindVersionInput": {
         "properties": {
           "handleRoot": {
@@ -10388,38 +10362,6 @@
         ],
         "additionalProperties": false,
         "title": "FocusModeUpdateInput",
-        "type": "object"
-      },
-      "Handle": {
-        "properties": {
-          "__typename": {
-            "title": "Handle.__typename",
-            "enum": [
-              "Handle"
-            ],
-            "type": "string"
-          },
-          "handle": {
-            "title": "Handle.handle",
-            "type": "string"
-          },
-          "id": {
-            "title": "Handle.id",
-            "type": "string"
-          },
-          "wallet": {
-            "$ref": "#/components/schemas/Wallet",
-            "title": "Handle.wallet"
-          }
-        },
-        "required": [
-          "__typename",
-          "handle",
-          "id",
-          "wallet"
-        ],
-        "additionalProperties": false,
-        "title": "Handle",
         "type": "object"
       },
       "HomeInput": {
@@ -48285,13 +48227,6 @@
             ],
             "type": "string"
           },
-          "handles": {
-            "items": {
-              "$ref": "#/components/schemas/Handle"
-            },
-            "title": "Wallet.handles",
-            "type": "array"
-          },
           "id": {
             "title": "Wallet.id",
             "type": "string"
@@ -48343,7 +48278,6 @@
         },
         "required": [
           "__typename",
-          "handles",
           "id",
           "stakingAddress",
           "verified"

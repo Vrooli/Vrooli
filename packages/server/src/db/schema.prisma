@@ -404,13 +404,6 @@ model focus_mode_filter {
     @@unique([focusModeId, tagId], name: "focus_mode_filter_focusModeId_tagid_unique")
 }
 
-model handle {
-    id       String  @id @default(uuid()) @db.Uuid
-    handle   String? @unique @db.VarChar(16)
-    walletId String? @db.Uuid
-    wallet   wallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
-}
-
 model issue {
     id                      String                      @id @default(uuid()) @db.Uuid
     status                  IssueStatus                 @default(Open)
@@ -2696,7 +2689,6 @@ model wallet {
     organizationId    String?       @db.Uuid
     organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    handles           handle[]
 }
 
 enum AccountStatus {

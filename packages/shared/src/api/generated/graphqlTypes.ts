@@ -1169,10 +1169,6 @@ export type FindByIdOrHandleInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
 
-export type FindHandlesInput = {
-  organizationId?: InputMaybe<Scalars['ID']>;
-};
-
 export type FindVersionInput = {
   handleRoot?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
@@ -1386,13 +1382,6 @@ export enum GqlModelType {
   View = 'View',
   Wallet = 'Wallet'
 }
-
-export type Handle = {
-  __typename: 'Handle';
-  handle: Scalars['String'];
-  id: Scalars['ID'];
-  wallet: Wallet;
-};
 
 export type HomeInput = {
   searchString: Scalars['String'];
@@ -4882,7 +4871,6 @@ export type Query = {
   chats: ChatSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
-  findHandles: Array<Scalars['String']>;
   focusMode?: Maybe<FocusMode>;
   focusModes: FocusModeSearchResult;
   home: HomeResult;
@@ -5089,11 +5077,6 @@ export type QueryCommentArgs = {
 
 export type QueryCommentsArgs = {
   input: CommentSearchInput;
-};
-
-
-export type QueryFindHandlesArgs = {
-  input: FindHandlesInput;
 };
 
 
@@ -9651,7 +9634,6 @@ export enum VisibilityType {
 
 export type Wallet = {
   __typename: 'Wallet';
-  handles: Array<Handle>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;
@@ -9873,7 +9855,6 @@ export type ResolversTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindHandlesInput: FindHandlesInput;
   FindVersionInput: FindVersionInput;
   Float: ResolverTypeWrapper<Scalars['Float']>;
   FocusMode: ResolverTypeWrapper<FocusMode>;
@@ -9888,7 +9869,6 @@ export type ResolversTypes = {
   FocusModeStopCondition: FocusModeStopCondition;
   FocusModeUpdateInput: FocusModeUpdateInput;
   GqlModelType: GqlModelType;
-  Handle: ResolverTypeWrapper<Handle>;
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
@@ -10618,7 +10598,6 @@ export type ResolversParentTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindHandlesInput: FindHandlesInput;
   FindVersionInput: FindVersionInput;
   Float: Scalars['Float'];
   FocusMode: FocusMode;
@@ -10629,7 +10608,6 @@ export type ResolversParentTypes = {
   FocusModeSearchInput: FocusModeSearchInput;
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
-  Handle: Handle;
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
@@ -11624,13 +11602,6 @@ export type FocusModeFilterResolvers<ContextType = any, ParentType extends Resol
 export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeSearchResult'] = ResolversParentTypes['FocusModeSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['FocusModeEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type HandleResolvers<ContextType = any, ParentType extends ResolversParentTypes['Handle'] = ResolversParentTypes['Handle']> = {
-  handle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  wallet?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12842,7 +12813,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
-  findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
   focusModes?: Resolver<ResolversTypes['FocusModeSearchResult'], ParentType, ContextType, RequireFields<QueryFocusModesArgs, 'input'>>;
   home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
@@ -14688,7 +14658,6 @@ export type ViewToResolvers<ContextType = any, ParentType extends ResolversParen
 };
 
 export type WalletResolvers<ContextType = any, ParentType extends ResolversParentTypes['Wallet'] = ResolversParentTypes['Wallet']> = {
-  handles?: Resolver<Array<ResolversTypes['Handle']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
@@ -14759,7 +14728,6 @@ export type Resolvers<ContextType = any> = {
   FocusModeEdge?: FocusModeEdgeResolvers<ContextType>;
   FocusModeFilter?: FocusModeFilterResolvers<ContextType>;
   FocusModeSearchResult?: FocusModeSearchResultResolvers<ContextType>;
-  Handle?: HandleResolvers<ContextType>;
   HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;

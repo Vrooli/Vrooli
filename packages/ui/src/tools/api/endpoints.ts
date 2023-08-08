@@ -717,7 +717,6 @@ export const endpoints = {
     wallet: async () => {
         const { wallet: walletPartial } = await import("./partial/wallet");
         return {
-            findHandles: toQuery("findHandles", "FindHandlesInput"),
             update: toMutation("walletUpdate", "WalletUpdateInput", walletPartial, "full"),
         };
     },

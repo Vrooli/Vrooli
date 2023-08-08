@@ -3,55 +3,57 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 
 /**
-* Maps GqlModelType to wallet relationship field
-*/
-const walletOwnerMap = {
-    User: "userId",
-    Organization: "organizationId",
-    Project: "projectId",
-} as const;
-
-/**
- * Verifies that one or more handles are owned by a wallet, that is owned by an object. 
- * Throws error on failure. 
+ * Verifies that handles are available 
  * @param prisma Prisma client
- * @param forType The type of wallet-owning object to check
- * @param list The list of ids and handles to check
+ * @param forType The type of object to check handles for
+ * @param createList Handle and id pairs for new objects
+ * @param updateList Handle and id pairs for updated objects
  * @param languages Preferred languages for error messages
- * @param checkProfanity Whether to check for profanity in the handle
  */
 export const handlesCheck = async (
     prisma: PrismaType,
     forType: "User" | "Organization" | "Project",
-    list: { id: string, handle?: string | null | undefined }[],
+    createList: { id: string, handle?: string | null | undefined }[],
+    updateList: { id: string, handle?: string | null | undefined }[],
     languages: string[],
-    checkProfanity = true,
 ): Promise<void> => {
-    // Filter out empty handles
-    const filtered = list.filter(x => x.handle) as { id: string, handle: string }[];
-    // Query the database for wallets
-    const wallets = await prisma.wallet.findMany({
-        where: { [walletOwnerMap[forType]]: { in: filtered.map(x => x.id) } },
-        select: {
-            handles: {
-                select: {
-                    handle: true,
-                },
-            },
-        },
+    // Filter out empty handles from createList and updateList
+    const filteredCreateList = createList.filter(x => x.handle) as { id: string, handle: string }[];
+    const filteredUpdateList = updateList.filter(x => x.handle) as { id: string, handle: string }[];
+
+    // Find all existing handles that match the handles in createList and updateList.
+    // There should be none, unless some of the updates are changing the existing handles to something else.
+    const existingHandles = await prisma[forType].findMany({
+        where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
+        select: { id: true, handle: true },
     });
-    // Check that each handle is owned by the wallet
-    for (const { id, handle } of filtered) {
-        const wallet = wallets.find(w => w[walletOwnerMap[forType]] === id);
-        if (!wallet) {
-            throw new CustomError("0019", "ErrorUnknown", languages);
+
+    // Track how many times each handle in createList and updateList is used. 
+    // This should be one for each handle
+    const handleUsage: { [key: string]: number } = {};
+    for (const { handle } of [...filteredCreateList, ...filteredUpdateList]) {
+        if (handle) {
+            handleUsage[handle] = (handleUsage[handle] || 0) + 1;
+            // If there is more than one use of a handle, throw an error
+            if (handleUsage[handle] > 1) {
+                throw new CustomError("0019", "HandleTaken", languages);
+            }
+            // Also check for profanity while we're at it
+            if (hasProfanity(handle)) {
+                throw new CustomError("0374", "BannedWord", languages);
+            }
         }
-        const found = Boolean(wallet.handles.find(h => h.handle === handle));
-        if (!found) {
-            throw new CustomError("0374", "ErrorUnknown", languages);
+    }
+
+    // Loop through existing handles
+    for (const { id, handle } of existingHandles) {
+        // Decrease the count if the handle is being changed to something else
+        if (updateList.find(x => x.id === id && x.handle !== handle)) {
+            handleUsage[handle]--;
         }
-        if (checkProfanity && hasProfanity(handle)) {
-            throw new CustomError("0375", "BannedWord", languages);
+        // Check if a handle is taken
+        if (handleUsage[handle] > 0) {
+            throw new CustomError("0019", "HandleTaken", languages);
         }
     }
 };

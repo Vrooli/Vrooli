@@ -47,6 +47,7 @@
     "FailedToTranslate": "Failed to translate.",
     "FilesNotAccepted": "Files not accepted.",
     "FixErrorsBeforeSubmitting": "Please fix errors before submitting.",
+    "HandleTaken": "Handle not available.",
     "HardLockout": "Account locked.",
     "HardLockoutDetails": "Your account has been locked. This can either be from too many failed log in attempts, or from the community reporting system. Please contact us to unlock your account.",
     "IdOrHandleRequired": "Id or handle is required.",

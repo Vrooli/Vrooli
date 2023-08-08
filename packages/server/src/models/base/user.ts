@@ -2,7 +2,7 @@ import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidat
 import { noNull, shapeHelper } from "../../builders";
 import { bestTranslation, defaultPermissions, getEmbeddableString, translationShapeHelper } from "../../utils";
 import { preShapeEmbeddableTranslatable } from "../../utils/preShapeEmbeddableTranslatable";
-import { getSingleTypePermissions } from "../../validators";
+import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../format/user";
 import { ModelLogic, Mutater } from "../types";
 import { BookmarkModel } from "./bookmark";
@@ -75,7 +75,8 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ updateList }) => {
+            pre: async ({ updateList, prisma, userData }) => {
+                await handlesCheck(prisma, "User", [], updateList, userData.languages);
                 const maps = preShapeEmbeddableTranslatable({ createList: [], updateList, objectType: __typename });
                 return { ...maps };
             },
