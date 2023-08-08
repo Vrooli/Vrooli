@@ -142,6 +142,7 @@ export const typeDef = gql`
         id: ID!
         bannerImage: Upload
         botSettings: String!
+        handle: String
         isPrivate: Boolean
         name: String!
         profileImage: Upload
@@ -152,6 +153,7 @@ export const typeDef = gql`
         id: ID!
         bannerImage: Upload
         botSettings: String
+        handle: String
         isPrivate: Boolean
         name: String
         profileImage: Upload

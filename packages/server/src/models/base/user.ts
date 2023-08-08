@@ -46,6 +46,7 @@ const updateProfile: Mutater<UserModelLogic & { GqlUpdate: ProfileUpdateInput }>
 const updateBot: Mutater<UserModelLogic & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => ({
     bannerImage: data.bannerImage,
     botSettings: noNull(data.botSettings),
+    handle: data.handle ?? null,
     isPrivate: noNull(data.isPrivate),
     name: noNull(data.name),
     profileImage: data.profileImage,
@@ -85,6 +86,7 @@ export const UserModel: ModelLogic<UserModelLogic, typeof suppFields> = ({
                 id: data.id,
                 bannerImage: noNull(data.bannerImage),
                 botSettings: data.botSettings,
+                handle: data.handle ?? null,
                 isBot: true,
                 isPrivate: noNull(data.isPrivate),
                 name: data.name,

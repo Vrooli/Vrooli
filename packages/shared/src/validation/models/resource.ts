@@ -1,13 +1,13 @@
 import { resourceListValidation, ResourceUsedFor } from "@local/shared";
 import * as yup from "yup";
-import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
+import { addHttps, blankToUndefined, description, enumToYup, handleRegex, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 
 // Link must match one of the regex above
 const link = yup.string().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
     "link",
     "Must be a URL, Cardano payment address, or ADA Handle",
     (value: string | undefined) => {
-        return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true;
+        return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || handleRegex.test(value)) : true;
     },
 );
 const usedFor = enumToYup(ResourceUsedFor);

@@ -811,7 +811,7 @@ model organization {
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     bannerImage        String?                     @db.VarChar(2048)
-    handle             String?                     @unique @db.VarChar(16)
+    handle             String?                     @unique @db.Citext
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
@@ -1113,7 +1113,7 @@ model project {
     views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
-    handle                String?                     @unique @db.VarChar(16)
+    handle                String?                     @unique @db.Citext
     ownedByUserId         String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
     parentId              String?                     @db.Uuid
@@ -2546,7 +2546,7 @@ model user {
     name                           String                      @db.VarChar(128)
     profileImage                   String?                     @db.VarChar(2048)
     theme                          String                      @default("light") @db.VarChar(255)
-    handle                         String?                     @unique @db.VarChar(16)
+    handle                         String?                     @unique @db.Citext
     currentStreak                  Int                         @default(0)
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)

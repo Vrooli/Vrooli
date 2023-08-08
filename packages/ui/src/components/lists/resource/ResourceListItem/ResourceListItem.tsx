@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { adaHandleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
+import { handleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
@@ -25,7 +25,7 @@ import { ResourceListItemProps } from "../types";
 const getResourceType = (link: string): ResourceType | null => {
     if (urlRegex.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
-    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    if (handleRegex.test(link)) return ResourceType.Handle;
     return null;
 };
 

@@ -556,6 +556,7 @@ export type BookmarkUpdateInput = {
 export type BotCreateInput = {
   bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings: Scalars['String'];
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
@@ -566,6 +567,7 @@ export type BotCreateInput = {
 export type BotUpdateInput = {
   bannerImage?: InputMaybe<Scalars['Upload']>;
   botSettings?: InputMaybe<Scalars['String']>;
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;

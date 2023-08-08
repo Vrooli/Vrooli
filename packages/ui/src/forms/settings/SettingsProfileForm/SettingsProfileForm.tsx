@@ -65,8 +65,8 @@ export const SettingsProfileForm = ({
                         languages={languages}
                         zIndex={zIndex}
                     />
-                    <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
                     <Field fullWidth name="name" label={t("Name")} as={TextField} />
+                    <Field fullWidth name="handle" label={t("Handle")} as={TextField} />
                     <TranslatedMarkdownInput
                         language={language}
                         maxChars={2048}

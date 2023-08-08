@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { adaHandleRegex, ApiVersion, Bookmark, ChatParticipant, isOfType, LINKS, Member, NoteVersion, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
+import { ApiVersion, Bookmark, ChatParticipant, handleRegex, isOfType, LINKS, Member, NoteVersion, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, urlRegex, View, walletAddressRegex } from "@local/shared";
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
@@ -51,9 +51,10 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
 /**
  * Determines string used to reference object in URL slug
  * @param object Object being navigated to
+ * @param prefersId Whether to prefer the ID over the handle
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: NavigableObject | null | undefined): string => {
+export const getObjectSlug = (object: NavigableObject | null | undefined, prefersId = false): string => {
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
@@ -65,13 +66,15 @@ export const getObjectSlug = (object: NavigableObject | null | undefined): strin
     // If object has root, use the root and version
     if ((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root) {
         const root = getObjectSlug((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root);
-        const verion = (object as { handle?: string }).handle ?? uuidToBase36((object as { id?: string }).id ?? "");
-        return `${root}/${verion}`;
+        const versionId = uuidToBase36((object as { id?: string }).id ?? "");
+        const version = prefersId ? versionId : (object as { handle?: string }).handle ?? versionId;
+        return `${root}/${version}`;
     }
     // If the object is a member or chat participant, use the user's slug
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
     // Otherwise, use object's handle or id
-    return (object as { handle?: string }).handle ?? uuidToBase36((object as { id?: string }).id ?? "");
+    const id = uuidToBase36((object as { id?: string }).id ?? "");
+    return prefersId ? id : (object as { handle?: string }).handle ?? id;
 };
 
 /**
@@ -106,7 +109,6 @@ export const getObjectUrl = (object: NavigableObject): string =>
 export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
     // Actions don't open to anything
     if (isOfType(object, "Action")) return;
-    console.log("setting for got user data", object);
     // Store object in local storage, so we can display it while the full data loads
     setCookiePartialData(object);
     // Navigate to object
@@ -117,14 +119,21 @@ export const openObject = (object: NavigableObject, setLocation: SetLocation) =>
  * Finds edit page URL for any object with an id and type
  * @param object Object being navigated to
  */
-export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object, true)}${getObjectSearchParams(object)}`;
 
 /**
  * Opens the edit page for an object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectEditUrl(object));
+export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => {
+    // Actions don't open to anything
+    if (isOfType(object, "Action")) return;
+    // Store object in local storage, so we can display it while the full data loads
+    setCookiePartialData(object);
+    // Navigate to object
+    setLocation(getObjectEditUrl(object));
+};
 
 /**
  * Finds report page URL for any object with an id and type
@@ -148,7 +157,7 @@ export const openObjectReport = (object: NavigableObject, setLocation: SetLocati
 export const getResourceType = (link: string): ResourceType | null => {
     if (urlRegex.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
-    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    if (handleRegex.test(link)) return ResourceType.Handle;
     return null;
 };
 

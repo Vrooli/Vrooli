@@ -1,4 +1,4 @@
-import { Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+import { Avatar, Box, Button, IconButton, keyframes, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
 export const centeredDiv = {
     display: "flex",
@@ -236,6 +236,35 @@ export const OverviewContainer = styled(Box)(({ theme }) => ({
     [theme.breakpoints.up("sm")]: {
         borderRadius: theme.spacing(2),
         boxShadow: theme.shadows[2],
+    },
+}));
+
+export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
+    height: "48px",
+    marginLeft: theme.spacing(2),
+    marginRight: theme.spacing(2),
+    marginTop: theme.spacing(1),
+    alignItems: "flex-start",
+    flexDirection: "row",
+    // Apply auto margin to the second element to push the first one to the left
+    "& > :nth-child(2)": {
+        marginLeft: "auto",
+    },
+}));
+
+export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
+    boxShadow: theme.spacing(2),
+    width: "max(min(100px, 40vw), 75px)",
+    height: "max(min(100px, 40vw), 75px)",
+    top: "-100%",
+    fontSize: "min(50px, 10vw)",
+    marginRight: "auto",
+    // Show in center on large screens
+    [theme.breakpoints.up("sm")]: {
+        position: "absolute",
+        left: "50%",
+        top: "-25%",
+        transform: "translateX(-50%)",
     },
 }));
 

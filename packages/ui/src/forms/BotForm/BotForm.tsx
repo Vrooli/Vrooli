@@ -122,6 +122,12 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             label={t("Name")}
                             as={TextField}
                         />
+                        <Field
+                            fullWidth
+                            name="handle"
+                            label={t("Handle")}
+                            as={TextField}
+                        />
                         <TranslatedMarkdownInput
                             language={language}
                             maxChars={2048}

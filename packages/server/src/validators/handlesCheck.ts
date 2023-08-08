@@ -1,6 +1,34 @@
 import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
+
+/** 
+ * Handles that are not allowed to be used, regardless if they are in the database.
+ * These URL conflicts, object types, and handles reserved for internal use.
+ */
+const RESERVED_HANDLES = [
+    "api",
+    "admin",
+    "bot",
+    "help",
+    "note",
+    "organization",
+    "profile",
+    "project",
+    "question",
+    "routine",
+    "smart_contract",
+    "smartcontract",
+    "standard",
+    "support",
+    "valyxa",
+    "valyxaofficial",
+    "valyxa_official",
+    "vrooli",
+    "vrooliofficial",
+    "vrooli_official",
+];
 
 /**
  * Verifies that handles are available 
@@ -23,7 +51,8 @@ export const handlesCheck = async (
 
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
-    const existingHandles = await prisma[forType].findMany({
+    const { delegate } = getLogic(["delegate"], forType, languages, "handlesCheck");
+    const existingHandles = await delegate(prisma).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });
@@ -41,6 +70,10 @@ export const handlesCheck = async (
             // Also check for profanity while we're at it
             if (hasProfanity(handle)) {
                 throw new CustomError("0374", "BannedWord", languages);
+            }
+            // Also check for reserved handles while we're at it
+            if (RESERVED_HANDLES.includes(handle.toLowerCase())) {
+                throw new CustomError("0375", "HandleTaken", languages);
             }
         }
     }

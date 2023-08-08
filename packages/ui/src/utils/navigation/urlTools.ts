@@ -1,4 +1,4 @@
-import { adaHandleRegex, LINKS, uuidValidate } from "@local/shared";
+import { handleRegex, LINKS, uuidValidate } from "@local/shared";
 import { getLastUrlPart, SetLocation } from "route";
 import { PubSub } from "utils/pubsub";
 
@@ -47,13 +47,6 @@ export const base36ToUuid = (base36: string, showError = true): string => {
     }
 };
 
-export type SingleItemUrl = {
-    handleRoot?: string,
-    handle?: string,
-    idRoot?: string,
-    id?: string,
-}
-
 /**
  * Finds information in the URL to query for a specific item. 
  * There are multiple ways to specify an item in the URL. 
@@ -71,9 +64,14 @@ export const parseSingleItemUrl = ({
     url,
 }: {
     url?: string,
-}): SingleItemUrl => {
+}) => {
     // Initialize the return object
-    const returnObject: SingleItemUrl = {};
+    const returnObject: {
+        handleRoot?: string,
+        handle?: string,
+        idRoot?: string,
+        id?: string,
+    } = {};
     // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart({ url });
     const secondLastPart = getLastUrlPart({ url, offset: 1 });
@@ -93,7 +91,7 @@ export const parseSingleItemUrl = ({
     if (isVersioned) {
         let hasRoot = false;
         // Check if the second last part is a root handle or root ID
-        if (adaHandleRegex.test(secondLastPart)) {
+        if (handleRegex.test(secondLastPart)) {
             returnObject.handleRoot = secondLastPart;
             hasRoot = true;
         } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
@@ -101,7 +99,7 @@ export const parseSingleItemUrl = ({
             hasRoot = true;
         }
         // Check if the last part is a version handle or version ID
-        if (adaHandleRegex.test(lastPart)) {
+        if (handleRegex.test(lastPart)) {
             if (hasRoot) returnObject.handle = lastPart;
             else returnObject.handleRoot = lastPart;
         } else if (uuidValidate(base36ToUuid(lastPart, false))) {
@@ -110,7 +108,7 @@ export const parseSingleItemUrl = ({
         }
     } else {
         // If the URL is for a non-versioned object, check if the last part is a handle or ID
-        if (adaHandleRegex.test(lastPart)) {
+        if (handleRegex.test(lastPart)) {
             returnObject.handle = lastPart;
         } else if (uuidValidate(base36ToUuid(lastPart, false))) {
             returnObject.id = base36ToUuid(lastPart, false);

@@ -1,5 +1,5 @@
 import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
-import { Avatar, Box, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -18,8 +18,8 @@ import { PageTab } from "components/types";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLastUrlPart, useLocation } from "route";
-import { OverviewContainer } from "styles";
+import { useLocation } from "route";
+import { FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
@@ -30,7 +30,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
-import { base36ToUuid } from "utils/navigation/urlTools";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
@@ -79,19 +79,15 @@ export const UserView = ({
 
     // Parse information from URL
     const urlInfo = useMemo(() => {
-        const urlEnding = getLastUrlPart({});
-        const isUrl = (ending: unknown) => typeof ending === "string" && uuidValidate(base36ToUuid(ending));
-        const isHandle = (ending: unknown) => typeof ending === "string" && ending.startsWith("@");
-        if (urlEnding && isUrl(urlEnding)) return { handle: undefined, id: base36ToUuid(urlEnding), isOwnProfile: false };
-        else if (urlEnding && isHandle(urlEnding)) return { handle: urlEnding, id: undefined, isOwnProfile: false };
-        else if (typeof urlEnding === "string" && urlEnding.toLowerCase() === "profile" && session) {
+        // Use common function to parse URL
+        let urlInfo = { ...parseSingleItemUrl({}), isOwnProfile: false };
+        // If it returns a handle of "profile", it's not actually a handle - it's the current user
+        if (urlInfo.handle === "profile" && session) {
+            urlInfo.isOwnProfile = true;
             const currentUser = getCurrentUser(session);
-            return { handle: currentUser?.handle, id: currentUser?.id, isOwnProfile: true };
+            urlInfo = { ...urlInfo, handle: currentUser?.handle ?? undefined, id: currentUser?.id };
         }
-        else {
-            PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-            return {};
-        }
+        return urlInfo;
     }, [session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
@@ -188,47 +184,20 @@ export const UserView = ({
      */
     const overviewComponent = useMemo(() => (
         <OverviewContainer>
-            <Stack direction="row" spacing={1} sx={{
-                height: "48px",
-                marginLeft: 2,
-                marginRight: 2,
-                marginTop: 1,
-                alignItems: "flex-start",
-                // Apply auto margin to the second element to push the first one to the left
-                "& > :nth-child(2)": {
-                    marginLeft: "auto",
-                },
-            }}>
-                <Avatar
+            <OverviewProfileStack>
+                <OverviewProfileAvatar
                     src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
                     sx={{
                         backgroundColor: profileColors[0],
                         color: profileColors[1],
-                        boxShadow: 2,
-                        width: "max(min(100px, 40vw), 75px)",
-                        height: "max(min(100px, 40vw), 75px)",
-                        top: "-100%",
-                        fontSize: "min(50px, 10vw)",
-                        marginRight: "auto",
                         // Bots show up as squares, to distinguish them from users
                         ...(user?.isBot ? { borderRadius: "8px" } : {}),
-                        // Show in center on large screens
-                        [breakpoints.up("sm")]: {
-                            position: "absolute",
-                            left: "50%",
-                            top: "-25%",
-                            transform: "translateX(-50%)",
-                        },
                     }}
                 >
-                    {user?.isBot ? <BotIcon
-                        width="75%"
-                        height="75%"
-                    /> : <UserIcon
-                        width="75%"
-                        height="75%"
-                    />}
-                </Avatar>
+                    {user?.isBot ?
+                        <BotIcon width="75%" height="75%" /> :
+                        <UserIcon width="75%" height="75%" />}
+                </OverviewProfileAvatar>
                 <Tooltip title={t("MoreOptions")}>
                     <IconButton
                         aria-label={t("MoreOptions")}
@@ -252,8 +221,8 @@ export const UserView = ({
                     onChange={(isBookmarked: boolean) => { }}
                     zIndex={zIndex}
                 />
-            </Stack>
-            <Stack direction="column" p={2} justifyContent="center" sx={{
+            </OverviewProfileStack>
+            <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
                 alignItems: "flex-start",
                 [breakpoints.up("sm")]: {
                     alignItems: "center",
@@ -272,21 +241,24 @@ export const UserView = ({
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
                         zIndex={zIndex}
-                        sxs={{ stack: { padding: 0, paddingBottom: 2 } }}
+                        sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
                     />
                 }
                 {/* Handle */}
                 {
-                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
-                        <Typography
-                            variant="h6"
-                            textAlign="center"
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                            }}
-                        >${handle}</Typography>
-                    </Link>
+                    handle && <Typography
+                        variant="h6"
+                        textAlign="center"
+                        onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
+                            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                        }}
+                        sx={{
+                            color: palette.secondary.dark,
+                            cursor: "pointer",
+                            paddingBottom: 2,
+                        }}
+                    >@{handle}</Typography>
                 }
                 {/* Bio */}
                 {
@@ -365,7 +337,7 @@ export const UserView = ({
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 position: "relative",
-                paddingTop: "40px",
+                paddingTop: bannerImageUrl ? "120px" : "40px",
                 [breakpoints.down("sm")]: {
                     paddingTop: bannerImageUrl ? "120px" : "40px",
                 },
@@ -402,17 +374,125 @@ export const UserView = ({
                     }}
                 />
                 {currTab.value === TabOptions.Details && (
-                    <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
-                        {botData.occupation && <Typography variant="h6">Occupation: {botData.occupation}</Typography>}
-                        {botData.persona && <Typography variant="h6">Persona: {botData.persona}</Typography>}
-                        {botData.startMessage && <Typography variant="h6">Starting Message: {botData.startMessage}</Typography>}
-                        {botData.tone && <Typography variant="h6">Tone: {botData.tone}</Typography>}
-                        {botData.keyPhrases && <Typography variant="h6">Key Phrases: {botData.keyPhrases}</Typography>}
-                        {botData.domainKnowledge && <Typography variant="h6">Domain Knowledge: {botData.domainKnowledge}</Typography>}
-                        {botData.bias && <Typography variant="h6">Bias: {botData.bias}</Typography>}
-                        {botData.creativity && <Typography variant="h6">Creativity: {botData.creativity * 100}%</Typography>}
-                        {botData.verbosity && <Typography variant="h6">Verbosity: {botData.verbosity * 100}%</Typography>}
-                    </Stack>
+                    <FormSection sx={{
+                        overflowX: "hidden",
+                        marginTop: 2,
+                        [breakpoints.down("sm")]: {
+                            marginTop: 0,
+                            borderRadius: "0px",
+                        },
+                    }}>
+                        {botData.occupation && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Occupation")}
+                            value={botData.occupation}
+                        />}
+                        {botData.persona && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Persona")}
+                            value={botData.persona}
+                        />}
+                        {botData.startMessage && <TextField
+                            disabled
+                            fullWidth
+                            label={t("StartMessage")}
+                            value={botData.startMessage}
+                        />}
+                        {botData.tone && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Tone")}
+                            value={botData.tone}
+                        />}
+                        {botData.keyPhrases && <TextField
+                            disabled
+                            fullWidth
+                            label={t("KeyPhrases")}
+                            value={botData.keyPhrases}
+                        />}
+                        {botData.domainKnowledge && <TextField
+                            disabled
+                            fullWidth
+                            label={t("DomainKnowledge")}
+                            value={botData.domainKnowledge}
+                        />}
+                        {botData.bias && <TextField
+                            disabled
+                            fullWidth
+                            label={t("Bias")}
+                            value={botData.bias}
+                        />}
+                        <Stack>
+                            <Typography id="creativity-slider" gutterBottom>
+                                {t("Creativity")}
+                            </Typography>
+                            <Slider
+                                aria-labelledby="creativity-slider"
+                                disabled
+                                value={botData.creativity as number}
+                                valueLabelDisplay="auto"
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                marks={[
+                                    {
+                                        value: 0.1,
+                                        label: t("Low"),
+                                    },
+                                    {
+                                        value: 1,
+                                        label: t("High"),
+                                    },
+                                ]}
+                                sx={{
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
+                                }}
+                            />
+                        </Stack>
+                        <Stack>
+                            <Typography id="verbosity-slider" gutterBottom>
+                                {t("Verbosity")}
+                            </Typography>
+                            <Slider
+                                aria-labelledby="verbosity-slider"
+                                disabled
+                                value={botData.verbosity as number}
+                                valueLabelDisplay="auto"
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                marks={[
+                                    {
+                                        value: 0.1,
+                                        label: t("Low"),
+                                    },
+                                    {
+                                        value: 1,
+                                        label: t("High"),
+                                    },
+                                ]}
+                                sx={{
+                                    "& .MuiSlider-markLabel": {
+                                        "&[data-index=\"0\"]": {
+                                            marginLeft: 2,
+                                        },
+                                        "&[data-index=\"1\"]": {
+                                            marginLeft: -2,
+                                        },
+                                    },
+                                }}
+                            />
+                        </Stack>
+                    </FormSection>
                 )}
                 {searchData !== null && currTab.value !== TabOptions.Details && <Box>
                     <SearchList
