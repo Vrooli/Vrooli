@@ -23,7 +23,7 @@ import { OverviewContainer } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
-import { getCookiePartialData } from "utils/cookies";
+import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -96,7 +96,8 @@ export const UserView = ({
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
     const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
     const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
-    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>(urlInfo.id) ?? { __typename: "User" });
+    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
+    console.log("got user data", user);
     useDisplayServerError(userErrors ?? profileErrors);
     // Get user or profile data
     useEffect(() => {
@@ -107,7 +108,9 @@ export const UserView = ({
     // Set user data
     useEffect(() => {
         const knownData = userData ?? profileData;
-        setUser(knownData ?? getCookiePartialData<PartialWithType<User>>(urlInfo.id) ?? { __typename: "User" });
+        // If there is knownData, update local storage
+        if (knownData) setCookiePartialData(knownData);
+        setUser(knownData ?? getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
     }, [userData, profileData, urlInfo]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
@@ -144,7 +147,6 @@ export const UserView = ({
         return tabs.map((tab, i) => ({
             color: palette.secondary.dark,
             index: i,
-            Icon: tab.Icon,
             label: t(tab.tabType as CommonKey, { count: 2, defaultValue: tab.tabType }),
             value: tab.tabType,
         })) as PageTab<TabOptions>[];
@@ -259,7 +261,7 @@ export const UserView = ({
             }}>
                 {/* Title */}
                 {
-                    isLoading ? (
+                    (isLoading && !name) ? (
                         <TextLoading size="header" sx={{ width: "50%" }} />
                     ) : <Title
                         title={name}
@@ -288,7 +290,7 @@ export const UserView = ({
                 }
                 {/* Bio */}
                 {
-                    isLoading ? (
+                    (isLoading && !bio) ? (
                         <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
                     ) : (
                         <MarkdownDisplay

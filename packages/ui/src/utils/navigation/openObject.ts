@@ -6,6 +6,7 @@ import { adaHandleRegex, ApiVersion, Bookmark, ChatParticipant, isOfType, LINKS,
 import { SetLocation, stringifySearchParams } from "route";
 import { CalendarEvent, CalendarEventOption, NavigableObject, ShortcutOption } from "types";
 import { ResourceType } from "utils/consts";
+import { setCookiePartialData } from "utils/cookies";
 import { uuidToBase36 } from "./urlTools";
 
 export type ObjectType = "Api" |
@@ -102,7 +103,15 @@ export const getObjectUrl = (object: NavigableObject): string =>
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: NavigableObject, setLocation: SetLocation) => !isOfType(object, "Action") && setLocation(getObjectUrl(object));
+export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
+    // Actions don't open to anything
+    if (isOfType(object, "Action")) return;
+    console.log("setting for got user data", object);
+    // Store object in local storage, so we can display it while the full data loads
+    setCookiePartialData(object);
+    // Navigate to object
+    setLocation(getObjectUrl(object));
+};
 
 /**
  * Finds edit page URL for any object with an id and type

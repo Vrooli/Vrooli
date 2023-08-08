@@ -12,7 +12,6 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { centeredDiv } from "styles";
-import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -22,7 +21,6 @@ import { MyStuffViewProps } from "../types";
 
 // Tab data type
 type BaseParams = {
-    Icon: SvgComponent;
     searchType: SearchType;
     tabType: MyStuffPageTabOption;
     where: (userId: string) => { [x: string]: any };
@@ -114,7 +112,6 @@ export const MyStuffView = ({
         });
         return filteredTabParams.map((tab, i) => ({
             index: i,
-            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             searchType: tab.searchType,
             tabType: tab.tabType,

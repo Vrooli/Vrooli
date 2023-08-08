@@ -14,6 +14,7 @@ import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -89,6 +90,8 @@ export function ObjectListItemBase<T extends ListObject>({
             const shouldContinue = canNavigate(data);
             if (shouldContinue === false) return;
         }
+        // Store object in local storage, so we can display it while the full data loads
+        setCookiePartialData(data);
         // Navigate to the object's page
         setLocation(link);
     }, [data, link, onClick, canNavigate, setLocation]);

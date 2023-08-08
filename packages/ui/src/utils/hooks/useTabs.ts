@@ -6,7 +6,7 @@ import { SvgComponent } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 
 type TabParams<T> = {
-    Icon: SvgComponent,
+    Icon?: SvgComponent,
     titleKey: CommonKey;
     searchType: SearchType;
     tabType: T;

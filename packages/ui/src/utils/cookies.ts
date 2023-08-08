@@ -5,7 +5,8 @@
  * unclear whether EU's Cookie Law applies to localStorage, but it is better to
  * be safe than sorry.
  */
-import { ActiveFocusMode, COOKIE, exists, FocusMode, GqlModelType, ValueOf } from "@local/shared";
+import { ActiveFocusMode, COOKIE, exists, FocusMode, ValueOf } from "@local/shared";
+import { NavigableObject } from "types";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -150,20 +151,20 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
 
-type PartialData = { __typename: `${GqlModelType}`, id?: string | null };
-export const getCookiePartialData = <T extends PartialData | undefined>(objectId: string | null | undefined, fallback?: T): T =>
+type PartialData = { __typename: NavigableObject["__typename"], id?: string | null, handle?: string | null };
+export const getCookiePartialData = <T extends PartialData | undefined>(knownData: T | null | undefined): T =>
     ifAllowed("functional",
         () => {
-            // If no objectId is provided, return undefined
-            if (!objectId) return undefined;
-            const storedData = getOrSetCookie(Cookies.PartialData, (value: unknown): value is PartialData => typeof value === "object", fallback);
-            // If objectId match the known data, return stored data
-            if (storedData?.id === objectId) {
+            // If known data does not contain an id or handle, return known data
+            if (!knownData?.id && !knownData?.handle) return knownData;
+            // Find stored data
+            const storedData = getOrSetCookie(Cookies.PartialData, (value: unknown): value is PartialData => typeof value === "object");
+            // If stored data matches known data (i.e. same type and id or handle), return stored data
+            if (storedData?.__typename === knownData?.__typename && (storedData?.id === knownData?.id || storedData?.handle === knownData?.handle)) {
                 return storedData;
             }
-            // Otherwise return undefined
-            return undefined;
+            // Otherwise return known data
+            return knownData;
         },
-        fallback,
     );
 export const setCookiePartialData = (partialData: PartialData) => ifAllowed("functional", () => setCookie(Cookies.PartialData, partialData));
