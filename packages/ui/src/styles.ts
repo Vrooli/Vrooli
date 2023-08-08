@@ -225,25 +225,30 @@ export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
 }));
 
+export const BannerImageContainer = styled(Box)(({ theme }) => ({
+    margin: "auto",
+    backgroundColor: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    position: "relative",
+    width: `min(${theme.breakpoints.values.sm}px, 100%)`,
+    // Height should be 1/3 of width
+    height: `min(calc(100vw / 3), ${theme.breakpoints.values.sm / 3}px)`,
+}));
+
 export const OverviewContainer = styled(Box)(({ theme }) => ({
     position: "relative",
     marginLeft: "auto",
     marginRight: "auto",
-    marginTop: theme.spacing(3),
     background: theme.palette.background.paper,
     borderRadius: "0",
     width: `min(${theme.breakpoints.values.sm}px, 100%)`,
-    [theme.breakpoints.up("sm")]: {
-        borderRadius: theme.spacing(2),
-        boxShadow: theme.shadows[2],
-    },
 }));
 
 export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
     height: "48px",
     marginLeft: theme.spacing(2),
     marginRight: theme.spacing(2),
-    marginTop: theme.spacing(1),
     alignItems: "flex-start",
     flexDirection: "row",
     // Apply auto margin to the second element to push the first one to the left
@@ -259,13 +264,6 @@ export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
     top: "-100%",
     fontSize: "min(50px, 10vw)",
     marginRight: "auto",
-    // Show in center on large screens
-    [theme.breakpoints.up("sm")]: {
-        position: "absolute",
-        left: "50%",
-        top: "-25%",
-        transform: "translateX(-50%)",
-    },
 }));
 
 const pulse = keyframes`

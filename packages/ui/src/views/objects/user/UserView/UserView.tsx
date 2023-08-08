@@ -19,7 +19,7 @@ import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, User
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
@@ -179,120 +179,6 @@ export const UserView = ({
         setObject: setUser,
     });
 
-    /**
-     * Displays name, handle, avatar, bio, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <OverviewContainer>
-            <OverviewProfileStack>
-                <OverviewProfileAvatar
-                    src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
-                    sx={{
-                        backgroundColor: profileColors[0],
-                        color: profileColors[1],
-                        // Bots show up as squares, to distinguish them from users
-                        ...(user?.isBot ? { borderRadius: "8px" } : {}),
-                    }}
-                >
-                    {user?.isBot ?
-                        <BotIcon width="75%" height="75%" /> :
-                        <UserIcon width="75%" height="75%" />}
-                </OverviewProfileAvatar>
-                <Tooltip title={t("MoreOptions")}>
-                    <IconButton
-                        aria-label={t("MoreOptions")}
-                        size="small"
-                        onClick={openMoreMenu}
-                        sx={{
-                            display: "block",
-                            marginLeft: "auto",
-                            marginRight: 1,
-                        }}
-                    >
-                        <EllipsisIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>
-                <BookmarkButton
-                    disabled={user?.id === getCurrentUser(session).id}
-                    objectId={user?.id ?? ""}
-                    bookmarkFor={BookmarkFor.User}
-                    isBookmarked={user?.you?.isBookmarked ?? false}
-                    bookmarks={user?.bookmarks ?? 0}
-                    onChange={(isBookmarked: boolean) => { }}
-                    zIndex={zIndex}
-                />
-            </OverviewProfileStack>
-            <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
-                alignItems: "flex-start",
-                [breakpoints.up("sm")]: {
-                    alignItems: "center",
-                },
-            }}>
-                {/* Title */}
-                {
-                    (isLoading && !name) ? (
-                        <TextLoading size="header" sx={{ width: "50%" }} />
-                    ) : <Title
-                        title={name}
-                        variant="header"
-                        options={permissions.canUpdate ? [{
-                            label: t("Edit"),
-                            Icon: EditIcon,
-                            onClick: () => { actionData.onActionStart("Edit"); },
-                        }] : []}
-                        zIndex={zIndex}
-                        sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
-                    />
-                }
-                {/* Handle */}
-                {
-                    handle && <Typography
-                        variant="h6"
-                        textAlign="center"
-                        onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
-                            PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
-                        }}
-                        sx={{
-                            color: palette.secondary.dark,
-                            cursor: "pointer",
-                            paddingBottom: 2,
-                        }}
-                    >@{handle}</Typography>
-                }
-                {/* Bio */}
-                {
-                    (isLoading && !bio) ? (
-                        <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
-                    ) : (
-                        <MarkdownDisplay
-                            variant="body1"
-                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
-                            content={bio ?? "No bio set"}
-                            zIndex={zIndex}
-                        />
-                    )
-                }
-                <Stack direction="row" spacing={2} sx={{
-                    alignItems: "center",
-                    [breakpoints.up("sm")]: {
-                        alignItems: "flex-start",
-                    },
-                }}>
-                    {/* Joined date */}
-                    <DateDisplay
-                        loading={isLoading}
-                        showIcon={true}
-                        textBeforeDate="Joined"
-                        timestamp={user?.created_at}
-                        zIndex={zIndex}
-                    />
-                    <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
-                </Stack>
-            </Stack>
-        </OverviewContainer>
-    ), [user, profileColors, breakpoints, t, openMoreMenu, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, session, zIndex, isLoading, name, permissions.canUpdate, handle, bio, actionData]);
-
     /** Opens add new page */
     const toAddNew = useCallback(() => {
         setLocation(`${LINKS[currTab.value]}/add`);
@@ -329,18 +215,8 @@ export const UserView = ({
             />
             {/* Popup menu for adding/inviting to an organization/meeting/chat */}
             {/* TODO */}
-            <Box sx={{
-                display: "flex",
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                backgroundColor: palette.mode === "light" ? "#c2cadd" : palette.background.default,
+            <BannerImageContainer sx={{
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                position: "relative",
-                paddingTop: bannerImageUrl ? "120px" : "40px",
-                [breakpoints.down("sm")]: {
-                    paddingTop: bannerImageUrl ? "120px" : "40px",
-                },
             }}>
                 {/* Language display/select */}
                 <Box sx={{
@@ -356,10 +232,111 @@ export const UserView = ({
                         zIndex={zIndex}
                     />}
                 </Box>
-                {overviewComponent}
-            </Box>
+            </BannerImageContainer>
+            <OverviewContainer>
+                <OverviewProfileStack>
+                    <OverviewProfileAvatar
+                        src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
+                        sx={{
+                            backgroundColor: profileColors[0],
+                            color: profileColors[1],
+                            // Bots show up as squares, to distinguish them from users
+                            ...(user?.isBot ? { borderRadius: "8px" } : {}),
+                        }}
+                    >
+                        {user?.isBot ?
+                            <BotIcon width="75%" height="75%" /> :
+                            <UserIcon width="75%" height="75%" />}
+                    </OverviewProfileAvatar>
+                    <Tooltip title={t("MoreOptions")}>
+                        <IconButton
+                            aria-label={t("MoreOptions")}
+                            size="small"
+                            onClick={openMoreMenu}
+                            sx={{
+                                display: "block",
+                                marginLeft: "auto",
+                                marginRight: 1,
+                            }}
+                        >
+                            <EllipsisIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <BookmarkButton
+                        disabled={user?.id === getCurrentUser(session).id}
+                        objectId={user?.id ?? ""}
+                        bookmarkFor={BookmarkFor.User}
+                        isBookmarked={user?.you?.isBookmarked ?? false}
+                        bookmarks={user?.bookmarks ?? 0}
+                        onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
+                    />
+                </OverviewProfileStack>
+                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
+                    alignItems: "flex-start",
+                }}>
+                    {/* Title */}
+                    {
+                        (isLoading && !name) ? (
+                            <TextLoading size="header" sx={{ width: "50%" }} />
+                        ) : <Title
+                            title={name}
+                            variant="header"
+                            options={permissions.canUpdate ? [{
+                                label: t("Edit"),
+                                Icon: EditIcon,
+                                onClick: () => { actionData.onActionStart("Edit"); },
+                            }] : []}
+                            zIndex={zIndex}
+                            sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
+                        />
+                    }
+                    {/* Handle */}
+                    {
+                        handle && <Typography
+                            variant="h6"
+                            textAlign="center"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
+                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                            }}
+                            sx={{
+                                color: palette.secondary.dark,
+                                cursor: "pointer",
+                                paddingBottom: 2,
+                            }}
+                        >@{handle}</Typography>
+                    }
+                    {/* Bio */}
+                    {
+                        (isLoading && !bio) ? (
+                            <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
+                        ) : (
+                            <MarkdownDisplay
+                                variant="body1"
+                                sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                                content={bio ?? "No bio set"}
+                                zIndex={zIndex}
+                            />
+                        )
+                    }
+                    <Stack direction="row" spacing={2} sx={{
+                        alignItems: "center",
+                    }}>
+                        {/* Joined date */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            textBeforeDate="Joined"
+                            timestamp={user?.created_at}
+                            zIndex={zIndex}
+                        />
+                        <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
+                    </Stack>
+                </Stack>
+            </OverviewContainer>
             {/* View routines, organizations, standards, and projects associated with this user */}
-            <Box sx={{ margin: "auto", maxWidth: "800px" }}>
+            <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
                 <PageTabs
                     ariaLabel="user-tabs"
                     fullWidth
@@ -367,20 +344,15 @@ export const UserView = ({
                     onChange={handleTabChange}
                     tabs={tabs}
                     sx={{
-                        [breakpoints.down("sm")]: {
-                            background: palette.background.paper,
-                            borderBottom: `1px solid ${palette.divider}`,
-                        },
+                        background: palette.background.paper,
+                        borderBottom: `1px solid ${palette.divider}`,
                     }}
                 />
                 {currTab.value === TabOptions.Details && (
                     <FormSection sx={{
                         overflowX: "hidden",
-                        marginTop: 2,
-                        [breakpoints.down("sm")]: {
-                            marginTop: 0,
-                            borderRadius: "0px",
-                        },
+                        marginTop: 0,
+                        borderRadius: "0px",
                     }}>
                         {botData.occupation && <TextField
                             disabled
