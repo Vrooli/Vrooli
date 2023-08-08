@@ -1,12 +1,14 @@
 import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
-import { Avatar, Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ResourceListVertical } from "components/lists/resource";
 import { SearchList } from "components/lists/SearchList/SearchList";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -14,17 +16,17 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, UserIcon } from "icons";
+import { EditIcon, EllipsisIcon, OrganizationIcon, SearchIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { OverviewContainer } from "styles";
-import { SvgComponent } from "types";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { PubSub } from "utils/pubsub";
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { OrganizationViewProps } from "../types";
@@ -36,7 +38,6 @@ enum TabOptions {
 }
 
 type TabParams = {
-    Icon: SvgComponent;
     searchType: SearchType;
     tabType: TabOptions;
     where: { [x: string]: any };
@@ -44,17 +45,14 @@ type TabParams = {
 
 // Data for each tab
 const tabParams: TabParams[] = [{
-    Icon: HelpIcon,
     searchType: SearchType.Resource,
     tabType: TabOptions.Resource,
     where: {},
 }, {
-    Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: TabOptions.Project,
     where: {},
 }, {
-    Icon: UserIcon,
     searchType: SearchType.Member,
     tabType: TabOptions.Member,
     where: {},
@@ -67,14 +65,14 @@ export const OrganizationView = ({
     zIndex,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization>({
         ...endpointGetOrganization,
-        partialData,
+        objectType: "Organization",
     });
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
@@ -84,10 +82,11 @@ export const OrganizationView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, handle, name, resourceList } = useMemo(() => {
+    const { bannerImageUrl, bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | null | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
+            bannerImageUrl: extractImageUrl(organization?.bannerImage, organization?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             handle: organization?.handle ?? partialData?.handle,
             name,
@@ -126,7 +125,6 @@ export const OrganizationView = ({
         return tabs.map((tab, i) => ({
             color: tab.tabType === TabOptions.Resource ? "#8e6b00" : palette.secondary.dark, // Custom color for resources
             index: i,
-            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
@@ -142,6 +140,9 @@ export const OrganizationView = ({
         return toSearchListData("Project", "SearchProject", { ownedByOrganizationId: organization?.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab, organization?.id, permissions.canUpdate]);
 
+    const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
+    const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -156,120 +157,6 @@ export const OrganizationView = ({
         setLocation,
         setObject: setOrganization,
     });
-
-    /**
-     * Displays name, avatar, bio, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <OverviewContainer>
-            <Avatar
-                src={extractImageUrl(organization?.profileImage, organization?.updated_at, 100)}
-                sx={{
-                    backgroundColor: profileColors[0],
-                    color: profileColors[1],
-                    boxShadow: 2,
-                    transform: "translateX(-50%)",
-                    width: "min(100px, 25vw)",
-                    height: "min(100px, 25vw)",
-                    left: "50%",
-                    top: "-55px",
-                    position: "absolute",
-                    fontSize: "min(50px, 10vw)",
-                }}
-            >
-                <OrganizationIcon fill="white" width='75%' height='75%' />
-            </Avatar>
-            <Tooltip title={t("MoreOptions")}>
-                <IconButton
-                    aria-label={t("MoreOptions")}
-                    size="small"
-                    onClick={openMoreMenu}
-                    sx={{
-                        display: "block",
-                        marginLeft: "auto",
-                        marginRight: 1,
-                    }}
-                >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
-                </IconButton>
-            </Tooltip>
-            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
-                {/* Title */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : <Title
-                        title={name}
-                        variant="header"
-                        options={permissions.canUpdate ? [{
-                            label: t("Edit"),
-                            Icon: EditIcon,
-                            onClick: () => { actionData.onActionStart("Edit"); },
-                        }] : []}
-                        zIndex={zIndex}
-                    />
-                }
-                {/* Handle */}
-                {
-                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
-                        <Typography
-                            variant="h6"
-                            textAlign="center"
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                            }}
-                        >${handle}</Typography>
-                    </Link>
-                }
-                {/* Joined date */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    textBeforeDate="Joined"
-                    timestamp={organization?.created_at}
-                    width={"33%"}
-                    zIndex={zIndex}
-                />
-                {/* Bio */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : (
-                        <MarkdownDisplay
-                            variant="body1"
-                            sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
-                            content={bio ?? "No bio set"}
-                            zIndex={zIndex}
-                        />
-                    )
-                }
-                <Stack direction="row" spacing={2} alignItems="center">
-                    {/* <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip> */}
-                    <ShareButton object={organization} zIndex={zIndex} />
-                    <ReportsLink object={organization} />
-                    <BookmarkButton
-                        disabled={!permissions.canBookmark}
-                        objectId={organization?.id ?? ""}
-                        bookmarkFor={BookmarkFor.Organization}
-                        isBookmarked={organization?.you?.isBookmarked ?? false}
-                        bookmarks={organization?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
-                    />
-                </Stack>
-            </Stack>
-        </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, organization, bio, zIndex, actionData]);
 
     /**
      * Opens add new page
@@ -295,12 +182,8 @@ export const OrganizationView = ({
                 onClose={closeMoreMenu}
                 zIndex={zIndex + 1}
             />
-            <Box sx={{
-                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
-                display: "flex",
-                paddingTop: 5,
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                position: "relative",
+            <BannerImageContainer sx={{
+                backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
             }}>
                 {/* Language display/select */}
                 <Box sx={{
@@ -316,15 +199,116 @@ export const OrganizationView = ({
                         zIndex={zIndex}
                     />}
                 </Box>
-                {overviewComponent}
-            </Box>
+            </BannerImageContainer>
+            <OverviewContainer>
+                <OverviewProfileStack>
+                    <OverviewProfileAvatar
+                        src={extractImageUrl(organization?.profileImage, organization?.updated_at, 100)}
+                        sx={{
+                            backgroundColor: profileColors[0],
+                            color: profileColors[1],
+                        }}
+                    >
+                        <OrganizationIcon width="75%" height="75%" />
+                    </OverviewProfileAvatar>
+                    <Tooltip title={t("MoreOptions")}>
+                        <IconButton
+                            aria-label={t("MoreOptions")}
+                            size="small"
+                            onClick={openMoreMenu}
+                            sx={{
+                                display: "block",
+                                marginLeft: "auto",
+                                marginRight: 1,
+                            }}
+                        >
+                            <EllipsisIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <BookmarkButton
+                        objectId={organization?.id ?? ""}
+                        bookmarkFor={BookmarkFor.Organization}
+                        isBookmarked={organization?.you?.isBookmarked ?? false}
+                        bookmarks={organization?.bookmarks ?? 0}
+                        onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
+                    />
+                </OverviewProfileStack>
+                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
+                    alignItems: "flex-start",
+                }}>
+                    {/* Title */}
+                    {
+                        (isLoading && !name) ? (
+                            <TextLoading size="header" sx={{ width: "50%" }} />
+                        ) : <Title
+                            title={name}
+                            variant="header"
+                            options={permissions.canUpdate ? [{
+                                label: t("Edit"),
+                                Icon: EditIcon,
+                                onClick: () => { actionData.onActionStart("Edit"); },
+                            }] : []}
+                            zIndex={zIndex}
+                            sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
+                        />
+                    }
+                    {/* Handle */}
+                    {
+                        handle && <Typography
+                            variant="h6"
+                            textAlign="center"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.Organization}/${handle}`);
+                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                            }}
+                            sx={{
+                                color: palette.secondary.dark,
+                                cursor: "pointer",
+                                paddingBottom: 2,
+                            }}
+                        >@{handle}</Typography>
+                    }
+                    {/* Bio */}
+                    {
+                        (isLoading && !bio) ? (
+                            <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
+                        ) : (
+                            <MarkdownDisplay
+                                variant="body1"
+                                sx={{ color: bio ? palette.background.textPrimary : palette.background.textSecondary }}
+                                content={bio ?? "No bio set"}
+                                zIndex={zIndex}
+                            />
+                        )
+                    }
+                    <Stack direction="row" spacing={2} sx={{
+                        alignItems: "center",
+                    }}>
+                        {/* Joined date */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            textBeforeDate="Joined"
+                            timestamp={organization?.created_at}
+                            zIndex={zIndex}
+                        />
+                        <ReportsLink object={organization} />
+                    </Stack>
+                </Stack>
+            </OverviewContainer>
             {/* View routines, members, standards, and projects associated with this organization */}
-            <Box sx={{ margin: "auto", maxWidth: "800px" }}>
+            <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
                 <PageTabs
                     ariaLabel="organization-tabs"
+                    fullWidth
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
+                    sx={{
+                        background: palette.background.paper,
+                        borderBottom: `1px solid ${palette.divider}`,
+                    }}
                 />
                 <Box>
                     {
@@ -337,6 +321,12 @@ export const OrganizationView = ({
                                 id="organization-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
+                                sxs={showSearchFilters ? {
+                                    search: { marginTop: 2 },
+                                } : {
+                                    search: { display: "none" },
+                                    buttons: { display: "none" },
+                                }}
                                 take={20}
                                 where={where}
                                 zIndex={zIndex}
@@ -345,6 +335,16 @@ export const OrganizationView = ({
                     }
                 </Box>
             </Box>
+            <SideActionButtons
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                {/* Toggle search filters */}
+                {currTab.value !== TabOptions.Resource ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton> : null}
+            </SideActionButtons>
         </>
     );
 };
