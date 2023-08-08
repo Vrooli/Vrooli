@@ -15,12 +15,12 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { PageTab } from "components/types";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, InfoIcon, OrganizationIcon, ProjectIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart, useLocation } from "route";
 import { OverviewContainer } from "styles";
-import { PartialWithType, SvgComponent } from "types";
+import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookiePartialData } from "utils/cookies";
@@ -43,12 +43,10 @@ enum TabOptions {
 }
 
 type TabParams = {
-    Icon: SvgComponent;
     searchType: SearchType;
     tabType: Omit<TabOptions, TabOptions.Details>;
     where: { [x: string]: any };
 } | {
-    Icon: SvgComponent;
     tabType: TabOptions.Details;
 }
 
@@ -56,15 +54,12 @@ type TabParams = {
 const tabParams: TabParams[] = [
     // Only available for bots
     {
-        Icon: InfoIcon,
         tabType: TabOptions.Details,
     }, {
-        Icon: ProjectIcon,
         searchType: SearchType.Project,
         tabType: TabOptions.Project,
         where: {},
     }, {
-        Icon: OrganizationIcon,
         searchType: SearchType.Organization,
         tabType: TabOptions.Organization,
         where: {},
@@ -74,7 +69,6 @@ const tabParams: TabParams[] = [
 export const UserView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: UserViewProps) => {
     const session = useContext(SessionContext);
@@ -83,11 +77,6 @@ export const UserView = ({
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
-    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => partialData ?? { __typename: "User" });
-    useDisplayServerError(userErrors ?? profileErrors);
     // Parse information from URL
     const urlInfo = useMemo(() => {
         const urlEnding = getLastUrlPart({});
@@ -104,6 +93,11 @@ export const UserView = ({
             return {};
         }
     }, [session]);
+    // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
+    const [getUserData, { data: userData, errors: userErrors, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
+    const [getProfileData, { data: profileData, errors: profileErrors, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>(urlInfo.id) ?? { __typename: "User" });
+    useDisplayServerError(userErrors ?? profileErrors);
     // Get user or profile data
     useEffect(() => {
         if (urlInfo.isOwnProfile) getProfileData();
@@ -112,9 +106,9 @@ export const UserView = ({
     }, [getUserData, getProfileData, urlInfo]);
     // Set user data
     useEffect(() => {
-        const knownData = userData ?? profileData ?? partialData;
+        const knownData = userData ?? profileData;
         setUser(knownData ?? getCookiePartialData<PartialWithType<User>>(urlInfo.id) ?? { __typename: "User" });
-    }, [userData, profileData, partialData, urlInfo]);
+    }, [userData, profileData, urlInfo]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
     const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
@@ -394,6 +388,7 @@ export const UserView = ({
             <Box sx={{ margin: "auto", maxWidth: "800px" }}>
                 <PageTabs
                     ariaLabel="user-tabs"
+                    fullWidth
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}

@@ -7,7 +7,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
-import { AddIcon, ApiIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
+import { AddIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
@@ -30,52 +30,42 @@ type BaseParams = {
 
 // Data for each tab TODO add bot tab
 const tabParams: BaseParams[] = [{
-    Icon: RoutineIcon,
     searchType: SearchType.Routine,
     tabType: MyStuffPageTabOption.Routines,
     where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
-    Icon: ProjectIcon,
     searchType: SearchType.Project,
     tabType: MyStuffPageTabOption.Projects,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: MonthIcon,
     searchType: SearchType.Schedule,
     tabType: MyStuffPageTabOption.Schedules,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: ReminderIcon,
     searchType: SearchType.Reminder,
     tabType: MyStuffPageTabOption.Reminders,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: NoteIcon,
     searchType: SearchType.Note,
     tabType: MyStuffPageTabOption.Notes,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: HelpIcon,
     searchType: SearchType.Question,
     tabType: MyStuffPageTabOption.Questions,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: OrganizationIcon,
     searchType: SearchType.Organization,
     tabType: MyStuffPageTabOption.Organizations,
     where: (userId) => ({ memberUserIds: [userId] }),
 }, {
-    Icon: StandardIcon,
     searchType: SearchType.Standard,
     tabType: MyStuffPageTabOption.Standards,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: ApiIcon,
     searchType: SearchType.Api,
     tabType: MyStuffPageTabOption.Apis,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: SmartContractIcon,
     searchType: SearchType.SmartContract,
     tabType: MyStuffPageTabOption.SmartContracts,
     where: () => ({ visibility: VisibilityType.Own }),
@@ -214,6 +204,7 @@ export const MyStuffView = ({
                 title={t("MyStuff")}
                 below={<PageTabs
                     ariaLabel="my-stuff-tabs"
+                    fullWidth
                     id="my-stuff-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}

@@ -3,7 +3,7 @@ import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon } from "icons";
+import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -18,55 +18,46 @@ import { SearchViewProps } from "../types";
 
 // Data for each tab
 const tabParams = [{
-    Icon: RoutineIcon,
     titleKey: "Routine" as CommonKey,
     searchType: SearchType.Routine,
     tabType: SearchPageTabOption.Routines,
     where: { isInternal: false },
 }, {
-    Icon: ProjectIcon,
     titleKey: "Project" as CommonKey,
     searchType: SearchType.Project,
     tabType: SearchPageTabOption.Projects,
     where: {},
 }, {
-    Icon: HelpIcon,
     titleKey: "Question" as CommonKey,
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
-    Icon: NoteIcon,
     titleKey: "Note" as CommonKey,
     searchType: SearchType.Note,
     tabType: SearchPageTabOption.Notes,
     where: {},
 }, {
-    Icon: OrganizationIcon,
     titleKey: "Organization" as CommonKey,
     searchType: SearchType.Organization,
     tabType: SearchPageTabOption.Organizations,
     where: {},
 }, {
-    Icon: UserIcon,
     titleKey: "User" as CommonKey,
     searchType: SearchType.User,
     tabType: SearchPageTabOption.Users,
     where: {},
 }, {
-    Icon: StandardIcon,
     titleKey: "Standard" as CommonKey,
     searchType: SearchType.Standard,
     tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
-    Icon: ApiIcon,
     titleKey: "Api" as CommonKey,
     searchType: SearchType.Api,
     tabType: SearchPageTabOption.Apis,
     where: {},
 }, {
-    Icon: SmartContractIcon,
     titleKey: "SmartContract" as CommonKey,
     searchType: SearchType.SmartContract,
     tabType: SearchPageTabOption.SmartContracts,
