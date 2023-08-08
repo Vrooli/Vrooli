@@ -122,7 +122,6 @@ export function ObjectListItemBase<T extends ListObject>({
     const leftColumn = useMemo(() => {
         // Show icons for organizations, users, and members
         if (isOfType(object, "Organization", "User", "Member")) {
-            console.log("calculating left column", object);
             const isBot = (object as unknown as User).isBot || (object as unknown as Member).user?.isBot || (object as unknown as Chat).participants?.[0]?.user?.isBot;
             let Icon: SvgComponent;
             if (object.__typename === "Organization") {

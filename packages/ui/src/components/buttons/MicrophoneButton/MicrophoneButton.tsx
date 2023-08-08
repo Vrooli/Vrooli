@@ -19,7 +19,6 @@ export const MicrophoneButton = ({
     onTranscriptChange,
     zIndex,
 }: MicrophoneButtonProps) => {
-    console.log("MicrophoneButton", zIndex);
     const { palette } = useTheme();
     const { t } = useTranslation();
 

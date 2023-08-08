@@ -114,7 +114,10 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
                 else openLink(setLocation, link);
             }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
-            sx={{ color: "white" }}
+            sx={{
+                color: "white",
+                minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
+            }}
         />
     ));
 };

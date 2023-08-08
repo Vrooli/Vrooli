@@ -32,8 +32,6 @@ export const SelectBookmarkListDialog = ({
 
     const [lists, setLists] = useState<BookmarkList[]>(getCurrentUser(session).bookmarkLists ?? []);
     const [selectedLists, setSelectedLists] = useState<BookmarkList[]>([]);
-    console.log("listssssssss", lists);
-    console.log("selected listssssssss", selectedLists);
 
     useEffect(() => {
         setLists(getCurrentUser(session).bookmarkLists ?? []);

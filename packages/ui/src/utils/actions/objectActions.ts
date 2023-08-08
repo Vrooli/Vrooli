@@ -49,7 +49,6 @@ export enum ObjectActionComplete {
  */
 export const getAvailableActions = (object: ListObject | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
-    console.log("action getavailableactions", session);
     const isLoggedIn = checkIfLoggedIn(session);
     const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object);
     let options: ObjectAction[] = [];

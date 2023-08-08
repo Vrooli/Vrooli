@@ -102,8 +102,8 @@ export const BookmarkButton = ({
                 zIndex={zIndex + 1}
             />
             {/* Main content */}
-            <Tooltip title={t("Bookmark")}>
-                <IconButton aria-label={t("Bookmark")} size="small" onClick={handleClick}>
+            <Tooltip title={t("Bookmark", { count: 1 })}>
+                <IconButton aria-label={t("Bookmark", { count: 1 })} size="small" onClick={handleClick}>
                     <Icon fill={fill} />
                 </IconButton>
             </Tooltip>
