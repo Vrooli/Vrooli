@@ -352,8 +352,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         onClose(newValue as any);
     }, [onClose]);
 
-    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
-        (createMap as any)[createObjectType!.replace("Version", "")], [createObjectType]);
+    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() => {
+        if (!createObjectType) return null;
+        return (createMap as any)[createObjectType.replace("Version", "")];
+    }, [createObjectType]);
     useEffect(() => {
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);

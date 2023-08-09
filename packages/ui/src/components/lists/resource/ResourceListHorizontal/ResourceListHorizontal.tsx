@@ -5,7 +5,6 @@ import { Box, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
-import { cardRoot } from "components/lists/styles";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
@@ -28,11 +27,12 @@ import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 
 const ResourceBox = styled(Box)(({ theme }) => ({
     ...noSelect,
+    display: "block",
     boxShadow: theme.spacing(4),
     background: theme.palette.primary.light,
     color: theme.palette.secondary.contrastText,
     borderRadius: "16px",
-    margin: theme.spacing(0),
+    margin: "auto",
     padding: theme.spacing(1),
     cursor: "pointer",
     width: "120px",
@@ -60,8 +60,6 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-
-    const [showIcons, setShowIcons] = useState(false);
 
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
@@ -100,21 +98,10 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
         onContextMenu(target, index);
     }, [onContextMenu, index]);
 
-    const handleHover = useCallback(() => {
-        if (canUpdate) {
-            setShowIcons(true);
-        }
-    }, [canUpdate]);
-
-    const handleHoverEnd = useCallback(() => { setShowIcons(false); }, []);
-
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
         onClick: handleClick,
-        onHover: handleHover,
-        onHoverEnd: handleHoverEnd,
         onRightClick: handleContextMenu,
-        hoverDelay: 100,
     });
 
     return (
@@ -129,7 +116,7 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 onClick={(e) => e.preventDefault()}
             >
                 {/* Edit and delete icons, only visible on hover */}
-                {showIcons && (
+                {canUpdate && (
                     <>
                         <Tooltip title={t("Edit")}>
                             <ColorIconButton
@@ -346,16 +333,16 @@ export const ResourceListHorizontal = ({
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
                     {(provided) => (
-                        <Stack
+                        <Box
                             ref={provided.innerRef}
                             id={id}
                             {...provided.droppableProps}
-                            direction="row"
-                            justifyContent="center"
+                            justifyContent="flex-start"
                             alignItems="center"
-                            spacing={2}
                             p={1}
                             sx={{
+                                display: "flex",
+                                gap: 2,
                                 width: "100%",
                                 maxWidth: "700px",
                                 marginLeft: "auto",
@@ -401,26 +388,20 @@ export const ResourceListHorizontal = ({
                             }
                             {/* Add resource button */}
                             {canUpdate ? <Tooltip placement="top" title={t("CreateResource")}>
-                                <Box
+                                <ResourceBox
                                     onClick={openDialog}
                                     aria-label={t("CreateResource")}
                                     sx={{
-                                        ...cardRoot,
-                                        background: palette.primary.light,
-                                        width: "120px",
-                                        minWidth: "120px",
-                                        height: "120px",
-                                        minHeight: "120px",
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
                                     }}
                                 >
                                     <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
-                                </Box>
+                                </ResourceBox>
                             </Tooltip> : null}
                             {provided.placeholder}
-                        </Stack>
+                        </Box>
                     )}
                 </Droppable>
             </DragDropContext>
