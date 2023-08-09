@@ -93,7 +93,7 @@ export const setCookiePreferences = (preferences: CookiePreferences) => {
  * @param callback Callback function to call if cookie is allowed
  * @param fallback Optional fallback value to use if cookie is not allowed
  */
-export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
+const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
     const preferences = getCookiePreferences();
     if (cookieType === "strictlyNecessary" || preferences?.[cookieType]) {
         return callback();
@@ -163,6 +163,41 @@ type PartialData = {
         handle?: string | null,
     } | null,
 };
+/** 
+ * Stores multiple cached objects, in a way that allows 
+ * for removing the oldest object when the cache is full.
+ * 
+ * Objects can be cached using their ID or handle, or root's ID or handle
+ */
+type Cache = {
+    idMap: Record<string, PartialData>,
+    handleMap: Record<string, PartialData>,
+    idRootMap: Record<string, PartialData>,
+    handleRootMap: Record<string, PartialData>,
+    order: string[], // Order of objects in cache, for FIFO
+};
+
+const MAX_CACHE_SIZE = 300;
+
+/** Get object containing all cached objects */
+const getCache = (): Cache => getOrSetCookie(
+    Cookies.PartialData, // Cookie name
+    (value: unknown): value is Cache =>
+        typeof value === "object" &&
+        typeof (value as Partial<Cache>)?.idMap === "object" &&
+        typeof (value as Partial<Cache>)?.handleMap === "object" &&
+        typeof (value as Partial<Cache>)?.idRootMap === "object" &&
+        typeof (value as Partial<Cache>)?.handleRootMap === "object" &&
+        Array.isArray((value as Partial<Cache>)?.order),
+    {
+        idMap: {},
+        handleMap: {},
+        idRootMap: {},
+        handleRootMap: {},
+        order: [],
+    }, // Default value
+) as Cache;
+
 /** Shape knownData to replace idRoot and handleRoot with proper root object */
 const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
     ...knownData,
@@ -180,23 +215,15 @@ export const getCookiePartialData = <T extends PartialData>(knownData: T): T =>
     ifAllowed("functional",
         () => {
             const shapedKnownData = shapeKnownData(knownData);
-            console.log("getCookiePartialData shapedKnownData", shapedKnownData);
-            // If known data does not contain an id or handle, return known data
-            if (
-                !shapedKnownData?.id &&
-                !shapedKnownData?.handle &&
-                !shapedKnownData?.root?.id &&
-                !shapedKnownData?.root?.handle
-            ) return shapedKnownData;
-            // Find stored data
-            const storedData = getOrSetCookie(Cookies.PartialData, (value: unknown): value is PartialData => typeof value === "object");
-            // If stored data matches known data (i.e. same type and id or handle), return stored data
-            if (storedData?.__typename === shapedKnownData?.__typename && (
-                storedData?.id === shapedKnownData?.id ||
-                storedData?.handle === shapedKnownData?.handle ||
-                storedData?.root?.id === shapedKnownData?.root?.id ||
-                storedData?.root?.handle === shapedKnownData?.root?.handle
-            )) {
+            // Get the cache, which hopefully includes more info on the requested object
+            const cache = getCache();
+            // Try to find stored data in cache
+            const storedData = cache.idMap[shapedKnownData.id || ""] ||
+                cache.handleMap[shapedKnownData.handle || ""] ||
+                cache.idRootMap[shapedKnownData.root?.id || ""] ||
+                cache.handleRootMap[shapedKnownData.root?.handle || ""];
+            // Return match if found
+            if (storedData && storedData.__typename === shapedKnownData.__typename) {
                 return storedData;
             }
             // Otherwise return known data
@@ -204,4 +231,48 @@ export const getCookiePartialData = <T extends PartialData>(knownData: T): T =>
         },
         shapeKnownData(knownData),
     );
-export const setCookiePartialData = (partialData: PartialData) => ifAllowed("functional", () => setCookie(Cookies.PartialData, partialData));
+export const setCookiePartialData = (partialData: PartialData) => ifAllowed("functional", () => {
+    ifAllowed("functional", () => {
+        // Get the cache
+        const cache = getCache();
+        // Create a key that includes every identifier for the object
+        const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
+        // Check if the object is already in the cache
+        const isAlreadyInCache = (partialData.id && cache.idMap[partialData.id]) ||
+            (partialData.handle && cache.handleMap[partialData.handle]) ||
+            (partialData.root?.id && cache.idRootMap[partialData.root.id]) ||
+            (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]);
+        // Store the object in the cache, even if it already existed. Store in every map that applies, since we don't know which one will be needed
+        if (partialData.id) cache.idMap[partialData.id] = partialData;
+        if (partialData.handle) cache.handleMap[partialData.handle] = partialData;
+        if (partialData.root?.id) cache.idRootMap[partialData.root.id] = partialData;
+        if (partialData.root?.handle) cache.handleRootMap[partialData.root.handle] = partialData;
+        // If the object was already in the cache, update the order so it's at the end
+        if (isAlreadyInCache) {
+            // Find the existing key in the order array
+            const existingIndex = cache.order.indexOf(key);
+            if (existingIndex !== -1) {
+                // Remove the existing key
+                cache.order.splice(existingIndex, 1);
+                // Add it back to the end
+                cache.order.push(key);
+            }
+            return;
+        }
+        // If the cache is full, remove the oldest object
+        if (cache.order.length >= MAX_CACHE_SIZE) {
+            const oldestKey = cache.order.shift();
+            if (oldestKey && typeof oldestKey === "string") {
+                const [id, handle, idRoot, handleRoot] = oldestKey.split("|");
+                delete cache.idMap[id];
+                delete cache.handleMap[handle];
+                delete cache.idRootMap[idRoot];
+                delete cache.handleRootMap[handleRoot];
+            }
+        }
+        // Push the new object to the end of the FIFO order
+        cache.order.push(key);
+
+        setCookie(Cookies.PartialData, cache);
+    });
+});
