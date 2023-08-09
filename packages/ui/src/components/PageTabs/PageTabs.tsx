@@ -105,9 +105,13 @@ export const PageTabs = <T extends string | number | object>({
             const activeTab: HTMLElement = tabsContainer.children[currTab.index] as HTMLElement;
 
             if (activeTab) {
-                // Use the offsetLeft of the active tab
-                const leftPosition = activeTab.offsetLeft;
-                const width = activeTab.offsetWidth;
+                // Get the margin values
+                const margin = getComputedStyle(activeTab).marginLeft || "0";
+                const marginValue = parseFloat(margin);
+
+                // Adjust the offsetLeft and offsetWidth by the margin
+                const leftPosition = activeTab.offsetLeft - marginValue;
+                const width = activeTab.offsetWidth + marginValue * 2;
 
                 underlineElement.style.left = `${leftPosition}px`;
                 underlineElement.style.width = `${width}px`;
