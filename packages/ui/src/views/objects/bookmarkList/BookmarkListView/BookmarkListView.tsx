@@ -25,7 +25,6 @@ import { BookmarkListViewProps } from "../types";
 export const BookmarkListView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
@@ -35,7 +34,7 @@ export const BookmarkListView = ({
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
         ...endpointGetBookmarkList,
-        partialData,
+        objectType: "BookmarkList",
     });
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);

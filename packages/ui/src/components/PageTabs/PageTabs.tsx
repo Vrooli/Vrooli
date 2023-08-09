@@ -19,7 +19,36 @@ export const PageTabs = <T extends string | number | object>({
     const tabsRef = useRef<HTMLDivElement>(null);
     const underlineRef = useRef<HTMLDivElement>(null);
 
+    // Handle dragging of tabs
+    const draggingRef = useRef(false);
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (tabsRef.current) {
+            const startX = e.clientX;
+            const scrollLeft = tabsRef.current.scrollLeft;
+
+            const handleMouseMove = (e: MouseEvent) => {
+                if (!tabsRef.current) return;
+                draggingRef.current = true;
+                const x = e.clientX;
+                const walk = (x - startX);
+                tabsRef.current.scrollLeft = scrollLeft - walk;
+            };
+
+            const handleMouseUp = () => {
+                setTimeout(() => { draggingRef.current = false; }, 50);
+                document.removeEventListener("mousemove", handleMouseMove);
+                document.removeEventListener("mouseup", handleMouseUp);
+            };
+
+            document.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+        }
+
+        e.preventDefault();
+    };
+
     const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
+        if (draggingRef.current) return;
         // Add transition for smooth animation of underline
         if (underlineRef.current) {
             underlineRef.current.style.transition = "left 0.3s ease, width 0.3s ease";
@@ -103,6 +132,7 @@ export const PageTabs = <T extends string | number | object>({
             id={id}
             ref={tabsRef}
             role="tablist"
+            onMouseDown={handleMouseDown}
             sx={{
                 minWidth: fullWidth ? "100%" : undefined,
                 maxWidth: "100%",

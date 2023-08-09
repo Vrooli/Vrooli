@@ -106,11 +106,11 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) > 0}
                 sx={{
-                    cursor: (userId || disabled) ? "pointer" : "default",
+                    cursor: (userId && !disabled) ? "pointer" : "default",
                     pointerEvents: "all",
                     display: "flex",
                     "&:hover": {
-                        filter: userId ? "brightness(120%)" : "none",
+                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
                         transition: "filter 0.2s",
                     },
                 }}
@@ -126,11 +126,11 @@ export const VoteButton = ({
                 role="button"
                 aria-pressed={getReactionScore(internalEmoji) < 0}
                 sx={{
-                    cursor: (userId || disabled) ? "pointer" : "default",
+                    cursor: (userId && !disabled) ? "pointer" : "default",
                     pointerEvents: "all",
                     display: "flex",
                     "&:hover": {
-                        filter: userId ? "brightness(120%)" : "none",
+                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
                         transition: "filter 0.2s",
                     },
                 }}

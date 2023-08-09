@@ -16,7 +16,6 @@ import { MeetingViewProps } from "../types";
 export const MeetingView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: MeetingViewProps) => {
     const session = useContext(SessionContext);
@@ -27,7 +26,7 @@ export const MeetingView = ({
 
     const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
         ...endpointGetMeeting,
-        partialData,
+        objectType: "Meeting",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);

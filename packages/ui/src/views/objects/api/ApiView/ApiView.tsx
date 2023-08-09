@@ -24,7 +24,6 @@ import { ApiViewProps } from "../types";
 export const ApiView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
@@ -35,7 +34,7 @@ export const ApiView = ({
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
         ...endpointGetApiVersion,
-        partialData,
+        objectType: "ApiVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);

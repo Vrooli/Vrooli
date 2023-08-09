@@ -61,7 +61,6 @@ const tabParams: TabParams[] = [{
 export const OrganizationView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: OrganizationViewProps) => {
     const session = useContext(SessionContext);
@@ -84,15 +83,15 @@ export const OrganizationView = ({
 
     const { bannerImageUrl, bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | null | undefined = organization?.resourceList;
-        const { bio, name } = getTranslation(organization ?? partialData, [language]);
+        const { bio, name } = getTranslation(organization, [language]);
         return {
             bannerImageUrl: extractImageUrl(organization?.bannerImage, organization?.updated_at, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            handle: organization?.handle ?? partialData?.handle,
+            handle: organization?.handle,
             name,
             resourceList,
         };
-    }, [language, organization, partialData]);
+    }, [language, organization]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -258,6 +257,7 @@ export const OrganizationView = ({
                         handle && <Typography
                             variant="h6"
                             textAlign="center"
+                            fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.Organization}/${handle}`);
                                 PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
@@ -285,11 +285,11 @@ export const OrganizationView = ({
                     <Stack direction="row" spacing={2} sx={{
                         alignItems: "center",
                     }}>
-                        {/* Joined date */}
+                        {/* Created date */}
                         <DateDisplay
                             loading={isLoading}
                             showIcon={true}
-                            textBeforeDate="Joined"
+                            textBeforeDate="Created"
                             timestamp={organization?.created_at}
                             zIndex={zIndex}
                         />

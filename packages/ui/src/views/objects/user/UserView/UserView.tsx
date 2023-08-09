@@ -296,6 +296,7 @@ export const UserView = ({
                         handle && <Typography
                             variant="h6"
                             textAlign="center"
+                            fontFamily="monospace"
                             onClick={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
                                 PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });

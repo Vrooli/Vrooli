@@ -12,7 +12,6 @@ import { RunProjectViewProps } from "../types";
 export const RunProjectView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: RunProjectViewProps) => {
     const { palette } = useTheme();
@@ -21,7 +20,7 @@ export const RunProjectView = ({
 
     const { object: existing, isLoading, setObject: setRunProject } = useObjectFromUrl<RunProject>({
         ...endpointGetRunProject,
-        partialData,
+        objectType: "RunProject",
     });
 
     const { title } = useMemo(() => ({ title: getDisplay(existing).title ?? "" }), [existing]);

@@ -72,6 +72,11 @@ export const parseSingleItemUrl = ({
         idRoot?: string,
         id?: string,
     } = {};
+    // Helper for checking if a string is a handle
+    const isHandle = (text: string) => {
+        if (text.startsWith("@")) text = text.slice(1);
+        return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS);
+    };
     // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart({ url });
     const secondLastPart = getLastUrlPart({ url, offset: 1 });
@@ -91,16 +96,16 @@ export const parseSingleItemUrl = ({
     if (isVersioned) {
         let hasRoot = false;
         // Check if the second last part is a root handle or root ID
-        if (handleRegex.test(secondLastPart)) {
-            returnObject.handleRoot = secondLastPart;
+        if (isHandle(secondLastPart)) {
+            returnObject.handleRoot = secondLastPart.replace("@", "");
             hasRoot = true;
         } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
             returnObject.idRoot = base36ToUuid(secondLastPart);
             hasRoot = true;
         }
         // Check if the last part is a version handle or version ID
-        if (handleRegex.test(lastPart)) {
-            if (hasRoot) returnObject.handle = lastPart;
+        if (isHandle(lastPart)) {
+            if (hasRoot) returnObject.handle = lastPart.replace("@", "");
             else returnObject.handleRoot = lastPart;
         } else if (uuidValidate(base36ToUuid(lastPart, false))) {
             if (hasRoot) returnObject.id = base36ToUuid(lastPart, false);
@@ -108,8 +113,8 @@ export const parseSingleItemUrl = ({
         }
     } else {
         // If the URL is for a non-versioned object, check if the last part is a handle or ID
-        if (handleRegex.test(lastPart)) {
-            returnObject.handle = lastPart;
+        if (isHandle(lastPart)) {
+            returnObject.handle = lastPart.replace("@", "");
         } else if (uuidValidate(base36ToUuid(lastPart, false))) {
             returnObject.id = base36ToUuid(lastPart, false);
         }

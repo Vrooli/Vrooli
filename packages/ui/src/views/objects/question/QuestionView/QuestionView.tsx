@@ -30,7 +30,6 @@ import { QuestionViewProps } from "../types";
 export const QuestionView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
@@ -40,7 +39,7 @@ export const QuestionView = ({
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
         ...endpointGetQuestion,
-        partialData,
+        objectType: "Question",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);

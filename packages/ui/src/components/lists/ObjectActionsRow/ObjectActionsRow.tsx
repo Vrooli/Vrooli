@@ -4,10 +4,10 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { EllipsisIcon } from "icons";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
-import { ObjectActionsRowObject, ObjectActionsRowProps } from "../types";
+import { ObjectActionsRowProps } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
     color: "inherit",
@@ -25,7 +25,7 @@ const commonIconProps = (palette: Palette) => ({
  * Available icons are same as ObjectActionMenu. Actions that are not available are hidden.
  * If there are more than 5 actions, rest are hidden in an overflow menu (i.e. ObjectActionMenu).
  */
-export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
+export const ObjectActionsRow = <T extends ListObject>({
     actionData,
     exclude,
     object,

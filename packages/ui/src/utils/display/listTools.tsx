@@ -134,17 +134,17 @@ export const getYou = (
     for (const key in objectPermissions) {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "string") objectPermissions[key] = field;
+        if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
         // If not, check if the field is in the root.you object
         else {
             const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false || typeof field === "string") objectPermissions[key] = field;
+            if (field === true || field === false || typeof field === "boolean") objectPermissions[key] = field;
         }
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
-    if (objectPermissions.canReact && !(exists(ReactionFor[object.__typename]) || exists(ReactionFor[object.__typename + "Version"]))) objectPermissions.canReact = false;
-    if (objectPermissions.canBookmark && !(exists(BookmarkFor[object.__typename]) || exists(BookmarkFor[object.__typename + "Version"]))) objectPermissions.canBookmark = false;
-    if (objectPermissions.canComment && !(exists(CommentFor[object.__typename]) || exists(CommentFor[object.__typename + "Version"]))) objectPermissions.canComment = false;
+    if (objectPermissions.canReact && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(ReactionFor[type]))) objectPermissions.canReact = false;
+    if (objectPermissions.canBookmark && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(BookmarkFor[type]))) objectPermissions.canBookmark = false;
+    if (objectPermissions.canComment && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(CommentFor[type]))) objectPermissions.canComment = false;
     return objectPermissions;
 };
 

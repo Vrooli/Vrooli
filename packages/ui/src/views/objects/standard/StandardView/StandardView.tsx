@@ -42,7 +42,6 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
@@ -52,7 +51,7 @@ export const StandardView = ({
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
         ...endpointGetStandardVersion,
-        partialData,
+        objectType: "StandardVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);

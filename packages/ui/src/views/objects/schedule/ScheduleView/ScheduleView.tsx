@@ -23,7 +23,7 @@ export const ScheduleView = ({
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
         ...endpointGetSchedule,
-        partialData,
+        objectType: "Schedule",
     });
 
     // useEffect(() => {

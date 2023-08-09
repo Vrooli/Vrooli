@@ -210,7 +210,7 @@ export const ResourceListHorizontal = ({
                                 </Draggable>
                             ))}
                             {
-                                loading && (
+                                loading && !Array.isArray(list?.resources) && (
                                     <CircularProgress sx={{
                                         position: "absolute",
                                         top: "50%",

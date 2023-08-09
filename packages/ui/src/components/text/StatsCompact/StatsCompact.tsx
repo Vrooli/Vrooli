@@ -1,47 +1,44 @@
 import { ReactionFor } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
+import { VisibleIcon } from "icons";
 import { useMemo } from "react";
-import { getCounts, getYou } from "utils/display/listTools";
-import { StatsCompactProps, StatsCompactPropsObject } from "../types";
-import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
+import { getCounts, getYou, ListObject } from "utils/display/listTools";
+import { StatsCompactProps } from "../types";
 
 /**
  * Displays basic stats about an object, in a short format.
  * Displays votes, views, date created, and reports
  */
-export const StatsCompact = <T extends StatsCompactPropsObject>({
+export const StatsCompact = <T extends ListObject>({
     handleObjectUpdate,
-    loading,
     object,
 }: StatsCompactProps<T>) => {
-    const you = useMemo(() => getYou(object as any), [object]);
-    const counts = useMemo(() => getCounts(object as any), [object]);
+    const { palette } = useTheme();
+
+    const you = useMemo(() => getYou(object), [object]);
+    const counts = useMemo(() => getCounts(object), [object]);
+    console.log("stats you", you, object);
 
     return (
         <Stack
             direction="row"
+            spacing={1}
             sx={{
                 marginTop: 1,
                 marginBottom: 1,
                 display: "flex",
                 alignItems: "center",
-                // Space items out, with first item having less space than the rest
-                "& > *:not(:first-child)": {
-                    marginLeft: 1,
-                },
-                "& > *:nth-child(3)": {
-                    marginLeft: 2,
-                },
+                color: palette.background.textSecondary,
             }}
         >
-            {/* Votes */}
-            {object && object.__typename in ReactionFor && <VoteButton
+            {/* Votes. Show even if you can't vote */}
+            {object && object.__typename.replace("Version", "") in ReactionFor && <VoteButton
                 direction="row"
                 disabled={!you.canReact}
                 emoji={you.reaction}
-                objectId={object.id}
+                objectId={object.id ?? ""}
                 voteFor={object.__typename as ReactionFor}
                 score={counts.score}
                 onChange={(newEmoji, newScore) => {
@@ -53,7 +50,12 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
                 }}
             />}
             {/* Views */}
-            <ViewsDisplay views={(object as any)?.views} />
+            <Box display="flex" alignItems="center">
+                <VisibleIcon />
+                <Typography variant="body2">
+                    {(object as any)?.views ?? 1}
+                </Typography>
+            </Box>
             {/* Reports */}
             {object?.id && <ReportsLink object={object as any} />}
         </Stack>

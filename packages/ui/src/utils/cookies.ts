@@ -151,16 +151,29 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
 
-type PartialData = { __typename: NavigableObject["__typename"], id?: string | null, handle?: string | null };
+type PartialData = {
+    __typename: NavigableObject["__typename"],
+    id?: string | null,
+    handle?: string | null
+    root?: {
+        id?: string | null,
+        handle?: string | null,
+    } | null,
+};
 export const getCookiePartialData = <T extends PartialData | undefined>(knownData: T | null | undefined): T =>
     ifAllowed("functional",
         () => {
             // If known data does not contain an id or handle, return known data
-            if (!knownData?.id && !knownData?.handle) return knownData;
+            if (!knownData?.id && !knownData?.handle && !knownData?.root?.id && !knownData?.root?.handle) return knownData;
             // Find stored data
             const storedData = getOrSetCookie(Cookies.PartialData, (value: unknown): value is PartialData => typeof value === "object");
             // If stored data matches known data (i.e. same type and id or handle), return stored data
-            if (storedData?.__typename === knownData?.__typename && (storedData?.id === knownData?.id || storedData?.handle === knownData?.handle)) {
+            if (storedData?.__typename === knownData?.__typename && (
+                storedData?.id === knownData?.id ||
+                storedData?.handle === knownData?.handle ||
+                storedData?.root?.id === knownData?.root?.id ||
+                storedData?.root?.handle === knownData?.root?.handle
+            )) {
                 return storedData;
             }
             // Otherwise return known data

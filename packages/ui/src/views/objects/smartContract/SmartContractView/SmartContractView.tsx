@@ -23,7 +23,6 @@ import { SmartContractViewProps } from "../types";
 export const SmartContractView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
@@ -34,7 +33,7 @@ export const SmartContractView = ({
 
     const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion>({
         ...endpointGetSmartContractVersion,
-        partialData,
+        objectType: "SmartContractVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (smartContractVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [smartContractVersion?.translations]);

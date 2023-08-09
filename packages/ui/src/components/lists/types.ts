@@ -1,4 +1,4 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
@@ -8,8 +8,7 @@ import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 
-export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | Question | RoutineVersion | SmartContractVersion | StandardVersion | User;
-export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
+export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;

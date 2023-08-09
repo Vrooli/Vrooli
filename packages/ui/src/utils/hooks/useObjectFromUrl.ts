@@ -2,7 +2,7 @@ import { exists, GqlModelType } from "@local/shared";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { ParseSearchParamsResult } from "route";
 import { PartialWithType } from "types";
-import { getCookiePartialData } from "utils/cookies";
+import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -44,10 +44,17 @@ export function useObjectFromUrl<TData extends UrlObject>({
 
     // Fetch data
     const [getData, { data, loading: isLoading, errors }] = useLazyFetch<any, TData>({ endpoint });
-    const [object, setObject] = useState<PartialWithType<TData>>(getCookiePartialData({ __typename: objectType, id: urlParams.id, handle: urlParams.handle } as unknown as PartialWithType<TData>));
+    const [object, setObject] = useState<PartialWithType<TData>>(getCookiePartialData({
+        __typename: objectType,
+        id: urlParams.id,
+        handle: urlParams.handle,
+        root: urlParams.idRoot || urlParams.handleRoot ? {
+            id: urlParams.idRoot,
+            handle: urlParams.handleRoot,
+        } : undefined,
+    } as unknown as PartialWithType<TData>));
     useDisplayServerError(errors);
     useEffect(() => {
-        console.log("parseSingleItemUrl", urlParams);
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
@@ -58,6 +65,8 @@ export function useObjectFromUrl<TData extends UrlObject>({
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
     }, [getData, objectType, stableOnInvalidUrlParams, urlParams]);
     useEffect(() => {
+        // If data was queried, store it in local state
+        if (data) { console.log("setting cookie data", data); setCookiePartialData(data); }
         setObject(data ?? getCookiePartialData({ __typename: objectType, id: urlParams.id, handle: urlParams.handle } as unknown as PartialWithType<TData>));
     }, [data, objectType, urlParams]);
 

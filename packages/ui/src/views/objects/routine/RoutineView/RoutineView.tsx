@@ -16,6 +16,7 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { UpTransition } from "components/transitions";
@@ -50,7 +51,6 @@ const statsHelpText =
 export const RoutineView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: RoutineViewProps) => {
     const session = useContext(SessionContext);
@@ -65,7 +65,7 @@ export const RoutineView = ({
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
         },
-        partialData,
+        objectType: "RoutineVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -75,9 +75,9 @@ export const RoutineView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { name, description, instructions } = useMemo(() => {
-        const { description, instructions, name } = getTranslation(existing ?? partialData, [language]);
+        const { description, instructions, name } = getTranslation(existing, [language]);
         return { name, description, instructions };
-    }, [existing, language, partialData]);
+    }, [existing, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -94,12 +94,12 @@ export const RoutineView = ({
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you.runs.filter(r => r.id !== run.id)));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you?.runs?.filter(r => r.id !== run.id)));
     }, [existing, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...existing.you.runs]));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...(existing.you?.runs ?? [])]));
     }, [existing, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -116,7 +116,7 @@ export const RoutineView = ({
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!existing) return null;
+        if (!existing.inputs || !Array.isArray(existing.inputs)) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < existing.inputs?.length; i++) {
             const currInput = existing.inputs[i];
@@ -147,7 +147,7 @@ export const RoutineView = ({
 
     const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
     const markAsComplete = useCallback(() => {
-        if (!existing) return;
+        if (!existing.id) return;
         fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
             fetch: runComplete,
             inputs: {
@@ -185,6 +185,7 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
+    console.log("RESOURCE LIST", resourceList);
     const comments = useMemo(() => (
         <Box sx={containerProps(palette)}>
             <CommentContainer
@@ -290,7 +291,7 @@ export const RoutineView = ({
                         />
                     </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
-                    {existing?.nodes.length === 0 && existing?.nodeLinks.length === 0 && <Box sx={containerProps(palette)}>
+                    {existing.nodes?.length === 0 && existing.nodeLinks?.length === 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
@@ -342,35 +343,36 @@ export const RoutineView = ({
                         tags={tags as Tag[]}
                         sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                     />}
-                    {/* Date and version labels */}
-                    <Stack direction="row" spacing={1} mt={2} mb={1}>
-                        {/* Date created */}
-                        <DateDisplay
-                            loading={isLoading}
-                            showIcon={true}
-                            timestamp={existing?.created_at}
+                    <Box>
+                        {/* Date and version labels */}
+                        <Stack direction="row" spacing={1} mt={2} mb={1}>
+                            {/* Date created */}
+                            <DateDisplay
+                                loading={isLoading}
+                                showIcon={true}
+                                timestamp={existing?.created_at}
+                                zIndex={zIndex}
+                            />
+                            <VersionDisplay
+                                currentVersion={existing}
+                                prefix={" - "}
+                                versions={existing?.root?.versions}
+                                zIndex={zIndex}
+                            />
+                        </Stack>
+                        {/* Votes, reports, and other basic stats */}
+                        <StatsCompact
+                            handleObjectUpdate={() => { }}
+                            object={existing}
+                        />
+                        {/* Action buttons */}
+                        <ObjectActionsRow
+                            actionData={actionData}
+                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            object={existing}
                             zIndex={zIndex}
                         />
-                        <VersionDisplay
-                            currentVersion={existing}
-                            prefix={" - "}
-                            versions={existing?.root?.versions}
-                            zIndex={zIndex}
-                        />
-                    </Stack>
-                    {/* Votes, reports, and other basic stats */}
-                    {/* <StatsCompact
-                handleObjectUpdate={updateRoutineVersion}
-                loading={loading}
-                object={existing}
-            /> */}
-                    {/* Action buttons */}
-                    <ObjectActionsRow
-                        actionData={actionData}
-                        exclude={[ObjectAction.Edit]} // Handled elsewhere
-                        object={existing}
-                        zIndex={zIndex}
-                    />
+                    </Box>
                     {/* Comments */}
                     {comments}
                 </Stack>}

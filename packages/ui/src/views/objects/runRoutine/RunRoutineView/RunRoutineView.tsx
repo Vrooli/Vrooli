@@ -12,7 +12,6 @@ import { RunRoutineViewProps } from "../types";
 export const RunRoutineView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: RunRoutineViewProps) => {
     const { palette } = useTheme();
@@ -21,7 +20,7 @@ export const RunRoutineView = ({
 
     const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
         ...endpointGetRunRoutine,
-        partialData,
+        objectType: "RunRoutine",
     });
 
     const { title } = useMemo(() => ({ title: getDisplay(existing).title ?? "" }), [existing]);

@@ -19,7 +19,6 @@ import { NoteViewProps } from "../types";
 export const NoteView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
@@ -29,7 +28,7 @@ export const NoteView = ({
 
     const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
         ...endpointGetNoteVersion,
-        partialData,
+        objectType: "NoteVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (noteVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [noteVersion?.translations]);
