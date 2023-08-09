@@ -1,6 +1,6 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
-import { useCallback, useEffect, useRef } from "react";
+import { createRef, useCallback, useEffect, useRef } from "react";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 
 export const PageTabs = <T extends string | number | object>({
@@ -15,8 +15,8 @@ export const PageTabs = <T extends string | number | object>({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    // Keep selected tab centered
     const tabsRef = useRef<HTMLDivElement>(null);
+    const tabRefs = useRef(tabs.map(() => createRef<HTMLDivElement>()));
     const underlineRef = useRef<HTMLDivElement>(null);
 
     // Handle dragging of tabs
@@ -25,17 +25,29 @@ export const PageTabs = <T extends string | number | object>({
         if (tabsRef.current) {
             const startX = e.clientX;
             const scrollLeft = tabsRef.current.scrollLeft;
+            const minimumDistance = 10; // Minimum distance in pixels for a drag
+            let distanceMoved = 0; // Track the distance moved
 
             const handleMouseMove = (e: MouseEvent) => {
                 if (!tabsRef.current) return;
-                draggingRef.current = true;
+
                 const x = e.clientX;
                 const walk = (x - startX);
+                distanceMoved = Math.abs(walk);
+
+                // Only consider it a drag if the mouse has moved more than the minimum distance
+                if (distanceMoved > minimumDistance) {
+                    draggingRef.current = true;
+                }
+                // But still move the tabs even if it's not considered a drag
                 tabsRef.current.scrollLeft = scrollLeft - walk;
             };
 
             const handleMouseUp = () => {
-                setTimeout(() => { draggingRef.current = false; }, 50);
+                // Only set draggingRef to false if it was considered a drag
+                if (distanceMoved > minimumDistance) {
+                    setTimeout(() => { draggingRef.current = false; }, 50);
+                }
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
             };
@@ -58,15 +70,33 @@ export const PageTabs = <T extends string | number | object>({
     }, [onChange, tabs]);
 
     // Scroll so new tab is centered
+    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
     useEffect(() => {
-        const selectedTab = document.getElementById(`${ariaLabel}-${currTab.index}`);
-        if (!selectedTab) return;
-        selectedTab.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "center",
-        });
-    }, [ariaLabel, currTab.index]);
+        const selectedTab = tabRefs.current[currTab.index].current;
+        if (!selectedTab || !tabsRef.current) return;
+
+        const targetScrollPosition = selectedTab.offsetLeft + selectedTab.offsetWidth / 2 - tabsRef.current.offsetWidth / 2;
+        const startScrollPosition = tabsRef.current.scrollLeft;
+        const duration = 300;
+        const startTime = performance.now();
+
+        const animateScroll = (time: number) => {
+            // Calculate the linear progress of the animation
+            const linearProgress = Math.min((time - startTime) / duration, 1);
+
+            // Apply the easing function to the linear progress
+            const easedProgress = easeInOutCubic(linearProgress);
+
+            const newScrollPosition = startScrollPosition + (targetScrollPosition - startScrollPosition) * easedProgress;
+            if (tabsRef.current) tabsRef.current.scrollLeft = newScrollPosition;
+
+            if (linearProgress < 1) {
+                requestAnimationFrame(animateScroll);
+            }
+        };
+
+        requestAnimationFrame(animateScroll);
+    }, [currTab.index]);
 
     const updateUnderline = useCallback(() => {
         if (tabsRef.current && underlineRef.current) {
@@ -161,6 +191,7 @@ export const PageTabs = <T extends string | number | object>({
                     <Tooltip key={index} title={Icon ? label : ""}>
                         <Box
                             id={`${ariaLabel}-${index}`}
+                            ref={tabRefs.current[index]}
                             role="tab"
                             component={href ? "a" : "div"}
                             href={href}
