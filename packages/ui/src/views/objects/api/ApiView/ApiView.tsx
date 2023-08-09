@@ -47,7 +47,7 @@ export const ApiView = ({
     const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
         const { canBookmark } = apiVersion?.root?.you ?? {};
         const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
-        const { details, name, summary } = getTranslation(apiVersion ?? partialData, [language]);
+        const { details, name, summary } = getTranslation(apiVersion, [language]);
         return {
             details,
             canBookmark,
@@ -55,7 +55,7 @@ export const ApiView = ({
             resourceList,
             summary,
         };
-    }, [language, apiVersion, partialData]);
+    }, [language, apiVersion]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;

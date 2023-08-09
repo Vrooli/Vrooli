@@ -151,33 +151,57 @@ export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =
     );
 export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
 
+/** Supports ID data from URL params, as well as partial object */
 type PartialData = {
     __typename: NavigableObject["__typename"],
     id?: string | null,
+    idRoot?: string | null,
     handle?: string | null
+    handleRoot?: string | null,
     root?: {
         id?: string | null,
         handle?: string | null,
     } | null,
 };
-export const getCookiePartialData = <T extends PartialData | undefined>(knownData: T | null | undefined): T =>
+/** Shape knownData to replace idRoot and handleRoot with proper root object */
+const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
+    ...knownData,
+    idRoot: undefined,
+    handleRoot: undefined,
+    ...(knownData.idRoot || knownData.handleRoot ? {
+        root: {
+            ...knownData.root,
+            id: knownData.idRoot,
+            handle: knownData.handleRoot,
+        },
+    } : {}),
+});
+export const getCookiePartialData = <T extends PartialData>(knownData: T): T =>
     ifAllowed("functional",
         () => {
+            const shapedKnownData = shapeKnownData(knownData);
+            console.log("getCookiePartialData shapedKnownData", shapedKnownData);
             // If known data does not contain an id or handle, return known data
-            if (!knownData?.id && !knownData?.handle && !knownData?.root?.id && !knownData?.root?.handle) return knownData;
+            if (
+                !shapedKnownData?.id &&
+                !shapedKnownData?.handle &&
+                !shapedKnownData?.root?.id &&
+                !shapedKnownData?.root?.handle
+            ) return shapedKnownData;
             // Find stored data
             const storedData = getOrSetCookie(Cookies.PartialData, (value: unknown): value is PartialData => typeof value === "object");
             // If stored data matches known data (i.e. same type and id or handle), return stored data
-            if (storedData?.__typename === knownData?.__typename && (
-                storedData?.id === knownData?.id ||
-                storedData?.handle === knownData?.handle ||
-                storedData?.root?.id === knownData?.root?.id ||
-                storedData?.root?.handle === knownData?.root?.handle
+            if (storedData?.__typename === shapedKnownData?.__typename && (
+                storedData?.id === shapedKnownData?.id ||
+                storedData?.handle === shapedKnownData?.handle ||
+                storedData?.root?.id === shapedKnownData?.root?.id ||
+                storedData?.root?.handle === shapedKnownData?.root?.handle
             )) {
                 return storedData;
             }
             // Otherwise return known data
-            return knownData;
+            return shapedKnownData;
         },
+        shapeKnownData(knownData),
     );
 export const setCookiePartialData = (partialData: PartialData) => ifAllowed("functional", () => setCookie(Cookies.PartialData, partialData));

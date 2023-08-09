@@ -17,6 +17,7 @@ import { CommentUpsertInputProps } from "../types";
  */
 export const CommentUpsertInput = ({
     comment,
+    isOpen,
     language,
     objectId,
     objectType,
@@ -61,7 +62,7 @@ export const CommentUpsertInput = ({
                 if (isMobile) return <CommentDialog
                     isCreate={!exists(comment)}
                     isLoading={isCreateLoading || isUpdateLoading}
-                    isOpen={true}
+                    isOpen={isOpen}
                     onCancel={handleCancel}
                     parent={parent}
                     ref={formRef}
@@ -72,7 +73,7 @@ export const CommentUpsertInput = ({
                     display="page"
                     isCreate={!exists(comment)}
                     isLoading={isCreateLoading || isUpdateLoading}
-                    isOpen={true}
+                    isOpen={isOpen}
                     onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}

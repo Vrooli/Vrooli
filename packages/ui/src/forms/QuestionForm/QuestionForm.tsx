@@ -19,7 +19,7 @@ import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 
 export const questionInitialValues = (
     session: Session | undefined,
-    existing?: Question | null | undefined,
+    existing?: Partial<Question> | null | undefined,
 ): QuestionShape => ({
     __typename: "Question" as const,
     id: DUMMY_ID,

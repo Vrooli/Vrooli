@@ -67,6 +67,7 @@ export const RoutineView = ({
         },
         objectType: "RoutineVersion",
     });
+    console.log("this is the existing", existing);
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     useEffect(() => {
@@ -185,7 +186,6 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    console.log("RESOURCE LIST", resourceList);
     const comments = useMemo(() => (
         <Box sx={containerProps(palette)}>
             <CommentContainer

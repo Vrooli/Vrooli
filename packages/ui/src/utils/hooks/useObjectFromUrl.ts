@@ -44,15 +44,7 @@ export function useObjectFromUrl<TData extends UrlObject>({
 
     // Fetch data
     const [getData, { data, loading: isLoading, errors }] = useLazyFetch<any, TData>({ endpoint });
-    const [object, setObject] = useState<PartialWithType<TData>>(getCookiePartialData({
-        __typename: objectType,
-        id: urlParams.id,
-        handle: urlParams.handle,
-        root: urlParams.idRoot || urlParams.handleRoot ? {
-            id: urlParams.idRoot,
-            handle: urlParams.handleRoot,
-        } : undefined,
-    } as unknown as PartialWithType<TData>));
+    const [object, setObject] = useState<PartialWithType<TData>>(getCookiePartialData({ __typename: objectType, ...urlParams } as unknown as PartialWithType<TData>));
     useDisplayServerError(errors);
     useEffect(() => {
         // Objects can be found using a few different unique identifiers
@@ -66,8 +58,8 @@ export function useObjectFromUrl<TData extends UrlObject>({
     }, [getData, objectType, stableOnInvalidUrlParams, urlParams]);
     useEffect(() => {
         // If data was queried, store it in local state
-        if (data) { console.log("setting cookie data", data); setCookiePartialData(data); }
-        setObject(data ?? getCookiePartialData({ __typename: objectType, id: urlParams.id, handle: urlParams.handle } as unknown as PartialWithType<TData>));
+        if (data) setCookiePartialData(data);
+        setObject(data ?? getCookiePartialData({ __typename: objectType, ...urlParams } as unknown as PartialWithType<TData>));
     }, [data, objectType, urlParams]);
 
 

@@ -44,12 +44,12 @@ export const SmartContractView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(smartContractVersion ?? partialData, [language]);
+        const { description, name } = getTranslation(smartContractVersion, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
         };
-    }, [language, smartContractVersion, partialData]);
+    }, [language, smartContractVersion]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;

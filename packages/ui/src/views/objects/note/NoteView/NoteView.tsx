@@ -39,13 +39,13 @@ export const NoteView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name, text } = useMemo(() => {
-        const { description, name, text } = getTranslation(noteVersion ?? partialData, [language]);
+        const { description, name, text } = getTranslation(noteVersion, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
             text: text ?? "",
         };
-    }, [language, noteVersion, partialData]);
+    }, [language, noteVersion]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;

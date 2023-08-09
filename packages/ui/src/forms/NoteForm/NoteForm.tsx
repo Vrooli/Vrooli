@@ -20,7 +20,7 @@ import { OwnerShape } from "utils/shape/models/types";
 
 export const noteInitialValues = (
     session: Session | undefined,
-    existing?: NoteVersion | null | undefined,
+    existing?: Partial<NoteVersion> | null | undefined,
 ): NoteVersionShape => ({
     __typename: "NoteVersion" as const,
     id: DUMMY_ID,

@@ -14,7 +14,6 @@ import { ScheduleViewProps } from "../types";
 export const ScheduleView = ({
     display = "page",
     onClose,
-    partialData,
     zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();

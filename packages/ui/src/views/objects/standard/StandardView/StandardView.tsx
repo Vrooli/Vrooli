@@ -62,9 +62,9 @@ export const StandardView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(existing ?? partialData, [language]);
+        const { description, name } = getTranslation(existing, [language]);
         return { description, name };
-    }, [existing, partialData, language]);
+    }, [existing, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -82,7 +82,7 @@ export const StandardView = ({
         setObject: setStandardVersion,
     });
 
-    const initialValues = useMemo(() => standardInitialValues(session, (existing ?? partialData as any)), [existing, partialData, session]);
+    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 

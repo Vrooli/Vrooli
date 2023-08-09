@@ -76,7 +76,7 @@ export function CommentContainer({
         }, ...curr]);
     }, [setAllData]);
 
-    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(!isMobile);
     // Show add comment input if on desktop. For mobile, we'll show a button
     useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
     const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
@@ -98,11 +98,12 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title="Comments" zIndex={zIndex}>
+        <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`} zIndex={zIndex}>
             {/* Add comment */}
             {
                 isAddCommentOpen && <CommentUpsertInput
                     comment={undefined}
+                    isOpen={isAddCommentOpen}
                     language={language}
                     objectId={objectId}
                     objectType={objectType}

@@ -19,6 +19,7 @@ export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
+    isOpen: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;

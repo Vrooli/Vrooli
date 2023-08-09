@@ -1,7 +1,7 @@
 import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
-import { StatsCompactPropsObject, TitleProps } from "components/text/types";
+import { TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
 import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
@@ -296,7 +296,7 @@ export interface SelectLanguageMenuProps {
     zIndex: number;
 }
 
-export interface StatsDialogProps<T extends StatsCompactPropsObject> {
+export interface StatsDialogProps<T extends ListObject> {
     handleObjectUpdate: (object: T) => unknown;
     isOpen: boolean;
     object: T | null | undefined;
