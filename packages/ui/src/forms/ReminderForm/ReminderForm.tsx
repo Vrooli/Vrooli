@@ -20,7 +20,7 @@ import { ReminderItemShape } from "utils/shape/models/reminderItem";
 export const reminderInitialValues = (
     session: Session | undefined,
     reminderListId: string | undefined,
-    existing?: Reminder | null | undefined,
+    existing?: Partial<Reminder> | null | undefined,
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,

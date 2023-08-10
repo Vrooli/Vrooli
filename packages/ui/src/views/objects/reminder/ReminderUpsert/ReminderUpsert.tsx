@@ -1,17 +1,18 @@
-import { endpointGetReminder, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
+import { endpointGetReminder, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
 import { DeleteIcon } from "icons";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ReminderShape } from "utils/shape/models/reminder";
 import { ReminderUpsertProps } from "../types";
 
 export const ReminderUpsert = ({
@@ -27,13 +28,13 @@ export const ReminderUpsert = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    // Fetch existing data
-    const id = useMemo(() => isCreate ? undefined : (partialData?.id ?? parseSingleItemUrl({})?.id), [isCreate, partialData?.id]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Reminder>(endpointGetReminder);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
+        ...endpointGetReminder,
+        objectType: "Reminder",
+        upsertTransform: (existing) => reminderInitialValues(session, listId, existing),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => reminderInitialValues(session, listId, { ...existing, ...partialData } as Reminder), [existing, listId, partialData, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Reminder>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ReminderCreateInput, Reminder>(endpointPostReminder);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
@@ -55,7 +56,7 @@ export const ReminderUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

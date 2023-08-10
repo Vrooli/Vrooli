@@ -29,7 +29,7 @@ export const noteInitialValues = (
     root: {
         id: DUMMY_ID,
         isPrivate: true,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id! } as OwnerShape,
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
         parent: null,
         tags: [],
     },

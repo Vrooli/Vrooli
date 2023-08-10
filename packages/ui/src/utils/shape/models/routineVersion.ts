@@ -14,7 +14,7 @@ export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id
 }
 
 export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes" | "smartContractCallData"> & {
-    __typename?: "RoutineVersion";
+    __typename: "RoutineVersion";
     apiVersion?: { id: string } | null;
     directoryListings?: { id: string }[] | null;
     inputs?: RoutineVersionInputShape[] | null;

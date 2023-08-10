@@ -18,7 +18,6 @@ import { CompleteIcon, RoutineIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -36,7 +35,7 @@ import { BuildView } from "views/BuildView/BuildView";
 
 export const routineInitialValues = (
     session: Session | undefined,
-    existing?: PartialWithType<RoutineVersion> | null | undefined,
+    existing?: Partial<RoutineVersion> | null | undefined,
 ): RoutineVersionShape => ({
     __typename: "RoutineVersion" as const,
     id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
@@ -51,7 +50,7 @@ export const routineInitialValues = (
         __typename: "Routine" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)!.id ?? "" },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],

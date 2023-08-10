@@ -10,7 +10,7 @@ export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "
 }
 
 export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "isPrivate" | "isFile" | "default" | "props" | "yup" | "standardType" | "versionLabel" | "versionNotes"> & {
-    __typename?: "StandardVersion";
+    __typename: "StandardVersion";
     directoryListings?: { id: string }[] | null;
     root: StandardShape;
     resourceList?: { id: string } | ResourceListShape | null;

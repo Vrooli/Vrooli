@@ -18,7 +18,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const runProjectInitialValues = (
     session: Session | undefined,
-    existing?: RunProject | null | undefined,
+    existing?: Partial<RunProject> | null | undefined,
 ): RunProjectShape => ({
     __typename: "RunProject" as const,
     id: DUMMY_ID,

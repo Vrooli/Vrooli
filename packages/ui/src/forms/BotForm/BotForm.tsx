@@ -21,7 +21,7 @@ import { BotShape, shapeBot } from "utils/shape/models/bot";
 
 export const botInitialValues = (
     session: Session | undefined,
-    existing?: User | null | undefined,
+    existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape => {
     const { creativity, verbosity, translations } = findBotData(getUserLanguages(session)[0], existing);
 
@@ -30,7 +30,7 @@ export const botInitialValues = (
         id: DUMMY_ID,
         creativity,
         isPrivate: false,
-        name: "Bot Name",
+        name: "",
         verbosity,
         ...existing,
         isBot: true,
@@ -38,13 +38,13 @@ export const botInitialValues = (
     };
 };
 
-export function transformBotValues(session: Session | undefined, values: BotShape, existing?: User | null | undefined) {
+export function transformBotValues(session: Session | undefined, values: BotShape, existing?: BotShape) {
     return existing === undefined
         ? shapeBot.create(values)
         : shapeBot.update(botInitialValues(session, existing), values);
 }
 
-export const validateBotValues = async (session: Session | undefined, values: BotShape, existing?: User | null | undefined) => {
+export const validateBotValues = async (session: Session | undefined, values: BotShape, existing?: BotShape) => {
     const transformedValues = transformBotValues(session, values, existing);
     const validationSchema = botValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
@@ -102,7 +102,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
-                        profile={{ __typename: "User", ...values }}
+                        profile={{ ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection sx={{

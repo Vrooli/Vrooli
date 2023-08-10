@@ -24,7 +24,7 @@ import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shap
 
 export const smartContractInitialValues = (
     session: Session | undefined,
-    existing?: SmartContractVersion | undefined,
+    existing?: Partial<SmartContractVersion> | undefined,
 ): SmartContractVersionShape => ({
     __typename: "SmartContractVersion" as const,
     id: DUMMY_ID,

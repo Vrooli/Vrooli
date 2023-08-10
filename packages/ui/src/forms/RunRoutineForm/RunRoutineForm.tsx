@@ -18,7 +18,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const runRoutineInitialValues = (
     session: Session | undefined,
-    existing?: RunRoutine | null | undefined,
+    existing?: Partial<RunRoutine> | null | undefined,
 ): RunRoutineShape => ({
     __typename: "RunRoutine" as const,
     id: DUMMY_ID,

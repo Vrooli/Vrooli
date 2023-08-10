@@ -22,7 +22,7 @@ import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/pro
 
 export const projectInitialValues = (
     session: Session | undefined,
-    existing?: ProjectVersion | null | undefined,
+    existing?: Partial<ProjectVersion> | null | undefined,
 ): ProjectVersionShape => ({
     __typename: "ProjectVersion" as const,
     id: DUMMY_ID,

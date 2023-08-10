@@ -75,7 +75,8 @@ export const parseSingleItemUrl = ({
     // Helper for checking if a string is a handle
     const isHandle = (text: string) => {
         if (text.startsWith("@")) text = text.slice(1);
-        return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS);
+        // Test using handle regex, and make sure it's not a word used for other purposes
+        return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS) && ["add", "edit", "update"].every(word => !text.includes(word));
     };
     // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart({ url });

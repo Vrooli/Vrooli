@@ -21,7 +21,7 @@ import { OrganizationShape, shapeOrganization } from "utils/shape/models/organiz
 
 export const organizationInitialValues = (
     session: Session | undefined,
-    existing?: Organization | null | undefined,
+    existing?: Partial<Organization> | null | undefined,
 ): OrganizationShape => ({
     __typename: "Organization" as const,
     id: DUMMY_ID,
@@ -99,7 +99,7 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
-                        profile={{ __typename: "Organization", ...values }}
+                        profile={{ ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection>

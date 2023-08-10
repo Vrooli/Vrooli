@@ -1,16 +1,17 @@
-import { Chat, ChatCreateInput, ChatUpdateInput, endpointGetChat, endpointPostChat, endpointPutChat, FindVersionInput } from "@local/shared";
+import { Chat, ChatCreateInput, ChatUpdateInput, endpointGetChat, endpointPostChat, endpointPutChat } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatForm, chatInitialValues, transformChatValues, validateChatValues } from "forms/ChatForm/ChatForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ChatShape } from "utils/shape/models/chat";
 import { ChatUpsertProps } from "../types";
 
 export const ChatUpsert = ({
@@ -23,13 +24,13 @@ export const ChatUpsert = ({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, Chat>(endpointGetChat);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
+        ...endpointGetChat,
+        objectType: "Chat",
+        upsertTransform: (data) => chatInitialValues(session, data),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => chatInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Chat>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ChatUpdateInput, Chat>(endpointPutChat);
@@ -45,7 +46,7 @@ export const ChatUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

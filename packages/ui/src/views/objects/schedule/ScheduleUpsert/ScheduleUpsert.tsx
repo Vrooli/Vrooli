@@ -1,4 +1,4 @@
-import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, FindByIdInput, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
+import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -10,11 +10,12 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { parseSearchParams } from "route";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
+import { ScheduleShape } from "utils/shape/models/schedule";
 import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
 
@@ -71,25 +72,25 @@ export const ScheduleUpsert = ({
         setCurrTab(tab);
     }, []);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Schedule>(endpointGetSchedule);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
+        ...endpointGetSchedule,
+        objectType: "Schedule",
+        upsertTransform: (existing) => scheduleInitialValues(session, { //TODO this might cause a fetch every time a tab is changed, and we lose changed data. Need to test
+            ...existing,
+            // For creating, set values for linking to an object. 
+            // NOTE: We can't set these values to null or undefined like you'd expect, 
+            // because Formik will treat them as uncontrolled inputs and throw errors. 
+            // Instead, we pretend that false is null and an empty string is undefined.
+            ...(isCreate && canSetScheduleFor ? {
+                focusMode: currTab.value === "FocusModes" ? false : "",
+                meeting: currTab.value === "Meetings" ? false : "",
+                runProject: currTab.value === "RunProjects" ? false : "",
+                runRoutine: currTab.value === "RunRoutines" ? false : "",
+            } : {}),
+        } as Schedule),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => scheduleInitialValues(session, {
-        ...existing,
-        // For creating, set values for linking to an object. 
-        // NOTE: We can't set these values to null or undefined like you'd expect, 
-        // because Formik will treat them as uncontrolled inputs and throw errors. 
-        // Instead, we pretend that false is null and an empty string is undefined.
-        ...(isCreate && canSetScheduleFor ? {
-            focusMode: currTab.value === "FocusModes" ? false : "",
-            meeting: currTab.value === "Meetings" ? false : "",
-            runProject: currTab.value === "RunProjects" ? false : "",
-            runRoutine: currTab.value === "RunRoutines" ? false : "",
-        } : {}),
-    } as Schedule), [canSetScheduleFor, currTab.value, existing, isCreate, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<ScheduleCreateInput, Schedule>(endpointPostSchedule);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<ScheduleUpdateInput, Schedule>(endpointPutSchedule);
@@ -112,7 +113,7 @@ export const ScheduleUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

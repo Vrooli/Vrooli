@@ -12,7 +12,7 @@ export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | 
 }
 
 export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNewMembers" | "isPrivate"> & {
-    __typename?: "Organization";
+    __typename: "Organization";
     bannerImage?: string | File | null;
     memberInvites?: MemberInviteShape[] | null;
     membersDelete?: { id: string }[] | null;

@@ -17,7 +17,7 @@ import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmar
 
 export const bookmarkListInitialValues = (
     session: Session | undefined,
-    existing?: BookmarkList | null | undefined,
+    existing?: Partial<BookmarkList> | null | undefined,
 ): BookmarkListShape => ({
     __typename: "BookmarkList" as const,
     id: DUMMY_ID,

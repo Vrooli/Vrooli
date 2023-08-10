@@ -19,7 +19,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const focusModeInitialValues = (
     session: Session | undefined,
-    existing?: FocusMode | null | undefined,
+    existing?: Partial<FocusMode> | null | undefined,
 ): FocusModeShape => ({
     __typename: "FocusMode" as const,
     id: DUMMY_ID,

@@ -26,7 +26,7 @@ import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion"
 
 export const apiInitialValues = (
     session: Session | undefined,
-    existing?: ApiVersion | null | undefined,
+    existing?: Partial<ApiVersion> | null | undefined,
 ): ApiVersionShape => ({
     __typename: "ApiVersion" as const,
     id: DUMMY_ID,

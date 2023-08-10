@@ -10,7 +10,7 @@ export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "lan
 }
 
 export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentationLink" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
-    __typename?: "ApiVersion";
+    __typename: "ApiVersion";
     directoryListings?: { id: string }[] | null;
     resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | ApiShape | null;

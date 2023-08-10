@@ -10,5 +10,6 @@ export interface ScheduleUpsertProps extends UpsertProps<Schedule> {
     index?: number;
     isMutate: boolean;
     listId?: string;
+    partialData?: Partial<Schedule>;
 }
 export type ScheduleViewProps = ViewProps<Schedule>

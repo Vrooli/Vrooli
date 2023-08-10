@@ -17,7 +17,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const meetingInitialValues = (
     session: Session | undefined,
-    existing?: Meeting | null | undefined,
+    existing?: Partial<Meeting> | null | undefined,
 ): MeetingShape => ({
     __typename: "Meeting" as const,
     id: DUMMY_ID,

@@ -22,7 +22,7 @@ import { ChatShape, shapeChat } from "utils/shape/models/chat";
 
 export const chatInitialValues = (
     session: Session | undefined,
-    existing?: Chat | null | undefined,
+    existing?: Partial<Chat> | null | undefined,
 ): ChatShape => ({
     __typename: "Chat" as const,
     id: uuid(),

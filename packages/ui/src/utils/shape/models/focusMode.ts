@@ -8,7 +8,7 @@ import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type FocusModeShape = Pick<FocusMode, "id" | "name" | "description"> & {
-    __typename?: "FocusMode",
+    __typename: "FocusMode",
     reminderList?: ReminderListShape | null,
     resourceList?: ResourceListShape | null,
     labels?: LabelShape[] | null,

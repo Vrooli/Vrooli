@@ -10,7 +10,7 @@ export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, "id" | "l
 }
 
 export type NoteVersionShape = Pick<NoteVersion, "id" | "isPrivate" | "versionLabel" | "versionNotes"> & {
-    __typename?: "NoteVersion";
+    __typename: "NoteVersion";
     directoryListings?: { id: string }[] | null;
     resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | NoteShape | null;

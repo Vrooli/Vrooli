@@ -211,7 +211,7 @@ const shapeKnownData = <T extends PartialData>(knownData: T): T => ({
         },
     } : {}),
 });
-export const getCookiePartialData = <T extends PartialData>(knownData: T): T =>
+export const getCookiePartialData = <T extends PartialData>(knownData: PartialData): T =>
     ifAllowed("functional",
         () => {
             const shapedKnownData = shapeKnownData(knownData);
@@ -257,6 +257,7 @@ export const setCookiePartialData = (partialData: PartialData) => ifAllowed("fun
                 // Add it back to the end
                 cache.order.push(key);
             }
+            setCookie(Cookies.PartialData, cache);
             return;
         }
         // If the cache is full, remove the oldest object

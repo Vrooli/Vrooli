@@ -11,7 +11,7 @@ export type MeetingTranslationShape = Pick<MeetingTranslation, "id" | "language"
 }
 
 export type MeetingShape = Pick<Meeting, "id" | "openToAnyoneWithInvite" | "showOnOrganizationProfile"> & {
-    __typename?: "Meeting";
+    __typename: "Meeting";
     organization: { id: string } | OrganizationShape;
     restrictedToRoles?: { id: string }[] | null;
     invites?: MeetingInviteShape[] | null;

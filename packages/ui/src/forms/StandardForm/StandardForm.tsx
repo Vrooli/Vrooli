@@ -24,7 +24,7 @@ import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/s
 
 export const standardInitialValues = (
     session: Session | undefined,
-    existing?: StandardVersion | null | undefined,
+    existing?: Partial<StandardVersion> | null | undefined,
 ): StandardVersionShape => ({
     __typename: "StandardVersion" as const,
     id: DUMMY_ID,

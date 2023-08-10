@@ -11,7 +11,7 @@ export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, "id
 }
 
 export type ProjectVersionShape = Pick<ProjectVersion, "id" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
-    __typename?: "ProjectVersion";
+    __typename: "ProjectVersion";
     directories?: ProjectVersionDirectoryShape[] | null;
     resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | ProjectShape | null;

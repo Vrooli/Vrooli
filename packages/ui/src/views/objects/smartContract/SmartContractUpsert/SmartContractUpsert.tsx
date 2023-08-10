@@ -1,16 +1,17 @@
-import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, FindVersionInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
+import { endpointGetSmartContractVersion, endpointPostSmartContractVersion, endpointPutSmartContractVersion, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractForm, smartContractInitialValues, transformSmartContractValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { SmartContractUpsertProps } from "../types";
 
 export const SmartContractUpsert = ({
@@ -23,13 +24,13 @@ export const SmartContractUpsert = ({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, SmartContractVersion>(endpointGetSmartContractVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
+        ...endpointGetSmartContractVersion,
+        objectType: "SmartContractVersion",
+        upsertTransform: (existing) => smartContractInitialValues(session, existing),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => smartContractInitialValues(session, existing), [existing, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useLazyFetch<SmartContractVersionCreateInput, SmartContractVersion>(endpointPostSmartContractVersion);
     const [update, { loading: isUpdateLoading }] = useLazyFetch<SmartContractVersionUpdateInput, SmartContractVersion>(endpointPutSmartContractVersion);
@@ -45,7 +46,7 @@ export const SmartContractUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

@@ -3,6 +3,8 @@ import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { setCookiePartialData } from "utils/cookies";
+import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ViewDisplayType } from "views/types";
@@ -14,7 +16,7 @@ import { ViewDisplayType } from "views/types";
  * When done in a dialog, triggers the appropriate callback.
  * Also handles snack messages.
  */
-export const useUpsertActions = <T extends { __typename: string, id: string }>(
+export const useUpsertActions = <T extends { __typename: ListObject["__typename"], id: string }>(
     display: ViewDisplayType,
     isCreate: boolean,
     onCancel?: () => any, // Only used for dialog display
@@ -31,11 +33,15 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
         const viewUrl = item ? getObjectUrl(item as any) : undefined;
         switch (action) {
             case ObjectDialogAction.Add:
+                // Add the new object to the cache
+                if (item) setCookiePartialData(item);
+                // Navigate to the view page for the new object
                 if (display === "page") {
                     setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
                     onCompleted!(item!);
                 }
+                // Display snack message
                 if (isCreate) {
                     const rootType = (item?.__typename ?? "").replace("Version", "");
                     const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
@@ -57,6 +63,9 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
                 }
                 break;
             case ObjectDialogAction.Save:
+                // Update the object in the cache
+                if (item) setCookiePartialData(item);
+                // Navigate to the view page for the object
                 if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });

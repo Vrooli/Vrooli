@@ -18,7 +18,7 @@ export type BotTranslationShape = {
 }
 
 export type BotShape = Pick<User, "id" | "handle" | "isPrivate" | "name"> & {
-    __typename?: "User";
+    __typename: "User";
     bannerImage?: string | File | null;
     creativity?: number | null;
     isBot?: true;
@@ -42,7 +42,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Extract bot settings from translations
         const textData = createRel(d, "translations", ["Create"], "many", shapeBotTranslation);
         // Convert to object, where keys are language codes and values are the bot settings
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
+        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         return {
             isBot: true,
             botSettings: JSON.stringify({
@@ -59,7 +59,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         const textData = updateRel({ ...o, translations: [] }, u, "translations", ["Create", "Update", "Delete"], "many", shapeBotTranslation); // Use empty array for original translations to ensure that all translations are included
         // Convert created to object.
         // Note: Shouldn't have to worry about updated since we set the original to empty array (making all translations seem like creates).
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
+        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
         const deletedTranslations = o.translations?.filter(t => !u.translations?.some(t2 => t2.id === t.id));
         if (deletedTranslations) {
