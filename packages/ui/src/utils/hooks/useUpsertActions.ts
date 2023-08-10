@@ -1,4 +1,5 @@
 import { LINKS } from "@local/shared";
+import { Method } from "api";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,7 @@ import { ListObject } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ViewDisplayType } from "views/types";
+import { MakeLazyRequest, useLazyFetch } from "./useLazyFetch";
 
 /**
  * Creates logic for handling cancel, create, and update actions when 
@@ -16,12 +18,25 @@ import { ViewDisplayType } from "views/types";
  * When done in a dialog, triggers the appropriate callback.
  * Also handles snack messages.
  */
-export const useUpsertActions = <T extends { __typename: ListObject["__typename"], id: string }>(
+export const useUpsertActions = <
+    T extends { __typename: ListObject["__typename"], id: string },
+    TCreateInput extends Record<string, any>,
+    TUpdateInput extends Record<string, any>,
+>({
+    display,
+    endpointCreate,
+    endpointUpdate,
+    isCreate,
+    onCancel,
+    onCompleted,
+}: {
     display: ViewDisplayType,
+    endpointCreate: { endpoint: string, method: Method },
+    endpointUpdate: { endpoint: string, method: Method },
     isCreate: boolean,
     onCancel?: () => any, // Only used for dialog display
     onCompleted?: (data: T) => any, // Only used for dialog display
-) => {
+}) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -82,8 +97,17 @@ export const useUpsertActions = <T extends { __typename: ListObject["__typename"
         onAction(action, data);
     }, [isCreate, onAction]);
 
+    const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(endpointCreate);
+    const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(endpointUpdate);
+    const fetch = (isCreate ? fetchCreate : fetchUpdate) as MakeLazyRequest<TCreateInput | TUpdateInput, T>;
+
     return {
+        fetch,
+        fetchCreate,
+        fetchUpdate,
         handleCancel,
         handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
     };
 };

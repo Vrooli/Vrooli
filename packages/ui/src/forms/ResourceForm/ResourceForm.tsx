@@ -19,19 +19,19 @@ import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
 export const resourceInitialValues = (
     session: Session | undefined,
-    listId: string | undefined,
-    existing?: Resource | null | undefined,
+    existing?: Partial<Resource> & { index: number, list: { id: string } & Partial<Resource["list"]> } | null | undefined,
 ): ResourceShape => ({
     __typename: "Resource" as const,
     id: DUMMY_ID,
     index: 0,
     link: "",
-    list: {
-        __typename: "ResourceList" as const,
-        id: listId ?? DUMMY_ID,
-    },
     usedFor: ResourceUsedFor.Context,
     ...existing,
+    list: {
+        __typename: "ResourceList" as const,
+        ...existing?.list,
+        id: existing?.list?.id ?? DUMMY_ID,
+    },
     translations: orDefault(existing?.translations, [{
         __typename: "ResourceTranslation" as const,
         id: DUMMY_ID,

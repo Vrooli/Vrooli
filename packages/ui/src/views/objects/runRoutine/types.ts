@@ -1,5 +1,6 @@
 import { RunRoutine } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type RunRoutineUpsertProps = UpsertProps<RunRoutine>
-export type RunRoutineViewProps = ViewProps<RunRoutine>
+export type RunRoutineViewProps = ObjectViewProps<RunRoutine>

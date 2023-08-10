@@ -90,13 +90,12 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
                     canChangeTab={false}
                     canSetScheduleFor={false}
                     defaultTab={CalendarPageTabOption.RunRoutines}
-                    display="dialog"
                     handleDelete={handleDeleteSchedule}
                     isCreate={editingSchedule === null}
                     isMutate={false}
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
+                    overrideObject={editingSchedule ?? { __typename: "Schedule" }}
                     zIndex={zIndex + 1001}
                 />
             </LargeDialog>

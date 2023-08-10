@@ -1,5 +1,6 @@
 import { Meeting } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type MeetingUpsertProps = UpsertProps<Meeting>
-export type MeetingViewProps = ViewProps<Meeting>
+export type MeetingViewProps = ObjectViewProps<Meeting>

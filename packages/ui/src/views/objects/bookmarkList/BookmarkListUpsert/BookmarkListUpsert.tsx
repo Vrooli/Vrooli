@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BookmarkListForm, bookmarkListInitialValues, transformBookmarkListValues, validateBookmarkListValues } from "forms/BookmarkListForm/BookmarkListForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { BookmarkListShape } from "utils/shape/models/bookmarkList";
 import { BookmarkListUpsertProps } from "../types";
 
 export const BookmarkListUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: BookmarkListUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
         ...endpointGetBookmarkList,
         objectType: "BookmarkList",
-        upsertTransform: (data) => bookmarkListInitialValues(session, data),
+        overrideObject,
+        transform: (data) => bookmarkListInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<BookmarkList>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<BookmarkListCreateInput, BookmarkList>(endpointPostBookmarkList);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<BookmarkListUpdateInput, BookmarkList>(endpointPutBookmarkList);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
+        display,
+        endpointCreate: endpointPostBookmarkList,
+        endpointUpdate: endpointPutBookmarkList,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

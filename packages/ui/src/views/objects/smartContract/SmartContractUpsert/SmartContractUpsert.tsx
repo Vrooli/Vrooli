@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { SmartContractForm, smartContractInitialValues, transformSmartContractValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { SmartContractVersionShape } from "utils/shape/models/smartContractVersi
 import { SmartContractUpsertProps } from "../types";
 
 export const SmartContractUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: SmartContractUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
         ...endpointGetSmartContractVersion,
         objectType: "SmartContractVersion",
-        upsertTransform: (existing) => smartContractInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => smartContractInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<SmartContractVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<SmartContractVersionCreateInput, SmartContractVersion>(endpointPostSmartContractVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<SmartContractVersionUpdateInput, SmartContractVersion>(endpointPutSmartContractVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostSmartContractVersion,
+        endpointUpdate: endpointPutSmartContractVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

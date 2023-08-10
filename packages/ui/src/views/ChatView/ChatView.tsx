@@ -68,6 +68,7 @@ export const ChatView = ({
                 fetch: createChat,
                 inputs: shapeChat.create({
                     ...chatInfo,
+                    __typename: "Chat",
                     id: uuid(),
                     openToAnyoneWithInvite: chatInfo?.openToAnyoneWithInvite ?? false,
                     translations: orDefault(chatInfo?.translations, [{

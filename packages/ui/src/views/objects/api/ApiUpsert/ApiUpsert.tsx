@@ -6,7 +6,6 @@ import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: ApiUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
         ...endpointGetApiVersion,
         objectType: "ApiVersion",
-        upsertTransform: (data) => apiInitialValues(session, data),
+        overrideObject,
+        transform: (data) => apiInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ApiVersionCreateInput, ApiVersion>(endpointPostApiVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ApiVersionUpdateInput, ApiVersion>(endpointPutApiVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostApiVersion,
+        endpointUpdate: endpointPutApiVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

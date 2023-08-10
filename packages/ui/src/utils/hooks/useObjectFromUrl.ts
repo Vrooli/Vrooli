@@ -6,6 +6,7 @@ import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { ViewDisplayType } from "views/types";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
@@ -19,6 +20,8 @@ type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };
 type ObjectReturnType<TData extends UrlObject, TFunc> = TFunc extends (data: never) => infer R ? R : PartialWithType<TData>;
 
 export type UseObjectFromUrlReturn<TData extends UrlObject, TFunc> = {
+    /** When overrideObject is provided, we know this is for a dialog */
+    display: ViewDisplayType,
     handleRoot?: string,
     handle?: string,
     idRoot?: string,
@@ -40,13 +43,16 @@ export function useObjectFromUrl<
     endpoint,
     objectType,
     onInvalidUrlParams,
-    upsertTransform,
+    overrideObject,
+    transform: upsertTransform,
 }: {
     endpoint: string,
     objectType: PData["__typename"],
     onInvalidUrlParams?: (params: ParseSearchParamsResult) => void,
+    /** If passed, uses this instead of fetching from server or cache */
+    overrideObject?: Partial<PData>,
     /** Used by forms to properly shape the data for formik */
-    upsertTransform?: TFunc,
+    transform?: TFunc,
 }): UseObjectFromUrlReturn<TData, TFunc> {
     // Get URL params
     const urlParams = useMemo(() => parseSingleItemUrl({}), []);
@@ -56,12 +62,18 @@ export function useObjectFromUrl<
     // Fetch data
     const [getData, { data, loading: isLoading, errors }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
+        // If overrideObject provided, use it. Also use upsertTransform if provided
+        if (typeof overrideObject === "object") return (typeof upsertTransform === "function" ? upsertTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
+        // Try to find object in cache
         const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
+        // Return as-is, or use upsertTransform if provided
         if (typeof upsertTransform === "function") return upsertTransform(storedData) as ObjectReturnType<TData, TFunc>;
         return storedData as ObjectReturnType<TData, TFunc>;
     });
     useDisplayServerError(errors);
     useEffect(() => {
+        // If overrideObject provided, don't fetch
+        if (typeof overrideObject === "object") return;
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
@@ -74,20 +86,23 @@ export function useObjectFromUrl<
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, objectType, stableOnInvalidUrlParams, upsertTransform, urlParams]);
+    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, upsertTransform, urlParams]);
     useEffect(() => {
+        // If overrideObject provided, ignore this effect
+        if (typeof overrideObject === "object") return;
         // If data was queried (i.e. object exists), store it in local state
         if (data) setCookiePartialData(data);
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         if (typeof upsertTransform === "function") setObject(upsertTransform(knownData) as ObjectReturnType<TData, TFunc>);
         else setObject(knownData as ObjectReturnType<TData, TFunc>);
-    }, [data, objectType, upsertTransform, urlParams]);
+    }, [data, objectType, overrideObject, upsertTransform, urlParams]);
 
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);
 
     return {
+        display: exists(overrideObject) ? "dialog" : "page" as ViewDisplayType,
         id: object?.id ?? urlParams.id,
         isLoading,
         object,

@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { RunProjectShape } from "utils/shape/models/runProject";
 import { RunProjectUpsertProps } from "../types";
 
 export const RunProjectUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: RunProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunProject, RunProjectShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunProject, RunProjectShape>({
         ...endpointGetRunProject,
         objectType: "RunProject",
-        upsertTransform: (existing) => runProjectInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => runProjectInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<RunProject>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunProjectCreateInput | RunProjectUpdateInput, RunProject>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<RunProject, RunProjectCreateInput, RunProjectUpdateInput>({
+        display,
+        endpointCreate: endpointPostRunProject,
+        endpointUpdate: endpointPutRunProject,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

@@ -1,41 +1,52 @@
-import { DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm/ReminderForm";
 import { DeleteIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl, tryOnClose } from "utils/navigation/urlTools";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { shapeReminder } from "utils/shape/models/reminder";
+import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
-    display = "page",
     onClose,
-    partialData,
+    overrideObject,
     zIndex,
 }: ReminderViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // Fetch existing data
-    const id = useMemo(() => partialData?.id ?? parseSingleItemUrl({})?.id, [partialData?.id]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, Reminder>(endpointGetReminder);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
+        ...endpointGetReminder,
+        objectType: "Reminder",
+        overrideObject,
+        transform: (data) => reminderInitialValues(session, data),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => reminderInitialValues(session, existing?.reminderList?.id ?? "", { ...existing, ...partialData } as Reminder), [existing, partialData, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Reminder>(display, false);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ReminderCreateInput, Reminder>(endpointPostReminder);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+    const {
+        fetchCreate,
+        fetchUpdate,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Reminder, ReminderCreateInput, ReminderUpdateInput>({
+        display,
+        endpointCreate: endpointPostReminder,
+        endpointUpdate: endpointPutReminder,
+        isCreate: false,
+    });
 
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback((id: string) => {
@@ -50,7 +61,7 @@ export const ReminderView = ({
                 buttonKey: "Undo",
                 buttonClicked: () => {
                     fetchLazyWrapper<ReminderCreateInput, Reminder>({
-                        fetch: create,
+                        fetch: fetchCreate,
                         inputs: shapeReminder.create({
                             ...existing,
                             // Make sure not to set any extra fields, 
@@ -69,7 +80,7 @@ export const ReminderView = ({
             },
             errorMessage: () => ({ messageKey: "FailedToDelete" }),
         });
-    }, [create, deleteMutation, existing, onClose, setLocation]);
+    }, [deleteMutation, existing, fetchCreate, onClose, setLocation]);
 
     return (
         <>
@@ -86,14 +97,14 @@ export const ReminderView = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     fetchLazyWrapper<ReminderUpdateInput, Reminder>({
-                        fetch: update,
+                        fetch: fetchUpdate,
                         inputs: transformReminderValues(values, existing),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },

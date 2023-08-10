@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BotForm, botInitialValues, transformBotValues, validateBotValues } from "forms/BotForm/BotForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { BotShape } from "utils/shape/models/bot";
 import { BotUpsertProps } from "../types";
 
 export const BotUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: BotUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<User, BotShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<User, BotShape>({
         ...endpointGetUser,
         objectType: "User",
-        upsertTransform: (data) => botInitialValues(session, data),
+        overrideObject,
+        transform: (data) => botInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<User>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<BotCreateInput, User>(endpointPostBot);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<BotUpdateInput, User>(endpointPutBot);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<BotCreateInput | BotUpdateInput, User>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<User, BotCreateInput, BotUpdateInput>({
+        display,
+        endpointCreate: endpointPostBot,
+        endpointUpdate: endpointPutBot,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

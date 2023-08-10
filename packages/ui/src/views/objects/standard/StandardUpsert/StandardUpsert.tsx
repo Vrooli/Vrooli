@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "forms/StandardForm/StandardForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { StandardUpsertProps } from "../types";
 
 export const StandardUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: StandardUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
         ...endpointGetStandardVersion,
         objectType: "StandardVersion",
-        upsertTransform: (existing) => standardInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => standardInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<StandardVersionCreateInput, StandardVersion>(endpointPostStandardVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<StandardVersionUpdateInput, StandardVersion>(endpointPutStandardVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostStandardVersion,
+        endpointUpdate: endpointPutStandardVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

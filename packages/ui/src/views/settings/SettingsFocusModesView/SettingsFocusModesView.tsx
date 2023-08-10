@@ -162,11 +162,10 @@ export const SettingsFocusModesView = ({
                 zIndex={zIndex + 2}
             >
                 <FocusModeUpsert
-                    display="dialog"
                     isCreate={editingFocusMode === null}
                     onCancel={handleCloseDialog}
                     onCompleted={handleCompleted}
-                    partialData={editingFocusMode ?? undefined}
+                    partialData={editingFocusMode ?? { __typename: "FocusMode" }}
                     zIndex={zIndex + 1002}
                 />
             </LargeDialog>

@@ -1,5 +1,6 @@
 import { RunProject } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type RunProjectUpsertProps = UpsertProps<RunProject>
-export type RunProjectViewProps = ViewProps<RunProject>
+export type RunProjectViewProps = ObjectViewProps<RunProject>

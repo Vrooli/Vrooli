@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm, projectInitialValues, transformProjectValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { ProjectUpsertProps } from "../types";
 
 export const ProjectUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: ProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
         ...endpointGetProjectVersion,
         objectType: "ProjectVersion",
-        upsertTransform: (existing) => projectInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => projectInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<ProjectVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ProjectVersionCreateInput, ProjectVersion>(endpointPostProjectVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ProjectVersionUpdateInput, ProjectVersion>(endpointPutProjectVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostProjectVersion,
+        endpointUpdate: endpointPutProjectVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

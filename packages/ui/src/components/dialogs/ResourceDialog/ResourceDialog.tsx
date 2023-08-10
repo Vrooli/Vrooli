@@ -23,19 +23,17 @@ export const ResourceDialog = ({
     onClose,
     onCreated,
     onUpdated,
-    index,
-    partialData,
-    listId,
+    resource,
     zIndex,
 }: ResourceDialogProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
+    const initialValues = useMemo(() => resourceInitialValues(session, resource), [resource, session]);
     const [create, { loading: addLoading }] = useLazyFetch<ResourceCreateInput, Resource>(endpointPostResource);
     const [update, { loading: updateLoading }] = useLazyFetch<ResourceUpdateInput, Resource>(endpointPutResource);
-    const fetch = (index < 0 ? create : update) as MakeLazyRequest<ResourceCreateInput | ResourceUpdateInput, Resource>;
+    const fetch = (resource.index < 0 ? create : update) as MakeLazyRequest<ResourceCreateInput | ResourceUpdateInput, Resource>;
 
     const handleClose = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
         // Confirm dialog is dirty and closed by clicking outside
@@ -54,7 +52,7 @@ export const ResourceDialog = ({
             >
                 <DialogTitle
                     id={titleId}
-                    title={(index < 0) ? t("CreateResource") : t("UpdateResource")}
+                    title={(resource.index < 0) ? t("CreateResource") : t("UpdateResource")}
                     help={helpText}
                     onClose={handleClose}
                     zIndex={zIndex + 1000}
@@ -63,21 +61,21 @@ export const ResourceDialog = ({
                     enableReinitialize={true}
                     initialValues={initialValues}
                     onSubmit={(values, helpers) => {
-                        console.log("resource dialog onsubmit", mutate, index, values, partialData);
-                        const isCreating = index < 0;
+                        console.log("resource dialog onsubmit", mutate, values, resource);
+                        const isCreating = resource.index < 0;
                         if (mutate) {
                             const onSuccess = (data: Resource) => {
-                                (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
+                                isCreating ? onCreated(data) : onUpdated(resource.index, data);
                                 helpers.resetForm();
                                 onClose();
                             };
-                            if (!isCreating && (!partialData || !partialData.id)) {
+                            if (!isCreating && (!resource || !resource.id)) {
                                 PubSub.get().publishSnack({ messageKey: "ResourceNotFound", severity: "Error" });
                                 return;
                             }
                             fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
                                 fetch,
-                                inputs: transformResourceValues(values, partialData as any),
+                                inputs: transformResourceValues(values, resource),
                                 successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
@@ -87,21 +85,21 @@ export const ResourceDialog = ({
                             if (isCreating) {
                                 onCreated({
                                     ...values,
-                                    created_at: partialData?.created_at ?? new Date().toISOString(),
-                                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                                    created_at: resource?.created_at ?? new Date().toISOString(),
+                                    updated_at: resource?.updated_at ?? new Date().toISOString(),
                                 } as Resource);
                             } else {
-                                onUpdated(index ?? 0, values as Resource);
+                                onUpdated(resource.index, values as Resource);
                             }
                             helpers.resetForm();
                             onClose();
                         }
                     }}
-                    validate={async (values) => await validateResourceValues(values, partialData as any)}
+                    validate={async (values) => await validateResourceValues(values, resource)}
                 >
                     {(formik) => <ResourceForm
                         display="dialog"
-                        isCreate={index < 0}
+                        isCreate={resource.index < 0}
                         isLoading={addLoading || updateLoading}
                         isOpen={isOpen}
                         onCancel={handleClose}

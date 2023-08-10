@@ -9,7 +9,6 @@ import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateS
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams } from "route";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -25,14 +24,13 @@ export const ScheduleUpsert = ({
     canChangeTab = true,
     canSetScheduleFor = true,
     defaultTab,
-    display = "page",
     handleDelete,
     isCreate,
     isMutate,
     listId,
     onCancel,
     onCompleted,
-    partialData,
+    overrideObject,
     zIndex,
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
@@ -72,10 +70,11 @@ export const ScheduleUpsert = ({
         setCurrTab(tab);
     }, []);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
         objectType: "Schedule",
-        upsertTransform: (existing) => scheduleInitialValues(session, { //TODO this might cause a fetch every time a tab is changed, and we lose changed data. Need to test
+        overrideObject,
+        transform: (existing) => scheduleInitialValues(session, { //TODO this might cause a fetch every time a tab is changed, and we lose changed data. Need to test
             ...existing,
             // For creating, set values for linking to an object. 
             // NOTE: We can't set these values to null or undefined like you'd expect, 
@@ -91,10 +90,20 @@ export const ScheduleUpsert = ({
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<Schedule>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ScheduleCreateInput, Schedule>(endpointPostSchedule);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ScheduleUpdateInput, Schedule>(endpointPutSchedule);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ScheduleCreateInput | ScheduleUpdateInput, Schedule>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Schedule, ScheduleCreateInput, ScheduleUpdateInput>({
+        display,
+        endpointCreate: endpointPostSchedule,
+        endpointUpdate: endpointPutSchedule,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>
@@ -129,8 +138,8 @@ export const ScheduleUpsert = ({
                     } else {
                         onCompleted?.({
                             ...values,
-                            created_at: partialData?.created_at ?? new Date().toISOString(),
-                            updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                            created_at: (existing as Partial<Schedule>).created_at ?? new Date().toISOString(),
+                            updated_at: (existing as Partial<Schedule>).updated_at ?? new Date().toISOString(),
                         } as Schedule);
                     }
                 }}

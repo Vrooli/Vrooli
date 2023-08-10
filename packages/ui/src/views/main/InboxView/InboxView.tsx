@@ -185,10 +185,10 @@ export const InboxView = ({
                 zIndex={zIndex + 1}
             >
                 <ChatUpsert
-                    display="dialog"
                     isCreate={true}
                     onCancel={closeCreateChat}
                     onCompleted={onChatCreated}
+                    overrideObject={{ __typename: "Chat" }}
                     zIndex={zIndex + 1001}
                 />
             </LargeDialog>

@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { FocusModeForm, focusModeInitialValues, transformFocusModeValues, validateFocusModeValues } from "forms/FocusModeForm/FocusModeForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { FocusModeShape } from "utils/shape/models/focusMode";
 import { FocusModeUpsertProps } from "../types";
 
 export const FocusModeUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: FocusModeUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<FocusMode, FocusModeShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<FocusMode, FocusModeShape>({
         ...endpointGetFocusMode,
         objectType: "FocusMode",
-        upsertTransform: (data) => focusModeInitialValues(session, data),
+        overrideObject,
+        transform: (data) => focusModeInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<FocusModeCreateInput, FocusMode>(endpointPostFocusMode);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<FocusModeUpdateInput, FocusMode>(endpointPutFocusMode);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<FocusModeCreateInput | FocusModeUpdateInput, FocusMode>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<FocusMode, FocusModeCreateInput, FocusModeUpdateInput>({
+        display,
+        endpointCreate: endpointPostFocusMode,
+        endpointUpdate: endpointPutFocusMode,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

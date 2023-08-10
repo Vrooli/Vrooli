@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { QuestionShape } from "utils/shape/models/question";
 import { QuestionUpsertProps } from "../types";
 
 export const QuestionUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: QuestionUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Question, QuestionShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Question, QuestionShape>({
         ...endpointGetQuestion,
         objectType: "Question",
-        upsertTransform: (existing) => questionInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => questionInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<Question>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<QuestionCreateInput, Question>(endpointPostQuestion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<QuestionUpdateInput, Question>(endpointPutQuestion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<QuestionCreateInput | QuestionUpdateInput, Question>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Question, QuestionCreateInput, QuestionUpdateInput>({
+        display,
+        endpointCreate: endpointPostQuestion,
+        endpointUpdate: endpointPutQuestion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>
@@ -49,7 +59,7 @@ export const QuestionUpsert = ({
                 initialValues={{
                     ...existing,
                     forObject: null,
-                }}
+                } as QuestionShape}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });

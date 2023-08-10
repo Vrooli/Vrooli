@@ -172,7 +172,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
         return filteredTabParams.map((tab, i) => ({
             index: i,
-            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
@@ -416,6 +415,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
                         currTab={currTab!}
+                        fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}

@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { MeetingForm, meetingInitialValues, transformMeetingValues, validateMeetingValues } from "forms/MeetingForm/MeetingForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { MeetingShape } from "utils/shape/models/meeting";
 import { MeetingUpsertProps } from "../types";
 
 export const MeetingUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: MeetingUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Meeting, MeetingShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Meeting, MeetingShape>({
         ...endpointGetMeeting,
         objectType: "Meeting",
-        upsertTransform: (data) => meetingInitialValues(session, data),
+        overrideObject,
+        transform: (data) => meetingInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<Meeting>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<MeetingCreateInput, Meeting>(endpointPostMeeting);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<MeetingUpdateInput, Meeting>(endpointPutMeeting);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<MeetingCreateInput | MeetingUpdateInput, Meeting>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Meeting, MeetingCreateInput, MeetingUpdateInput>({
+        display,
+        endpointCreate: endpointPostMeeting,
+        endpointUpdate: endpointPutMeeting,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

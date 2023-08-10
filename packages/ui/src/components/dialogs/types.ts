@@ -175,17 +175,15 @@ export interface ReportDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
-    /** Index in resource list. -1 if new */
-    index: number;
+export interface ResourceDialogProps extends Omit<DialogProps, "open" | "resource"> {
     isOpen: boolean;
-    listId: string;
     /** Determines if add resource should be called by this dialog, or is handled later */
     mutate: boolean;
     onClose: () => unknown;
     onCreated: (resource: Resource) => unknown;
     onUpdated: (index: number, resource: Resource) => unknown;
-    partialData?: Partial<Resource>;
+    /** Resource must include the list ID and index. Set index to -1 if new */
+    resource: Partial<Resource> & { index: number, list: { id: string } & Partial<Resource["list"]> };
     zIndex: number;
 }
 

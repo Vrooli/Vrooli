@@ -97,13 +97,12 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     canChangeTab={false}
                     canSetScheduleFor={false}
                     defaultTab={CalendarPageTabOption.FocusModes}
-                    display="dialog"
                     handleDelete={handleDeleteSchedule}
                     isCreate={editingSchedule === null}
                     isMutate={false}
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
+                    overrideObject={editingSchedule ?? { __typename: "Schedule" }}
                     zIndex={zIndex + 1001}
                 />
             </LargeDialog>

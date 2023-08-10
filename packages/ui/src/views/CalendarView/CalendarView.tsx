@@ -334,13 +334,12 @@ export const CalendarView = ({
             >
                 <ScheduleUpsert
                     defaultTab={currTab.value === "All" ? CalendarPageTabOption.Meetings : currTab.value}
-                    display="dialog"
                     handleDelete={handleDeleteSchedule}
                     isCreate={editingSchedule === null}
                     isMutate={true}
                     onCancel={handleCloseScheduleDialog}
                     onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
+                    overrideObject={editingSchedule ?? { __typename: "Schedule" }}
                     zIndex={zIndex + 1002}
                 />
             </LargeDialog>

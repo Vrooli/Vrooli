@@ -40,7 +40,6 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                 {/* Bookmarks, votes, and other info */}
                 <StatsCompact
                     handleObjectUpdate={handleObjectUpdate}
-                    loading={false}
                     object={object}
                 />
                 {/* Historical stats */}

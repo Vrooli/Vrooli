@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { OrganizationShape } from "utils/shape/models/organization";
 import { OrganizationUpsertProps } from "../types";
 
 export const OrganizationUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: OrganizationUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Organization, OrganizationShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Organization, OrganizationShape>({
         ...endpointGetOrganization,
         objectType: "Organization",
-        upsertTransform: (existing) => organizationInitialValues(session, existing),
+        overrideObject,
+        transform: (existing) => organizationInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<Organization>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<OrganizationCreateInput, Organization>(endpointPostOrganization);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<OrganizationUpdateInput, Organization>(endpointPutOrganization);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<OrganizationCreateInput | OrganizationUpdateInput, Organization>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Organization, OrganizationCreateInput, OrganizationUpdateInput>({
+        display,
+        endpointCreate: endpointPostOrganization,
+        endpointUpdate: endpointPutOrganization,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>

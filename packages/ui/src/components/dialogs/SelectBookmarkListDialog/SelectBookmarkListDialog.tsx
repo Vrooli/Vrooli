@@ -129,10 +129,10 @@ export const SelectBookmarkListDialog = ({
                 zIndex={zIndex + 1}
             >
                 <BookmarkListUpsert
-                    display="dialog"
                     isCreate={true}
                     onCancel={closeCreate}
                     onCompleted={onCreated}
+                    overrideObject={{ __typename: "BookmarkList" }}
                     zIndex={zIndex + 1001}
                 />
             </LargeDialog>

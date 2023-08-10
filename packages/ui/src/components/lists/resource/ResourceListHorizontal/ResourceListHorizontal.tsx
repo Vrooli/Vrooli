@@ -285,14 +285,14 @@ export const ResourceListHorizontal = ({
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            partialData={editingIndex >= 0 ? list.resources[editingIndex as number] : undefined}
             index={editingIndex}
             isOpen={isDialogOpen}
             listId={list.id}
+            mutate={mutate}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
-            mutate={mutate}
+            resource={editingIndex >= 0 ? list.resources[editingIndex as number] : { __typename: "Resource" }}
             zIndex={zIndex + 1}
         /> : null
     ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);

@@ -5,10 +5,9 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportForm, reportInitialValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
-import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { SessionContext } from "utils/SessionContext";
@@ -30,8 +29,6 @@ export const ReportDialog = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => { setLanguage(getUserLanguages(session)[0]); }, [session]);
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
     const { handleCancel } = useUpsertActions<Report>("dialog", true, onClose, onClose);

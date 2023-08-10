@@ -191,8 +191,9 @@ export function CommentThreadItem({
                     </Stack>}
                     {/* Add/Update comment */}
                     {
-                        isUpsertCommentOpen && objectId && objectType && <CommentUpsertInput
+                        objectId && objectType && <CommentUpsertInput
                             comment={commentToUpdate}
+                            isOpen={isUpsertCommentOpen}
                             language={language}
                             objectId={objectId}
                             objectType={objectType}

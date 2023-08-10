@@ -152,13 +152,12 @@ export const ReminderList = ({
                 zIndex={zIndex}
             >
                 <ReminderUpsert
-                    display="dialog"
-                    partialData={editingIndex >= 0 ? reminders[editingIndex as number] : undefined}
                     handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
                     isCreate={editingIndex < 0}
                     listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
                     onCancel={closeDialog}
                     onCompleted={handleCompleted}
+                    overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder" }}
                     zIndex={zIndex + 1000}
                 />
             </LargeDialog>

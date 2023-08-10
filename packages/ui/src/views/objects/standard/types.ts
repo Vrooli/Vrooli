@@ -1,5 +1,6 @@
 import { StandardVersion } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type StandardUpsertProps = UpsertProps<StandardVersion>
-export type StandardViewProps = ViewProps<StandardVersion>
+export type StandardViewProps = ObjectViewProps<StandardVersion>

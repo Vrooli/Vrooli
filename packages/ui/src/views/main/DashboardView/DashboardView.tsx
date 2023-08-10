@@ -252,10 +252,10 @@ export const DashboardView = ({
                 zIndex={zIndex + 1}
             >
                 <NoteUpsert
-                    display="dialog"
                     isCreate={true}
                     onCancel={closeCreateNote}
                     onCompleted={onNoteCreated}
+                    overrideObject={{ __typename: "NoteVersion" }}
                     zIndex={zIndex + 1001}
                 />
             </LargeDialog>

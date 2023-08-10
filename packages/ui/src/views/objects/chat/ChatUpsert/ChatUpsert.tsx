@@ -6,7 +6,6 @@ import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatForm, chatInitialValues, transformChatValues, validateChatValues } from "forms/ChatForm/ChatForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,26 +14,37 @@ import { ChatShape } from "utils/shape/models/chat";
 import { ChatUpsertProps } from "../types";
 
 export const ChatUpsert = ({
-    display = "page",
     isCreate,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: ChatUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
+    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
         objectType: "Chat",
-        upsertTransform: (data) => chatInitialValues(session, data),
+        overrideObject,
+        transform: (data) => chatInitialValues(session, data),
     });
 
     const formRef = useRef<BaseFormRef>();
-    const { handleCancel, handleCompleted } = useUpsertActions<Chat>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ChatUpdateInput, Chat>(endpointPutChat);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ChatCreateInput | ChatUpdateInput, Chat>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Chat, ChatCreateInput, ChatUpdateInput>({
+        display,
+        endpointCreate: endpointPostChat,
+        endpointUpdate: endpointPutChat,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
         <>
