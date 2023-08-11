@@ -68,10 +68,6 @@ export const StandardView = ({
         return { description, name };
     }, [existing, language]);
 
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);

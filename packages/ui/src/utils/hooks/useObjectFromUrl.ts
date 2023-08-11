@@ -13,7 +13,7 @@ import { useStableCallback } from "./useStableCallback";
 type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };
 
 /** 
- * When upsertTransform is provided, we know that all fields of the object must exist. 
+ * When transform is provided, we know that all fields of the object must exist. 
  * When it is not provided, we can only guarantee that the __typename field exists.
  */
 type ObjectReturnType<TData extends UrlObject, TFunc> = TFunc extends (data: never) => infer R ? R : PartialWithType<TData>;
@@ -41,7 +41,7 @@ export function useObjectFromUrl<
     objectType,
     onInvalidUrlParams,
     overrideObject,
-    transform: upsertTransform,
+    transform,
 }: {
     endpoint: string,
     objectType: PData["__typename"],
@@ -59,13 +59,14 @@ export function useObjectFromUrl<
     // Fetch data
     const [getData, { data, loading: isLoading, errors }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
-        // If overrideObject provided, use it. Also use upsertTransform if provided
-        if (typeof overrideObject === "object") return (typeof upsertTransform === "function" ? upsertTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
+        // If overrideObject provided, use it. Also use transform if provided
+        if (typeof overrideObject === "object") return (typeof transform === "function" ? transform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
         // Try to find object in cache
         const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
-        // Return as-is, or use upsertTransform if provided
-        if (typeof upsertTransform === "function") return upsertTransform(storedData) as ObjectReturnType<TData, TFunc>;
-        return storedData as ObjectReturnType<TData, TFunc>;
+        // If transform provided, use it
+        const data = (typeof transform === "function" ? transform(storedData) : storedData) as ObjectReturnType<TData, TFunc>;
+        // Return data
+        return data;
     });
     useDisplayServerError(errors);
     useEffect(() => {
@@ -76,23 +77,25 @@ export function useObjectFromUrl<
         else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
         else if (exists(urlParams.id)) getData({ id: urlParams.id });
         else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
-        // If upsertTransform provided, ignore bad URL params. This is because we only use the transform for 
+        // If transform provided, ignore bad URL params. This is because we only use the transform for 
         // upsert forms, which don't have a valid URL if the object doesn't exist yet
-        else if (typeof upsertTransform === "function") return;
+        else if (typeof transform === "function") return;
         // Else if onInvalidUrlParams provided, call it
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, upsertTransform, urlParams]);
+    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, transform, urlParams]);
     useEffect(() => {
         // If overrideObject provided, ignore this effect
         if (typeof overrideObject === "object") return;
         // If data was queried (i.e. object exists), store it in local state
         if (data) setCookiePartialData(data);
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
-        if (typeof upsertTransform === "function") setObject(upsertTransform(knownData) as ObjectReturnType<TData, TFunc>);
-        else setObject(knownData as ObjectReturnType<TData, TFunc>);
-    }, [data, objectType, overrideObject, upsertTransform, urlParams]);
+        // If transform provided, use it
+        const changedData = (typeof transform === "function" ? transform(knownData) : knownData) as ObjectReturnType<TData, TFunc>;
+        // Set object
+        setObject(knownData as ObjectReturnType<TData, TFunc>);
+    }, [data, objectType, overrideObject, transform, urlParams]);
 
 
     // If object found, get permissions

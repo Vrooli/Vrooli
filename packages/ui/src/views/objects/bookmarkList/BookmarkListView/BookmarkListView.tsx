@@ -41,10 +41,6 @@ export const BookmarkListView = ({
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
 
-    useEffect(() => {
-        document.title = `${label} | Vrooli`;
-    }, [label]);
-
     const actionData = useObjectActions({
         object: existing,
         objectType: "BookmarkList",

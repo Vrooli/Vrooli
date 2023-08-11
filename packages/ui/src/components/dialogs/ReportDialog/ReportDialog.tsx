@@ -1,6 +1,7 @@
-import { endpointPostReport, Report, ReportCreateInput } from "@local/shared";
+import { endpointPostReport, endpointPutReport, Report, ReportCreateInput, ReportUpdateInput } from "@local/shared";
 import { Link, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReportForm, reportInitialValues, validateReportValues } from "forms/ReportForm/ReportForm";
@@ -8,15 +9,12 @@ import { formNavLink } from "forms/styles";
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
-import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeReport } from "utils/shape/models/report";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
+import { MaybeLargeDialog } from "../LargeDialog/LargeDialog";
 import { ReportDialogProps } from "../types";
-
-const titleId = "report-dialog-title";
 
 export const ReportDialog = ({
     forId,
@@ -28,11 +26,24 @@ export const ReportDialog = ({
 }: ReportDialogProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const display = toDisplay(open);
 
-    const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
-    const { handleCancel } = useUpsertActions<Report>("dialog", true, onClose, onClose);
-    const [fetch, { loading: isLoading }] = useLazyFetch<ReportCreateInput, Report>(endpointPostReport);
+    const formRef = useRef<BaseFormRef>();
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Report, ReportCreateInput, ReportUpdateInput>({
+        display,
+        endpointCreate: endpointPostReport,
+        endpointUpdate: endpointPutReport,
+        isCreate: true,
+        onCancel: onClose,
+        onCompleted: onClose,
+    });
 
     /**
      * Opens existing reports in a new tab
@@ -42,18 +53,18 @@ export const ReportDialog = ({
     }, []);
 
     return (
-        <LargeDialog
+        <MaybeLargeDialog
+            display={display}
             id="report-dialog"
             isOpen={open}
             onClose={handleCancel}
-            titleId={titleId}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
-                title={title ?? t("Report", { count: 1 })}
-                help={t("ReportsHelp")}
+            <TopBar
+                display={display}
                 onClose={handleCancel}
+                title={title ?? t("Report")}
+                help={t("ReportsHelp")}
                 zIndex={zIndex}
             />
             <Link onClick={toExistingReports}>
@@ -88,7 +99,7 @@ export const ReportDialog = ({
                 {(formik) => <ReportForm
                     display="dialog"
                     isCreate={true}
-                    isLoading={isLoading}
+                    isLoading={isCreateLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
@@ -96,6 +107,6 @@ export const ReportDialog = ({
                     {...formik}
                 />}
             </Formik>
-        </LargeDialog>
+        </MaybeLargeDialog>
     );
 };

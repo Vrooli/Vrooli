@@ -206,11 +206,11 @@ export const SideMenu = () => {
             }}
         >
             {/* Menu title with close icon */}
-            <Stack
-                direction='row'
-                spacing={1}
+            <Box
+                onClick={handleClose}
                 sx={{
                     ...noSelect,
+                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -218,7 +218,6 @@ export const SideMenu = () => {
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
                     textAlign: "center",
-                    fontSize: { xs: "1.5rem", sm: "2rem" },
                     height: "64px", // Matches Navbar height
                     paddingRight: 3, // Matches navbar padding
                 }}
@@ -229,13 +228,13 @@ export const SideMenu = () => {
                     edge="end"
                     onClick={handleClose}
                     sx={{
-                        marginLeft: (isMobile && isLeftHanded) ? "unset" : "auto",
-                        marginRight: (isMobile && isLeftHanded) ? "auto" : "unset",
+                        marginLeft: isLeftHanded ? "unset" : "auto",
+                        marginRight: isLeftHanded ? "auto" : "unset",
                     }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
-            </Stack>
+            </Box>
             {/* List of logged/in accounts and authentication-related actions */}
             <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {profileListItems}

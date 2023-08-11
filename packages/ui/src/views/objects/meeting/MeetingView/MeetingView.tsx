@@ -39,10 +39,6 @@ export const MeetingView = ({
 
     const { name } = useMemo(() => ({ name: getDisplay(existing, [language]).title ?? "" }), [existing, language]);
 
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
-
     const actionData = useObjectActions({
         object: existing,
         objectType: "Meeting",

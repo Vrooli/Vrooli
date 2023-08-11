@@ -15,6 +15,7 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -52,10 +53,6 @@ export const SmartContractView = ({
             name,
         };
     }, [language, smartContractVersion]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -168,7 +165,7 @@ export const SmartContractView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("SmartContract")}
+                title={firstString(name, t("SmartContract"))}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

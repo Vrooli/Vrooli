@@ -161,6 +161,7 @@ export interface ReorderInputDialogProps {
 
 export interface ReportDialogProps extends DialogProps {
     forId: string;
+    isOpen: boolean;
     onClose: () => unknown;
     open: boolean;
     reportFor: ReportFor;

@@ -56,11 +56,6 @@ export const ProjectView = ({
         };
     }, [language, existing]);
 
-    useEffect(() => {
-        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
-        else document.title = `${name} | Vrooli`;
-    }, [handle, name]);
-
     // // Handle tabs
     // const tabs = useMemo<PageTab<TabOptions>[]>(() => {
     //     let tabs: TabOptions[] = Object.values(TabOptions);
@@ -94,6 +89,7 @@ export const ProjectView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                tabTitle={handle ? `${name} (@${handle})` : name}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

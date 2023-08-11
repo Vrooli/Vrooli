@@ -82,10 +82,6 @@ export const RoutineView = ({
         return { name, description, instructions };
     }, [existing, language]);
 
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
-
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     const viewGraph = useCallback(() => {
         setSearchParams(setLocation, { build: true });
@@ -206,7 +202,7 @@ export const RoutineView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(name, t("Routine"))}
+                title={firstString(name, t("Routine", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

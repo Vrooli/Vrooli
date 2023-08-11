@@ -132,11 +132,6 @@ export const UserView = ({
         };
     }, [language, user]);
 
-    useEffect(() => {
-        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
-        else document.title = `${name} | Vrooli`;
-    }, [handle, name]);
-
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
         // Remove details tab if not a bot
@@ -205,6 +200,7 @@ export const UserView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                tabTitle={handle ? `${name} (@${handle})` : name}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

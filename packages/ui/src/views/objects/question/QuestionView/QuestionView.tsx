@@ -53,10 +53,6 @@ export const QuestionView = ({
 
     const { title, subtitle } = useMemo(() => getDisplay(existing, [language]), [existing, language]);
 
-    useEffect(() => {
-        document.title = `${title} | Vrooli`;
-    }, [title]);
-
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
     const tags = useMemo<TagShape[] | null | undefined>(() => initialValues?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -90,7 +86,7 @@ export const QuestionView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(title, t("Question"))}
+                title={firstString(title, t("Question", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

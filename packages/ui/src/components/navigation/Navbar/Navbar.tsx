@@ -36,6 +36,7 @@ export const Navbar = forwardRef(({
     help,
     options,
     shouldHideTitle = false,
+    tabTitle,
     title,
     titleComponent,
 }: NavbarProps, ref) => {
@@ -58,9 +59,8 @@ export const Navbar = forwardRef(({
 
     // Set tab to title
     useEffect(() => {
-        if (!title) return;
-        document.title = `${title} | ${BUSINESS_NAME}`;
-    }, [title]);
+        document.title = tabTitle || title ? `${tabTitle ?? title} | ${BUSINESS_NAME}` : BUSINESS_NAME;
+    }, [tabTitle, title]);
 
     const logo = useMemo(() => (
         <Box

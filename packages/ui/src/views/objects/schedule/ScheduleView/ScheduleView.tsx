@@ -27,10 +27,6 @@ export const ScheduleView = ({
         objectType: "Schedule",
     });
 
-    // useEffect(() => {
-    //     document.title = `${name} | Vrooli`;
-    // }, [name]);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {

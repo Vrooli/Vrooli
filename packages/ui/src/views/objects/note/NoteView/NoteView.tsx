@@ -49,10 +49,6 @@ export const NoteView = ({
         };
     }, [language, noteVersion]);
 
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
-
     const actionData = useObjectActions({
         object: noteVersion,
         objectType: "NoteVersion",
@@ -65,7 +61,7 @@ export const NoteView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(name, t("Note"))}
+                title={firstString(name, t("Note", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

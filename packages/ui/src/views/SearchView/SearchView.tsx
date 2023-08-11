@@ -4,7 +4,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { AddIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { centeredDiv } from "styles";
@@ -89,11 +89,6 @@ export const SearchView = ({
         tabs,
         where,
     } = useTabs<SearchPageTabOption>(tabParams, 0);
-
-    // On tab change, update document title
-    useEffect(() => {
-        document.title = `${t("Search")} | ${currTab.label}`;
-    }, [currTab, t]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;

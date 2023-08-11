@@ -70,6 +70,7 @@ export const OrganizationView = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization>({
         ...endpointGetOrganization,
@@ -77,7 +78,6 @@ export const OrganizationView = ({
     });
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
@@ -94,11 +94,6 @@ export const OrganizationView = ({
             resourceList,
         };
     }, [language, organization]);
-
-    useEffect(() => {
-        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
-        else document.title = `${name} | Vrooli`;
-    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
@@ -173,6 +168,7 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                tabTitle={handle ? `${name} (@${handle})` : name}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

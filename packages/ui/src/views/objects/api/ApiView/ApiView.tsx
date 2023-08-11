@@ -16,6 +16,7 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -33,6 +34,7 @@ export const ApiView = ({
     const [, setLocation] = useLocation();
     const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
         ...endpointGetApiVersion,
@@ -40,7 +42,6 @@ export const ApiView = ({
     });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
@@ -58,10 +59,6 @@ export const ApiView = ({
             summary,
         };
     }, [language, apiVersion]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
@@ -191,6 +188,7 @@ export const ApiView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                tabTitle={firstString(getTranslation(data, [language]).name, "Api")}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
