@@ -8,6 +8,7 @@ import { PageTab } from "components/types";
 import { ChangeEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useMarkdown } from "utils/hooks/useMarkdown";
 import { TermsViewProps } from "../types";
 
@@ -17,12 +18,13 @@ enum TabOptions {
 }
 
 export const TermsView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const terms = useMarkdown(termsMarkdown);
 

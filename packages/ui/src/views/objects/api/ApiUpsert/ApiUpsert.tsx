@@ -1,11 +1,13 @@
 import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
@@ -22,8 +25,9 @@ export const ApiUpsert = ({
 }: ApiUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
         ...endpointGetApiVersion,
         objectType: "ApiVersion",
         overrideObject,
@@ -47,7 +51,13 @@ export const ApiUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="api-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -83,6 +93,6 @@ export const ApiUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

@@ -60,7 +60,7 @@ export const CommentDialog = ({
                 onClose={onCancel}
                 title={t(isCreate ? "AddComment" : "EditComment")}
                 titleId={titleId}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
@@ -117,7 +117,7 @@ export const CommentDialog = ({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </LargeDialog>

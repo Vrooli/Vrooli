@@ -1,11 +1,13 @@
 import { endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectForm, runProjectInitialValues, transformRunProjectValues, validateRunProjectValues } from "forms/RunProjectForm/RunProjectForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { RunProjectUpsertProps } from "../types";
 
 export const RunProjectUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
@@ -22,8 +25,9 @@ export const RunProjectUpsert = ({
 }: RunProjectUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunProject, RunProjectShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunProject, RunProjectShape>({
         ...endpointGetRunProject,
         objectType: "RunProject",
         overrideObject,
@@ -47,7 +51,13 @@ export const RunProjectUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="run-project-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -82,6 +92,6 @@ export const RunProjectUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

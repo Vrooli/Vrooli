@@ -2,7 +2,6 @@ import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusMo
 import { Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
 import { ReminderList } from "components/lists/reminder";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -18,6 +17,7 @@ import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFetch } from "utils/hooks/useFetch";
@@ -32,13 +32,14 @@ import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
@@ -245,20 +246,14 @@ export const DashboardView = ({
     return (
         <PageContainer>
             {/* Create note dialog */}
-            <LargeDialog
-                id="add-note-dialog"
-                onClose={closeCreateNote}
+            <NoteUpsert
+                isCreate={true}
                 isOpen={isCreateNoteOpen}
-                zIndex={zIndex + 1}
-            >
-                <NoteUpsert
-                    isCreate={true}
-                    onCancel={closeCreateNote}
-                    onCompleted={onNoteCreated}
-                    overrideObject={{ __typename: "NoteVersion" }}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={closeCreateNote}
+                onCompleted={onNoteCreated}
+                overrideObject={{ __typename: "NoteVersion" }}
+                zIndex={zIndex + 1001}
+            />
             {/* Main content */}
             <TopBar
                 display={display}
@@ -293,7 +288,7 @@ export const DashboardView = ({
                 />
             </Stack>
             {/* Result feeds */}
-            <Stack spacing={10} direction="column" mt={10}>
+            <Stack spacing={4} direction="column" sx={{ margin: "auto", marginTop: 10 }}>
                 {/* Resources */}
                 <ResourceListHorizontal
                     id="main-resource-list"

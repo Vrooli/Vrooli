@@ -8,6 +8,7 @@ import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedI
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { SettingsData, SettingsViewProps } from "../types";
 
 export const accountSettingsData: SettingsData[] = [
@@ -74,12 +75,13 @@ export const displaySettingsData: SettingsData[] = [
 ];
 
 export const SettingsView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const onSelect = useCallback((link: LINKS) => {
         if (!link) return;

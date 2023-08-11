@@ -6,7 +6,6 @@ import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { ViewDisplayType } from "views/types";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
@@ -20,8 +19,6 @@ type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };
 type ObjectReturnType<TData extends UrlObject, TFunc> = TFunc extends (data: never) => infer R ? R : PartialWithType<TData>;
 
 export type UseObjectFromUrlReturn<TData extends UrlObject, TFunc> = {
-    /** When overrideObject is provided, we know this is for a dialog */
-    display: ViewDisplayType,
     handleRoot?: string,
     handle?: string,
     idRoot?: string,
@@ -102,7 +99,6 @@ export function useObjectFromUrl<
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);
 
     return {
-        display: exists(overrideObject) ? "dialog" : "page" as ViewDisplayType,
         id: object?.id ?? urlParams.id,
         isLoading,
         object,

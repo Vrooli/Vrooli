@@ -69,7 +69,7 @@ export const SubroutineInfoDialog = ({
                     onCancel={onClose}
                     ref={formRef}
                     versions={[]}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

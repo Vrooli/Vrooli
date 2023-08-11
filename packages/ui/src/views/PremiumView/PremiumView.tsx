@@ -4,6 +4,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { CompleteIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { stringifySearchParams, useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useStripe } from "utils/hooks/useStripe";
 import { PremiumViewProps } from "../types";
 
@@ -36,13 +37,14 @@ const rows = [
 ];
 
 export const PremiumView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: PremiumViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const {
         currentUser,

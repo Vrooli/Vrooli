@@ -1,11 +1,13 @@
 import { BotCreateInput, BotUpdateInput, endpointGetUser, endpointPostBot, endpointPutBot, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { BotForm, botInitialValues, transformBotValues, validateBotValues } from "forms/BotForm/BotForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { BotUpsertProps } from "../types";
 
 export const BotUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
@@ -22,8 +25,9 @@ export const BotUpsert = ({
 }: BotUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<User, BotShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<User, BotShape>({
         ...endpointGetUser,
         objectType: "User",
         overrideObject,
@@ -47,7 +51,13 @@ export const BotUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="bot-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -84,6 +94,6 @@ export const BotUpsert = ({
                     />
                 }
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

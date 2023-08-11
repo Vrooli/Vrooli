@@ -26,6 +26,7 @@ import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -67,7 +68,7 @@ const tabParams: TabParams[] = [
 ];
 
 export const UserView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: UserViewProps) => {
@@ -75,6 +76,7 @@ export const UserView = ({
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
 
     // Parse information from URL

@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -68,7 +69,7 @@ const tabParams = [{
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SearchViewProps) => {
@@ -76,6 +77,7 @@ export const SearchView = ({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     // Popup button for adding new objects
     const [popupButton, setPopupButton] = useState<boolean>(false);

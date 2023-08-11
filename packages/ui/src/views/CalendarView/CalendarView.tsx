@@ -2,7 +2,6 @@ import { calculateOccurrences, CommonKey, Schedule, ScheduleFor, ScheduleSearchR
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -17,6 +16,7 @@ import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { CalendarEvent, SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
 import { useDimensions } from "utils/hooks/useDimensions";
 import { useFindMany } from "utils/hooks/useFindMany";
@@ -160,7 +160,7 @@ const DayColumnHeader = ({ label }) => {
 };
 
 export const CalendarView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: CalendarViewProps) => {
@@ -168,6 +168,7 @@ export const CalendarView = ({
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
     // Defaults to current month
@@ -325,24 +326,17 @@ export const CalendarView = ({
     return (
         <>
             {/* Dialog for creating/updating schedules */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                defaultTab={currTab.value === "All" ? CalendarPageTabOption.Meetings : currTab.value}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={true}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
                 zIndex={zIndex + 2}
-            >
-                <ScheduleUpsert
-                    defaultTab={currTab.value === "All" ? CalendarPageTabOption.Meetings : currTab.value}
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={true}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                    zIndex={zIndex + 1002}
-                />
-            </LargeDialog>
+            />
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open

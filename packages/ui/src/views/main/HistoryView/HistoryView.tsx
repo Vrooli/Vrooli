@@ -3,6 +3,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, VisibleIcon } from "icons";
+import { toDisplay } from "utils/display/pageTools";
 import { useTabs } from "utils/hooks/useTabs";
 import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
@@ -37,10 +38,11 @@ const tabParams = [{
  * Shows items you've bookmarked, viewed, or run recently.
  */
 export const HistoryView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: HistoryViewProps) => {
+    const display = toDisplay(isOpen);
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
 
     return (

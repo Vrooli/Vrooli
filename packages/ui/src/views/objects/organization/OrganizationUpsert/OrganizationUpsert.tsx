@@ -1,11 +1,13 @@
 import { endpointGetOrganization, endpointPostOrganization, endpointPutOrganization, Organization, OrganizationCreateInput, OrganizationUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm, organizationInitialValues, transformOrganizationValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { OrganizationUpsertProps } from "../types";
 
 export const OrganizationUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
@@ -23,14 +26,14 @@ export const OrganizationUpsert = ({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Organization, OrganizationShape>({
+    const formRef = useRef<BaseFormRef>();
+    const display = toDisplay(isOpen);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Organization, OrganizationShape>({
         ...endpointGetOrganization,
         objectType: "Organization",
         overrideObject,
         transform: (existing) => organizationInitialValues(session, existing),
     });
-
-    const formRef = useRef<BaseFormRef>();
     const {
         fetch,
         handleCancel,
@@ -47,7 +50,13 @@ export const OrganizationUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="organization-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -82,6 +91,6 @@ export const OrganizationUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

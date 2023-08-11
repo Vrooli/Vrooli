@@ -1,5 +1,6 @@
 import { CommonKey, MemberInviteStatus } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -9,6 +10,7 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { centeredDiv } from "styles";
+import { toDisplay } from "utils/display/pageTools";
 import { useTabs } from "utils/hooks/useTabs";
 import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
@@ -18,15 +20,16 @@ import { MemberManageViewProps } from "../types";
  * View members and invited members of an organization
  */
 export const MemberManageView = ({
-    display = "dialog",
     onClose,
     organizationId,
+    isOpen,
     zIndex,
 }: MemberManageViewProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -90,23 +93,27 @@ export const MemberManageView = ({
     ), [onInviteClick, popupButton, t]);
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="member-manage-dialog"
+            isOpen={isOpen ?? false}
+            onClose={onClose}
+            zIndex={zIndex}
+            sxs={{
+                paper: {
+                    minHeight: "min(100vh - 64px, 600px)",
+                },
+            }}
+        >
             {/* Dialog for creating new member invite TODO */}
-            {/* <LargeDialog
-                id="invite-member-dialog"
-                onClose={handleCreateClose}
-                isOpen={isInviteDialogOpen}
-                titleId="invite-member-dialog-title"
-                zIndex={zIndex + 2}
-            >
-                <MemberInviteUpsert
+            {/* <MemberInviteUpsert
                     display="dialog"
                     isCreate={true}
+                    isOpen={isInviteDialogOpen}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 1002}
-                />
-            </LargeDialog> */}
+                    zIndex={zIndex + 2}
+                />*/}
             {/* Main dialog */}
             <TopBar
                 display={display}
@@ -154,6 +161,6 @@ export const MemberManageView = ({
                 where={where}
             />}
             {popupButtonContainer}
-        </>
+        </MaybeLargeDialog>
     );
 };

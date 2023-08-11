@@ -374,7 +374,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     isCreate={true}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
-                    zIndex={zIndex + 1002}
+                    zIndex={zIndex + 2}
                 />}
             </LargeDialog>
             {/* Menu for selecting create object type */}
@@ -419,7 +419,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                 />
                 <Box sx={{
                     minHeight: "500px",
@@ -459,7 +459,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                             return result;
                         }}
                         searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
-                        zIndex={zIndex + 1000}
+                        zIndex={zIndex}
                         where={searchData?.where ?? { ...(where ?? {}) }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}

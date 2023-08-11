@@ -5,6 +5,7 @@ import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { slideTitle, textPop } from "styles";
+import { toDisplay } from "utils/display/pageTools";
 import { AboutViewProps } from "views/types";
 
 type MemberData = {
@@ -65,13 +66,14 @@ const teamMembers: MemberData[] = [
 const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
 export const AboutView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: AboutViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     return (
         <Box pl={2} pr={2}>

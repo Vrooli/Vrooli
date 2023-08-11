@@ -7,6 +7,7 @@ import { PageTab } from "components/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useMarkdown } from "utils/hooks/useMarkdown";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
@@ -36,12 +37,13 @@ enum TabOptions {
 }
 
 export const PrivacyPolicyView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: PrivacyPolicyViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const privacy = useMarkdown(privacyMarkdown, (markdown) => {
         const business_fields = Object.keys(convertToDot(BUSINESS_DATA));

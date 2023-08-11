@@ -1,11 +1,13 @@
 import { Chat, ChatCreateInput, ChatUpdateInput, endpointGetChat, endpointPostChat, endpointPutChat } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatForm, chatInitialValues, transformChatValues, validateChatValues } from "forms/ChatForm/ChatForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { ChatUpsertProps } from "../types";
 
 export const ChatUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
@@ -22,8 +25,9 @@ export const ChatUpsert = ({
 }: ChatUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
         objectType: "Chat",
         overrideObject,
@@ -47,7 +51,13 @@ export const ChatUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="chat-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -82,6 +92,6 @@ export const ChatUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

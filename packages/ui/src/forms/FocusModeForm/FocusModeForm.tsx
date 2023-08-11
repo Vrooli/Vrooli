@@ -2,7 +2,6 @@ import { DUMMY_ID, FocusMode, focusModeValidation, Schedule, Session } from "@lo
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Title } from "components/text/Title/Title";
@@ -86,26 +85,19 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.FocusModes}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 1}
-            >
-                <ScheduleUpsert
-                    canChangeTab={false}
-                    canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.FocusModes}
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={false}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                zIndex={zIndex + 1001}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}

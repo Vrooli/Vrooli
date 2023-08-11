@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption, SearchType } from "utils/search/objectToSearch";
@@ -70,7 +71,7 @@ const tabParams: BaseParams[] = [{
 }];
 
 export const MyStuffView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: MyStuffViewProps) => {
@@ -86,6 +87,7 @@ export const MyStuffView = ({
         smartContractsCount,
         standardsCount,
     } = useMemo(() => getCurrentUser(session), [session]);
+    const display = toDisplay(isOpen);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);

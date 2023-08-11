@@ -1,11 +1,13 @@
 import { endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RoutineForm, routineInitialValues, transformRoutineValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
 import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -15,6 +17,7 @@ import { RoutineUpsertProps } from "../types";
 
 export const RoutineUpsert = ({
     isCreate,
+    isOpen,
     isSubroutine = false,
     onCancel,
     onCompleted,
@@ -23,8 +26,9 @@ export const RoutineUpsert = ({
 }: RoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
         ...endpointGetRoutineVersion,
         objectType: "RoutineVersion",
         overrideObject,
@@ -48,7 +52,13 @@ export const RoutineUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="routine-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -85,6 +95,6 @@ export const RoutineUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

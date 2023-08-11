@@ -1,6 +1,6 @@
 import { Dialog, useTheme } from "@mui/material";
 import { UpTransition } from "../../transitions";
-import { LargeDialogProps } from "../types";
+import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
 export const LargeDialog = ({
     children,
@@ -22,10 +22,10 @@ export const LargeDialog = ({
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: zIndex + 999,
+                zIndex,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex: zIndex + 999,
+                        zIndex,
                         margin: { xs: 0, sm: 2, md: 4 },
                         minWidth: { xs: "100vw", sm: "unset" },
                         maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
@@ -47,5 +47,21 @@ export const LargeDialog = ({
         >
             {children}
         </Dialog>
+    );
+};
+
+/** Wraps children in a dialog is display is dialog */
+export const MaybeLargeDialog = ({
+    children,
+    display,
+    onClose,
+    ...props
+}: MaybeLargeDialogProps) => {
+    return display === "dialog" ? (
+        <LargeDialog onClose={onClose ?? (() => { })} {...props}>
+            {children}
+        </LargeDialog>
+    ) : (
+        <>{children}</>
     );
 };

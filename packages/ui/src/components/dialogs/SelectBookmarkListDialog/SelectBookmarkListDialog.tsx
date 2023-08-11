@@ -122,20 +122,14 @@ export const SelectBookmarkListDialog = ({
     return (
         <>
             {/* Dialog for creating a new bookmark list */}
-            <LargeDialog
-                id="add-bookmark-list-dialog"
-                onClose={closeCreate}
+            <BookmarkListUpsert
+                isCreate={true}
                 isOpen={isCreateOpen && isOpen}
-                zIndex={zIndex + 1}
-            >
-                <BookmarkListUpsert
-                    isCreate={true}
-                    onCancel={closeCreate}
-                    onCompleted={onCreated}
-                    overrideObject={{ __typename: "BookmarkList" }}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={closeCreate}
+                onCompleted={onCreated}
+                overrideObject={{ __typename: "BookmarkList" }}
+                zIndex={zIndex + 1001}
+            />
             {/* Main dialog */}
             <LargeDialog
                 id="select-bookmark-list-dialog"
@@ -172,7 +166,7 @@ export const SelectBookmarkListDialog = ({
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}
                     onCancel={onCancel}
                     onSubmit={handleSubmit}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                 />
             </LargeDialog>
         </>

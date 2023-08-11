@@ -4,8 +4,6 @@
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
-import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
-import { AssistantDialogProps } from "components/dialogs/types";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +16,8 @@ import { useDebounce } from "utils/hooks/useDebounce";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
+import { ChatViewProps } from "views/types";
 import { MarkdownInputBaseProps } from "../types";
 
 interface TagItemDropdownPros {
@@ -311,12 +311,13 @@ export const MarkdownInputBase = ({
         onChangeDebounced(updatedText);
     }, [changeStackIndex, onChangeDebounced]);
 
-    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
+        chatInfo: assistantChatInfo,
         context: undefined,
         isOpen: false,
         task: "note",
-        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
@@ -661,7 +662,7 @@ export const MarkdownInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <AssistantDialog {...assistantDialogProps} />
+            <ChatView {...assistantDialogProps} />
             {/* Dropdown for tagging items */}
             <TagItemDropdown
                 anchorEl={dropdownAnchorEl}

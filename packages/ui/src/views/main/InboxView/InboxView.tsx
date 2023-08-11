@@ -4,7 +4,6 @@ import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -13,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { listToListItems } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -40,13 +40,14 @@ type InboxType = "Chat" | "Notification";
 type InboxObject = Chat | Notification;
 
 export const InboxView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: InboxViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
+    const display = toDisplay(isOpen);
 
     const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<InboxPageTabOption>(tabParams, 0);
 
@@ -178,20 +179,14 @@ export const InboxView = ({
     return (
         <>
             {/* Create chat dialog */}
-            <LargeDialog
-                id="add-chat-dialog"
-                onClose={closeCreateChat}
+            <ChatUpsert
+                isCreate={true}
                 isOpen={isCreateChatOpen}
-                zIndex={zIndex + 1}
-            >
-                <ChatUpsert
-                    isCreate={true}
-                    onCancel={closeCreateChat}
-                    onCompleted={onChatCreated}
-                    overrideObject={{ __typename: "Chat" }}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={closeCreateChat}
+                onCompleted={onChatCreated}
+                overrideObject={{ __typename: "Chat" }}
+                zIndex={zIndex + 1001}
+            />
             {/* Main content */}
             <TopBar
                 display={display}

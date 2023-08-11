@@ -1,6 +1,7 @@
 import { Box, Container, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ReactNode } from "react";
+import { toDisplay } from "utils/display/pageTools";
 import { ViewDisplayType } from "views/types";
 
 interface Props {
@@ -15,12 +16,13 @@ interface Props {
 export const FormView = ({
     autocomplete = "on",
     children,
-    display = "page",
+    isOpen,
     maxWidth = "90%",
     title,
     zIndex,
 }: Props) => {
     const { palette } = useTheme();
+    const diplay = toDisplay(isOpen);
 
     return (
         <>

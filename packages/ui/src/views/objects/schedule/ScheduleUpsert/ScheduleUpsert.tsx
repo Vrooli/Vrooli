@@ -1,5 +1,6 @@
 import { endpointGetSchedule, endpointPostSchedule, endpointPutSchedule, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -9,6 +10,7 @@ import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateS
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -27,6 +29,7 @@ export const ScheduleUpsert = ({
     handleDelete,
     isCreate,
     isMutate,
+    isOpen,
     listId,
     onCancel,
     onCompleted,
@@ -35,6 +38,7 @@ export const ScheduleUpsert = ({
 }: ScheduleUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     // Handle tabs
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
@@ -70,7 +74,7 @@ export const ScheduleUpsert = ({
         setCurrTab(tab);
     }, []);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
         objectType: "Schedule",
         overrideObject,
@@ -106,7 +110,13 @@ export const ScheduleUpsert = ({
     });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="schedule-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -157,6 +167,6 @@ export const ScheduleUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

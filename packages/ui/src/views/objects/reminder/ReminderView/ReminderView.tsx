@@ -8,6 +8,7 @@ import { DeleteIcon } from "icons";
 import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
@@ -18,6 +19,7 @@ import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
+    isOpen,
     onClose,
     overrideObject,
     zIndex,
@@ -25,8 +27,9 @@ export const ReminderView = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
         ...endpointGetReminder,
         objectType: "Reminder",
         overrideObject,

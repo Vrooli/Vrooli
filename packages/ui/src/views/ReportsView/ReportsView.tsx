@@ -4,6 +4,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getLastUrlPart } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useFetch } from "utils/hooks/useFetch";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
@@ -22,12 +23,13 @@ const objectTypeToIdField = {
 };
 
 export const ReportsView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const { id } = useMemo(() => parseSingleItemUrl({}), []);
     const objectType = useMemo(() => getLastUrlPart({ offset: 1 }), []);

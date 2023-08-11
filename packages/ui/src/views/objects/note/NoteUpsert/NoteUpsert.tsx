@@ -1,9 +1,11 @@
 import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
 import { useContext, useRef } from "react";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
@@ -13,14 +15,16 @@ import { NoteUpsertProps } from "../types";
 
 export const NoteUpsert = ({
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
     overrideObject,
     zIndex,
 }: NoteUpsertProps) => {
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    const { display, isLoading: isReadLoading, object: existing } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
         objectType: "NoteVersion",
         overrideObject,
@@ -44,36 +48,44 @@ export const NoteUpsert = ({
     });
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={existing}
-            onSubmit={(values, helpers) => {
-                if (!isCreate && !existing) {
-                    PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                    return;
-                }
-                fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
-                    fetch,
-                    inputs: transformNoteValues(values, existing),
-                    onSuccess: (data) => { handleCompleted(data); },
-                    onError: () => { helpers.setSubmitting(false); },
-                });
-            }}
-            validate={async (values) => await validateNoteValues(values, existing)}
+        <MaybeLargeDialog
+            display={display}
+            id="note-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
         >
-            {(formik) =>
-                <NoteForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    ref={formRef}
-                    versions={[]}
-                    zIndex={zIndex}
-                    {...formik}
-                />
-            }
-        </Formik>
+            <Formik
+                enableReinitialize={true}
+                initialValues={existing}
+                onSubmit={(values, helpers) => {
+                    if (!isCreate && !existing) {
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+                        return;
+                    }
+                    fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+                        fetch,
+                        inputs: transformNoteValues(values, existing),
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
+                }}
+                validate={async (values) => await validateNoteValues(values, existing)}
+            >
+                {(formik) =>
+                    <NoteForm
+                        display={display}
+                        isCreate={isCreate}
+                        isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
+                        isOpen={true}
+                        onCancel={handleCancel}
+                        ref={formRef}
+                        versions={[]}
+                        zIndex={zIndex}
+                        {...formik}
+                    />
+                }
+            </Formik>
+        </MaybeLargeDialog>
     );
 };

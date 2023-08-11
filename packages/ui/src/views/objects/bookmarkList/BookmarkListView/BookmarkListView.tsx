@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -23,7 +24,7 @@ import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: BookmarkListViewProps) => {
@@ -31,6 +32,7 @@ export const BookmarkListView = ({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
         ...endpointGetBookmarkList,

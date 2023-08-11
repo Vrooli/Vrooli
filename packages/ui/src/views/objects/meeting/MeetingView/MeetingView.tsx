@@ -6,6 +6,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -14,7 +15,7 @@ import { SessionContext } from "utils/SessionContext";
 import { MeetingViewProps } from "../types";
 
 export const MeetingView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: MeetingViewProps) => {
@@ -23,6 +24,7 @@ export const MeetingView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
         ...endpointGetMeeting,

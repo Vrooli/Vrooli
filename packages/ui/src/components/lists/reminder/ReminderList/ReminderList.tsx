@@ -5,7 +5,6 @@ import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { AddIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -144,23 +143,16 @@ export const ReminderList = ({
     return (
         <>
             {/* Dialog */}
-            <LargeDialog
-                id="reminder-dialog"
-                onClose={closeDialog}
+            <ReminderUpsert
+                handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
+                isCreate={editingIndex < 0}
                 isOpen={isDialogOpen}
-                titleId={""}
+                listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
+                onCancel={closeDialog}
+                onCompleted={handleCompleted}
+                overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder" }}
                 zIndex={zIndex}
-            >
-                <ReminderUpsert
-                    handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
-                    isCreate={editingIndex < 0}
-                    listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
-                    onCancel={closeDialog}
-                    onCompleted={handleCompleted}
-                    overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder" }}
-                    zIndex={zIndex + 1000}
-                />
-            </LargeDialog>
+            />
             {/* List */}
             <TitleContainer
                 Icon={ReminderIcon}

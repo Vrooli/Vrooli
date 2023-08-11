@@ -1,6 +1,5 @@
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
 import { PlayIcon } from "icons";
@@ -125,19 +124,11 @@ export const RunButton = ({
                 zIndex={zIndex + 1}
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
-            <LargeDialog
-                id="run-routine-view-dialog"
+            {runnableObject && <RunView
                 onClose={runStop}
-                isOpen={isRunOpen}
-                titleId=""
+                runnableObject={runnableObject}
                 zIndex={zIndex + 3}
-            >
-                {runnableObject && <RunView
-                    onClose={runStop}
-                    runnableObject={runnableObject}
-                    zIndex={zIndex + 1003}
-                />}
-            </LargeDialog>
+            />}
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}

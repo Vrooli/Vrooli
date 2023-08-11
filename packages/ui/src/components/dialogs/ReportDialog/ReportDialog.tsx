@@ -54,7 +54,7 @@ export const ReportDialog = ({
                 title={title ?? t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
                 onClose={handleCancel}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <Link onClick={toExistingReports}>
                 <Typography sx={{
@@ -92,7 +92,7 @@ export const ReportDialog = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

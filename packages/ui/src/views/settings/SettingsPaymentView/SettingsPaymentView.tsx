@@ -5,17 +5,19 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useStripe } from "utils/hooks/useStripe";
 import { SettingsPaymentViewProps } from "../types";
 
 export const SettingsPaymentView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsPaymentViewProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const {
         currentUser,

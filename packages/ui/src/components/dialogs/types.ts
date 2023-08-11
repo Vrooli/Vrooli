@@ -4,7 +4,7 @@ import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
-import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
+import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
@@ -13,17 +13,10 @@ import { SearchType } from "utils/search/objectToSearch";
 import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ViewDisplayType } from "views/types";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
-export interface AssistantDialogProps {
-    context?: string;
-    task?: AssistantTask;
-    handleClose: () => unknown;
-    handleComplete: (data: any) => unknown;
-    isOpen: boolean;
-    zIndex: number;
-}
 
 export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
     parent: Comment | null;
@@ -320,6 +313,11 @@ export interface LargeDialogProps {
     titleId?: string;
     zIndex: number;
     sxs?: { paper?: SxType; }
+}
+
+export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "onClose"> {
+    display: ViewDisplayType;
+    onClose?: () => unknown;
 }
 
 export interface WalletInstallDialogProps {

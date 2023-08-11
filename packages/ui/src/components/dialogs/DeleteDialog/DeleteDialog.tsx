@@ -59,7 +59,7 @@ export const DeleteDialog = ({
                 display="dialog"
                 onClose={() => { close(); }}
                 title={t("Delete")}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>

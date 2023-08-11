@@ -9,8 +9,9 @@ import { ListObject } from "utils/display/listTools";
 export type ViewDisplayType = "dialog" | "page";
 
 export type ViewProps = {
-    display?: ViewDisplayType;
-    onClose?: () => void;
+    /** Treated as a dialog when provided */
+    isOpen?: boolean;
+    onClose?: () => unknown;
     zIndex: number;
 }
 

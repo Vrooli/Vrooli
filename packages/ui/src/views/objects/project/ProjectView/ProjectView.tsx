@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
+import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -24,7 +25,7 @@ import { SessionContext } from "utils/SessionContext";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: ProjectViewProps) => {
@@ -32,6 +33,7 @@ export const ProjectView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
         ...endpointGetProjectVersion,

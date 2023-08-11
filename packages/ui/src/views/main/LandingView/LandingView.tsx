@@ -14,6 +14,7 @@ import { openLink, useLocation } from "route";
 import { greenNeonText, PulseButton, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, textPop } from "styles";
 import { SvgComponent } from "types";
 import { Forms } from "utils/consts";
+import { toDisplay } from "utils/display/pageTools";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -36,13 +37,14 @@ const externalLinks: [string, string, SvgComponent][] = [
  * View displayed for Home page when not logged in
  */
 export const LandingView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: LandingViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const theme = useTheme();
+    const display = toDisplay(isOpen);
 
     // Track if earth/sky is in view, and hndle scroll snap on slides
     const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");

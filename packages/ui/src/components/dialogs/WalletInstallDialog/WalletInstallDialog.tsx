@@ -30,7 +30,7 @@ export const WalletInstallDialog = ({
                 id={titleId}
                 title={t("InstallWalletExtension")}
                 onClose={onClose}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <DialogContent>
                 {Object.values(walletDownloadUrls).map((o, index) => (

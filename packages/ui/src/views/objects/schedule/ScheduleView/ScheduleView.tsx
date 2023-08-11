@@ -7,18 +7,20 @@ import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
+import { toDisplay } from "utils/display/pageTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { ScheduleViewProps } from "../types";
 
 export const ScheduleView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: ScheduleViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
         ...endpointGetSchedule,

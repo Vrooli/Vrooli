@@ -2,7 +2,6 @@ import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, Ma
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
@@ -11,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -18,7 +18,7 @@ import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsFocusModesViewProps) => {
@@ -26,6 +26,7 @@ export const SettingsFocusModesView = ({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
     useEffect(() => {
@@ -154,21 +155,14 @@ export const SettingsFocusModesView = ({
     return (
         <>
             {/* Dialog to create/update focus modes */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseDialog}
+            <FocusModeUpsert
+                isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
-                titleId={""}
+                onCancel={handleCloseDialog}
+                onCompleted={handleCompleted}
+                overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
                 zIndex={zIndex + 2}
-            >
-                <FocusModeUpsert
-                    isCreate={editingFocusMode === null}
-                    onCancel={handleCloseDialog}
-                    onCompleted={handleCompleted}
-                    partialData={editingFocusMode ?? { __typename: "FocusMode" }}
-                    zIndex={zIndex + 1002}
-                />
-            </LargeDialog>
+            />
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
