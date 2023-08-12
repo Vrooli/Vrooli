@@ -6,6 +6,7 @@ import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { PlusIcon } from "icons";
+import { block } from "million/react";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -15,7 +16,7 @@ import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
 import { SearchListProps } from "../types";
 
-export function SearchList<DataType extends NavigableObject>({
+export const SearchList = block(({
     canNavigate = () => true,
     canSearch = () => true,
     dummyLength = 5,
@@ -31,7 +32,7 @@ export function SearchList<DataType extends NavigableObject>({
     onScrolledFar,
     where,
     zIndex,
-}: SearchListProps) {
+}: SearchListProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -52,7 +53,7 @@ export function SearchList<DataType extends NavigableObject>({
         sortBy,
         sortByOptions,
         timeFrame,
-    } = useFindMany<DataType>({
+    } = useFindMany<NavigableObject>({
         canSearch,
         resolve,
         searchType,
@@ -163,4 +164,4 @@ export function SearchList<DataType extends NavigableObject>({
             </Box>}
         </>
     );
-}
+});

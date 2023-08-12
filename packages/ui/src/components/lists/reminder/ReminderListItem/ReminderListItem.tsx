@@ -2,9 +2,10 @@
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { ReminderListItemProps } from "components/lists/types";
+import { ObjectListItemProps, ReminderListItemProps } from "components/lists/types";
 import { DeleteIcon, ScheduleIcon } from "icons";
 import { useCallback, useMemo } from "react";
+import { ListObject } from "utils/display/listTools";
 
 /**
  * A list item for a reminder, which can contain sub-items 
@@ -15,6 +16,7 @@ import { useCallback, useMemo } from "react";
 export function ReminderListItem({
     data,
     onAction,
+    onClick,
     ...props
 }: ReminderListItemProps) {
     const { palette } = useTheme();
@@ -79,10 +81,11 @@ export function ReminderListItem({
                     sx={{ height: "15px" }}
                 /> : null
             }
-            canNavigate={() => !props.onClick}
+            canNavigate={() => !onClick}
             data={data}
             loading={false}
             objectType="Reminder"
+            onClick={onClick as ObjectListItemProps<ListObject>["onClick"]}
             toTheRight={
                 <Stack id="list-item-right-stack" direction="row" spacing={1}>
                     {dueDateIcon}

@@ -80,6 +80,9 @@ export const ReminderUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
+                    console.log("reminder values", values);
+                    console.log("reminder existing", existing);
+                    console.log("reminder transformed", transformReminderValues(values, existing));
                     fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
                         fetch,
                         inputs: transformReminderValues(values, existing),

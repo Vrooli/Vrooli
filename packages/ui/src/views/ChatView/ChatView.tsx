@@ -191,8 +191,6 @@ export const ChatView = ({
         }
     }, [chat, lng, t, task]);
 
-    console.log("context in chatview", messages, chat?.messages);
-
     return (
         <MaybeLargeDialog
             display={display}

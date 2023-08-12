@@ -4,6 +4,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { AddIcon } from "icons";
+import { block } from "million/react";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -68,7 +69,7 @@ const tabParams = [{
 /**
  * Search page for organizations, projects, routines, standards, users, and other main objects
  */
-export const SearchView = ({
+export const SearchView = block(({
     isOpen,
     onClose,
     zIndex,
@@ -78,6 +79,7 @@ export const SearchView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
+    console.log("in search view", session, palette);
 
     // Popup button for adding new objects
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -177,4 +179,4 @@ export const SearchView = ({
             {popupButtonContainer}
         </>
     );
-};
+});

@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { block } from "million/react";
 import { useMemo } from "react";
 import { lazily } from "react-lazily";
 import { ListObject } from "utils/display/listTools";
@@ -24,15 +25,15 @@ const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") =
     }
 };
 
-export function ObjectListItem<T extends ListObject>({
+export const ObjectListItem = block(({
     objectType,
     ...props
-}: ObjectListItemProps<T>) {
-    const ListItem = useMemo<(props: any) => JSX.Element>(() => getListItemComponent(objectType), [objectType]);
+}: ObjectListItemProps<ListObject>) => {
+    const ListItem = useMemo<(props: ObjectListItemProps<ListObject>) => JSX.Element>(() => getListItemComponent(objectType) as ((props: ObjectListItemProps<ListObject>) => JSX.Element), [objectType]);
     return (
         <ListItem
             objectType={objectType}
             {...props}
         />
     );
-}
+}) as <T extends ListObject>(props: ObjectListItemProps<T>) => JSX.Element;

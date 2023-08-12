@@ -43,6 +43,7 @@
         "highlight.js": "^11.8.0",
         "i18next": "^22.4.10",
         "markdown-to-jsx": "7.2.1",
+        "million": "^2.5.11",
         "react": "^18.2.0",
         "react-beautiful-dnd": "^13.1.1",
         "react-big-calendar": "^1.6.8",

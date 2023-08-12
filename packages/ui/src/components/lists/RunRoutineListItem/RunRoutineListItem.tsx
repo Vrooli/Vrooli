@@ -3,8 +3,9 @@ import { Chip, Stack } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { ListObject } from "utils/display/listTools";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { RunRoutineListItemProps } from "../types";
+import { ObjectListItemProps, RunRoutineListItemProps } from "../types";
 
 const statusToColor = (status: RunStatus | undefined) => {
     if (!status) return "secondary";
@@ -18,6 +19,7 @@ const statusToColor = (status: RunStatus | undefined) => {
 export function RunRoutineListItem({
     data,
     loading,
+    onClick,
     ...props
 }: RunRoutineListItemProps) {
     const { t } = useTranslation();
@@ -60,6 +62,7 @@ export function RunRoutineListItem({
             data={data}
             loading={loading}
             objectType="RunRoutine"
+            onClick={onClick as ObjectListItemProps<ListObject>["onClick"]}
         />
     );
 }

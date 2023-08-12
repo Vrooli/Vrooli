@@ -1,14 +1,17 @@
 import { useTheme } from "@mui/material";
+import { block } from "million/react";
 import { useMemo } from "react";
+import { ListObject } from "utils/display/listTools";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { RoleList } from "../RoleList/RoleList";
 import { smallHorizontalScrollbar } from "../styles";
-import { MemberListItemProps } from "../types";
+import { MemberListItemProps, ObjectListItemProps } from "../types";
 
-export function MemberListItem({
+export const MemberListItem = block(({
     data,
+    onClick,
     ...props
-}: MemberListItemProps) {
+}: MemberListItemProps) => {
     const { palette } = useTheme();
 
     const roles = useMemo(() => data?.roles ?? [], [data?.roles]);
@@ -25,6 +28,7 @@ export function MemberListItem({
             }
             data={data}
             objectType="Member"
+            onClick={onClick as ObjectListItemProps<ListObject>["onClick"]}
         />
     );
-}
+});

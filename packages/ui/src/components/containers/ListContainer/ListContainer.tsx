@@ -1,22 +1,31 @@
-import { List, Typography } from "@mui/material";
+import { Box, List, Typography, useTheme } from "@mui/material";
+import { block } from "million/react";
 import { useTranslation } from "react-i18next";
-import { BaseSection } from "styles";
 import { ListContainerProps } from "../types";
 
-export const ListContainer = ({
+export const ListContainer = block(({
     children,
     emptyText,
     isEmpty = false,
     sx,
 }: ListContainerProps) => {
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
     return (
-        <BaseSection sx={{
+        <Box sx={{
             maxWidth: "1000px",
             marginLeft: "auto",
             marginRight: "auto",
-            padding: 0,
+            ...(isEmpty ? {} : {
+                background: palette.background.paper,
+                borderRadius: "8px",
+                overflow: "overlay",
+                display: "block",
+            }),
+            [breakpoints.down("sm")]: {
+                borderRadius: 0,
+            },
             ...(sx ?? {}),
         }}>
             {isEmpty && (
@@ -29,6 +38,6 @@ export const ListContainer = ({
                     {children}
                 </List>
             )}
-        </BaseSection>
+        </Box>
     );
-};
+});

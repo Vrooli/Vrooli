@@ -1,12 +1,14 @@
 import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { DeleteIcon, VisibleIcon } from "icons";
 import { useTranslation } from "react-i18next";
+import { ListObject } from "utils/display/listTools";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { NotificationListItemProps } from "../types";
+import { NotificationListItemProps, ObjectListItemProps } from "../types";
 
 export function NotificationListItem({
     data,
     onAction,
+    onClick,
     ...props
 }: NotificationListItemProps) {
     const { palette } = useTheme();
@@ -45,6 +47,7 @@ export function NotificationListItem({
             }
             data={data}
             objectType="Notification"
+            onClick={onClick as ObjectListItemProps<ListObject>["onClick"]}
         />
     );
 }

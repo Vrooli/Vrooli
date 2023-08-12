@@ -8,6 +8,7 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
+import { block } from "million/react";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -39,7 +40,7 @@ import { ObjectListItemProps } from "../types";
  * (On large screens, these are displayed at the bottom instead of the right.)
  * - To the right, but left of action buttons: custom component(s)
  */
-export function ObjectListItemBase<T extends ListObject>({
+export const ObjectListItemBase = block(({
     canNavigate,
     belowSubtitle,
     belowTags,
@@ -52,7 +53,7 @@ export function ObjectListItemBase<T extends ListObject>({
     titleOverride,
     toTheRight,
     zIndex,
-}: ObjectListItemProps<T>) {
+}: ObjectListItemProps<ListObject>) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -60,7 +61,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
-    const [object, setObject] = useState<T | null | undefined>(data);
+    const [object, setObject] = useState<ListObject | null | undefined>(data);
     useEffect(() => { setObject(data); }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -356,4 +357,4 @@ export function ObjectListItemBase<T extends ListObject>({
             </ListItem>
         </>
     );
-}
+});

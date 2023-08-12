@@ -1,19 +1,21 @@
 import { ChatParticipant } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
+import { block } from "million/react";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { displayDate } from "utils/display/stringTools";
 import { SessionContext } from "utils/SessionContext";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ChatListItemProps } from "../types";
+import { ChatListItemProps, ObjectListItemProps } from "../types";
 
-export function ChatListItem({
+export const ChatListItem = block(({
     data,
     onAction,
+    onClick,
     ...props
-}: ChatListItemProps) {
+}: ChatListItemProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -71,6 +73,7 @@ export function ChatListItem({
             }
             data={data}
             objectType="Chat"
+            onClick={onClick as ObjectListItemProps<ListObject>["onClick"]}
         />
     );
-}
+});

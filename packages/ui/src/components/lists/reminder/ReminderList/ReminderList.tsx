@@ -5,13 +5,15 @@ import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
+import { NewReminderShape, reminderInitialValues } from "forms/ReminderForm/ReminderForm";
 import { AddIcon, OpenInNewIcon, ReminderIcon } from "icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
 import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpsert } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
@@ -27,6 +29,7 @@ export const ReminderList = ({
 }: ReminderListProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const session = useContext(SessionContext);
 
     // Internal state
     const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -149,7 +152,7 @@ export const ReminderList = ({
                 isOpen={isDialogOpen}
                 onCancel={closeDialog}
                 onCompleted={handleCompleted}
-                overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder", reminderList: { id: listId ?? "" } }}
+                overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : reminderInitialValues(session, { __typename: "Reminder", reminderList: { id: listId ?? "" } }) as NewReminderShape}
                 zIndex={zIndex}
             />
             {/* List */}
