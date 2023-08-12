@@ -3,9 +3,9 @@ import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
+import { ReportUpsert } from "views/objects/report";
 import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
-import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { ObjectActionDialogsProps } from "../types";
@@ -64,11 +64,12 @@ export const ObjectActionDialogs = ({
                 handleClose={closeDeleteDialog}
                 zIndex={zIndex + 1}
             />}
-            {object?.id && hasReportingSupport && <ReportDialog
-                forId={object.id}
+            {object?.id && hasReportingSupport && <ReportUpsert
+                isCreate={true}
                 isOpen={isReportDialogOpen}
-                onClose={closeReportDialog}
-                reportFor={objectType as unknown as ReportFor}
+                onCancel={closeReportDialog}
+                onCompleted={closeReportDialog}
+                overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
                 zIndex={zIndex + 1}
             />}
             {hasSharingSupport && <ShareObjectDialog

@@ -63,15 +63,12 @@ export const standardInitialValues = (
     }]),
 });
 
-export const transformStandardValues = (values: StandardVersionShape, existing?: StandardVersionShape) => {
-    return existing === undefined
-        ? shapeStandardVersion.create(values)
-        : shapeStandardVersion.update(existing, values);
-};
+export const transformStandardValues = (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) =>
+    isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
 
-export const validateStandardValues = async (values: StandardVersionShape, existing?: StandardVersionShape) => {
-    const transformedValues = transformStandardValues(values, existing);
-    const validationSchema = standardVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateStandardValues = async (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) => {
+    const transformedValues = transformStandardValues(values, existing, isCreate);
+    const validationSchema = standardVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

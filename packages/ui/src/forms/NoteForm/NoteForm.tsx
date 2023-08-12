@@ -46,15 +46,12 @@ export const noteInitialValues = (
     }]),
 });
 
-export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {
-    return existing === undefined
-        ? shapeNoteVersion.create(values)
-        : shapeNoteVersion.update(existing, values);
-}
+export const transformNoteValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
+    isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
 
-export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
-    const transformedValues = transformNoteValues(values, existing);
-    const validationSchema = noteVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
+    const transformedValues = transformNoteValues(values, existing, isCreate);
+    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

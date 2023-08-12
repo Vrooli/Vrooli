@@ -141,7 +141,7 @@ export const ScheduleUpsert = ({
                     if (isMutate) {
                         fetchLazyWrapper<ScheduleCreateInput | ScheduleUpdateInput, Schedule>({
                             fetch,
-                            inputs: transformScheduleValues(values, existing),
+                            inputs: transformScheduleValues(values, existing, isCreate),
                             onSuccess: (data) => { handleCompleted(data); },
                             onError: () => { helpers.setSubmitting(false); },
                         });
@@ -153,7 +153,7 @@ export const ScheduleUpsert = ({
                         } as Schedule);
                     }
                 }}
-                validate={async (values) => await validateScheduleValues(values, existing)}
+                validate={async (values) => await validateScheduleValues(values, existing, isCreate)}
             >
                 {(formik) => <ScheduleForm
                     canSetScheduleFor={canSetScheduleFor}

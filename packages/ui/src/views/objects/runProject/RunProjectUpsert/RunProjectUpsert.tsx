@@ -74,12 +74,12 @@ export const RunProjectUpsert = ({
                     }
                     fetchLazyWrapper<RunProjectCreateInput | RunProjectUpdateInput, RunProject>({
                         fetch,
-                        inputs: transformRunProjectValues(values, existing),
+                        inputs: transformRunProjectValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateRunProjectValues(values, existing)}
+                validate={async (values) => await validateRunProjectValues(values, existing, isCreate)}
             >
                 {(formik) => <RunProjectForm
                     display={display}

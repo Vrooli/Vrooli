@@ -46,7 +46,7 @@ export const NodeRoutineListDialog = ({
                 onSubmit={(values) => {
                     handleClose(values);
                 }}
-                validate={async (values) => await validateNodeRoutineListValues(values, node ?? undefined)}
+                validate={async (values) => await validateNodeRoutineListValues(values, initialValues, false)}
             >
                 {(formik) => <NodeRoutineListForm
                     display="dialog"

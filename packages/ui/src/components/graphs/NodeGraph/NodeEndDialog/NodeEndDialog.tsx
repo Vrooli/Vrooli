@@ -45,7 +45,7 @@ export const NodeEndDialog = ({
                 onSubmit={(values) => {
                     handleClose(values as any);
                 }}
-                validate={async (values) => await validateNodeEndValues(values, node)}
+                validate={async (values) => await validateNodeEndValues(values, node, false)}
             >
                 {(formik) => <NodeEndForm
                     display="dialog"

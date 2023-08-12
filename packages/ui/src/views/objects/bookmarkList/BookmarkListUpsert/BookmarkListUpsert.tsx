@@ -74,12 +74,12 @@ export const BookmarkListUpsert = ({
                     }
                     fetchLazyWrapper<BookmarkListCreateInput | BookmarkListUpdateInput, BookmarkList>({
                         fetch,
-                        inputs: transformBookmarkListValues(values, existing),
+                        inputs: transformBookmarkListValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateBookmarkListValues(values, existing)}
+                validate={async (values) => await validateBookmarkListValues(values, existing, isCreate)}
             >
                 {(formik) => <BookmarkListForm
                     display={display}

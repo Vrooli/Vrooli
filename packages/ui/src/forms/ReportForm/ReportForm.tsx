@@ -30,15 +30,15 @@ const ReportReasons = {
     [ReportOptions.Other]: "Other",
 };
 
+/** New resources must include a createdFor __typename and ID */
+export type NewReportShape = Partial<Omit<Report, "createdFor">> & { createdFor: { __typename: ReportFor, id: string } };
+
 export const reportInitialValues = (
     session: Session | undefined,
-    createdFor: ReportFor,
-    createdForId: string,
-    existing?: Report | null | undefined,
+    existing: NewReportShape,
 ): ReportShape => ({
     __typename: "Report" as const,
     id: DUMMY_ID,
-    createdFor: { __typename: createdFor, id: createdForId },
     reason: "",
     otherReason: "",
     details: "",
@@ -46,16 +46,13 @@ export const reportInitialValues = (
     ...existing,
 });
 
-export const transformReportValues = (values: ReportShape, existing?: ReportShape) => {
-    return existing === undefined
-        ? shapeReport.create(values)
-        : shapeReport.update(existing, values);
-};
+export const transformReportValues = (values: ReportShape, existing: ReportShape, isCreate: boolean) =>
+    isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
 
-export const validateReportValues = async (values: ReportShape, existing?: ReportShape) => {
-    const transformedValues = transformReportValues(values, existing);
+export const validateReportValues = async (values: ReportShape, existing: ReportShape, isCreate: boolean) => {
+    const transformedValues = transformReportValues(values, existing, isCreate);
     console.log("transformed report", transformedValues);
-    const validationSchema = reportValidation[existing === undefined ? "create" : "update"]({});
+    const validationSchema = reportValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

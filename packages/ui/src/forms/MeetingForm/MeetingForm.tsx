@@ -40,15 +40,12 @@ export const meetingInitialValues = (
     }]),
 });
 
-export function transformMeetingValues(values: MeetingShape, existing?: MeetingShape) {
-    return existing === undefined
-        ? shapeMeeting.create(values)
-        : shapeMeeting.update(existing, values);
-}
+export const transformMeetingValues = (values: MeetingShape, existing: MeetingShape, isCreate: boolean) =>
+    isCreate ? shapeMeeting.create(values) : shapeMeeting.update(existing, values);
 
-export const validateMeetingValues = async (values: MeetingShape, existing?: MeetingShape) => {
-    const transformedValues = transformMeetingValues(values, existing);
-    const validationSchema = meetingValidation[existing === undefined ? "create" : "update"]({});
+export const validateMeetingValues = async (values: MeetingShape, existing: MeetingShape, isCreate: boolean) => {
+    const transformedValues = transformMeetingValues(values, existing, isCreate);
+    const validationSchema = meetingValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

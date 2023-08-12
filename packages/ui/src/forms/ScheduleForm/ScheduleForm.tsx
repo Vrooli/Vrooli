@@ -32,15 +32,12 @@ export const scheduleInitialValues = (
     ...existing,
 });
 
-export const transformScheduleValues = (values: ScheduleShape, existing?: ScheduleShape) => {
-    return existing === undefined
-        ? shapeSchedule.create(values)
-        : shapeSchedule.update(existing, values);
-};
+export const transformScheduleValues = (values: ScheduleShape, existing: ScheduleShape, isCreate: boolean) =>
+    isCreate ? shapeSchedule.create(values) : shapeSchedule.update(existing, values);
 
-export const validateScheduleValues = async (values: ScheduleShape, existing?: ScheduleShape) => {
-    const transformedValues = transformScheduleValues(values, existing);
-    const validationSchema = scheduleValidation[existing === undefined ? "create" : "update"]({});
+export const validateScheduleValues = async (values: ScheduleShape, existing: ScheduleShape, isCreate: boolean) => {
+    const transformedValues = transformScheduleValues(values, existing, isCreate);
+    const validationSchema = scheduleValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

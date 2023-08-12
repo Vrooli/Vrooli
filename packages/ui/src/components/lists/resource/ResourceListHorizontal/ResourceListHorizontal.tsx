@@ -4,7 +4,6 @@ import { CommonKey, Count, DeleteManyInput, endpointPostDeleteMany, Resource, Re
 import { Box, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
@@ -23,6 +22,7 @@ import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { updateArray } from "utils/shape/general";
+import { ResourceUpsert } from "views/objects/resource";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 
@@ -200,26 +200,6 @@ export const ResourceListHorizontal = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const onAdd = useCallback((newResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: [...(list?.resources as any) ?? [], newResource],
-            });
-        }
-    }, [handleUpdate, list]);
-
-    const onUpdate = useCallback((index: number, updatedResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: updateArray(list.resources, index, updatedResource) as any[],
-            });
-        }
-    }, [handleUpdate, list]);
-
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
         if (!destination) return;
@@ -283,20 +263,37 @@ export const ResourceListHorizontal = ({
         setEditingIndex(index);
         setIsDialogOpen(true);
     }, []);
+    const onCompleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        const index = resource.index;
+        if (index && index >= 0) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, index, resource) as Resource[],
+            });
+        }
+        else {
+            handleUpdate({
+                ...list,
+                resources: [...(list?.resources as any) ?? [], resource],
+            });
+        }
+    }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => (
-        list ? <ResourceDialog
+        list ? <ResourceUpsert
+            isCreate={editingIndex >= 0}
             isOpen={isDialogOpen}
-            mutate={mutate}
-            onClose={closeDialog}
-            onCreated={onAdd}
-            onUpdated={onUpdate}
-            resource={editingIndex >= 0 ?
+            isMutate={mutate}
+            onCancel={closeDialog}
+            onCompleted={onCompleted}
+            overrideObject={editingIndex >= 0 ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, zIndex]);
 
     return (
         <>

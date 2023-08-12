@@ -74,12 +74,12 @@ export const BotUpsert = ({
                     }
                     fetchLazyWrapper<BotCreateInput | BotUpdateInput, User>({
                         fetch,
-                        inputs: transformBotValues(session, values, existing),
+                        inputs: transformBotValues(session, values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateBotValues(session, values, existing)}
+                validate={async (values) => await validateBotValues(session, values, existing, isCreate)}
             >
                 {(formik) =>
                     <BotForm

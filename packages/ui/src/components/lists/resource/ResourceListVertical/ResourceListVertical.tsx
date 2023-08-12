@@ -3,13 +3,13 @@
 import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { updateArray } from "utils/shape/general";
+import { ResourceUpsert } from "views/objects/resource";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";
@@ -23,26 +23,6 @@ export const ResourceListVertical = ({
     zIndex,
 }: ResourceListVerticalProps) => {
     const { t } = useTranslation();
-
-    const onAdd = useCallback((newResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: [...(list?.resources as any) ?? [], newResource],
-            });
-        }
-    }, [handleUpdate, list]);
-
-    const onUpdate = useCallback((index: number, updatedResource: Resource) => {
-        if (!list) return;
-        if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: updateArray(list.resources, index, updatedResource) as any[],
-            });
-        }
-    }, [handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
@@ -94,20 +74,37 @@ export const ResourceListVertical = ({
         setEditingIndex(index);
         setIsDialogOpen(true);
     }, []);
+    const onCompleted = useCallback((resource: Resource) => {
+        closeDialog();
+        if (!list || !handleUpdate) return;
+        const index = resource.index;
+        if (index && index >= 0) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, index, resource) as Resource[],
+            });
+        }
+        else {
+            handleUpdate({
+                ...list,
+                resources: [...(list?.resources as any) ?? [], resource],
+            });
+        }
+    }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => (
-        list ? <ResourceDialog
+        list ? <ResourceUpsert
+            isCreate={editingIndex >= 0}
             isOpen={isDialogOpen}
-            onClose={closeDialog}
-            onCreated={onAdd}
-            onUpdated={onUpdate}
-            mutate={mutate}
-            resource={editingIndex >= 0 ?
+            isMutate={mutate}
+            onCancel={closeDialog}
+            onCompleted={onCompleted}
+            overrideObject={editingIndex >= 0 ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
                 resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, zIndex]);
 
     return (
         <>

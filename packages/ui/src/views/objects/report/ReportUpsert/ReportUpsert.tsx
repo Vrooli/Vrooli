@@ -1,34 +1,42 @@
-import { endpointPostReport, endpointPutReport, Report, ReportCreateInput, ReportUpdateInput } from "@local/shared";
+import { endpointGetReport, endpointPostReport, endpointPutReport, Report, ReportCreateInput, ReportUpdateInput } from "@local/shared";
 import { Link, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ReportForm, reportInitialValues, validateReportValues } from "forms/ReportForm/ReportForm";
+import { ReportForm, reportInitialValues, transformReportValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
-import { useCallback, useContext, useMemo, useRef } from "react";
+import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize } from "styles";
 import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
+import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { shapeReport } from "utils/shape/models/report";
-import { MaybeLargeDialog } from "../LargeDialog/LargeDialog";
-import { ReportDialogProps } from "../types";
+import { ReportShape } from "utils/shape/models/report";
+import { ReportUpsertProps } from "../types";
 
-export const ReportDialog = ({
-    forId,
+export const ReportUpsert = ({
+    isCreate,
     isOpen,
-    onClose,
-    reportFor,
-    title,
+    onCancel,
+    onCompleted,
+    overrideObject,
     zIndex,
-}: ReportDialogProps) => {
+}: ReportUpsertProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
-    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Report, ReportShape>({
+        ...endpointGetReport,
+        objectType: "Report",
+        overrideObject,
+        transform: (existing) => reportInitialValues(session, existing as NewReportShape),
+    });
+
     const formRef = useRef<BaseFormRef>();
     const {
         fetch,
@@ -40,9 +48,9 @@ export const ReportDialog = ({
         display,
         endpointCreate: endpointPostReport,
         endpointUpdate: endpointPutReport,
-        isCreate: true,
-        onCancel: onClose,
-        onCompleted: onClose,
+        isCreate,
+        onCancel,
+        onCompleted,
     });
 
     /**
@@ -55,15 +63,15 @@ export const ReportDialog = ({
     return (
         <MaybeLargeDialog
             display={display}
-            id="report-dialog"
-            isOpen={isOpen}
+            id="report-upsert-dialog"
+            isOpen={isOpen ?? false}
             onClose={handleCancel}
             zIndex={zIndex}
         >
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                title={title ?? t("Report")}
+                title={t("Report")}
                 help={t("ReportsHelp")}
                 zIndex={zIndex}
             />
@@ -79,27 +87,25 @@ export const ReportDialog = ({
             </Link>
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
-                    console.log("form submit", values);
-                    fetchLazyWrapper<ReportCreateInput, Report>({
+                    if (!isCreate && !existing) {
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+                        return;
+                    }
+                    fetchLazyWrapper<ReportCreateInput | ReportUpdateInput, Report>({
                         fetch,
-                        inputs: shapeReport.create(values),
-                        successCondition: (data) => data !== null,
-                        successMessage: () => ({ messageKey: "ReportSubmitted" }),
-                        onSuccess: () => {
-                            helpers.resetForm();
-                            onClose();
-                        },
+                        inputs: transformReportValues(values, existing, isCreate),
+                        onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateReportValues(values)}
+                validate={async (values) => await validateReportValues(values, existing, isCreate)}
             >
                 {(formik) => <ReportForm
-                    display="dialog"
-                    isCreate={true}
-                    isLoading={isCreateLoading || isUpdateLoading}
+                    display={display}
+                    isCreate={isCreate}
+                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}

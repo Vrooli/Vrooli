@@ -46,15 +46,12 @@ export const nodeRoutineListInitialValues = (
     };
 };
 
-export const transformNodeRoutineListValues = (values: NodeWithRoutineListShape, existing?: NodeWithRoutineListShape) => {
-    return existing === undefined
-        ? shapeNode.create(values)
-        : shapeNode.update(existing, values);
-};
+export const transformNodeRoutineListValues = (values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) =>
+    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
 
-export const validateNodeRoutineListValues = async (values: NodeWithRoutineListShape, existing?: NodeWithRoutineListShape) => {
-    const transformedValues = transformNodeRoutineListValues(values, existing);
-    const validationSchema = nodeValidation[existing === undefined ? "create" : "update"]({});
+export const validateNodeRoutineListValues = async (values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) => {
+    const transformedValues = transformNodeRoutineListValues(values, existing, isCreate);
+    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -75,12 +75,12 @@ export const SmartContractUpsert = ({
                     }
                     fetchLazyWrapper<SmartContractVersionCreateInput | SmartContractVersionUpdateInput, SmartContractVersion>({
                         fetch,
-                        inputs: transformSmartContractValues(values, existing),
+                        inputs: transformSmartContractValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateSmartContractValues(values, existing)}
+                validate={async (values) => await validateSmartContractValues(values, existing, isCreate)}
             >
                 {(formik) => <SmartContractForm
                     display={display}

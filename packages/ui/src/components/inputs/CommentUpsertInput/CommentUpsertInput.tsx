@@ -56,7 +56,7 @@ export const CommentUpsertInput = ({
                 //TODO
                 fetchLazyWrapper<CommentCreateInput | CommentUpdateInput, Comment>({
                     fetch,
-                    inputs: transformCommentValues(values, comment),
+                    inputs: transformCommentValues(values, initialValues, !exists(comment)),
                     successCondition: (data) => data !== null,
                     successMessage: () => ({ messageKey: "CommentUpdated" }),
                     onSuccess: (data) => {
@@ -66,7 +66,7 @@ export const CommentUpsertInput = ({
                     onError: () => { helpers.setSubmitting(false); },
                 });
             }}
-            validate={async (values) => await validateCommentValues(values, comment)}
+            validate={async (values) => await validateCommentValues(values, initialValues, !exists(comment))}
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog

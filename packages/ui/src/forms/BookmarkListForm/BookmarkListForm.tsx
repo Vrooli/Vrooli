@@ -26,16 +26,12 @@ export const bookmarkListInitialValues = (
     ...existing,
 });
 
-export function transformBookmarkListValues(values: BookmarkListShape, existing?: BookmarkListShape) {
-    console.log("transformBookmarkListValues", values, shapeBookmarkList.create(values));
-    return existing === undefined
-        ? shapeBookmarkList.create(values)
-        : shapeBookmarkList.update(existing, values);
-}
+export const transformBookmarkListValues = (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) =>
+    isCreate ? shapeBookmarkList.create(values) : shapeBookmarkList.update(existing, values);
 
-export const validateBookmarkListValues = async (values: BookmarkListShape, existing?: BookmarkListShape) => {
-    const transformedValues = transformBookmarkListValues(values, existing);
-    const validationSchema = bookmarkListValidation[existing === undefined ? "create" : "update"]({});
+export const validateBookmarkListValues = async (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) => {
+    const transformedValues = transformBookmarkListValues(values, existing, isCreate);
+    const validationSchema = bookmarkListValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

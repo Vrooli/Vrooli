@@ -32,15 +32,12 @@ export const runRoutineInitialValues = (
     ...existing,
 });
 
-export function transformRunRoutineValues(values: RunRoutineShape, existing?: RunRoutineShape) {
-    return existing === undefined
-        ? shapeRunRoutine.create(values)
-        : shapeRunRoutine.update(existing, values);
-}
+export const transformRunRoutineValues = (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) =>
+    isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
 
-export const validateRunRoutineValues = async (values: RunRoutineShape, existing?: RunRoutineShape) => {
-    const transformedValues = transformRunRoutineValues(values, existing);
-    const validationSchema = runRoutineValidation[existing === undefined ? "create" : "update"]({});
+export const validateRunRoutineValues = async (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) => {
+    const transformedValues = transformRunRoutineValues(values, existing, isCreate);
+    const validationSchema = runRoutineValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

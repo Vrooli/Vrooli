@@ -31,15 +31,12 @@ export const commentInitialValues = (
     }]),
 });
 
-export const transformCommentValues = (values: CommentShape, existing?: CommentShape) => {
-    return existing === undefined
-        ? shapeComment.create(values)
-        : shapeComment.update(existing, values);
-};
+export const transformCommentValues = (values: CommentShape, existing: CommentShape, isCreate: boolean) =>
+    isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
 
-export const validateCommentValues = async (values: CommentShape, existing?: CommentShape) => {
-    const transformedValues = transformCommentValues(values, existing);
-    const validationSchema = commentValidation[existing === undefined ? "create" : "update"]({});
+export const validateCommentValues = async (values: CommentShape, existing: CommentShape, isCreate: boolean) => {
+    const transformedValues = transformCommentValues(values, existing, isCreate);
+    const validationSchema = commentValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -57,7 +57,7 @@ export const SubroutineInfoDialog = ({
                     // If the index has changed, reorder the subroutine
                     originalIndex !== values.index && handleReorder(data.node.id, originalIndex, values.index);
                 }}
-                validate={async (values) => await validateSubroutineValues(values, subroutine)}
+                validate={async (values) => await validateSubroutineValues(values, subroutine, false)}
             >
                 {(formik) => <SubroutineForm
                     canUpdateRoutineVersion={canUpdate}

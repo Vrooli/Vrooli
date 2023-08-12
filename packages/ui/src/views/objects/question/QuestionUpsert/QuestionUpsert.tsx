@@ -77,12 +77,12 @@ export const QuestionUpsert = ({
                     }
                     fetchLazyWrapper<QuestionCreateInput | QuestionUpdateInput, Question>({
                         fetch,
-                        inputs: transformQuestionValues(values, existing),
+                        inputs: transformQuestionValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateQuestionValues(values, existing)}
+                validate={async (values) => await validateQuestionValues(values, existing, isCreate)}
             >
                 {(formik) => <QuestionForm
                     display={display}

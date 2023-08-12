@@ -28,6 +28,7 @@ export const ReminderUpsert = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
+    console.log("reminderUpsert", overrideObject, reminderInitialValues(session, overrideObject));
 
     const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
         ...endpointGetReminder,
@@ -82,12 +83,12 @@ export const ReminderUpsert = ({
                     }
                     fetchLazyWrapper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
                         fetch,
-                        inputs: transformReminderValues(values, existing),
+                        inputs: transformReminderValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateReminderValues(values, existing)}
+                validate={async (values) => await validateReminderValues(values, existing, isCreate)}
             >
                 {(formik) => <ReminderForm
                     display={display}

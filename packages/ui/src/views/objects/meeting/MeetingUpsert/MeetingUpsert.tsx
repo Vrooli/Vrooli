@@ -74,12 +74,12 @@ export const MeetingUpsert = ({
                     }
                     fetchLazyWrapper<MeetingCreateInput | MeetingUpdateInput, Meeting>({
                         fetch,
-                        inputs: transformMeetingValues(values, existing),
+                        inputs: transformMeetingValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateMeetingValues(values, existing)}
+                validate={async (values) => await validateMeetingValues(values, existing, isCreate)}
             >
                 {(formik) => <MeetingForm
                     display={display}

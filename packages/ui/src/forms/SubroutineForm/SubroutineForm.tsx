@@ -49,15 +49,12 @@ export const subroutineInitialValues = (
     }]),
 });
 
-export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    return existing === undefined
-        ? shapeNodeRoutineListItem.create(values)
-        : shapeNodeRoutineListItem.update(existing, values);
-};
+export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape, isCreate: boolean) =>
+    isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing, values);
 
-export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    const transformedValues = transformSubroutineValues(values, existing);
-    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? "create" : "update"]({});
+export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape, isCreate: boolean) => {
+    const transformedValues = transformSubroutineValues(values, existing, isCreate);
+    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

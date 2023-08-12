@@ -32,15 +32,12 @@ export const runProjectInitialValues = (
     ...existing,
 });
 
-export function transformRunProjectValues(values: RunProjectShape, existing?: RunProjectShape) {
-    return existing === undefined
-        ? shapeRunProject.create(values)
-        : shapeRunProject.update(existing, values);
-}
+export const transformRunProjectValues = (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) =>
+    isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
 
-export const validateRunProjectValues = async (values: RunProjectShape, existing?: RunProjectShape) => {
-    const transformedValues = transformRunProjectValues(values, existing);
-    const validationSchema = runProjectValidation[existing === undefined ? "create" : "update"]({});
+export const validateRunProjectValues = async (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) => {
+    const transformedValues = transformRunProjectValues(values, existing, isCreate);
+    const validationSchema = runProjectValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -57,40 +57,35 @@ export const routineVersionIOInitialValues = <IsInput extends boolean>(
     }
 };
 
-export const transformRoutineVersionInputValues = (values: RoutineVersionInputShape, existing?: RoutineVersionInputShape) => {
-    return existing === undefined
-        ? shapeRoutineVersionInput.create(values)
-        : shapeRoutineVersionInput.update(existing, values);
-};
+export const transformRoutineVersionInputValues = (values: RoutineVersionInputShape, existing: RoutineVersionInputShape, isCreate: boolean) =>
+    isCreate ? shapeRoutineVersionInput.create(values) : shapeRoutineVersionInput.update(existing, values);
 
-export const transformRoutineVersionOutputValues = (values: RoutineVersionOutputShape, existing?: RoutineVersionOutputShape) => {
-    return existing === undefined
-        ? shapeRoutineVersionOutput.create(values)
-        : shapeRoutineVersionOutput.update(existing, values);
-};
+export const transformRoutineVersionOutputValues = (values: RoutineVersionOutputShape, existing: RoutineVersionOutputShape, isCreate: boolean) =>
+    isCreate ? shapeRoutineVersionOutput.create(values) : shapeRoutineVersionOutput.update(existing, values);
 
 export const transformRoutineVersionIOValues = <IsInput extends boolean>(
     values: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
     isInput: IsInput,
-    existing?: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
+    existing: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
+    isCreate: boolean,
 ): IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape => {
     if (isInput) {
-        return transformRoutineVersionInputValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape | undefined) as any;
+        return transformRoutineVersionInputValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape, isCreate) as any;
     } else {
-        return transformRoutineVersionOutputValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape | undefined) as any;
+        return transformRoutineVersionOutputValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape, isCreate) as any;
     }
 };
 
-export const validateRoutineVersionInputValues = async (values: RoutineVersionInputShape, existing?: RoutineVersionInputShape) => {
-    const transformedValues = transformRoutineVersionInputValues(values, existing);
-    const validationSchema = routineVersionInputValidation[existing === undefined ? "create" : "update"]({});
+export const validateRoutineVersionInputValues = async (values: RoutineVersionInputShape, existing: RoutineVersionInputShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineVersionInputValues(values, existing, isCreate);
+    const validationSchema = routineVersionInputValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
 
-export const validateRoutineVersionOutputValues = async (values: RoutineVersionOutputShape, existing?: RoutineVersionOutputShape) => {
-    const transformedValues = transformRoutineVersionOutputValues(values, existing);
-    const validationSchema = routineVersionOutputValidation[existing === undefined ? "create" : "update"]({});
+export const validateRoutineVersionOutputValues = async (values: RoutineVersionOutputShape, existing: RoutineVersionOutputShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineVersionOutputValues(values, existing, isCreate);
+    const validationSchema = routineVersionOutputValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -98,11 +93,12 @@ export const validateRoutineVersionOutputValues = async (values: RoutineVersionO
 export const validateRoutineVersionIOValues = async <IsInput extends boolean>(
     values: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
     isInput: IsInput,
-    existing?: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
+    existing: IsInput extends true ? RoutineVersionInputShape : RoutineVersionOutputShape,
+    isCreate: boolean,
 ) => {
     if (isInput) {
-        return validateRoutineVersionInputValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape | undefined);
+        return validateRoutineVersionInputValues(values as RoutineVersionInputShape, existing as RoutineVersionInputShape, isCreate);
     } else {
-        return validateRoutineVersionOutputValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape | undefined);
+        return validateRoutineVersionOutputValues(values as RoutineVersionOutputShape, existing as RoutineVersionOutputShape, isCreate);
     }
 };

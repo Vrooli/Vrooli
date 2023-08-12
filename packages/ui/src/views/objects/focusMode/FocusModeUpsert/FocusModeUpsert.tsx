@@ -74,12 +74,12 @@ export const FocusModeUpsert = ({
                     }
                     fetchLazyWrapper<FocusModeCreateInput | FocusModeUpdateInput, FocusMode>({
                         fetch,
-                        inputs: transformFocusModeValues(values, existing),
+                        inputs: transformFocusModeValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateFocusModeValues(values, existing)}
+                validate={async (values) => await validateFocusModeValues(values, existing, isCreate)}
             >
                 {(formik) => <FocusModeForm
                     display={display}

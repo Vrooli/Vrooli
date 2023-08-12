@@ -58,15 +58,12 @@ export const apiInitialValues = (
     }]),
 });
 
-export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersionShape) => {
-    return existing === undefined
-        ? shapeApiVersion.create(values)
-        : shapeApiVersion.update(existing, values);
-};
+export const transformApiValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
+    isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
 
-export const validateApiValues = async (values: ApiVersionShape, existing?: ApiVersionShape) => {
-    const transformedValues = transformApiValues(values, existing);
-    const validationSchema = apiVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateApiValues = async (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) => {
+    const transformedValues = transformApiValues(values, existing, isCreate);
+    const validationSchema = apiVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -1,8 +1,7 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { NewResourceShape } from "forms/ResourceForm/ResourceForm";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
 import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
@@ -157,27 +156,6 @@ export interface ReorderInputDialogProps {
     isInput: boolean;
     listLength: number;
     startIndex: number;
-    zIndex: number;
-}
-
-export interface ReportDialogProps extends Omit<DialogProps, "open"> {
-    forId: string;
-    isOpen: boolean;
-    onClose: () => unknown;
-    reportFor: ReportFor;
-    title?: string;
-    zIndex: number;
-}
-
-export interface ResourceDialogProps extends Omit<DialogProps, "open" | "resource"> {
-    isOpen: boolean;
-    /** Determines if add resource should be called by this dialog, or is handled later */
-    mutate: boolean;
-    onClose: () => unknown;
-    onCreated: (resource: Resource) => unknown;
-    onUpdated: (index: number, resource: Resource) => unknown;
-    /** Resource must include the list ID and index. Set index to -1 if new */
-    resource: NewResourceShape;
     zIndex: number;
 }
 

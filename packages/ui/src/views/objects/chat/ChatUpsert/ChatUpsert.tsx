@@ -74,12 +74,12 @@ export const ChatUpsert = ({
                     }
                     fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
                         fetch,
-                        inputs: transformChatValues(values, existing),
+                        inputs: transformChatValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateChatValues(values, existing)}
+                validate={async (values) => await validateChatValues(values, existing, isCreate)}
             >
                 {(formik) => <ChatForm
                     display={display}

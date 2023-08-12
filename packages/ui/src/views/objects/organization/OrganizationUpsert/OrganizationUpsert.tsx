@@ -73,12 +73,12 @@ export const OrganizationUpsert = ({
                     }
                     fetchLazyWrapper<OrganizationCreateInput | OrganizationUpdateInput, Organization>({
                         fetch,
-                        inputs: transformOrganizationValues(values, existing),
+                        inputs: transformOrganizationValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateOrganizationValues(values, existing)}
+                validate={async (values) => await validateOrganizationValues(values, existing, isCreate)}
             >
                 {(formik) => <OrganizationForm
                     display={display}

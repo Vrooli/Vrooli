@@ -38,15 +38,12 @@ export const botInitialValues = (
     };
 };
 
-export function transformBotValues(session: Session | undefined, values: BotShape, existing?: BotShape) {
-    return existing === undefined
-        ? shapeBot.create(values)
-        : shapeBot.update(botInitialValues(session, existing), values);
-}
+export const transformBotValues = (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) =>
+    isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
 
-export const validateBotValues = async (session: Session | undefined, values: BotShape, existing?: BotShape) => {
-    const transformedValues = transformBotValues(session, values, existing);
-    const validationSchema = botValidation[existing === undefined ? "create" : "update"]({});
+export const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
+    const transformedValues = transformBotValues(session, values, existing, isCreate);
+    const validationSchema = botValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

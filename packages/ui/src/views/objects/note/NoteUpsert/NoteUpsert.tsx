@@ -65,12 +65,12 @@ export const NoteUpsert = ({
                     }
                     fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
                         fetch,
-                        inputs: transformNoteValues(values, existing),
+                        inputs: transformNoteValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateNoteValues(values, existing)}
+                validate={async (values) => await validateNoteValues(values, existing, isCreate)}
             >
                 {(formik) =>
                     <NoteForm

@@ -64,15 +64,12 @@ export const projectInitialValues = (
     }]),
 });
 
-export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    return existing === undefined
-        ? shapeProjectVersion.create(values)
-        : shapeProjectVersion.update(existing, values);
-};
+export const transformProjectValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
+    isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
 
-export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    const transformedValues = transformProjectValues(values, existing);
-    const validationSchema = projectVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateProjectValues = async (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) => {
+    const transformedValues = transformProjectValues(values, existing, isCreate);
+    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

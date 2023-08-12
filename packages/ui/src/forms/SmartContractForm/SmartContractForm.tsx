@@ -43,7 +43,7 @@ export const smartContractInitialValues = (
         __typename: "SmartContract" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         tags: [],
         ...existing?.root,
@@ -58,15 +58,12 @@ export const smartContractInitialValues = (
     }]),
 });
 
-export const transformSmartContractValues = (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
-    return existing === undefined
-        ? shapeSmartContractVersion.create(values)
-        : shapeSmartContractVersion.update(existing, values);
-};
+export const transformSmartContractValues = (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) =>
+    isCreate ? shapeSmartContractVersion.create(values) : shapeSmartContractVersion.update(existing, values);
 
-export const validateSmartContractValues = async (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
-    const transformedValues = transformSmartContractValues(values, existing);
-    const validationSchema = smartContractVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateSmartContractValues = async (values: SmartContractVersionShape, existing: SmartContractVersionShape, isCreate: boolean) => {
+    const transformedValues = transformSmartContractValues(values, existing, isCreate);
+    const validationSchema = smartContractVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

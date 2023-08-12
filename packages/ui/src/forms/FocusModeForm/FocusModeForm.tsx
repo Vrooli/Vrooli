@@ -39,15 +39,12 @@ export const focusModeInitialValues = (
     ...existing,
 });
 
-export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
-    return existing === undefined
-        ? shapeFocusMode.create(values)
-        : shapeFocusMode.update(existing, values);
-}
+export const transformFocusModeValues = (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) =>
+    isCreate ? shapeFocusMode.create(values) : shapeFocusMode.update(existing, values);
 
-export const validateFocusModeValues = async (values: FocusModeShape, existing?: FocusModeShape) => {
-    const transformedValues = transformFocusModeValues(values, existing);
-    const validationSchema = focusModeValidation[existing === undefined ? "create" : "update"]({});
+export const validateFocusModeValues = async (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) => {
+    const transformedValues = transformFocusModeValues(values, existing, isCreate);
+    const validationSchema = focusModeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

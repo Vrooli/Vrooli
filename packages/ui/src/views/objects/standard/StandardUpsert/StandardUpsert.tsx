@@ -74,12 +74,12 @@ export const StandardUpsert = ({
                     }
                     fetchLazyWrapper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
                         fetch,
-                        inputs: transformStandardValues(values, existing),
+                        inputs: transformStandardValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateStandardValues(values, existing)}
+                validate={async (values) => await validateStandardValues(values, existing, isCreate)}
             >
                 {(formik) => <StandardForm
                     display={display}

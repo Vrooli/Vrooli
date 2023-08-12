@@ -28,6 +28,8 @@ export const reminderInitialValues = (
     dueDate: null,
     index: 0,
     isComplete: false,
+    reminderItems: [],
+    ...existing,
     reminderList: {
         __typename: "ReminderList" as const,
         id: existing?.reminderList?.id ?? DUMMY_ID,
@@ -35,22 +37,18 @@ export const reminderInitialValues = (
         ...(existing?.reminderList?.id === undefined && {
             focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
         }),
+        ...existing?.reminderList,
     },
-    reminderItems: [],
-    ...existing,
     description: existing?.description ?? "",
     name: existing?.name ?? "",
 });
 
-export function transformReminderValues(values: ReminderShape, existing?: ReminderShape) {
-    return existing === undefined
-        ? shapeReminder.create(values)
-        : shapeReminder.update(existing, values);
-}
+export const transformReminderValues = (values: ReminderShape, existing: ReminderShape, isCreate: boolean) =>
+    isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 
-export const validateReminderValues = async (values: ReminderShape, existing?: ReminderShape) => {
-    const transformedValues = transformReminderValues(values, existing);
-    const validationSchema = reminderValidation[existing === undefined ? "create" : "update"]({});
+export const validateReminderValues = async (values: ReminderShape, existing: ReminderShape, isCreate: boolean) => {
+    const transformedValues = transformReminderValues(values, existing, isCreate);
+    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

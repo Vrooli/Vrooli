@@ -75,12 +75,12 @@ export const ProjectUpsert = ({
                     }
                     fetchLazyWrapper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
                         fetch,
-                        inputs: transformProjectValues(values, existing),
+                        inputs: transformProjectValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateProjectValues(values, existing)}
+                validate={async (values) => await validateProjectValues(values, existing, isCreate)}
             >
                 {(formik) => <ProjectForm
                     display={display}

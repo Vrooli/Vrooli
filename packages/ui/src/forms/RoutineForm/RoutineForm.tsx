@@ -52,7 +52,7 @@ export const routineInitialValues = (
         __typename: "Routine" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id ?? "" },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
@@ -72,15 +72,12 @@ export const routineInitialValues = (
     }]),
 });
 
-export const transformRoutineValues = (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    return existing === undefined
-        ? shapeRoutineVersion.create(values)
-        : shapeRoutineVersion.update(existing, values);
-};
+export const transformRoutineValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
+    isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
 
-export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    const transformedValues = transformRoutineValues(values, existing);
-    const validationSchema = routineVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateRoutineValues = async (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineValues(values, existing, isCreate);
+    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -38,15 +38,12 @@ export const organizationInitialValues = (
     }]),
 });
 
-export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {
-    return existing === undefined
-        ? shapeOrganization.create(values)
-        : shapeOrganization.update(existing, values);
-};
+export const transformOrganizationValues = (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) =>
+    isCreate ? shapeOrganization.create(values) : shapeOrganization.update(existing, values);
 
-export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
-    const transformedValues = transformOrganizationValues(values, existing);
-    const validationSchema = organizationValidation[existing === undefined ? "create" : "update"]({});
+export const validateOrganizationValues = async (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) => {
+    const transformedValues = transformOrganizationValues(values, existing, isCreate);
+    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

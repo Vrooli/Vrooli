@@ -74,12 +74,12 @@ export const RunRoutineUpsert = ({
                     }
                     fetchLazyWrapper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
                         fetch,
-                        inputs: transformRunRoutineValues(values, existing),
+                        inputs: transformRunRoutineValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateRunRoutineValues(values, existing)}
+                validate={async (values) => await validateRunRoutineValues(values, existing, isCreate)}
             >
                 {(formik) => <RunRoutineForm
                     display={display}

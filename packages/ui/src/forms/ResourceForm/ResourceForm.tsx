@@ -17,24 +17,24 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
+/** New resources must include a list ID and an index */
 export type NewResourceShape = Partial<Omit<Resource, "list">> & { index: number, list: Partial<Resource["list"]> & { id: string } };
 
 export const resourceInitialValues = (
     session: Session | undefined,
-    existing?: NewResourceShape,
+    existing: NewResourceShape,
 ): ResourceShape => ({
     __typename: "Resource" as const,
     id: DUMMY_ID,
-    index: 0,
     link: "",
     usedFor: ResourceUsedFor.Context,
     ...existing,
     list: {
         __typename: "ResourceList" as const,
-        ...existing?.list,
-        id: existing?.list?.id ?? DUMMY_ID,
+        ...existing.list,
+        id: existing.list.id,
     },
-    translations: orDefault(existing?.translations, [{
+    translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
@@ -43,15 +43,12 @@ export const resourceInitialValues = (
     }]),
 });
 
-export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {
-    return existing === undefined
-        ? shapeResource.create(values)
-        : shapeResource.update(existing, values);
-}
+export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
+    isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
 
-export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
-    const transformedValues = transformResourceValues(values, existing);
-    const validationSchema = resourceValidation[existing === undefined ? "create" : "update"]({});
+export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
+    const transformedValues = transformResourceValues(values, existing, isCreate);
+    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

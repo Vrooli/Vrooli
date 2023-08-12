@@ -74,12 +74,12 @@ export const ApiUpsert = ({
                     }
                     fetchLazyWrapper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
                         fetch,
-                        inputs: transformApiValues(values, existing),
+                        inputs: transformApiValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
                         onError: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateApiValues(values, existing)}
+                validate={async (values) => await validateApiValues(values, existing, isCreate)}
             >
                 {(formik) => <ApiForm
                     display={display}
