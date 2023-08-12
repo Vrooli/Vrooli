@@ -17,9 +17,11 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
+export type NewResourceShape = Partial<Omit<Resource, "list">> & { index: number, list: Partial<Resource["list"]> & { id: string } };
+
 export const resourceInitialValues = (
     session: Session | undefined,
-    existing?: Partial<Resource> & { index: number, list: { id: string } & Partial<Resource["list"]> } | null | undefined,
+    existing?: NewResourceShape,
 ): ResourceShape => ({
     __typename: "Resource" as const,
     id: DUMMY_ID,

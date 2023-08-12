@@ -23,6 +23,7 @@ export const clickSize = {
 
 export const multiLineEllipsis = (lines: number) => ({
     display: "-webkit-box",
+    lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
     WebkitLineClamp: lines,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
@@ -193,19 +194,26 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export const formSection = (theme: Theme) => ({
+export const baseSection = (theme: Theme) => ({
     background: theme.palette.mode === "dark" ?
         theme.palette.background.paper :
         theme.palette.background.default,
     borderRadius: theme.spacing(1),
     flexDirection: "column",
-    overflowX: "auto",
     padding: theme.spacing(2),
-    "& > *:not(:last-child)": {
-        marginBottom: theme.spacing(2),
-    },
     "@media print": {
         border: `1px solid ${theme.palette.divider}`,
+    },
+} as const);
+export const BaseSection = styled(Box)(({ theme }) => ({
+    ...baseSection(theme),
+}));
+
+export const formSection = (theme: Theme) => ({
+    ...baseSection(theme),
+    overflowX: "auto",
+    "& > *:not(:last-child)": {
+        marginBottom: theme.spacing(2),
     },
 } as const);
 export const FormSection = styled(Stack)(({ theme }) => ({
@@ -258,7 +266,6 @@ export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
 }));
 
 export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
-    boxShadow: theme.spacing(2),
     width: "max(min(100px, 40vw), 75px)",
     height: "max(min(100px, 40vw), 75px)",
     top: "-100%",

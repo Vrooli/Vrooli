@@ -22,10 +22,10 @@ export const LargeDialog = ({
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex,
+                zIndex: zIndex + 999,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
-                        zIndex,
+                        zIndex: zIndex + 999,
                         margin: { xs: 0, sm: 2, md: 4 },
                         minWidth: { xs: "100vw", sm: "unset" },
                         maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
@@ -58,6 +58,7 @@ export const MaybeLargeDialog = ({
     ...props
 }: MaybeLargeDialogProps) => {
     return display === "dialog" ? (
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         <LargeDialog onClose={onClose ?? (() => { })} {...props}>
             {children}
         </LargeDialog>

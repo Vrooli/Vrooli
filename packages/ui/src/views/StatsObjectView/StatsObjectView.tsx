@@ -1,10 +1,11 @@
 import { Box } from "@mui/material";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
-import { StatsCompactPropsObject } from "components/text/types";
 import { useTranslation } from "react-i18next";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { StatsDialogProps } from "../types";
+import { getDisplay, ListObject } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
+import { StatsObjectViewProps } from "../types";
 
 const titleId = "stats-object-dialog-title";
 
@@ -12,27 +13,29 @@ const titleId = "stats-object-dialog-title";
  * Displays basic stats about an object, in a short format.
  * Displays votes, views, date created, and reports
  */
-export const StatsDialog = <T extends StatsCompactPropsObject>({
+export const StatsObjectView = <T extends ListObject>({
     handleObjectUpdate,
     isOpen,
     object,
     onClose,
     zIndex,
-}: StatsDialogProps<T>) => {
+}: StatsObjectViewProps<T>) => {
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     return (
-        <LargeDialog
+        <MaybeLargeDialog
+            display={display}
             id="object-stats-dialog"
             onClose={onClose}
-            isOpen={isOpen}
+            isOpen={isOpen ?? false}
             titleId={titleId}
             zIndex={zIndex}
         >
             <TopBar
-                display="dialog"
+                display={display}
                 onClose={onClose}
-                title={t("Share")}
+                title={t("ObjectStats", { objectName: getDisplay(object).title })}
                 titleId={titleId}
                 zIndex={zIndex}
             />
@@ -45,6 +48,6 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                 {/* Historical stats */}
                 {/* TODO */}
             </Box>
-        </LargeDialog>
+        </MaybeLargeDialog>
     );
 };

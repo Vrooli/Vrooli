@@ -26,15 +26,16 @@ export const noteInitialValues = (
     id: DUMMY_ID,
     directoryListings: [],
     isPrivate: true,
+    versionLabel: existing?.versionLabel ?? "1.0.0",
+    ...existing,
     root: {
         id: DUMMY_ID,
         isPrivate: true,
         owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: existing?.versionLabel ?? "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "NoteVersionTranslation" as const,
         id: DUMMY_ID,

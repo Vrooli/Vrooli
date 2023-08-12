@@ -14,7 +14,7 @@ import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { StatsViewProps } from "../types";
+import { StatsSiteViewProps } from "../types";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -57,11 +57,11 @@ const MIN_DATE = new Date(2023, 1, 1);
 /**
  * Displays site-wide statistics, organized by time period.
  */
-export const StatsView = ({
+export const StatsSiteView = ({
     isOpen,
     onClose,
     zIndex,
-}: StatsViewProps) => {
+}: StatsSiteViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);

@@ -370,10 +370,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 zIndex={zIndex + 2}
             >
                 {CreateView && <CreateView
-                    display="dialog"
                     isCreate={true}
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
+                    overrideObject={{ __typename: createObjectType }}
                     zIndex={zIndex + 2}
                 />}
             </LargeDialog>

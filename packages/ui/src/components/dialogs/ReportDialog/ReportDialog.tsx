@@ -18,15 +18,15 @@ import { ReportDialogProps } from "../types";
 
 export const ReportDialog = ({
     forId,
+    isOpen,
     onClose,
-    open,
     reportFor,
     title,
     zIndex,
 }: ReportDialogProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const display = toDisplay(open);
+    const display = toDisplay(isOpen);
 
     const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
     const formRef = useRef<BaseFormRef>();
@@ -56,7 +56,7 @@ export const ReportDialog = ({
         <MaybeLargeDialog
             display={display}
             id="report-dialog"
-            isOpen={open}
+            isOpen={isOpen}
             onClose={handleCancel}
             zIndex={zIndex}
         >

@@ -13,9 +13,7 @@ export type RoutineShape = Pick<Routine, "id" | "isInternal" | "isPrivate" | "pe
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
-    // Updating, deleting, and reordering versions must be done separately. 
-    // This only creates/updates a single version, which is most often the case
-    versionInfo?: RoutineVersionShape | null;
+    versions?: Omit<RoutineVersionShape, "root">[] | null;
 }
 
 export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineUpdateInput> = {
@@ -25,13 +23,13 @@ export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineU
         ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
         ...createRel(d, "parent", ["Connect"], "one"),
         ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
-        ...createVersion(d, shapeRoutineVersion, (v) => ({ ...v, root: { id: d.id } })),
+        ...createVersion(d, shapeRoutineVersion),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isInternal", "isPrivate", "permissions"),
         ...updateOwner(o, u, "ownedBy"),
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
-        ...updateVersion(o, u, shapeRoutineVersion, (v, i) => ({ ...v, root: { id: i.id } })),
+        ...updateVersion(o, u, shapeRoutineVersion),
     }, a),
 };

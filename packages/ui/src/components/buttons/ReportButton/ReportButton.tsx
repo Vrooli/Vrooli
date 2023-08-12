@@ -19,8 +19,8 @@ export const ReportButton = ({
         <>
             <ReportDialog
                 forId={forId}
+                isOpen={open}
                 onClose={closeDialog}
-                open={open}
                 reportFor={reportFor}
                 zIndex={zIndex + 1}
             />

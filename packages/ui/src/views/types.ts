@@ -61,7 +61,12 @@ export type SearchViewProps = ViewProps
 
 export type StartViewProps = ViewProps
 
-export type StatsViewProps = ViewProps
+export type StatsSiteViewProps = ViewProps
+
+export interface StatsObjectViewProps<T extends ListObject> extends ViewProps {
+    handleObjectUpdate: (object: T) => unknown;
+    object: T | null | undefined;
+}
 
 export type ReportsViewProps = ViewProps
 

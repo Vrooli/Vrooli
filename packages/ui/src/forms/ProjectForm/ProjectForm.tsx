@@ -32,6 +32,8 @@ export const projectInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Project" as const,
         id: DUMMY_ID,
@@ -39,9 +41,8 @@ export const projectInitialValues = (
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     directories: orDefault(existing?.directories, [{
         __typename: "ProjectVersionDirectory" as const,
         id: DUMMY_ID,

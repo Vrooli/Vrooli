@@ -6,7 +6,7 @@ import { handleRegex, urlRegex, walletAddressRegex } from "../regex";
  * @param value the URL
  * @returns the URL with https:// prepended to it
  */
-export const addHttps = (value: string | undefined) => {
+export const addHttps = (value: string | undefined): string => {
     if (
         typeof value === "string" &&
         !value.startsWith("http://") &&
@@ -17,5 +17,5 @@ export const addHttps = (value: string | undefined) => {
     ) {
         return `https://${value}`;
     }
-    return value;
+    return value || "";
 };

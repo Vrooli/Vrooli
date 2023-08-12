@@ -12,6 +12,7 @@ import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { SmartContractShape } from "utils/shape/models/smartContract";
 import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { SmartContractUpsertProps } from "../types";
 
@@ -88,7 +89,7 @@ export const SmartContractUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
+                    versions={(existing?.root as SmartContractShape)?.versions?.map(v => v.versionLabel) ?? []}
                     zIndex={zIndex}
                     {...formik}
                 />}

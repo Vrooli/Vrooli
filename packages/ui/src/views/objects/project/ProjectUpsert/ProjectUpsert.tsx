@@ -12,6 +12,7 @@ import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ProjectShape } from "utils/shape/models/project";
 import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { ProjectUpsertProps } from "../types";
 
@@ -88,7 +89,7 @@ export const ProjectUpsert = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
+                    versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
                     zIndex={zIndex}
                     {...formik}
                 />}

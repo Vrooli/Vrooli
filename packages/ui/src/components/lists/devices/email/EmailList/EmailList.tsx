@@ -114,7 +114,6 @@ export const EmailList = ({
                 display: "flex",
                 justifyContent: "center",
                 paddingTop: 4,
-                paddingBottom: 6,
             }}>
                 <TextField
                     autoComplete='email'

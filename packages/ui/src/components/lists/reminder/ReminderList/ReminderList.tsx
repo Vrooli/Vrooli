@@ -147,10 +147,9 @@ export const ReminderList = ({
                 handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
                 isCreate={editingIndex < 0}
                 isOpen={isDialogOpen}
-                listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
                 onCancel={closeDialog}
                 onCompleted={handleCompleted}
-                overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder" }}
+                overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder", reminderList: { id: listId ?? "" } }}
                 zIndex={zIndex}
             />
             {/* List */}

@@ -38,15 +38,16 @@ export const apiInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Api" as const,
         id: DUMMY_ID,
         isPrivate: false,
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "ApiVersionTranslation" as const,
         id: DUMMY_ID,

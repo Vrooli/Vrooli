@@ -2,6 +2,7 @@ import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, Focu
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
+import { NewResourceShape } from "forms/ResourceForm/ResourceForm";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
 import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
@@ -159,11 +160,10 @@ export interface ReorderInputDialogProps {
     zIndex: number;
 }
 
-export interface ReportDialogProps extends DialogProps {
+export interface ReportDialogProps extends Omit<DialogProps, "open"> {
     forId: string;
     isOpen: boolean;
     onClose: () => unknown;
-    open: boolean;
     reportFor: ReportFor;
     title?: string;
     zIndex: number;
@@ -177,7 +177,7 @@ export interface ResourceDialogProps extends Omit<DialogProps, "open" | "resourc
     onCreated: (resource: Resource) => unknown;
     onUpdated: (index: number, resource: Resource) => unknown;
     /** Resource must include the list ID and index. Set index to -1 if new */
-    resource: Partial<Resource> & { index: number, list: { id: string } & Partial<Resource["list"]> };
+    resource: NewResourceShape;
     zIndex: number;
 }
 
@@ -288,21 +288,13 @@ export interface SelectLanguageMenuProps {
     zIndex: number;
 }
 
-export interface StatsDialogProps<T extends ListObject> {
-    handleObjectUpdate: (object: T) => unknown;
-    isOpen: boolean;
-    object: T | null | undefined;
-    onClose: () => unknown;
-    zIndex: number;
-}
-
 export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => unknown;
     onAdd: (run: RunProject | RunRoutine) => unknown;
     onDelete: (run: RunProject | RunRoutine) => unknown;
     onSelect: (run: RunProject | RunRoutine | null) => unknown;
-    runnableObject?: RoutineVersion | ProjectVersion | null;
+    runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
     zIndex: number;
 }
 

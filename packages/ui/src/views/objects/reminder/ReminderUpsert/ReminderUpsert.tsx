@@ -20,7 +20,6 @@ export const ReminderUpsert = ({
     handleDelete,
     isCreate,
     isOpen,
-    listId,
     onCancel,
     onCompleted,
     overrideObject,
@@ -33,8 +32,8 @@ export const ReminderUpsert = ({
     const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Reminder, ReminderShape>({
         ...endpointGetReminder,
         objectType: "Reminder",
-        overrideObject,
-        transform: (existing) => reminderInitialValues(session, listId, existing),
+        overrideObject: overrideObject as Reminder,
+        transform: (existing) => reminderInitialValues(session, existing),
     });
 
     const formRef = useRef<BaseFormRef>();

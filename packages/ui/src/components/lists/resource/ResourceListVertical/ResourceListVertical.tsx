@@ -4,6 +4,7 @@ import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { AddIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -96,14 +97,14 @@ export const ResourceListVertical = ({
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            index={editingIndex}
             isOpen={isDialogOpen}
-            partialData={(editingIndex >= 0) ? list.resources[editingIndex as number] as any : undefined}
-            listId={list.id}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
+            resource={editingIndex >= 0 ?
+                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+                resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
             zIndex={zIndex + 1}
         /> : null
     ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);

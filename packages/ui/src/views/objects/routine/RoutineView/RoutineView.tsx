@@ -93,12 +93,12 @@ export const RoutineView = ({
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you?.runs?.filter(r => r.id !== run.id)));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you?.runs?.filter(r => r.id !== run.id)) ?? existing);
     }, [existing, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...(existing.you?.runs ?? [])]));
+        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...(existing.you?.runs ?? [])]) ?? existing);
     }, [existing, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -241,7 +241,7 @@ export const RoutineView = ({
                             handleSubmit={() => { }}
                             isEditing={false}
                             loading={isLoading}
-                            routineVersion={existing}
+                            routineVersion={existing as RoutineVersion}
                             translationData={{
                                 language,
                                 languages: availableLanguages,

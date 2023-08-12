@@ -188,7 +188,7 @@ export const ApiView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                tabTitle={firstString(getTranslation(data, [language]).name, "Api")}
+                title={firstString(name, t("Api", { count: 1 }))}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

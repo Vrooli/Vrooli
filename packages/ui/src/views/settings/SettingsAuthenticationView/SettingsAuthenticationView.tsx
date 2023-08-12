@@ -86,103 +86,111 @@ export const SettingsAuthenticationView = ({
                 title={t("Authentication")}
                 zIndex={zIndex}
             />
-            <Stack direction="row" mt={2}>
+            <Stack direction="row" pt={2} pb={2}>
                 <SettingsList />
-                <Box m="auto">
-                    <Title
-                        help={t("WalletListHelp")}
-                        Icon={WalletIcon}
-                        title={t("Wallet", { count: 2 })}
-                        variant="subheader"
-                        zIndex={zIndex}
-                    />
-                    <WalletList
-                        handleUpdate={updateWallets}
-                        list={profile?.wallets ?? []}
-                        numVerifiedEmails={numVerifiedEmails}
-                        zIndex={zIndex}
-                    />
-                    <Title
-                        help={t("EmailListHelp")}
-                        Icon={EmailIcon}
-                        title={t("Email", { count: 2 })}
-                        variant="subheader"
-                        zIndex={zIndex}
-                    />
-                    <EmailList
-                        handleUpdate={updateEmails}
-                        list={profile?.emails ?? []}
-                        numVerifiedWallets={numVerifiedWallets}
-                    />
-                    <Title
-                        help={t("PasswordChangeHelp")}
-                        title={t("ChangePassword")}
-                        variant="subheader"
-                        zIndex={zIndex}
-                    />
-                    <Formik
-                        enableReinitialize={true}
-                        initialValues={{
-                            currentPassword: "",
-                            newPassword: "",
-                            newPasswordConfirmation: "",
-                        } as ProfileEmailUpdateInput}
-                        onSubmit={(values, helpers) => {
-                            if (!profile) {
-                                PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
-                                return;
-                            }
-                            fetchLazyWrapper<ProfileEmailUpdateInput, User>({
-                                fetch: update,
-                                inputs: {
-                                    currentPassword: values.currentPassword,
-                                    newPassword: values.newPassword,
-                                },
-                                onSuccess: (data) => { onProfileUpdate(data); },
-                                onError: () => { helpers.setSubmitting(false); },
-                            });
-                        }}
-                        validationSchema={profileEmailUpdateValidation.update({})}
-                    >
-                        {(formik) => <SettingsAuthenticationForm
-                            display={display}
-                            isLoading={isProfileLoading || isUpdating}
-                            onCancel={formik.resetForm}
+                <Stack direction="column" spacing={8} m="auto" pl={2} pr={2} sx={{ maxWidth: "min(100%, 500px)" }}>
+                    <Box>
+                        <Title
+                            help={t("WalletListHelp")}
+                            Icon={WalletIcon}
+                            title={t("Wallet", { count: 2 })}
+                            variant="subheader"
                             zIndex={zIndex}
-                            {...formik}
-                        />}
-                    </Formik>
-                    <Button
-                        color="secondary"
-                        onClick={onLogOut}
-                        startIcon={<LogOutIcon />}
-                        variant="outlined"
-                        sx={{
-                            display: "flex",
-                            width: "min(100%, 400px)",
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                            marginTop: 5,
-                            marginBottom: 2,
-                            whiteSpace: "nowrap",
-                        }}
-                    >{t("LogOut")}</Button>
-                    <Button
-                        onClick={openDelete}
-                        startIcon={<DeleteIcon />}
-                        variant="text"
-                        sx={{
-                            background: palette.error.main,
-                            color: palette.error.contrastText,
-                            display: "flex",
-                            width: "min(100%, 400px)",
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                            marginBottom: 2,
-                            whiteSpace: "nowrap",
-                        }}
-                    >{t("DeleteAccount")}</Button>
-                </Box>
+                        />
+                        <WalletList
+                            handleUpdate={updateWallets}
+                            list={profile?.wallets ?? []}
+                            numVerifiedEmails={numVerifiedEmails}
+                            zIndex={zIndex}
+                        />
+                    </Box>
+                    <Box>
+                        <Title
+                            help={t("EmailListHelp")}
+                            Icon={EmailIcon}
+                            title={t("Email", { count: 2 })}
+                            variant="subheader"
+                            zIndex={zIndex}
+                        />
+                        <EmailList
+                            handleUpdate={updateEmails}
+                            list={profile?.emails ?? []}
+                            numVerifiedWallets={numVerifiedWallets}
+                        />
+                    </Box>
+                    <Box>
+                        <Title
+                            help={t("PasswordChangeHelp")}
+                            title={t("ChangePassword")}
+                            variant="subheader"
+                            zIndex={zIndex}
+                        />
+                        <Formik
+                            enableReinitialize={true}
+                            initialValues={{
+                                currentPassword: "",
+                                newPassword: "",
+                                newPasswordConfirmation: "",
+                            } as ProfileEmailUpdateInput}
+                            onSubmit={(values, helpers) => {
+                                if (!profile) {
+                                    PubSub.get().publishSnack({ messageKey: "CouldNotReadProfile", severity: "Error" });
+                                    return;
+                                }
+                                fetchLazyWrapper<ProfileEmailUpdateInput, User>({
+                                    fetch: update,
+                                    inputs: {
+                                        currentPassword: values.currentPassword,
+                                        newPassword: values.newPassword,
+                                    },
+                                    onSuccess: (data) => { onProfileUpdate(data); },
+                                    onError: () => { helpers.setSubmitting(false); },
+                                });
+                            }}
+                            validationSchema={profileEmailUpdateValidation.update({})}
+                        >
+                            {(formik) => <SettingsAuthenticationForm
+                                display={display}
+                                isLoading={isProfileLoading || isUpdating}
+                                onCancel={formik.resetForm}
+                                zIndex={zIndex}
+                                {...formik}
+                            />}
+                        </Formik>
+                    </Box>
+                    <Box>
+                        <Button
+                            color="secondary"
+                            onClick={onLogOut}
+                            startIcon={<LogOutIcon />}
+                            variant="outlined"
+                            sx={{
+                                display: "flex",
+                                width: "min(100%, 400px)",
+                                marginLeft: "auto",
+                                marginRight: "auto",
+                                marginTop: 5,
+                                marginBottom: 2,
+                                whiteSpace: "nowrap",
+                            }}
+                        >{t("LogOut")}</Button>
+                        <Button
+                            onClick={openDelete}
+                            startIcon={<DeleteIcon />}
+                            variant="text"
+                            sx={{
+                                background: palette.error.main,
+                                color: palette.error.contrastText,
+                                display: "flex",
+                                width: "min(100%, 400px)",
+                                marginLeft: "auto",
+                                marginRight: "auto",
+                                marginBottom: 2,
+                                whiteSpace: "nowrap",
+                            }}
+                        >{t("DeleteAccount")}</Button>
+                    </Box>
+                </Stack>
             </Stack>
         </>
     );

@@ -2,7 +2,7 @@ import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVe
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject, SvgProps, SxType } from "types";
+import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -118,7 +118,7 @@ export interface RunButtonProps {
     handleRunDelete: (run: RunProject | RunRoutine) => unknown;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
-    runnableObject: ProjectVersion | RoutineVersion | null;
+    runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
     zIndex: number;
 }
 

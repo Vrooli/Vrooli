@@ -12,6 +12,7 @@ import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { RoutineShape } from "utils/shape/models/routine";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { RoutineUpsertProps } from "../types";
 
@@ -90,7 +91,7 @@ export const RoutineUpsert = ({
                     isSubroutine={isSubroutine}
                     onCancel={handleCancel}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
+                    versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
                     zIndex={zIndex}
                     {...formik}
                 />}

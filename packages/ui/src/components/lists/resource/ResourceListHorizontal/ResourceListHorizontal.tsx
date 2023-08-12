@@ -6,6 +6,7 @@ import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
 import { DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
@@ -28,7 +29,7 @@ import { ResourceCardProps, ResourceListHorizontalProps } from "../types";
 const ResourceBox = styled(Box)(({ theme }) => ({
     ...noSelect,
     display: "block",
-    boxShadow: theme.spacing(4),
+    boxShadow: theme.shadows[4],
     background: theme.palette.primary.light,
     color: theme.palette.secondary.contrastText,
     borderRadius: "16px",
@@ -44,7 +45,7 @@ const ResourceBox = styled(Box)(({ theme }) => ({
         filter: "brightness(120%)",
         transition: "filter 0.2s",
     },
-}));
+})) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
 
 const ResourceCard = forwardRef<any, ResourceCardProps>(({
     canUpdate,
@@ -285,14 +286,14 @@ export const ResourceListHorizontal = ({
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            index={editingIndex}
             isOpen={isDialogOpen}
-            listId={list.id}
             mutate={mutate}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
-            resource={editingIndex >= 0 ? list.resources[editingIndex as number] : { __typename: "Resource" }}
+            resource={editingIndex >= 0 ?
+                { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
+                resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
             zIndex={zIndex + 1}
         /> : null
     ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);

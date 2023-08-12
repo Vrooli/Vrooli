@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
@@ -25,16 +25,17 @@ import { shapeChat } from "utils/shape/models/chat";
 import { ChatViewProps } from "views/types";
 
 /** Basic chatInfo for a new convo with Valyxa */
-export const assistantChatInfo = {
+export const assistantChatInfo: ChatViewProps["chatInfo"] = {
     invites: [{
         __typename: "ChatInvite" as const,
         id: uuid(),
         user: {
             __typename: "User" as const,
             id: VALYXA_ID,
+            isBot: true,
             name: "Valyxa",
         },
-    } as any],
+    }] as ChatInvite[],
 };
 
 export const ChatView = ({
@@ -59,7 +60,7 @@ export const ChatView = ({
     useDisplayServerError(findErrors ?? createErrors);
 
     useEffect(() => {
-        if (chat) return;
+        if (chat || !isOpen) return;
         // Check if the chat already exists, or if the URL has an id
         let chatId = chatInfo?.id;
         if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
@@ -97,7 +98,7 @@ export const ChatView = ({
                 onSuccess: (data) => { setChat(data); },
             });
         }
-    }, [chat, chatInfo, createChat, getData, lng]);
+    }, [chat, chatInfo, createChat, getData, isOpen, lng]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {

@@ -13,6 +13,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
+import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -217,6 +218,7 @@ export const MarkdownInputBase = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
+    const isLeftHanded = useIsLeftHanded();
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
     const changeStack = useRef<string[]>([value]);
@@ -956,23 +958,30 @@ export const MarkdownInputBase = ({
                         )
                 }
                 {/* Help text, characters remaining indicator, and action buttons */}
-                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    spacing={1}
+                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
                     sx={{
                         padding: 1,
+                        display: "flex",
+                        flexDirection: isLeftHanded ? "row-reverse" : "row",
+                        gap: 1,
+                        justifyContent: "space-between",
+                        alitnItems: "center",
                     }}
                 >
                     {/* Helper text label */}
                     {
-                        helperText &&
-                        <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
+                        // helperText &&
+                        <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
                             {helperText}
                         </Typography>
                     }
-                    <Stack direction="row" ml="auto" spacing={1}>
+                    <Box sx={{
+                        display: "flex",
+                        gap: 2,
+                        ...(isLeftHanded ?
+                            { marginRight: "auto", flexDirection: "row-reverse" } :
+                            { marginLeft: "auto", flexDirection: "row" }),
+                    }}>
                         {/* Characters remaining indicator */}
                         {
                             !disabled && maxChars !== undefined &&
@@ -996,8 +1005,8 @@ export const MarkdownInputBase = ({
                                 </Tooltip>
                             ))
                         }
-                    </Stack>
-                </Stack>}
+                    </Box>
+                </Box>}
             </Stack>
         </>
     );

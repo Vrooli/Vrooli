@@ -3,11 +3,11 @@ import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
+import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { StatsDialog } from "../StatsDialog/StatsDialog";
 import { ObjectActionDialogsProps } from "../types";
 
 export const ObjectActionDialogs = ({
@@ -66,8 +66,8 @@ export const ObjectActionDialogs = ({
             />}
             {object?.id && hasReportingSupport && <ReportDialog
                 forId={object.id}
+                isOpen={isReportDialogOpen}
                 onClose={closeReportDialog}
-                open={isReportDialogOpen}
                 reportFor={objectType as unknown as ReportFor}
                 zIndex={zIndex + 1}
             />}
@@ -77,7 +77,7 @@ export const ObjectActionDialogs = ({
                 onClose={closeShareDialog}
                 zIndex={zIndex + 1}
             />}
-            {hasStatsSupport && <StatsDialog
+            {hasStatsSupport && <StatsObjectView
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}

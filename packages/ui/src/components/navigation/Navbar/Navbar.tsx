@@ -114,7 +114,6 @@ export const Navbar = forwardRef(({
                         }}>
                             <NavList />
                         </Box>}
-                        {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
                         {isMobile && title && !titleComponent && <Title
                             help={help}

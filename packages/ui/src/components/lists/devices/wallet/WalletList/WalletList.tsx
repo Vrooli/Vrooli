@@ -198,7 +198,6 @@ export const WalletList = ({
                 display: "flex",
                 justifyContent: "center",
                 paddingTop: 4,
-                paddingBottom: 6,
             }}>
                 <Button
                     fullWidth

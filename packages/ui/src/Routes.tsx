@@ -43,7 +43,7 @@ const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { StartView } = lazily(() => import("./views/StartView/StartView"));
-const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
+const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));

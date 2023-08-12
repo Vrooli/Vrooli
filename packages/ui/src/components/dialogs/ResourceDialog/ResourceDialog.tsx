@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ResourceShape } from "utils/shape/models/resource";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ResourceDialogProps } from "../types";
@@ -75,7 +76,7 @@ export const ResourceDialog = ({
                             }
                             fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
                                 fetch,
-                                inputs: transformResourceValues(values, resource),
+                                inputs: transformResourceValues(values, resource as ResourceShape),
                                 successMessage: () => ({ messageKey: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
@@ -85,8 +86,8 @@ export const ResourceDialog = ({
                             if (isCreating) {
                                 onCreated({
                                     ...values,
-                                    created_at: resource?.created_at ?? new Date().toISOString(),
-                                    updated_at: resource?.updated_at ?? new Date().toISOString(),
+                                    created_at: (resource as Resource)?.created_at ?? new Date().toISOString(),
+                                    updated_at: (resource as Resource)?.updated_at ?? new Date().toISOString(),
                                 } as Resource);
                             } else {
                                 onUpdated(resource.index, values as Resource);
@@ -95,7 +96,7 @@ export const ResourceDialog = ({
                             onClose();
                         }
                     }}
-                    validate={async (values) => await validateResourceValues(values, resource)}
+                    validate={async (values) => await validateResourceValues(values, resource as ResourceShape)}
                 >
                     {(formik) => <ResourceForm
                         display="dialog"

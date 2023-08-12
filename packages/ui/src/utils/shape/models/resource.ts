@@ -21,7 +21,7 @@ export const shapeResourceTranslation: ShapeModel<ResourceTranslationShape, Reso
 export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, ResourceUpdateInput> = {
     create: (d) => ({
         // Make sure link is properly shaped
-        link: addHttps(d.link)!,
+        link: addHttps(d.link),
         ...createPrims(d, "id", "index", "usedFor"),
         ...createRel(d, "list", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeResourceTranslation),

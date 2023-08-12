@@ -46,6 +46,8 @@ export const routineInitialValues = (
     nodeLinks: [],
     nodes: [],
     outputs: [],
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Routine" as const,
         id: DUMMY_ID,
@@ -54,9 +56,8 @@ export const routineInitialValues = (
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,

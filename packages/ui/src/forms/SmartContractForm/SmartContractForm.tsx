@@ -37,6 +37,8 @@ export const smartContractInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "SmartContract" as const,
         id: DUMMY_ID,
@@ -44,9 +46,8 @@ export const smartContractInitialValues = (
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "SmartContractVersionTranslation" as const,
         id: DUMMY_ID,

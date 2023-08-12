@@ -40,6 +40,8 @@ export const standardInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Standard" as const,
         id: DUMMY_ID,
@@ -49,9 +51,8 @@ export const standardInitialValues = (
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "StandardVersionTranslation" as const,
         id: DUMMY_ID,

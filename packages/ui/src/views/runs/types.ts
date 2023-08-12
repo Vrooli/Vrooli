@@ -1,5 +1,5 @@
 import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
-import { DecisionStep, EndStep, RoutineListStep, RoutineStep } from "types";
+import { DecisionStep, EndStep, PartialWithType, RoutineListStep, RoutineStep } from "types";
 import { ViewProps } from "views/types";
 
 export interface DecisionViewProps extends ViewProps {
@@ -11,7 +11,7 @@ export interface DecisionViewProps extends ViewProps {
 
 export interface RunViewProps extends ViewProps {
     onClose?: () => void;
-    runnableObject: ProjectVersion | RoutineVersion;
+    runnableObject: PartialWithType<ProjectVersion | RoutineVersion>;
 }
 
 export interface SubroutineViewProps extends ViewProps {

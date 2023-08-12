@@ -12,9 +12,7 @@ export type NoteShape = Pick<Note, "id" | "isPrivate"> & {
     owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
-    // Updating, deleting, and reordering versions must be done separately. 
-    // This only creates/updates a single version, which is most often the case
-    versionInfo?: NoteVersionShape | null;
+    versions?: Omit<NoteVersionShape, "root">[] | null;
 }
 
 export const shapeNote: ShapeModel<NoteShape, NoteCreateInput, NoteUpdateInput> = {
@@ -24,13 +22,13 @@ export const shapeNote: ShapeModel<NoteShape, NoteCreateInput, NoteUpdateInput> 
         ...createRel(d, "labels", ["Connect", "Create"], "many", shapeLabel),
         ...createRel(d, "parent", ["Connect"], "one"),
         ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
-        ...createVersion(d, shapeNoteVersion, (v) => ({ ...v, root: { id: d.id } })),
+        ...createVersion(d, shapeNoteVersion),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate"),
         ...updateOwner(o, u, "ownedBy"),
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
-        ...updateVersion(o, u, shapeNoteVersion, (v, i) => ({ ...v, root: { id: i.id } })),
+        ...updateVersion(o, u, shapeNoteVersion),
     }, a),
 };
