@@ -69,7 +69,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [, , dueDateHelpers] = useField("dueDate");
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
     const handleDeleteStep = (index: number) => {
@@ -137,7 +136,7 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             type="datetime-local"
                         />
                         {/* Steps to complete reminder */}
-                        <Box display="flex" flexDirection="column" m="auto">
+                        <Box display="flex" flexDirection="column">
                             <Title
                                 Icon={ListNumberIcon}
                                 title={t("Step", { count: 2 })}

@@ -1,7 +1,7 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from "@local/shared";
+import { endpointPostReminder, endpointPutReminder, GqlModelType, LINKS, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@local/shared";
 import { List, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
@@ -13,7 +13,7 @@ import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { shapeReminder } from "utils/shape/models/reminder";
-import { ReminderUpsert } from "views/objects/reminder";
+import { ReminderCrud } from "views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
 import { ReminderListProps } from "../types";
 
@@ -87,68 +87,36 @@ export const ReminderList = ({
         });
     }, [allReminders, handleUpdated, updateMutation]);
 
-    // Handle delete
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const handleDelete = useCallback((id: string) => {
+    const handleDeleted = useCallback((id: string) => {
         const index = allReminders.findIndex((reminder) => reminder.id === id);
         if (index < 0) return;
-        const reminder = allReminders[index];
-        fetchLazyWrapper<DeleteOneInput, Success>({
-            fetch: deleteMutation,
-            inputs: { id: reminder.id, objectType: DeleteType.Reminder },
-            successCondition: (data) => data.success,
-            successMessage: () => ({
-                messageKey: "ObjectDeleted",
-                messageVariables: { objectName: reminder.name },
-                buttonKey: "Undo",
-                buttonClicked: () => {
-                    fetchLazyWrapper<ReminderCreateInput, Reminder>({
-                        fetch: addMutation,
-                        inputs: shapeReminder.create({
-                            ...reminder,
-                            // Make sure not to set any extra fields, 
-                            // so this is treated as a "Connect" instead of a "Create"
-                            reminderList: {
-                                __typename: "ReminderList" as const,
-                                id: reminder.reminderList.id,
-                            },
-                        }),
-                        successCondition: (data) => !!data.id,
-                        onSuccess: (data) => { handleCreated(data); },
-                    });
-                },
-            }),
-            onSuccess: () => {
-                const newList = [...allReminders];
-                newList.splice(index, 1);
-                setAllReminders(newList);
-                handleUpdate && handleUpdate(newList);
-                closeDialog();
-            },
-            errorMessage: () => ({ messageKey: "FailedToDelete" }),
-        });
-    }, [addMutation, allReminders, closeDialog, deleteMutation, handleCreated, handleUpdate]);
+        const newList = [...allReminders];
+        newList.splice(index, 1);
+        setAllReminders(newList);
+        handleUpdate && handleUpdate(newList);
+        closeDialog();
+    }, [allReminders, closeDialog, handleUpdate]);
 
     const onAction = useCallback((action: "Delete" | "Update", data: any) => {
         switch (action) {
-            case "Delete":
-                handleDelete(data);
-                break;
+            // case "Delete": //TODO
+            //     handleDelete(data);
+            //     break;
             case "Update":
                 saveUpdate(data);
                 break;
         }
-    }, [handleDelete, saveUpdate]);
+    }, [saveUpdate]);
 
     return (
         <>
             {/* Dialog */}
-            <ReminderUpsert
-                handleDelete={editingIndex >= 0 ? () => handleDelete(reminders[editingIndex as number].id) : undefined}
+            <ReminderCrud
                 isCreate={editingIndex < 0}
                 isOpen={isDialogOpen}
                 onCancel={closeDialog}
                 onCompleted={handleCompleted}
+                onDeleted={handleDeleted}
                 overrideObject={editingIndex >= 0 ? reminders[editingIndex as number] : { __typename: "Reminder", reminderList: { id: listId ?? "" } }}
                 zIndex={zIndex}
             />

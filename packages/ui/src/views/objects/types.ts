@@ -6,3 +6,7 @@ export interface UpsertProps<T extends ListObject> extends Omit<ObjectViewProps<
     onCancel?: () => unknown;
     onCompleted?: (data: T) => unknown;
 }
+
+export interface CrudProps<T extends ListObject> extends UpsertProps<T> {
+    onDeleted?: (id: string) => unknown;
+}

@@ -1,10 +1,7 @@
 import { Reminder } from "@local/shared";
 import { NewReminderShape } from "forms/ReminderForm/ReminderForm";
-import { ObjectViewProps } from "views/types";
-import { UpsertProps } from "../types";
+import { CrudProps } from "../types";
 
-export interface ReminderUpsertProps extends Omit<UpsertProps<Reminder>, "overrideObject"> {
-    handleDelete?: () => void;
+export interface ReminderCrudProps extends Omit<CrudProps<Reminder>, "overrideObject"> {
     overrideObject?: NewReminderShape;
 }
-export type ReminderViewProps = ObjectViewProps<Reminder>

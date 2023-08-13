@@ -55,16 +55,17 @@ export function useObjectFromUrl<
     const urlParams = useMemo(() => parseSingleItemUrl({}), []);
 
     const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
+    const stableTransform = useStableCallback(transform);
 
     // Fetch data
     const [getData, { data, loading: isLoading, errors }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
-        if (typeof overrideObject === "object") return (typeof transform === "function" ? transform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
+        if (typeof overrideObject === "object") return (typeof stableTransform === "function" ? stableTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>;
         // Try to find object in cache
         const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         // If transform provided, use it
-        const data = (typeof transform === "function" ? transform(storedData) : storedData) as ObjectReturnType<TData, TFunc>;
+        const data = (typeof stableTransform === "function" ? stableTransform(storedData) : storedData) as ObjectReturnType<TData, TFunc>;
         // Return data
         return data;
     });
@@ -78,13 +79,13 @@ export function useObjectFromUrl<
         else if (exists(urlParams.id)) getData({ id: urlParams.id });
         else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
         // If transform provided, ignore bad URL params. This is because we only use the transform for 
-        // upsert forms, which don't have a valid URL if the object doesn't exist yet
-        else if (typeof transform === "function") return;
+        // upsert forms, which don't have a valid URL if the object doesn't exist yet (i.e. when creating)
+        else if (typeof stableTransform === "function") return;
         // Else if onInvalidUrlParams provided, call it
         else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
         // Else, show error
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, transform, urlParams]);
+    }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
     useEffect(() => {
         // If overrideObject provided, ignore this effect
         if (typeof overrideObject === "object") return;
@@ -92,10 +93,10 @@ export function useObjectFromUrl<
         if (data) setCookiePartialData(data);
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         // If transform provided, use it
-        const changedData = (typeof transform === "function" ? transform(knownData) : knownData) as ObjectReturnType<TData, TFunc>;
+        const changedData = (typeof stableTransform === "function" ? stableTransform(knownData) : knownData) as ObjectReturnType<TData, TFunc>;
         // Set object
-        setObject(knownData as ObjectReturnType<TData, TFunc>);
-    }, [data, objectType, overrideObject, transform, urlParams]);
+        setObject(changedData as ObjectReturnType<TData, TFunc>);
+    }, [data, objectType, overrideObject, stableTransform, urlParams]);
 
 
     // If object found, get permissions

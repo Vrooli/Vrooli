@@ -225,7 +225,7 @@ export const MarkdownInputBase = ({
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
 
     // Internal value (since value passed back is debounced)
-    const [internalValue, setInternalValue] = useState<string>(value);
+    const [internalValue, setInternalValue] = useState<string>(value ?? "");
     useEffect(() => {
         // If new value is one of the recent items in the stack 
         // (i.e. debounce is firing while user is still typing),
@@ -651,7 +651,7 @@ export const MarkdownInputBase = ({
     const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
-        if (!textAreaRef.current) return;
+        if (!textAreaRef.current || typeof value !== "string") return;
         const lines = (value.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
         const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
@@ -986,7 +986,7 @@ export const MarkdownInputBase = ({
                         {
                             !disabled && maxChars !== undefined &&
                             <CharLimitIndicator
-                                chars={internalValue.length}
+                                chars={internalValue?.length ?? 0}
                                 maxChars={maxChars}
                             />
                         }
