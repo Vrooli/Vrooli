@@ -6,13 +6,14 @@ import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
-import { listToListItems } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
+import { ObjectList } from "../ObjectList/ObjectList";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
@@ -60,16 +61,16 @@ export function SearchList<DataType extends NavigableObject>({
         where,
     });
 
-    const listItems = useMemo(() => listToListItems({
-        canNavigate,
-        dummyItems: new Array(dummyLength).fill(searchType),
-        hideUpdateButton,
-        items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
-        keyPrefix: `${searchType}-list-item`,
-        loading,
-        onClick: onItemClick,
-        zIndex,
-    }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
+    // const listItems = useMemo(() => listToListItems({
+    //     canNavigate,
+    //     dummyItems: new Array(dummyLength).fill(searchType),
+    //     hideUpdateButton,
+    //     items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
+    //     keyPrefix: `${searchType}-list-item`,
+    //     loading,
+    //     onClick: onItemClick,
+    //     zIndex,
+    // }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -144,9 +145,19 @@ export function SearchList<DataType extends NavigableObject>({
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={listItems.length === 0}
+                // isEmpty={listItems.length === 0}
+                isEmpty={false}
             >
-                {listItems}
+                <ObjectList
+                    canNavigate={canNavigate}
+                    dummyItems={new Array(dummyLength).fill(searchType)}
+                    hideUpdateButton={hideUpdateButton}
+                    items={allData as ListObject[]}
+                    keyPrefix={`${searchType}-list-item`}
+                    loading={loading}
+                    onClick={onItemClick}
+                    zIndex={zIndex}
+                />
             </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{

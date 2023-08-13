@@ -427,9 +427,26 @@ export function listToListItems<T extends keyof ListActions | undefined>({
     zIndex,
 }: ListToListItemProps<T>): JSX.Element[] {
     const listItems: JSX.Element[] = [];
-    // If loading, display dummy items
-    if (loading) {
-        if (!dummyItems) return listItems;
+    // Create real list items
+    if (items) {
+        for (let i = 0; i < items.length; i++) {
+            let curr = items[i];
+            // If bookmark, reaction, or view, use the "to" object
+            if (isOfType(curr, "Bookmark", "Reaction", "View")) curr = (curr as Partial<Bookmark | Reaction | View>).to as ListObject;
+            listItems.push(<ObjectListItem
+                key={`${keyPrefix}-${curr.id}`}
+                canNavigate={canNavigate}
+                data={curr as ListObject}
+                hideUpdateButton={hideUpdateButton}
+                loading={false}
+                objectType={curr.__typename}
+                onClick={onClick}
+                zIndex={zIndex}
+            />);
+        }
+    }
+    // Create dummy items while more items are loading
+    if (loading && dummyItems) {
         for (let i = 0; i < dummyItems.length; i++) {
             listItems.push(<ObjectListItem
                 key={`${keyPrefix}-${i}`}
@@ -440,22 +457,6 @@ export function listToListItems<T extends keyof ListActions | undefined>({
                 zIndex={zIndex}
             />);
         }
-    }
-    if (!items) return listItems;
-    for (let i = 0; i < items.length; i++) {
-        let curr = items[i];
-        // If bookmark, reaction, or view, use the "to" object
-        if (isOfType(curr, "Bookmark", "Reaction", "View")) curr = (curr as Partial<Bookmark | Reaction | View>).to as ListObject;
-        listItems.push(<ObjectListItem
-            key={`${keyPrefix}-${curr.id}`}
-            canNavigate={canNavigate}
-            data={curr as ListObject}
-            hideUpdateButton={hideUpdateButton}
-            loading={false}
-            objectType={curr.__typename}
-            onClick={onClick}
-            zIndex={zIndex}
-        />);
     }
     return listItems;
 }
