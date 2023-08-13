@@ -97,7 +97,7 @@ export const ReportUpsert = ({
                         fetch,
                         inputs: transformReportValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateReportValues(values, existing, isCreate)}

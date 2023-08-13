@@ -78,7 +78,7 @@ export const RoutineUpsert = ({
                         fetch,
                         inputs: transformRoutineValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateRoutineValues(values, existing, isCreate)}

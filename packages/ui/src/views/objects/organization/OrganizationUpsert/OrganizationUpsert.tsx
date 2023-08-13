@@ -75,7 +75,7 @@ export const OrganizationUpsert = ({
                         fetch,
                         inputs: transformOrganizationValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateOrganizationValues(values, existing, isCreate)}

@@ -59,7 +59,7 @@ export const SettingsDisplayView = ({
                                     languages: [getSiteLanguage(session)],
                                 },
                                 onSuccess: (data) => { onProfileUpdate(data); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

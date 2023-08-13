@@ -76,7 +76,7 @@ export const FocusModeUpsert = ({
                         fetch,
                         inputs: transformFocusModeValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateFocusModeValues(values, existing, isCreate)}

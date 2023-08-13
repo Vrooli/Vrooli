@@ -54,7 +54,7 @@ export const SettingsNotificationsView = ({
                             fetchLazyWrapper<NotificationSettingsUpdateInput, NotificationSettings>({
                                 fetch: updateFetch,
                                 inputs: values,
-                                onError: () => { helpers.setSubmitting(false); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             })
                         }
                     >

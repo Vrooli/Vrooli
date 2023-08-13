@@ -145,6 +145,7 @@ export enum ObjectDialogAction {
     Add = "Add",
     Cancel = "Cancel",
     Close = "Close",
+    Delete = "Delete",
     Edit = "Edit",
     Next = "Next",
     Previous = "Previous",

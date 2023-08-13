@@ -76,7 +76,7 @@ export const BotUpsert = ({
                         fetch,
                         inputs: transformBotValues(session, values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateBotValues(session, values, existing, isCreate)}

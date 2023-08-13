@@ -85,7 +85,7 @@ export const ResourceUpsert = ({
                             fetch,
                             inputs: transformResourceValues(values, existing, isCreate),
                             onSuccess: (data) => { handleCompleted(data); },
-                            onError: () => { helpers.setSubmitting(false); },
+                            onCompleted: () => { helpers.setSubmitting(false); },
                         });
                     } else {
                         handleCompleted({

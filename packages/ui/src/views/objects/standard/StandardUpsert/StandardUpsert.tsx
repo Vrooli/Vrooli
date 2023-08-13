@@ -76,7 +76,7 @@ export const StandardUpsert = ({
                         fetch,
                         inputs: transformStandardValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateStandardValues(values, existing, isCreate)}

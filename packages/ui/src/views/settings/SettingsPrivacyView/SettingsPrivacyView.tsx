@@ -55,7 +55,7 @@ export const SettingsPrivacyView = ({
                                 inputs: values,
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
                                 onSuccess: (data) => { onProfileUpdate(data); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

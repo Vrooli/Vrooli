@@ -29,6 +29,7 @@ export const useUpsertActions = <
     isCreate,
     onCancel,
     onCompleted,
+    onDeleted,
 }: {
     display: ViewDisplayType,
     endpointCreate: { endpoint: string, method: Method },
@@ -36,6 +37,7 @@ export const useUpsertActions = <
     isCreate: boolean,
     onCancel?: () => any, // Only used for dialog display
     onCompleted?: (data: T) => any, // Only used for dialog display
+    onDeleted?: (id: string) => any, // Only used for dialog display
 }) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -54,7 +56,7 @@ export const useUpsertActions = <
                 if (display === "page") {
                     setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
-                    onCompleted!(item!);
+                    onCompleted?.(item!);
                 }
                 // Display snack message
                 if (isCreate) {
@@ -74,8 +76,18 @@ export const useUpsertActions = <
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
-                    onCancel!();
+                    onCancel?.();
                 }
+                break;
+            case ObjectDialogAction.Delete:
+                // Leave the page
+                if (display === "page") {
+                    if (hasPreviousPage) window.history.back();
+                    else setLocation(LINKS.Home, { replace: true });
+                } else {
+                    onDeleted?.(item!.id);
+                }
+                // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;
             case ObjectDialogAction.Save:
                 // Update the object in the cache
@@ -85,17 +97,29 @@ export const useUpsertActions = <
                     if (!viewUrl && hasPreviousPage) window.history.back();
                     else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
-                    onCompleted!(item!);
+                    onCompleted?.(item!);
+                }
+                // Display snack message
+                if (!isCreate) {
+                    const rootType = (item?.__typename ?? "").replace("Version", "");
+                    const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
+                    PubSub.get().publishSnack({
+                        message: t("ObjectUpdated", { objectName: objectTranslation }),
+                        severity: "Success",
+                    });
                 }
                 break;
         }
     }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, t, onCancel]);
 
     const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
+    const handleCreated = useCallback((data: T) => { onAction(ObjectDialogAction.Add, data); }, [onAction]);
+    const handleUpdated = useCallback((data: T) => { onAction(ObjectDialogAction.Save, data); }, [onAction]);
     const handleCompleted = useCallback((data: T) => {
         const action = isCreate ? ObjectDialogAction.Add : ObjectDialogAction.Save;
         onAction(action, data);
     }, [isCreate, onAction]);
+    const handleDeleted = useCallback((data: T) => { onAction(ObjectDialogAction.Delete, data); }, [onAction]);
 
     const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(endpointCreate);
     const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(endpointUpdate);
@@ -106,6 +130,9 @@ export const useUpsertActions = <
         fetchCreate,
         fetchUpdate,
         handleCancel,
+        handleCreated,
+        handleDeleted,
+        handleUpdated,
         handleCompleted,
         isCreateLoading,
         isUpdateLoading,

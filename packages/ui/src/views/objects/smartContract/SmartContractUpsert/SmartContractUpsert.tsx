@@ -77,7 +77,7 @@ export const SmartContractUpsert = ({
                         fetch,
                         inputs: transformSmartContractValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateSmartContractValues(values, existing, isCreate)}

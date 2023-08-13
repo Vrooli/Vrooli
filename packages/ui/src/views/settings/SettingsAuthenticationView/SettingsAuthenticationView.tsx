@@ -144,7 +144,7 @@ export const SettingsAuthenticationView = ({
                                         newPassword: values.newPassword,
                                     },
                                     onSuccess: (data) => { onProfileUpdate(data); },
-                                    onError: () => { helpers.setSubmitting(false); },
+                                    onCompleted: () => { helpers.setSubmitting(false); },
                                 });
                             }}
                             validationSchema={profileEmailUpdateValidation.update({})}

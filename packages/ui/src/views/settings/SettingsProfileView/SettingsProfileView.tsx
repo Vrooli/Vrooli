@@ -73,8 +73,8 @@ export const SettingsProfileView = ({
                                     ...values,
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                                onSuccess: (updated) => { helpers.setSubmitting(false); onProfileUpdate(updated); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onSuccess: (updated) => { onProfileUpdate(updated); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

@@ -76,7 +76,7 @@ export const ChatUpsert = ({
                         fetch,
                         inputs: transformChatValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateChatValues(values, existing, isCreate)}

@@ -63,7 +63,7 @@ export const CommentUpsertInput = ({
                         helpers.resetForm();
                         handleCompleted(data);
                     },
-                    onError: () => { helpers.setSubmitting(false); },
+                    onCompleted: () => { helpers.setSubmitting(false); },
                 });
             }}
             validate={async (values) => await validateCommentValues(values, initialValues, !exists(comment))}

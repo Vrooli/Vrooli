@@ -79,7 +79,7 @@ export const QuestionUpsert = ({
                         fetch,
                         inputs: transformQuestionValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateQuestionValues(values, existing, isCreate)}

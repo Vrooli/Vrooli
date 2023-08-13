@@ -143,7 +143,7 @@ export const ScheduleUpsert = ({
                             fetch,
                             inputs: transformScheduleValues(values, existing, isCreate),
                             onSuccess: (data) => { handleCompleted(data); },
-                            onError: () => { helpers.setSubmitting(false); },
+                            onCompleted: () => { helpers.setSubmitting(false); },
                         });
                     } else {
                         onCompleted?.({

@@ -76,7 +76,7 @@ export const ApiUpsert = ({
                         fetch,
                         inputs: transformApiValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateApiValues(values, existing, isCreate)}

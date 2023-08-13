@@ -76,7 +76,7 @@ export const MeetingUpsert = ({
                         fetch,
                         inputs: transformMeetingValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validate={async (values) => await validateMeetingValues(values, existing, isCreate)}
