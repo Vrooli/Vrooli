@@ -173,14 +173,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         getPageData();
     }, debounceMs);
 
-    const [allData, setAllData] = useState<DataType[]>(() => {
-        // TODO Check if we just navigated back to this page from an object page. If so, use results stored in sessionStorage. Also TODO for storing results in sessionStorage
-        const lastPath = sessionStorage.getItem("lastPath");
-        const lastSearchParams = sessionStorage.getItem("lastSearchParams");
-        console.log("lastPath", lastPath);
-        console.log("lastSearchParams", lastSearchParams);
-        return [];
-    });
+    const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
@@ -241,12 +234,21 @@ export const useFindMany = <DataType extends Record<string, any>>({
         }
         // If there is "after" data, append it to the existing data
         if (Object.keys(after.current).length > 0) {
+            // In case some of the data is already in allData, we must make sure to not add duplicates. 
+            // From testing, this hash-based method is significantly faster than other methods like Set or filtering a joined array. 
             setAllData(curr => {
-                // If the last item in each array is the same, then this probably means 
-                // it has already been appended. So don't append it again.
-                if (curr.length > 0 && parsedData.length > 0 && curr[curr.length - 1].id === parsedData[parsedData.length - 1].id) return curr;
-                // Otherwise, append it
-                return [...curr, ...parsedData];
+                const hash = {};
+                // Create hash from curr data
+                for (const item of curr) {
+                    hash[item.id] = item;
+                }
+                // Add unique items from parsedData
+                for (const item of parsedData) {
+                    if (!hash[item.id]) {
+                        hash[item.id] = item;
+                    }
+                }
+                return Object.values(hash);
             });
         }
         // Otherwise, assume this is a new search and replace the existing data

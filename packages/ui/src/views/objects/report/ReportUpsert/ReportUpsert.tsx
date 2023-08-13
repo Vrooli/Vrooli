@@ -71,7 +71,7 @@ export const ReportUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                title={t("Report")}
+                title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
                 zIndex={zIndex}
             />
