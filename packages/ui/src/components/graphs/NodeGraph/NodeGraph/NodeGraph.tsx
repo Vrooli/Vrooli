@@ -165,30 +165,31 @@ export const NodeGraph = ({
             handleNodeDrop(nodeId, null, null);
             return;
         }
-
-        // If the node wasn't dropped into a button or container, find row and column it was dropped into
+        // If the node wasn't dropped into a button or container, find the column and row it was dropped into
         let columnIndex = -1;
         let rowIndex = -1;
-        // Check if node dropped into each column
+        // Loop through each column to determine the closest one
+        let closestDistance = Infinity;
+        let closestColumnIndex = -1;
         for (let i = 0; i < columns.length; i++) {
-            if (isInsideRectangle({ x, y }, `node-column-${i}`, 0)) {
-                columnIndex = i;
-                break;
+            const rect = document.getElementById(`node-column-${i}`)?.getBoundingClientRect();
+            if (!rect) continue;
+
+            const columnCenterX = rect.x + rect.width / 2;
+            const distanceToDropPoint = Math.abs(x - columnCenterX);
+
+            if (distanceToDropPoint < closestDistance) {
+                closestDistance = distanceToDropPoint;
+                closestColumnIndex = i;
             }
         }
-        // If columnIndex is -1, this means it wasn't dropped into any column. 
-        // In this case, set to first or last column depending on drop position
-        if (columnIndex === -1) {
-            const leftMostColumnRect = document.getElementById("node-column-0")?.getBoundingClientRect();
-            const rightMostColumnRect = document.getElementById(`node-column-${columns.length - 1}`)?.getBoundingClientRect();
-            if (leftMostColumnRect && x < leftMostColumnRect.x) {
-                columnIndex = 0;
-            } else if (rightMostColumnRect && x > rightMostColumnRect.right) {
-                columnIndex = columns.length - 1;
-            } else {
-                PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
-                return;
-            }
+        // If we found a closest column, use that.
+        if (closestColumnIndex !== -1) {
+            columnIndex = closestColumnIndex;
+        } else {
+            // No closest column found (or some error in the logic).
+            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
+            return;
         }
         // Get the drop row
         const rowRects = columns[columnIndex].map(node => document.getElementById(`node-${node.id}`)?.getBoundingClientRect());

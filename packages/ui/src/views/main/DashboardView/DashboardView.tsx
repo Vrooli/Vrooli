@@ -1,5 +1,5 @@
 import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SiteSearchBar } from "components/inputs/search";
@@ -271,7 +271,13 @@ export const DashboardView = ({
                 />
             </Stack>
             {/* Result feeds */}
-            <Stack spacing={4} direction="column" sx={{ margin: "auto", marginTop: 10 }}>
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "auto",
+                marginTop: 10,
+                gap: 4,
+            }}>
                 {/* Resources */}
                 <ResourceListHorizontal
                     id="main-resource-list"
@@ -339,7 +345,7 @@ export const DashboardView = ({
                         zIndex={zIndex}
                     />
                 </ListTitleContainer>
-            </Stack>
+            </Box>
         </PageContainer>
     );
 };

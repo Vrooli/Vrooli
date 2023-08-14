@@ -23,7 +23,6 @@ export const NodeRoutineListDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => nodeRoutineListInitialValues(session, node?.routineVersion as any, node), [node, session]);
-    console.log("noderoutinelistdialog render", node, initialValues);
 
     return (
         <LargeDialog

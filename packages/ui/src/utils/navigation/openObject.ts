@@ -44,6 +44,8 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     if (isOfType(object, "RunRoutine")) return getObjectUrlBase((object as RunRoutine).routineVersion as NavigableObject);
     // If the object is a run project, use the project version
     if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as NavigableObject);
+    // If the object is a member or participant, use the user
+    if (isOfType(object, "Member", "ChatParticipant")) return getObjectUrlBase((object as Member | ChatParticipant).user as NavigableObject);
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
 };

@@ -69,7 +69,6 @@ export const BuildView = ({
 
     const stableRoutineVersion = useStableObject(routineVersion);
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
-    console.log("buildview routine version", routineVersion, stableRoutineVersion, changedRoutineVersion);
     // The routineVersion's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
     const [scale, setScale] = useState<number>(-1);
