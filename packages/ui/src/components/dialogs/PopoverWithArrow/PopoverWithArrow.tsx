@@ -1,5 +1,6 @@
 import { Box, ClickAwayListener, Popper, PopperPlacementType, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useHotkeys } from "utils/hooks/useHotkeys";
 import { PopoverWithArrowProps } from "../types";
 
 export const PopoverWithArrow = ({
@@ -54,21 +55,7 @@ export const PopoverWithArrow = ({
         }
     }, [handleClose]);
 
-    const handleEscape = useCallback((event) => {
-        if (event.key === "Escape") {
-            onClose();
-        }
-    }, [onClose]);
-    useEffect(() => {
-        if (isOpen) {
-            document.addEventListener("keydown", handleEscape);
-        } else {
-            document.removeEventListener("keydown", handleEscape);
-        }
-        return () => {
-            document.removeEventListener("keydown", handleEscape);
-        };
-    }, [isOpen, handleEscape]);
+    useHotkeys([{ keys: ["Escape"], callback: onClose }], isOpen);
 
     let arrowStyles;
     switch (actualPlacement) {
@@ -150,7 +137,7 @@ export const PopoverWithArrow = ({
             }}
             style={{
                 ...sxs?.root,
-                zIndex,
+                zIndex: zIndex + 1000,
             }}
         >
             <ClickAwayListener onClickAway={onClose}>

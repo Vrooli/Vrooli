@@ -19,6 +19,7 @@ import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
 import { themes } from "utils/display/theme";
+import { useHotkeys } from "utils/hooks/useHotkeys";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactHash } from "utils/hooks/useReactHash";
 import { PubSub } from "utils/pubsub";
@@ -236,26 +237,10 @@ export function App() {
     }, []);
 
     // Handle site-wide keyboard shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // CTRL + P - Opens Command Palette
-            if (e.ctrlKey && e.key === "p") {
-                e.preventDefault();
-                PubSub.get().publishCommandPalette();
-            }
-            // CTRL + F - Opens Find in Page
-            else if (e.ctrlKey && e.key === "f") {
-                e.preventDefault();
-                PubSub.get().publishFindInPage();
-            }
-        };
-        // attach the event listener
-        document.addEventListener("keydown", handleKeyDown);
-        // remove the event listener
-        return () => {
-            document.removeEventListener("keydown", handleKeyDown);
-        };
-    }, []);
+    useHotkeys([
+        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publishCommandPalette(); } },
+        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publishFindInPage(); } },
+    ]);
 
     const checkSession = useCallback((data?: Session) => {
         if (data) {

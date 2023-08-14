@@ -9,14 +9,14 @@ export const useIsLeftHanded = () => {
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
     useEffect(() => {
         // Handle isLeftHanded updates
-        let isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+        const isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
             setIsLeftHanded(data);
         });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
             PubSub.get().unsubscribe(isLeftHandedSub);
-        })
+        });
     }, []);
 
     return isLeftHanded;
-}
+};

@@ -1,5 +1,5 @@
 import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
-import { Box, Button, Dialog, Stack, useTheme } from "@mui/material";
+import { Box, Button, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { RunButton } from "components/buttons/RunButton/RunButton";
@@ -19,7 +19,6 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { UpTransition } from "components/transitions";
 import { Formik, useFormik } from "formik";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
@@ -223,37 +222,27 @@ export const RoutineView = ({
                     padding: 2,
                 }}>
                     {/* Dialog for building routine */}
-                    {existing && <Dialog
-                        id="run-routine-view-dialog"
-                        fullScreen
-                        open={isBuildOpen}
+                    <BuildView
+                        handleCancel={stopBuild}
                         onClose={stopBuild}
-                        TransitionComponent={UpTransition}
-                        sx={{
-                            zIndex: zIndex + 1,
-                        }}
-                    >
-                        <BuildView
-                            handleCancel={stopBuild}
-                            onClose={stopBuild}
-                            // Intentionally blank, since this is a read-only view
+                        // Intentionally blank, since this is a read-only view
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleSubmit={() => { }}
+                        isEditing={false}
+                        isOpen={isBuildOpen}
+                        loading={isLoading}
+                        routineVersion={existing as RoutineVersion}
+                        translationData={{
+                            language,
+                            languages: availableLanguages,
+                            setLanguage,
                             // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            handleSubmit={() => { }}
-                            isEditing={false}
-                            loading={isLoading}
-                            routineVersion={existing as RoutineVersion}
-                            translationData={{
-                                language,
-                                languages: availableLanguages,
-                                setLanguage,
-                                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                handleAddLanguage: () => { },
-                                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                                handleDeleteLanguage: () => { },
-                            }}
-                            zIndex={zIndex + 1}
-                        />
-                    </Dialog>}
+                            handleAddLanguage: () => { },
+                            // eslint-disable-next-line @typescript-eslint/no-empty-function
+                            handleDeleteLanguage: () => { },
+                        }}
+                        zIndex={zIndex + 1}
+                    />
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}

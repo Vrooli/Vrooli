@@ -202,8 +202,7 @@ export const ResourceListHorizontal = ({
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
-        if (!destination) return;
-        if (source.index === destination.index) return;
+        if (!canUpdate || !destination || source.index === destination.index) return;
         // Handle the reordering of the resources in the list
         if (handleUpdate && list) {
             handleUpdate({
@@ -211,7 +210,7 @@ export const ResourceListHorizontal = ({
                 resources: updateArray(list.resources, source.index, list.resources[destination.index]) as any[],
             });
         }
-    }, [handleUpdate, list]);
+    }, [canUpdate, handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
@@ -360,7 +359,12 @@ export const ResourceListHorizontal = ({
                             }}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (
-                                <Draggable key={`resource-card-${index}`} draggableId={`resource-card-${index}`} index={index}>
+                                <Draggable
+                                    key={`resource-card-${index}`}
+                                    draggableId={`resource-card-${index}`}
+                                    index={index}
+                                    isDragDisabled={!canUpdate}
+                                >
                                     {(provided) => (
                                         <ResourceCard
                                             ref={provided.innerRef}

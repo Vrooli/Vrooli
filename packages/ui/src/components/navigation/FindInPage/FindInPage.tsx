@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keyComboToString } from "utils/display/device";
 import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from "utils/display/documentTools";
+import { useHotkeys } from "utils/hooks/useHotkeys";
 import { PubSub } from "utils/pubsub";
 
 const commonButtonSx = (palette: Palette) => ({
@@ -74,7 +75,6 @@ const highlightText = (
 };
 
 const FindInPage = () => {
-    console.log("rendering findinpage...");
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -135,27 +135,13 @@ const FindInPage = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, [close]);
 
-    // Handle keyboard shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // ALT + C - Match case
-            if (e.altKey && e.key === "c") { onCaseSensitiveChange(); }
-            // ALT + W - Match whole word
-            else if (e.altKey && e.key === "w") { onWholeWordChange(); }
-            // ALT + R - Use regex
-            else if (e.altKey && e.key === "r") { onRegexChange(); }
-            // SHIFT + ENTER - Previous result
-            else if (e.shiftKey && e.key === "Enter") { onPrevious(); }
-            // ENTER - Next result
-            else if (e.key === "Enter") { onNext(); }
-        };
-        // attach the event listener
-        document.addEventListener("keydown", handleKeyDown);
-        // remove the event listener
-        return () => {
-            document.removeEventListener("keydown", handleKeyDown);
-        };
-    }, [close, onCaseSensitiveChange, onNext, onPrevious, onRegexChange, onWholeWordChange]);
+    useHotkeys([
+        { keys: ["c"], altKey: true, callback: onCaseSensitiveChange },
+        { keys: ["w"], altKey: true, callback: onWholeWordChange },
+        { keys: ["r"], altKey: true, callback: onRegexChange },
+        { keys: ["Enter"], shiftKey: true, callback: onPrevious },
+        { keys: ["Enter"], callback: onNext },
+    ]);
 
     /**
      * Handles dialog close. Ignores backdrop click
@@ -172,6 +158,12 @@ const FindInPage = () => {
             disableScrollLock={true}
             BackdropProps={{ invisible: true }}
             sx={{
+                zIndex: 999999999,
+                "& > .MuiDialog-container": {
+                    "& > .MuiPaper-root": {
+                        zIndex: 999999999,
+                    },
+                },
                 "& .MuiDialog-paper": {
                     background: palette.background.paper,
                     minWidth: "min(100%, 350px)",

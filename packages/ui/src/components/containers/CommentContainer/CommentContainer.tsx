@@ -62,6 +62,15 @@ export function CommentContainer({
         },
     });
 
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(!isMobile);
+    // Show add comment input if on desktop. For mobile, we'll show a button
+    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
+    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
+    const handleAddCommentClose = useCallback(() => {
+        setIsAddCommentOpen(false);
+        if (onAddCommentClose) onAddCommentClose();
+    }, [onAddCommentClose]);
+
     /**
      * When new comment is created, add it to the list of comments
      */
@@ -74,16 +83,9 @@ export function CommentContainer({
             endCursor: null,
             totalInThread: 0,
         }, ...curr]);
-    }, [setAllData]);
-
-    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(!isMobile);
-    // Show add comment input if on desktop. For mobile, we'll show a button
-    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
-    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
-    const handleAddCommentClose = useCallback(() => {
-        setIsAddCommentOpen(false);
-        if (onAddCommentClose) onAddCommentClose();
-    }, [onAddCommentClose]);
+        // Close add comment input
+        if (isMobile) handleAddCommentClose();
+    }, [handleAddCommentClose, isMobile, setAllData]);
 
     // The add component is always visible on desktop.
     // If forceAddCommentOpen is true (i.e. parent container wants add comment to be open), 
@@ -100,19 +102,17 @@ export function CommentContainer({
     return (
         <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`} zIndex={zIndex}>
             {/* Add comment */}
-            {
-                isAddCommentOpen && <CommentUpsertInput
-                    comment={undefined}
-                    isOpen={isAddCommentOpen}
-                    language={language}
-                    objectId={objectId}
-                    objectType={objectType}
-                    onCancel={handleAddCommentClose}
-                    onCompleted={onCommentAdd}
-                    parent={null} // parent is the thread. This is a top-level comment, so no parent
-                    zIndex={zIndex}
-                />
-            }
+            <CommentUpsertInput
+                comment={undefined}
+                isOpen={isAddCommentOpen}
+                language={language}
+                objectId={objectId}
+                objectType={objectType}
+                onCancel={handleAddCommentClose}
+                onCompleted={onCommentAdd}
+                parent={null} // parent is the thread. This is a top-level comment, so no parent
+                zIndex={zIndex}
+            />
             {/* Sort & filter */}
             {allData.length > 0 ? <>
                 <SearchButtons

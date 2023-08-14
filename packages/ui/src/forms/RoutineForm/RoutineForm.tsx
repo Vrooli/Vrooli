@@ -1,7 +1,6 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -288,35 +287,27 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             isMultiStep === true && (
                                 <>
                                     {/* Dialog for building routine graph */}
-                                    <LargeDialog
-                                        id="build-routine-graph-dialog"
+                                    <BuildView
+                                        handleCancel={handleGraphClose}
                                         onClose={handleGraphClose}
+                                        handleSubmit={handleGraphSubmit}
+                                        isEditing={true}
                                         isOpen={isGraphOpen}
-                                        titleId=""
-                                        zIndex={zIndex + 1300}
-                                        sxs={{ paper: { display: "contents" } }}
-                                    >
-                                        <BuildView
-                                            handleCancel={handleGraphClose}
-                                            onClose={handleGraphClose}
-                                            handleSubmit={handleGraphSubmit}
-                                            isEditing={true}
-                                            loading={false}
-                                            routineVersion={{
-                                                id: idField.value,
-                                                nodeLinks: nodeLinksField.value as NodeLink[],
-                                                nodes: nodesField.value as Node[],
-                                            }}
-                                            translationData={{
-                                                language,
-                                                setLanguage,
-                                                handleAddLanguage,
-                                                handleDeleteLanguage,
-                                                languages,
-                                            }}
-                                            zIndex={zIndex + 2300}
-                                        />
-                                    </LargeDialog>
+                                        loading={false}
+                                        routineVersion={{
+                                            id: idField.value,
+                                            nodeLinks: nodeLinksField.value as NodeLink[],
+                                            nodes: nodesField.value as Node[],
+                                        }}
+                                        translationData={{
+                                            language,
+                                            setLanguage,
+                                            handleAddLanguage,
+                                            handleDeleteLanguage,
+                                            languages,
+                                        }}
+                                        zIndex={zIndex + 2300}
+                                    />
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
                                         <Button

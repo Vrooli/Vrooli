@@ -39,7 +39,7 @@ export const CommentUpsertInput = ({
         isCreateLoading,
         isUpdateLoading,
     } = useUpsertActions<Comment, CommentCreateInput, CommentUpdateInput>({
-        display: isMobile ? "dialog" : "page",
+        display: "dialog", // Set this to dialog, since it's more correct that page (there is no option for in-page yet)
         endpointCreate: endpointPostComment,
         endpointUpdate: endpointPutComment,
         isCreate: !exists(comment),

@@ -71,7 +71,6 @@ export const CommentForm = forwardRef<BaseFormRef | undefined, CommentFormProps>
                 dirty={dirty}
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
                 ref={ref}
             >
                 <FormContainer>
