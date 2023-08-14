@@ -209,6 +209,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
+                                parent={{ __typename: "RoutineVersion", id: values.id }}
                                 zIndex={zIndex}
                             />
                         </Grid>

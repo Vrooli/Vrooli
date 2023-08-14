@@ -73,6 +73,7 @@ export const ApiView = ({
             }}
             loading={isLoading}
             mutate={true}
+            parent={{ __typename: "ApiVersion", id: apiVersion?.id ?? "" }}
             zIndex={zIndex}
         />
     ) : null, [resourceList, permissions.canUpdate, isLoading, zIndex, apiVersion, setApiVersion]);

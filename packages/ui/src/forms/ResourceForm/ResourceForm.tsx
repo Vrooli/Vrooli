@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceListFor, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -18,7 +18,10 @@ import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
 /** New resources must include a list ID and an index */
-export type NewResourceShape = Partial<Omit<Resource, "list">> & { index: number, list: Partial<Resource["list"]> & { id: string } };
+export type NewResourceShape = Partial<Omit<Resource, "list">> & {
+    index: number,
+    list: Partial<Resource["list"]> & ({ id: string } | { listFor: ResourceListFor | `${ResourceListFor}`, listForId: string })
+};
 
 export const resourceInitialValues = (
     session: Session | undefined,
@@ -32,7 +35,7 @@ export const resourceInitialValues = (
     list: {
         __typename: "ResourceList" as const,
         ...existing.list,
-        id: existing.list.id,
+        id: existing.list.id ?? DUMMY_ID,
     },
     translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,

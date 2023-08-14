@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DeleteManyInput, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
+import { CommonKey, Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
 import { Box, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -16,6 +16,7 @@ import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { useDebounce } from "utils/hooks/useDebounce";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import usePress from "utils/hooks/usePress";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
@@ -95,13 +96,14 @@ const ResourceCard = forwardRef<any, ResourceCardProps>(({
             else openLink(setLocation, href);
         }
     }, [data.link, href, index, onDelete, onEdit, setLocation]);
+    const handleClickDebounce = useDebounce(handleClick, 100);
     const handleContextMenu = useCallback((target: EventTarget) => {
         onContextMenu(target, index);
     }, [onContextMenu, index]);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
-        onClick: handleClick,
+        onClick: handleClickDebounce,
         onRightClick: handleContextMenu,
     });
 
@@ -194,6 +196,7 @@ export const ResourceListHorizontal = ({
     list,
     loading = false,
     mutate = true,
+    parent,
     title,
     zIndex,
 }: ResourceListHorizontalProps) => {
@@ -246,7 +249,7 @@ export const ResourceListHorizontal = ({
     const openContext = useCallback((target: EventTarget, index: number) => {
         setContextAnchor(target);
         const resource = list?.resources[index];
-        setSelectedResource(resource as any);
+        setSelectedResource(resource ?? null);
     }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
@@ -275,24 +278,27 @@ export const ResourceListHorizontal = ({
         else {
             handleUpdate({
                 ...list,
-                resources: [...(list?.resources as any) ?? [], resource],
+                resources: [...(list?.resources ?? []), resource],
             });
         }
     }, [closeDialog, handleUpdate, list]);
 
     const dialog = useMemo(() => (
         list ? <ResourceUpsert
-            isCreate={editingIndex >= 0}
+            isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
             onCompleted={onCompleted}
-            overrideObject={editingIndex >= 0 ?
+            overrideObject={editingIndex >= 0 && list?.resources ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
-                resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
+                resourceInitialValues(undefined, {
+                    index: 0,
+                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
+                }) as NewResourceShape}
             zIndex={zIndex + 1}
         /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, zIndex]);
+    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id, zIndex]);
 
     return (
         <>

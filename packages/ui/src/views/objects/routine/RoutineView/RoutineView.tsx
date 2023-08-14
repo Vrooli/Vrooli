@@ -251,11 +251,12 @@ export const RoutineView = ({
                     />
                     {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        list={resourceList as ResourceList}
+                        list={resourceList as unknown as ResourceList}
                         canUpdate={false}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         handleUpdate={() => { }}
                         loading={isLoading}
+                        parent={{ __typename: "RoutineVersion", id: existing?.id ?? "" }}
                         zIndex={zIndex}
                     />}
                     {/* Box with description and instructions */}

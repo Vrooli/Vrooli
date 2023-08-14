@@ -149,6 +149,7 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "StandardVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <TagSelector

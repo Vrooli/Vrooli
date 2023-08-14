@@ -262,11 +262,12 @@ export const SubroutineView = ({
                 {/* Resources */}
                 {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                     title={"Resources"}
-                    list={resourceList as ResourceList}
+                    list={resourceList as unknown as ResourceList}
                     canUpdate={false}
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={loading}
+                    parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
                     zIndex={zIndex}
                 />}
                 {/* Box with description and instructions */}

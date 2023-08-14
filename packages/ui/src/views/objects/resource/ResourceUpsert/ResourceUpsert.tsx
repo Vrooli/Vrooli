@@ -80,6 +80,7 @@ export const ResourceUpsert = ({
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
+                    console.log("creating resource", values, transformResourceValues(values, existing, isCreate));
                     if (isMutate) {
                         fetchLazyWrapper<ResourceCreateInput | ResourceUpdateInput, Resource>({
                             fetch,

@@ -1,4 +1,4 @@
-import { Comment, CommentFor, StandardVersion, Tag } from "@local/shared";
+import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
@@ -220,6 +220,7 @@ export interface ResourceListHorizontalInputProps {
     disabled?: boolean;
     isCreate: boolean;
     isLoading?: boolean;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
     zIndex: number;
 }
 

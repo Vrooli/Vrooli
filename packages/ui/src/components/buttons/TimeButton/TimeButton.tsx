@@ -58,7 +58,10 @@ const TimeMenu = ({
             disableScrollLock={true}
             open={open}
             onClose={() => onClose()}
-            MenuListProps={{ "aria-labelledby": "results-time-menu-list" }}
+            MenuListProps={{
+                "aria-label": "Filters search results by time created or updated",
+                "aria-describedby": "time-filter-button",
+            }}
         >
             {menuItems}
             <MenuItem
@@ -106,6 +109,7 @@ export const TimeButton = ({
             />
             <Tooltip title={t("TimeCreated")} placement="top">
                 <Box
+                    id="time-filter-button"
                     onClick={handleTimeOpen}
                     sx={searchButtonStyle(palette)}
                 >

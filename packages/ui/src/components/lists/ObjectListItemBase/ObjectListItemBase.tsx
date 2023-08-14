@@ -137,6 +137,7 @@ export function ObjectListItemBase<T extends ListObject>({
             return (
                 <Avatar
                     src={extractImageUrl((object as unknown as { profileImage: string }).profileImage, (object as unknown as { updated_at: string }).updated_at, 50)}
+                    alt={`${object.name}'s profile picture`}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
@@ -194,6 +195,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
+                        aria-label={t("Edit")}
                         href={editUrl}
                         onClick={handleEditClick}
                         sx={{
@@ -237,7 +239,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 />}
             </Stack>
         );
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
 
     const actionData = useObjectActions({
         canNavigate,

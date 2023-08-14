@@ -230,7 +230,7 @@ rm -f sitemap.xml sitemaps/*.xml.gz
 rmdir sitemaps
 cd ../..
 
-# Compress build
+# Compress build TODO should probably compress builds for server and shared too, as well as all node_modules folders
 info "Compressing build..."
 tar -czf ${HERE}/../build.tar.gz -C ${HERE}/../packages/ui/dist .
 trap "rm build.tar.gz" EXIT

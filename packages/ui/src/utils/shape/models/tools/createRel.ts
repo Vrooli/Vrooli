@@ -76,8 +76,8 @@ export const createRel = <
             }
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
-                (relationData as any)[shape?.idField ?? "id"] :
-                (relationData as any).map((x: any) => x[shape?.idField ?? "id"]);
+                relationData[shape?.idField ?? "id"] :
+                (relationData as Array<object>).map((x) => x[shape?.idField ?? "id"]);
         }
         else if (t === "Create") {
             // Ignore items which only have an ID (or __typename), since they must be connects instead

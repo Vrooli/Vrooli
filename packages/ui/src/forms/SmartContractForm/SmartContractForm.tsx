@@ -146,6 +146,7 @@ export const SmartContractForm = forwardRef<BaseFormRef | undefined, SmartContra
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "SmartContractVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <TagSelector

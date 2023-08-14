@@ -6467,6 +6467,7 @@ export enum ReportFor {
   Post = 'Post',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion',
   Tag = 'Tag',
   User = 'User'
@@ -6653,7 +6654,8 @@ export type ResourceCreateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
-  listConnect: Scalars['ID'];
+  listConnect?: InputMaybe<Scalars['ID']>;
+  listCreate?: InputMaybe<ResourceListCreateInput>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   usedFor: ResourceUsedFor;
 };
@@ -6682,16 +6684,10 @@ export type ResourceList = {
 };
 
 export type ResourceListCreateInput = {
-  apiVersionConnect?: InputMaybe<Scalars['ID']>;
-  focusModeConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
-  postConnect?: InputMaybe<Scalars['ID']>;
-  projectVersionConnect?: InputMaybe<Scalars['ID']>;
+  listFor: ResourceListFor;
+  listForConnect: Scalars['ID'];
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  routineVersionConnect?: InputMaybe<Scalars['ID']>;
-  smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
-  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
 };
 
@@ -6700,6 +6696,17 @@ export type ResourceListEdge = {
   cursor: Scalars['String'];
   node: ResourceList;
 };
+
+export enum ResourceListFor {
+  ApiVersion = 'ApiVersion',
+  FocusMode = 'FocusMode',
+  Organization = 'Organization',
+  Post = 'Post',
+  ProjectVersion = 'ProjectVersion',
+  RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
+  StandardVersion = 'StandardVersion'
+}
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -6823,6 +6830,7 @@ export type ResourceUpdateInput = {
   index?: InputMaybe<Scalars['Int']>;
   link?: InputMaybe<Scalars['String']>;
   listConnect?: InputMaybe<Scalars['ID']>;
+  listCreate?: InputMaybe<ResourceListCreateInput>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ResourceTranslationUpdateInput>>;
@@ -10227,6 +10235,7 @@ export type ResolversTypes = {
   ResourceList: ResolverTypeWrapper<ResourceList>;
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResolverTypeWrapper<ResourceListEdge>;
+  ResourceListFor: ResourceListFor;
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResolverTypeWrapper<ResourceListSearchResult>;
   ResourceListSortBy: ResourceListSortBy;

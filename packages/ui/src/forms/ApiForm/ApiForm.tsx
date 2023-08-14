@@ -213,6 +213,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "ApiVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <TagSelector

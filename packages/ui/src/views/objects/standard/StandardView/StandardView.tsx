@@ -143,6 +143,7 @@ export const StandardView = ({
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
+                    parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
                     zIndex={zIndex}
                 />}
                 {/* Box with description */}

@@ -6559,6 +6559,11 @@
             "title": "BotCreateInput.botSettings",
             "type": "string"
           },
+          "handle": {
+            "title": "BotCreateInput.handle",
+            "nullable": true,
+            "type": "string"
+          },
           "id": {
             "title": "BotCreateInput.id",
             "type": "string"
@@ -6608,6 +6613,11 @@
           },
           "botSettings": {
             "title": "BotUpdateInput.botSettings",
+            "nullable": true,
+            "type": "string"
+          },
+          "handle": {
+            "title": "BotUpdateInput.handle",
             "nullable": true,
             "type": "string"
           },
@@ -29939,6 +29949,7 @@
               "Post",
               "ProjectVersion",
               "RoutineVersion",
+              "SmartContractVersion",
               "StandardVersion",
               "Tag",
               "User"
@@ -30942,7 +30953,21 @@
           },
           "listConnect": {
             "title": "ResourceCreateInput.listConnect",
+            "nullable": true,
             "type": "string"
+          },
+          "listCreate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceListCreateInput",
+                "title": "ResourceCreateInput.listCreate"
+              },
+              {
+                "title": "ResourceCreateInput.listCreate",
+                "nullable": true
+              }
+            ],
+            "title": "ResourceCreateInput.listCreate"
           },
           "translationsCreate": {
             "anyOf": [
@@ -30986,7 +31011,6 @@
         "required": [
           "id",
           "link",
-          "listConnect",
           "usedFor"
         ],
         "additionalProperties": false,
@@ -31174,33 +31198,26 @@
       },
       "ResourceListCreateInput": {
         "properties": {
-          "apiVersionConnect": {
-            "title": "ResourceListCreateInput.apiVersionConnect",
-            "nullable": true,
-            "type": "string"
-          },
-          "focusModeConnect": {
-            "title": "ResourceListCreateInput.focusModeConnect",
-            "nullable": true,
-            "type": "string"
-          },
           "id": {
             "title": "ResourceListCreateInput.id",
             "type": "string"
           },
-          "organizationConnect": {
-            "title": "ResourceListCreateInput.organizationConnect",
-            "nullable": true,
+          "listFor": {
+            "enum": [
+              "ApiVersion",
+              "FocusMode",
+              "Organization",
+              "Post",
+              "ProjectVersion",
+              "RoutineVersion",
+              "SmartContractVersion",
+              "StandardVersion"
+            ],
+            "title": "ResourceListCreateInput.listFor",
             "type": "string"
           },
-          "postConnect": {
-            "title": "ResourceListCreateInput.postConnect",
-            "nullable": true,
-            "type": "string"
-          },
-          "projectVersionConnect": {
-            "title": "ResourceListCreateInput.projectVersionConnect",
-            "nullable": true,
+          "listForConnect": {
+            "title": "ResourceListCreateInput.listForConnect",
             "type": "string"
           },
           "resourcesCreate": {
@@ -31218,21 +31235,6 @@
               }
             ],
             "title": "ResourceListCreateInput.resourcesCreate"
-          },
-          "routineVersionConnect": {
-            "title": "ResourceListCreateInput.routineVersionConnect",
-            "nullable": true,
-            "type": "string"
-          },
-          "smartContractVersionConnect": {
-            "title": "ResourceListCreateInput.smartContractVersionConnect",
-            "nullable": true,
-            "type": "string"
-          },
-          "standardVersionConnect": {
-            "title": "ResourceListCreateInput.standardVersionConnect",
-            "nullable": true,
-            "type": "string"
           },
           "translationsCreate": {
             "anyOf": [
@@ -31252,7 +31254,9 @@
           }
         },
         "required": [
-          "id"
+          "id",
+          "listFor",
+          "listForConnect"
         ],
         "additionalProperties": false,
         "title": "ResourceListCreateInput",
@@ -31914,6 +31918,19 @@
             "title": "ResourceUpdateInput.listConnect",
             "nullable": true,
             "type": "string"
+          },
+          "listCreate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceListCreateInput",
+                "title": "ResourceUpdateInput.listCreate"
+              },
+              {
+                "title": "ResourceUpdateInput.listCreate",
+                "nullable": true
+              }
+            ],
+            "title": "ResourceUpdateInput.listCreate"
           },
           "translationsCreate": {
             "anyOf": [

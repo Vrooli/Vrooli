@@ -475,9 +475,11 @@ export const UserView = ({
                         searchPlaceholder={searchData.placeholder}
                         sxs={showSearchFilters ? {
                             search: { marginTop: 2 },
+                            listContainer: { borderRadius: 0 },
                         } : {
                             search: { display: "none" },
                             buttons: { display: "none" },
+                            listContainer: { borderRadius: 0 },
                         }}
                         take={20}
                         where={searchData.where}

@@ -189,6 +189,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     </ListContainer>}
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "FocusMode", id: values.id }}
                         zIndex={zIndex}
                     />
                     <Title

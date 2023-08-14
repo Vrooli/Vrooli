@@ -69,7 +69,7 @@ export const ScheduleView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("Schedule")}
+                title={t("Schedule", { count: 1 })}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

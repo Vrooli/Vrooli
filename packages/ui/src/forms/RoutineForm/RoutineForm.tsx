@@ -1,5 +1,5 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -26,7 +26,6 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -57,7 +56,7 @@ export const routineInitialValues = (
         tags: [],
         ...existing?.root,
     },
-    resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
+    resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     }),
@@ -98,7 +97,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -192,6 +190,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "RoutineVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <FormSection>

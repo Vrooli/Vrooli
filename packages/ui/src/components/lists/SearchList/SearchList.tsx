@@ -133,6 +133,7 @@ export function SearchList<DataType extends NavigableObject>({
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
+                sx={{ ...sxs?.listContainer }}
             >
                 <ObjectList
                     canNavigate={canNavigate}

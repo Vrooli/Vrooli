@@ -10,6 +10,7 @@ export const ListContainer = ({
 }: ListContainerProps) => {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
+    console.log("listcontainer", sx);
 
     return (
         <Box sx={{

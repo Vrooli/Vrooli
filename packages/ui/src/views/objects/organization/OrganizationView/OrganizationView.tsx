@@ -97,7 +97,7 @@ export const OrganizationView = ({
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
-            list={resourceList as any}
+            list={resourceList}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!organization) return;
@@ -108,6 +108,7 @@ export const OrganizationView = ({
             }}
             loading={isLoading}
             mutate={true}
+            parent={{ __typename: "Organization", id: organization?.id ?? "" }}
             zIndex={zIndex}
         />
     ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization, zIndex]);
@@ -321,9 +322,11 @@ export const OrganizationView = ({
                                 searchPlaceholder={placeholder}
                                 sxs={showSearchFilters ? {
                                     search: { marginTop: 2 },
+                                    listContainer: { borderRadius: 0 },
                                 } : {
                                     search: { display: "none" },
                                     buttons: { display: "none" },
+                                    listContainer: { borderRadius: 0 },
                                 }}
                                 take={20}
                                 where={where}

@@ -130,6 +130,7 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "Organization", id: values.id }}
                         zIndex={zIndex}
                     />
                 </FormContainer>

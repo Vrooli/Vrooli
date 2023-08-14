@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DeleteManyInput, endpointPostDeleteMany, Resource } from "@local/shared";
+import { Count, DeleteManyInput, DUMMY_ID, endpointPostDeleteMany, Resource } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { NewResourceShape, resourceInitialValues } from "forms/ResourceForm/ResourceForm";
@@ -17,36 +17,36 @@ import { ResourceListVerticalProps } from "../types";
 export const ResourceListVertical = ({
     canUpdate = true,
     handleUpdate,
-    mutate,
     list,
     loading,
+    mutate,
+    parent,
     zIndex,
 }: ResourceListVerticalProps) => {
     const { t } = useTranslation();
+    console.log("resourcelistvertical", list);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
+        const updatedList = {
+            ...list,
+            resources: list.resources.filter(r => r.id !== resource.id),
+        };
         if (mutate && resource.id) {
             fetchLazyWrapper<DeleteManyInput, Count>({
                 fetch: deleteMutation,
                 inputs: { ids: [resource.id], objectType: "Resource" as any },
                 onSuccess: () => {
                     if (handleUpdate) {
-                        handleUpdate({
-                            ...list,
-                            resources: list.resources.filter(r => r.id !== resource.id) as any,
-                        });
+                        handleUpdate(updatedList);
                     }
                 },
             });
         }
         else if (handleUpdate) {
-            handleUpdate({
-                ...list,
-                resources: list.resources.filter(r => r.id !== resource.id) as any,
-            });
+            handleUpdate(updatedList);
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
@@ -58,7 +58,7 @@ export const ResourceListVertical = ({
     const openContext = useCallback((target: EventTarget, index: number) => {
         setContextAnchor(target);
         const resource = list?.resources[index];
-        setSelectedResource(resource as any);
+        setSelectedResource(resource ?? null);
     }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
@@ -87,24 +87,27 @@ export const ResourceListVertical = ({
         else {
             handleUpdate({
                 ...list,
-                resources: [...(list?.resources as any) ?? [], resource],
+                resources: [...(list?.resources ?? []), resource],
             });
         }
     }, [closeDialog, handleUpdate, list]);
 
-    const dialog = useMemo(() => (
-        list ? <ResourceUpsert
-            isCreate={editingIndex >= 0}
+    const dialog = useMemo(() => {
+        return <ResourceUpsert
+            isCreate={editingIndex < 0}
             isOpen={isDialogOpen}
             isMutate={mutate}
             onCancel={closeDialog}
             onCompleted={onCompleted}
-            overrideObject={editingIndex >= 0 ?
+            overrideObject={editingIndex >= 0 && list?.resources ?
                 { ...list.resources[editingIndex as number], index: editingIndex } as NewResourceShape :
-                resourceInitialValues(undefined, { index: -1, list: { id: list.id } }) as NewResourceShape}
+                resourceInitialValues(undefined, {
+                    index: 0,
+                    list: list?.id && list.id !== DUMMY_ID ? { id: list.id } : { listFor: parent.__typename, listForId: parent.id },
+                }) as NewResourceShape}
             zIndex={zIndex + 1}
-        /> : null
-    ), [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, zIndex]);
+        />;
+    }, [closeDialog, editingIndex, isDialogOpen, list, mutate, onCompleted, parent.__typename, parent.id, zIndex]);
 
     return (
         <>
@@ -115,11 +118,24 @@ export const ResourceListVertical = ({
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
                 onClose={closeContext}
-                onAddBefore={() => { }} //TODO
-                onAddAfter={() => { }} //TODO
+                onAddBefore={() => {
+                    setEditingIndex(selectedIndex ?? 0);
+                    openDialog();
+                }}
+                onAddAfter={() => {
+                    setEditingIndex(selectedIndex ? selectedIndex + 1 : 0);
+                    openDialog();
+                }}
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }} //TODO
+                onMove={(index: number) => {
+                    if (handleUpdate && list) {
+                        handleUpdate({
+                            ...list,
+                            resources: updateArray(list.resources, selectedIndex ?? 0, list.resources[index]) as any[],
+                        });
+                    }
+                }}
                 resource={selectedResource}
                 zIndex={zIndex + 1}
             />

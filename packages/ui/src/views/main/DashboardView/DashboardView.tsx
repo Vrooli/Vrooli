@@ -286,6 +286,7 @@ export const DashboardView = ({
                     handleUpdate={setResourceList}
                     loading={loading}
                     mutate={true}
+                    parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                     zIndex={zIndex}
                 />
                 {/* Events */}
@@ -293,7 +294,7 @@ export const DashboardView = ({
                     Icon={MonthIcon}
                     id="main-event-list"
                     isEmpty={upcomingEvents.length === 0 && !loading}
-                    title={t("Schedule")}
+                    title={t("Schedule", { count: 1 })}
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("Open"),

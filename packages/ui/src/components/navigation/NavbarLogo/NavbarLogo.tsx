@@ -21,14 +21,16 @@ export const NavbarLogo = ({
             }}
         >
             {/* Logo */}
-            <IconButton sx={{
-                display: "flex",
-                padding: 0,
-                margin: "5px",
-                marginLeft: "max(-5px, -5vw)",
-                width: "48px",
-                height: "48px",
-            }}>
+            <IconButton
+                aria-label="Go to home page"
+                sx={{
+                    display: "flex",
+                    padding: 0,
+                    margin: "5px",
+                    marginLeft: "max(-5px, -5vw)",
+                    width: "48px",
+                    height: "48px",
+                }}>
                 <VrooliIcon fill={palette.primary.contrastText} width="100%" height="100%" />
             </IconButton>
             {/* Business name */}

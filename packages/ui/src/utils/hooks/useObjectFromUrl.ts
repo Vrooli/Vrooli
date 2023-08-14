@@ -87,8 +87,11 @@ export function useObjectFromUrl<
         else PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error" });
     }, [getData, objectType, overrideObject, stableOnInvalidUrlParams, stableTransform, urlParams]);
     useEffect(() => {
-        // If overrideObject provided, ignore this effect
-        if (typeof overrideObject === "object") return;
+        // If overrideObject provided, use it
+        if (typeof overrideObject === "object") {
+            setObject((typeof stableTransform === "function" ? stableTransform(overrideObject) : overrideObject) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
         // If data was queried (i.e. object exists), store it in local state
         if (data) setCookiePartialData(data, "full");
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
