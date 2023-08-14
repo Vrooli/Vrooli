@@ -8,13 +8,13 @@ type RequestState<TData> = {
 };
 
 type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
-    endpoint: string | undefined;
+    endpoint?: string | undefined;
     inputs?: TInput;
     method?: Method;
     options?: RequestInit;
 };
 
-export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (input?: TInput) => Promise<ServerResponse<TData>>;
+export type MakeLazyRequest<TInput extends Record<string, any> | undefined, TData> = (input?: TInput, endpointOverride?: string) => Promise<ServerResponse<TData>>;
 
 /**
  * Custom React hook for making HTTP requests.
@@ -49,7 +49,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         fetchParamsRef.current = { endpoint, method, options, inputs };
     }, [endpoint, method, options, inputs]); // This will update the ref each time endpoint, method, options or inputs change
 
-    const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input?: TInput) => {
+    const makeRequest = useCallback<MakeLazyRequest<TInput, TData>>(async (input?: TInput, endpointOverride?: string) => {
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
             fetchParamsRef.current.inputs = input;
@@ -57,7 +57,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         // Get fetch params from the ref
         const { endpoint, method, options, inputs } = fetchParamsRef.current;
         // Cancel if no endpoint is provided
-        if (!endpoint) {
+        if (!endpoint && !endpointOverride) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
             return { errors: [{ message }] };
@@ -66,7 +66,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         setState(s => ({ ...s, loading: true }));
         // Make the request
         const result = await fetchData({
-            endpoint,
+            endpoint: endpointOverride || endpoint as string,
             inputs,
             method,
             options,

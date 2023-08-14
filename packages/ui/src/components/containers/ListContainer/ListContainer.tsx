@@ -28,7 +28,7 @@ export const ListContainer = ({
             ...(sx ?? {}),
         }}>
             {isEmpty && (
-                <Typography variant="h6" textAlign="center">
+                <Typography variant="h6" textAlign="center" pt={2}>
                     {emptyText ?? t("NoResults", { ns: "error" })}
                 </Typography>
             )}

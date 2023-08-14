@@ -1,7 +1,6 @@
 import { Api, ApiVersion, Bookmark, BookmarkFor, ChatParticipant, CommentFor, CommonKey, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
-import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
-import { ActionsType, ListActions, SearchListGenerator } from "components/lists/types";
-import { AutocompleteOption, NavigableObject } from "types";
+import { SearchListGenerator } from "components/lists/types";
+import { AutocompleteOption } from "types";
 import { SearchType } from "utils/search/objectToSearch";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
@@ -389,76 +388,6 @@ export function listToAutocomplete(
             (o as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion>).root :
             undefined,
     })) as AutocompleteOption[];
-}
-
-
-export type ListToListItemProps<T extends keyof ListActions | undefined> = {
-    /**
-     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
-     * If the callback returns false, the list item will not be selected.
-     */
-    canNavigate?: (item: NavigableObject) => boolean | void,
-    /** List of dummy items types to display while loading */
-    dummyItems?: (GqlModelType | `${GqlModelType}`)[];
-    /** True if update button should be hidden */
-    hideUpdateButton?: boolean,
-    /** The list of item data. Objects like view and star are converted to their respective objects. */
-    items?: readonly ListObject[],
-    /** Each list item's key will be `${keyPrefix}-${id}` */
-    keyPrefix: string,
-    /** Whether the list is loading */
-    loading: boolean,
-    onClick?: (item: NavigableObject) => void,
-    zIndex: number,
-} & (T extends keyof ListActions ? ActionsType<ListActions[T & keyof ListActions]> : object);
-
-/**
- * Converts a list of objects to a list of ListItems
- * @returns A list of ListItems
- */
-export function listToListItems<T extends keyof ListActions | undefined>({
-    canNavigate,
-    dummyItems,
-    keyPrefix,
-    hideUpdateButton,
-    items,
-    loading,
-    onClick,
-    zIndex,
-}: ListToListItemProps<T>): JSX.Element[] {
-    const listItems: JSX.Element[] = [];
-    // Create real list items
-    if (items) {
-        for (let i = 0; i < items.length; i++) {
-            let curr = items[i];
-            // If bookmark, reaction, or view, use the "to" object
-            if (isOfType(curr, "Bookmark", "Reaction", "View")) curr = (curr as Partial<Bookmark | Reaction | View>).to as ListObject;
-            listItems.push(<ObjectListItem
-                key={`${keyPrefix}-${curr.id}`}
-                canNavigate={canNavigate}
-                data={curr as ListObject}
-                hideUpdateButton={hideUpdateButton}
-                loading={false}
-                objectType={curr.__typename}
-                onClick={onClick}
-                zIndex={zIndex}
-            />);
-        }
-    }
-    // Create dummy items while more items are loading
-    if (loading && dummyItems) {
-        for (let i = 0; i < dummyItems.length; i++) {
-            listItems.push(<ObjectListItem
-                key={`${keyPrefix}-${i}`}
-                data={null}
-                hideUpdateButton={hideUpdateButton}
-                loading={true}
-                objectType={dummyItems[i]}
-                zIndex={zIndex}
-            />);
-        }
-    }
-    return listItems;
 }
 
 /**

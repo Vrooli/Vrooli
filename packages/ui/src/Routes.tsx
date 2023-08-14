@@ -264,7 +264,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <ReminderCrud {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
-                    <ReminderCrud {...viewProps} />
+                    <ReminderCrud {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}

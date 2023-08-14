@@ -3,19 +3,18 @@ import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
-import { listToAutocomplete } from "utils/display/listTools";
+import { ListObject, listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { SessionContext } from "utils/SessionContext";
-import { useDebounce } from "./useDebounce";
 import { useDisplayServerError } from "./useDisplayServerError";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";
 
 type UseFindManyProps = {
-    canSearch: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
+    canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
     controlsUrl?: boolean; // If true, URL search params update to reflect search state
     debounceMs?: number;
     searchType: SearchType | `${SearchType}`;
@@ -25,7 +24,10 @@ type UseFindManyProps = {
 }
 
 type FullSearchParams = Partial<SearchParams> & {
+    advancedSearchParams: object | null;
+    canSearch: boolean;
     hasMore: boolean;
+    loading: boolean;
     searchString: string;
     sortBy: string;
     timeFrame: TimeFrame | undefined;
@@ -69,13 +71,12 @@ const updateSortBy = (searchParams: Partial<SearchParams>, sortBy: string) => {
  * @param canSearch function for determining if we can search
  * @param params search params
  */
-const readyToSearch = (canSearch: (where: any) => boolean, params: FullSearchParams) => {
-    const { endpoint, hasMore, sortBy } = params;
-    if (!hasMore) return false;
-    if (!endpoint || endpoint.length === 0) return false;
-    if (!sortBy || sortBy.length === 0) return false;
-    if (!canSearch(params.where)) return false;
-    return true;
+const readyToSearch = (params: FullSearchParams) => {
+    return params.canSearch &&
+        !params.loading &&
+        params.hasMore &&
+        params.endpoint && params.endpoint.length > 0 &&
+        params.sortBy && params.sortBy.length > 0;
 };
 
 /**
@@ -89,7 +90,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     resolve,
     take = 20,
     where,
-}: UseFindManyProps, deps: any[] = []) => {
+}: UseFindManyProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
@@ -100,8 +101,12 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     // Store search params
     const params = useRef<FullSearchParams>({
+        advancedSearchParams: null,
+        canSearch: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
         endpoint: "",
         hasMore: true,
+        // Start loading as "true" if we're allowed to search
+        loading: typeof stableCanSearch === "function" ? stableCanSearch(stableWhere ?? {}) : true,
         searchString: "",
         sortBy: "",
         timeFrame: undefined,
@@ -149,13 +154,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
      */
     const after = useRef<Record<string, string>>({});
 
-    // Handle advanced search params
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-
     // Handle fetching data
-    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<SearchQueryVariablesInput<any>, Record<string, any>>({
-        endpoint: params.current.endpoint,
-        inputs: {
+    const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<SearchQueryVariablesInput<string>, Record<string, any>>({});
+    useDisplayServerError(errors);
+    useEffect(() => {
+        console.log("usefindmany setting loading", loading);
+        params.current.loading = loading;
+    }, [loading]);
+    const getData = useCallback(() => {
+        if (!readyToSearch(params.current)) return;
+        params.current.loading = true;
+        console.log("useFindMany GETTING PAGE DATA", params.current);
+        getPageData({
             take,
             sortBy: params.current.sortBy,
             searchString: params.current.searchString,
@@ -165,25 +175,41 @@ export const useFindMany = <DataType extends Record<string, any>>({
             } : undefined,
             ...after.current,
             ...params.current.where,
-            ...advancedSearchParams,
-        },
-    } as any);
-    useDisplayServerError(errors);
-    const debouncedGetPageData = useDebounce(() => {
-        getPageData();
-    }, debounceMs);
+            ...params.current.advancedSearchParams,
+        }, params.current.endpoint as string);
+    }, [getPageData, take]);
+
+    // Fetch data when canSearch changes to true
+    useEffect(() => {
+        const oldCanSearch = params.current.canSearch;
+        const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
+        params.current.canSearch = newCanSearch;
+        console.log("usefindmany effect 1 - stableCanSearch changed", readyToSearch(params.current), oldCanSearch, newCanSearch);
+        // Get data if we couldn't before
+        if (readyToSearch(params.current) && !oldCanSearch && newCanSearch) getData();
+    }, [getData, stableCanSearch, stableWhere]);
 
     const [allData, setAllData] = useState<DataType[]>([]);
 
-    // On search filters/sort change, reset the page
-    useEffect(() => {
+    // Handle advanced search params
+    const [advancedSearchParams, setSearchParams] = useState<object | null>(params.current.advancedSearchParams);
+    const setAdvancedSearchParams = useCallback((advancedSearchParams: object | null) => {
+        console.log("usefindmany setting advanced search params", readyToSearch(params.current), params.current);
+        const oldAdvancedSearchParams = params.current.advancedSearchParams;
+        // Update params
+        params.current.advancedSearchParams = advancedSearchParams;
+        // If the params haven't changed, return
+        if (JSON.stringify(oldAdvancedSearchParams) === JSON.stringify(advancedSearchParams)) return;
         // Reset the pagination cursor and hasMore
         after.current = {};
         params.current.hasMore = true;
+        // Update the URL
         updateUrl();
-        // Only get data if we can search
-        if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
-    }, [advancedSearchParams, stableCanSearch, debouncedGetPageData, updateUrl]);
+        // Fetch new data
+        getData();
+        // Update state
+        setSearchParams(advancedSearchParams);
+    }, [getData, updateUrl]);
 
     /**
      * Update params when search conditions change
@@ -200,12 +226,14 @@ export const useFindMany = <DataType extends Record<string, any>>({
             hasMore: true,
         };
         updateUrl();
-        if (readyToSearch(stableCanSearch, params.current)) debouncedGetPageData({});
-    }, [stableCanSearch, debouncedGetPageData, updateUrl, searchType]);
+        console.log("usefindmany effect 3", readyToSearch(params.current), params.current);
+        getData();
+    }, [updateUrl, searchType, getData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        if (!readyToSearch(stableCanSearch, params.current) || !pageData) return;
+        console.log("usefindmany effect 4", readyToSearch(params.current), params.current);
+        if (!readyToSearch(params.current) || !pageData) return;
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
             // Find every field starting with "endCursor" and add the appropriate "after" field
@@ -219,11 +247,11 @@ export const useFindMany = <DataType extends Record<string, any>>({
                     (after.current as any)[afterKeyLower + "After"] = value;
                 }
             }
-            debouncedGetPageData({});
+            getData();
         } else {
             params.current.hasMore = false;
         }
-    }, [stableCanSearch, debouncedGetPageData, pageData]);
+    }, [getData, pageData]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -257,25 +285,28 @@ export const useFindMany = <DataType extends Record<string, any>>({
         }
     }, [pageData, stableResolve]);
 
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() => listToAutocomplete(allData as any, getUserLanguages(session)), [allData, session]);
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => listToAutocomplete(allData as unknown as ListObject[], getUserLanguages(session)), [allData, session]);
 
     const setSortBy = useCallback((sortBy: string) => {
         params.current.sortBy = updateSortBy(params.current, sortBy);
         updateUrl();
-        debouncedGetPageData({});
-    }, [debouncedGetPageData, updateUrl]);
+        console.log("usefindmany effect 5", readyToSearch(params.current), params.current);
+        getData();
+    }, [getData, updateUrl]);
 
     const setSearchString = useCallback((searchString: string) => {
         params.current.searchString = searchString;
         updateUrl();
-        debouncedGetPageData({});
-    }, [debouncedGetPageData, updateUrl]);
+        console.log("usefindmany effect 6", readyToSearch(params.current), params.current);
+        getData();
+    }, [getData, updateUrl]);
 
     const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         params.current.timeFrame = timeFrame;
         updateUrl();
-        debouncedGetPageData({});
-    }, [debouncedGetPageData, updateUrl]);
+        console.log("usefindmany effect 7", readyToSearch(params.current), params.current);
+        getData();
+    }, [getData, updateUrl]);
 
     return {
         advancedSearchParams,
@@ -285,8 +316,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         defaultSortBy: params?.current?.defaultSortBy,
         loading,
         loadMore,
-        pageData,
-        parseData,
         searchString: params?.current?.searchString,
         setAdvancedSearchParams,
         setAllData,

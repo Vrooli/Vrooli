@@ -5,7 +5,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ReportForm, reportInitialValues, transformReportValues, validateReportValues } from "forms/ReportForm/ReportForm";
+import { NewReportShape, ReportForm, reportInitialValues, transformReportValues, validateReportValues } from "forms/ReportForm/ReportForm";
 import { formNavLink } from "forms/styles";
 import { useCallback, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";

@@ -3,6 +3,7 @@ import { Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SiteSearchBar } from "components/inputs/search";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ReminderList } from "components/lists/reminder";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -16,7 +17,7 @@ import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { getDisplay, listToAutocomplete } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -187,15 +188,6 @@ export const DashboardView = ({
         }
     }, [data]);
 
-    const noteItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill("Note"),
-        items: notes,
-        keyPrefix: "note-list-item",
-        loading,
-        onClick,
-        zIndex,
-    }), [onClick, notes, loading, zIndex]);
-
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
     const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
@@ -231,17 +223,8 @@ export const DashboardView = ({
         });
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
-        const first10 = result.slice(0, 10);
-        // Convert to list items
-        return listToListItems({
-            dummyItems: new Array(5).fill("Event"),
-            items: first10,
-            keyPrefix: "event-list-item",
-            loading,
-            onClick,
-            zIndex,
-        });
-    }, [onClick, data?.schedules, loading, session, zIndex]);
+        return result.slice(0, 10);
+    }, [data?.schedules, session]);
 
     return (
         <PageContainer>
@@ -303,7 +286,7 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={MonthIcon}
                     id="main-event-list"
-                    isEmpty={upcomingEvents.length === 0}
+                    isEmpty={upcomingEvents.length === 0 && !loading}
                     title={t("Schedule")}
                     options={[{
                         Icon: OpenInNewIcon,
@@ -312,7 +295,14 @@ export const DashboardView = ({
                     }]}
                     zIndex={zIndex}
                 >
-                    {upcomingEvents}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Event")}
+                        items={upcomingEvents}
+                        keyPrefix="event-list-item"
+                        loading={loading}
+                        onClick={onClick}
+                        zIndex={zIndex}
+                    />
                 </ListTitleContainer>
                 {/* Reminders */}
                 <ReminderList
@@ -327,7 +317,7 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={NoteIcon}
                     id="main-note-list"
-                    isEmpty={noteItems.length === 0}
+                    isEmpty={notes.length === 0 && !loading}
                     title={t("Note", { count: 2 })}
                     options={[{
                         Icon: OpenInNewIcon,
@@ -340,7 +330,14 @@ export const DashboardView = ({
                     }]}
                     zIndex={zIndex}
                 >
-                    {noteItems}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Note")}
+                        items={notes}
+                        keyPrefix="note-list-item"
+                        loading={loading}
+                        onClick={onClick}
+                        zIndex={zIndex}
+                    />
                 </ListTitleContainer>
             </Stack>
         </PageContainer>

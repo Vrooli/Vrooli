@@ -1,4 +1,4 @@
-import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
@@ -199,6 +199,7 @@ export interface SearchQueryVariablesInput<SortBy> {
     searchString?: string | null;
     after?: string | null;
     take?: number | null;
+    createdTimeFrame?: TimeFrame | null;
 }
 
 export interface SettingsToggleListItemProps {

@@ -43,8 +43,6 @@ export function SearchList<DataType extends NavigableObject>({
         autocompleteOptions,
         loading,
         loadMore,
-        pageData,
-        parseData,
         searchString,
         setAdvancedSearchParams,
         setSortBy,
@@ -60,17 +58,6 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-
-    // const listItems = useMemo(() => listToListItems({
-    //     canNavigate,
-    //     dummyItems: new Array(dummyLength).fill(searchType),
-    //     hideUpdateButton,
-    //     items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
-    //     keyPrefix: `${searchType}-list-item`,
-    //     loading,
-    //     onClick: onItemClick,
-    //     zIndex,
-    // }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -145,8 +132,7 @@ export function SearchList<DataType extends NavigableObject>({
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
-                // isEmpty={listItems.length === 0}
-                isEmpty={false}
+                isEmpty={allData.length === 0 && !loading}
             >
                 <ObjectList
                     canNavigate={canNavigate}

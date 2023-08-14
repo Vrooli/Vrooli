@@ -4,6 +4,7 @@ import { fetchLazyWrapper } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -11,7 +12,7 @@ import { AddIcon, CommentIcon, CompleteIcon, NotificationsAllIcon } from "icons"
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { listToListItems } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFindMany } from "utils/hooks/useFindMany";
@@ -57,7 +58,6 @@ export const InboxView = ({
         loadMore,
         setAllData,
     } = useFindMany<InboxObject>({
-        canSearch: () => true,
         searchType,
         where,
     });
@@ -150,16 +150,6 @@ export const InboxView = ({
         }
     }, [openChat, openNotification, searchType]);
 
-    const listItems = useMemo(() => listToListItems<InboxType>({
-        dummyItems: new Array(5).fill(searchType),
-        items: allData,
-        keyPrefix: `${searchType}-list-item`,
-        loading,
-        onAction,
-        onClick: (item) => onClick(item as InboxObject),
-        zIndex,
-    }), [searchType, allData, loading, onAction, zIndex, onClick]);
-
     // If near the bottom of the page, load more data
     const handleScroll = useCallback(() => {
         const scrolledY = window.scrollY;
@@ -202,9 +192,17 @@ export const InboxView = ({
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={listItems.length === 0}
+                isEmpty={allData.length === 0 && !loading}
             >
-                {listItems}
+                <ObjectList
+                    dummyItems={new Array(5).fill(searchType)}
+                    items={allData as ListObject[]}
+                    keyPrefix={`${searchType}-list-item`}
+                    loading={loading}
+                    onAction={onAction}
+                    onClick={(item) => onClick(item as InboxObject)}
+                    zIndex={zIndex}
+                />
             </ListContainer>
             {/* New Chat button */}
             <SideActionButtons
