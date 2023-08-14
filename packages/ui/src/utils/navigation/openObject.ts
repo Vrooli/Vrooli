@@ -110,7 +110,7 @@ export const openObject = (object: NavigableObject, setLocation: SetLocation) =>
     // Actions don't open to anything
     if (isOfType(object, "Action")) return;
     // Store object in local storage, so we can display it while the full data loads
-    setCookiePartialData(object);
+    setCookiePartialData(object, "list");
     // Navigate to object
     setLocation(getObjectUrl(object));
 };
@@ -130,7 +130,7 @@ export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation
     // Actions don't open to anything
     if (isOfType(object, "Action")) return;
     // Store object in local storage, so we can display it while the full data loads
-    setCookiePartialData(object);
+    setCookiePartialData(object, "list");
     // Navigate to object
     setLocation(getObjectEditUrl(object));
 };

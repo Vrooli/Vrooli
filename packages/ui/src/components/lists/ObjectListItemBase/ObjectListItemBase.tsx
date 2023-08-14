@@ -91,7 +91,7 @@ export function ObjectListItemBase<T extends ListObject>({
             if (shouldContinue === false) return;
         }
         // Store object in local storage, so we can display it while the full data loads
-        setCookiePartialData(data);
+        setCookiePartialData(data, "list");
         // Navigate to the object's page
         setLocation(link);
     }, [data, link, onClick, canNavigate, setLocation]);

@@ -163,6 +163,8 @@ type PartialData = {
         handle?: string | null,
     } | null,
 };
+/** Type of data stored */
+type DataType = "list" | "full";
 /** 
  * Stores multiple cached objects, in a way that allows 
  * for removing the oldest object when the cache is full.
@@ -231,17 +233,22 @@ export const getCookiePartialData = <T extends PartialData>(knownData: PartialDa
         },
         shapeKnownData(knownData),
     );
-export const setCookiePartialData = (partialData: PartialData) => ifAllowed("functional", () => {
+export const setCookiePartialData = (partialData: PartialData, dataType: DataType) => ifAllowed("functional", () => {
     ifAllowed("functional", () => {
         // Get the cache
         const cache = getCache();
         // Create a key that includes every identifier for the object
         const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
         // Check if the object is already in the cache
-        const isAlreadyInCache = (partialData.id && cache.idMap[partialData.id]) ||
+        const isAlreadyInCache = Boolean((partialData.id && cache.idMap[partialData.id]) ||
             (partialData.handle && cache.handleMap[partialData.handle]) ||
             (partialData.root?.id && cache.idRootMap[partialData.root.id]) ||
-            (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]);
+            (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]));
+        // If data type is "list", don't overwrite the existing cached data
+        console.log("setcookiepartialdata", dataType, isAlreadyInCache);
+        if (isAlreadyInCache && dataType === "list") {
+            return;
+        }
         // Store the object in the cache, even if it already existed. Store in every map that applies, since we don't know which one will be needed
         if (partialData.id) cache.idMap[partialData.id] = partialData;
         if (partialData.handle) cache.handleMap[partialData.handle] = partialData;

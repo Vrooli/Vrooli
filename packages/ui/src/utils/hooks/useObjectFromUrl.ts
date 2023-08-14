@@ -90,7 +90,7 @@ export function useObjectFromUrl<
         // If overrideObject provided, ignore this effect
         if (typeof overrideObject === "object") return;
         // If data was queried (i.e. object exists), store it in local state
-        if (data) setCookiePartialData(data);
+        if (data) setCookiePartialData(data, "full");
         const knownData = data ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         // If transform provided, use it
         const changedData = (typeof stableTransform === "function" ? stableTransform(knownData) : knownData) as ObjectReturnType<TData, TFunc>;

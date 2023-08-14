@@ -107,7 +107,7 @@ export const UserView = ({
     useEffect(() => {
         const knownData = userData ?? profileData;
         // If there is knownData, update local storage
-        if (knownData) setCookiePartialData(knownData);
+        if (knownData) setCookiePartialData(knownData, "full");
         setUser(knownData ?? getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
     }, [userData, profileData, urlInfo]);
     const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);

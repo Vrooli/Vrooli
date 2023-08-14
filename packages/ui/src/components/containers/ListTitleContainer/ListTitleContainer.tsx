@@ -19,9 +19,8 @@ export function ListTitleContainer({
         <TitleContainer {...props}>
             {
                 isEmpty ?
-                    <Typography variant="h6" sx={{
+                    <Typography variant="h6" pt={2} sx={{
                         textAlign: "center",
-                        paddingTop: "8px",
                     }}>{emptyText ?? t("NoResults", { ns: "error" })}</Typography> :
                     <List sx={{ overflow: "hidden" }}>
                         {children}

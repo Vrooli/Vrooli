@@ -158,13 +158,11 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const [getPageData, { data: pageData, loading, errors }] = useLazyFetch<SearchQueryVariablesInput<string>, Record<string, any>>({});
     useDisplayServerError(errors);
     useEffect(() => {
-        console.log("usefindmany setting loading", loading);
         params.current.loading = loading;
     }, [loading]);
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
         params.current.loading = true;
-        console.log("useFindMany GETTING PAGE DATA", params.current);
         getPageData({
             take,
             sortBy: params.current.sortBy,
@@ -184,7 +182,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         const oldCanSearch = params.current.canSearch;
         const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
         params.current.canSearch = newCanSearch;
-        console.log("usefindmany effect 1 - stableCanSearch changed", readyToSearch(params.current), oldCanSearch, newCanSearch);
         // Get data if we couldn't before
         if (readyToSearch(params.current) && !oldCanSearch && newCanSearch) getData();
     }, [getData, stableCanSearch, stableWhere]);
@@ -194,7 +191,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // Handle advanced search params
     const [advancedSearchParams, setSearchParams] = useState<object | null>(params.current.advancedSearchParams);
     const setAdvancedSearchParams = useCallback((advancedSearchParams: object | null) => {
-        console.log("usefindmany setting advanced search params", readyToSearch(params.current), params.current);
         const oldAdvancedSearchParams = params.current.advancedSearchParams;
         // Update params
         params.current.advancedSearchParams = advancedSearchParams;
@@ -226,13 +222,11 @@ export const useFindMany = <DataType extends Record<string, any>>({
             hasMore: true,
         };
         updateUrl();
-        console.log("usefindmany effect 3", readyToSearch(params.current), params.current);
         getData();
     }, [updateUrl, searchType, getData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        console.log("usefindmany effect 4", readyToSearch(params.current), params.current);
         if (!readyToSearch(params.current) || !pageData) return;
         if (!pageData.pageInfo) return [];
         if (pageData.pageInfo?.hasNextPage) {
@@ -290,21 +284,18 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const setSortBy = useCallback((sortBy: string) => {
         params.current.sortBy = updateSortBy(params.current, sortBy);
         updateUrl();
-        console.log("usefindmany effect 5", readyToSearch(params.current), params.current);
         getData();
     }, [getData, updateUrl]);
 
     const setSearchString = useCallback((searchString: string) => {
         params.current.searchString = searchString;
         updateUrl();
-        console.log("usefindmany effect 6", readyToSearch(params.current), params.current);
         getData();
     }, [getData, updateUrl]);
 
     const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         params.current.timeFrame = timeFrame;
         updateUrl();
-        console.log("usefindmany effect 7", readyToSearch(params.current), params.current);
         getData();
     }, [getData, updateUrl]);
 

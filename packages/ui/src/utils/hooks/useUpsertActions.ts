@@ -51,7 +51,7 @@ export const useUpsertActions = <
         switch (action) {
             case ObjectDialogAction.Add:
                 // Add the new object to the cache
-                if (item) setCookiePartialData(item);
+                if (item) setCookiePartialData(item, "full");
                 // Navigate to the view page for the new object
                 if (display === "page") {
                     setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
@@ -91,7 +91,7 @@ export const useUpsertActions = <
                 break;
             case ObjectDialogAction.Save:
                 // Update the object in the cache
-                if (item) setCookiePartialData(item);
+                if (item) setCookiePartialData(item, "full");
                 // Navigate to the view page for the object
                 if (display === "page") {
                     if (!viewUrl && hasPreviousPage) window.history.back();
