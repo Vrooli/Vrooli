@@ -8,7 +8,7 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ChatListItemActions, NotificationListItemActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { AddIcon, CommentIcon, CompleteIcon, NotificationsAllIcon } from "icons";
+import { AddIcon, CompleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -24,16 +24,14 @@ import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 const tabParams = [{
-    Icon: CommentIcon,
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
-    tabType: InboxPageTabOption.Messages,
+    tabType: InboxPageTabOption.Message,
     where: {},
 }, {
-    Icon: NotificationsAllIcon,
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
-    tabType: InboxPageTabOption.Notifications,
+    tabType: InboxPageTabOption.Notification,
     where: {},
 }];
 
@@ -185,6 +183,7 @@ export const InboxView = ({
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
                     currTab={currTab}
+                    fullWidth
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}

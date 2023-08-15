@@ -110,7 +110,7 @@ export const useUpsertActions = <
                 }
                 break;
         }
-    }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, t, onCancel]);
+    }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, t, onCancel, onDeleted]);
 
     const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const handleCreated = useCallback((data: T) => { onAction(ObjectDialogAction.Add, data); }, [onAction]);

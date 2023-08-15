@@ -9,11 +9,11 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
-import { SearchType } from "utils/search/objectToSearch";
 import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { ViewDisplayType } from "views/types";
+import { FindObjectTabOptions } from "./FindObjectDialog/FindObjectDialog";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
@@ -82,21 +82,15 @@ export type SelectOrCreateObject = ApiVersion |
  */
 export type FindObjectDialogType = "Full" | "List" | "Url";
 export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
-    /**
-     * Determines the type of data returned when an object is selected
-     */
+    /** The type of data returned when an object is selected */
     find: Find;
     handleCancel: () => unknown;
     handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
-    limitTo?: SelectOrCreateObjectType[];
-    /**
-     * If not set, uses "Popular" endpoint to get data
-     */
-    searchData?: {
-        searchType: SearchType | `${SearchType}`;
-        where: { [key: string]: string | number | boolean | object | null | undefined; };
-    }
+    limitTo?: FindObjectTabOptions[];
+    /** Forces selection to be a version, and removes unversioned items from limitTo */
+    onlyVersioned?: boolean;
+    where?: { [key: string]: object };
     zIndex: number;
 }
 

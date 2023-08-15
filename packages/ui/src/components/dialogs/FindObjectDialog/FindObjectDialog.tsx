@@ -1,4 +1,4 @@
-import { FindByIdInput, FindVersionInput } from "@local/shared";
+import { CommonKey, FindByIdInput, FindVersionInput } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -7,15 +7,15 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
-import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
-import { AutocompleteOption, SvgComponent } from "types";
+import { removeSearchParams, useLocation } from "route";
+import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
@@ -39,84 +39,99 @@ const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/
 type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
 type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
 
-type AllTabOptions = "All" | SearchPageTabOption | CalendarPageTabOption;
-type BaseParams = {
-    Icon: SvgComponent;
-    searchType: "All" | SearchType;
-    tabType: AllTabOptions;
-    where: { [x: string]: any };
-}
+/** 
+ * All valid search types for the FindObjectDialog.  
+ * Note: The 'Version' types are converted to their non-versioned type.
+ */
+export type FindObjectTabOptions = "All" |
+    SearchPageTabOption | `${SearchPageTabOption}` |
+    CalendarPageTabOption | `${CalendarPageTabOption}` |
+    "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
 
 // Data for each tab. Ordered by tab index
-const tabParams: BaseParams[] = [{
+const tabParams = [{
     Icon: VisibleIcon,
-    searchType: "All",
-    tabType: "All",
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Popular,
+    tabType: "All" as const,
     where: {},
 }, {
     Icon: RoutineIcon,
+    titleKey: "Routine" as CommonKey,
     searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routines,
+    tabType: SearchPageTabOption.Routine,
     where: {},
 }, {
     Icon: ProjectIcon,
+    titleKey: "Project" as CommonKey,
     searchType: SearchType.Project,
-    tabType: SearchPageTabOption.Projects,
+    tabType: SearchPageTabOption.Project,
     where: {},
 }, {
     Icon: HelpIcon,
+    titleKey: "Question" as CommonKey,
     searchType: SearchType.Question,
-    tabType: SearchPageTabOption.Questions,
+    tabType: SearchPageTabOption.Question,
     where: {},
 }, {
     Icon: NoteIcon,
+    titleKey: "Note" as CommonKey,
     searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Notes,
+    tabType: SearchPageTabOption.Note,
     where: {},
 }, {
     Icon: OrganizationIcon,
+    titleKey: "Organization" as CommonKey,
     searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organizations,
+    tabType: SearchPageTabOption.Organization,
     where: {},
 }, {
     Icon: UserIcon,
+    titleKey: "User" as CommonKey,
     searchType: SearchType.User,
-    tabType: SearchPageTabOption.Users,
+    tabType: SearchPageTabOption.User,
     where: {},
 }, {
     Icon: StandardIcon,
+    titleKey: "Standard" as CommonKey,
     searchType: SearchType.Standard,
-    tabType: SearchPageTabOption.Standards,
+    tabType: SearchPageTabOption.Standard,
     where: {},
 }, {
     Icon: ApiIcon,
+    titleKey: "Api" as CommonKey,
     searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Apis,
+    tabType: SearchPageTabOption.Api,
     where: {},
 }, {
     Icon: SmartContractIcon,
+    titleKey: "SmartContract" as CommonKey,
     searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContracts,
+    tabType: SearchPageTabOption.SmartContract,
     where: {},
 }, {
     Icon: FocusModeIcon,
+    titleKey: "FocusMode" as CommonKey,
     searchType: SearchType.FocusMode,
-    tabType: CalendarPageTabOption.FocusModes,
+    tabType: CalendarPageTabOption.FocusMode,
     where: {},
 }, {
     Icon: OrganizationIcon,
+    titleKey: "Meeting" as CommonKey,
     searchType: SearchType.Meeting,
-    tabType: CalendarPageTabOption.Meetings,
-    where: {},
-}, {
-    Icon: ProjectIcon,
-    searchType: SearchType.RunProject,
-    tabType: CalendarPageTabOption.RunProjects,
+    tabType: CalendarPageTabOption.Meeting,
     where: {},
 }, {
     Icon: RoutineIcon,
+    titleKey: "RunRoutine" as CommonKey,
     searchType: SearchType.RunRoutine,
-    tabType: CalendarPageTabOption.RunRoutines,
+    tabType: CalendarPageTabOption.RunRoutine,
+    where: {},
+}, {
+    Icon: ProjectIcon,
+    titleKey: "RunProject" as CommonKey,
+    searchType: SearchType.RunProject,
+    tabType: CalendarPageTabOption.RunProject,
     where: {},
 }];
 
@@ -150,53 +165,23 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     handleComplete,
     isOpen,
     limitTo,
-    searchData,
+    onlyVersioned,
+    where,
     zIndex,
 }: FindObjectDialogProps<Find, ObjectType>) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // Tabs to filter by object type
-    const tabs = useMemo<PageTab<AllTabOptions>[]>(() => {
-        // If limitTo is set, only show those tabs
-        let filteredTabParams = tabParams;
-        if (limitTo && limitTo.length > 0) {
-            const unversionedLimitTo = limitTo.map(l => l.replace("Version", "") as any);
-            filteredTabParams = tabParams.filter(tab => unversionedLimitTo.includes(tab.searchType as any));
-        }
-        // If it's not set, show tabs for objects that appear in main search page
-        else {
-            const mainSearchTabs = ["All", "ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"];
-            filteredTabParams = tabParams.filter(tab => mainSearchTabs.includes(tab.searchType as any) || mainSearchTabs.includes(tab.searchType + "Version" as any));
-        }
-        return filteredTabParams.map((tab, i) => ({
-            index: i,
-            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
-            value: tab.tabType,
-        }));
-    }, [limitTo, t]);
-
-    const [currTab, setCurrTab] = useState<PageTab<AllTabOptions> | null>(null);
-    useEffect(() => {
-        // Get tab from search params
-        const searchParams = parseSearchParams();
-        const index = tabs.findIndex(tab => tab.value === searchParams.type);
-        // If not found, default to the first tab
-        if (index === -1) {
-            setCurrTab(tabs[0]);
-        } else {
-            setCurrTab(tabs[index]);
-        }
-    }, [tabs]);
-
-    const handleTabChange = useCallback((e: any, tab: PageTab<Exclude<AllTabOptions, "All">>) => {
-        e.preventDefault();
-        // Update search params
-        addSearchParams(setLocation, { type: tab.value });
-        // Update curr tab
-        setCurrTab(tab);
-    }, [setLocation]);
+    const filteredTabs = useMemo(() => {
+        let filtered = tabParams;
+        // Apply limitTo filter
+        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.tabType) || limitTo.includes(`${tab.tabType}Version` as FindObjectTabOptions));
+        // If onlyVersioned, filter tabs which don't have a corresponding versioned search type
+        if (onlyVersioned) filtered = filtered.filter(tab => `${tab.tabType}Version` in SearchType);
+        return filtered;
+    }, [limitTo, onlyVersioned]);
+    const { currTab, handleTabChange, searchType, tabs } = useTabs<FindObjectTabOptions>(filteredTabs, 0);
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
@@ -255,17 +240,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectedObject(null);
     }, [isOpen]);
 
-    // On tab change, update search params
-    const { searchType, where } = useMemo<Pick<BaseParams, "searchType" | "where">>(() => {
-        if (searchData) return searchData as any;
-        if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
-        return { searchType: "All", where: {} };
-    }, [currTab, searchData]);
-
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
         // If tab is 'All', open menu to select type
-        if (searchType === "All" || !currTab) setSelectCreateTypeAnchorEl(e.currentTarget);
+        if (searchType === SearchType.Popular || !currTab) setSelectCreateTypeAnchorEl(e.currentTarget);
         // Otherwise, open create dialog for current tab
         setCreateObjectType(tabParams.find(tab => tab.tabType === currTab!.value)?.searchType as any);
     }, [currTab, searchType]);
@@ -362,21 +340,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     return (
         <>
             {/* Dialog for creating new object type */}
-            <LargeDialog
-                id="create-object-dialog"
-                onClose={handleCreateClose}
+            {CreateView && <CreateView
+                isCreate={true}
                 isOpen={createObjectType !== null}
-                titleId="create-object-dialog-title"
+                onCompleted={handleCreated}
+                onCancel={handleCreateClose}
+                overrideObject={{ __typename: createObjectType }}
                 zIndex={zIndex + 2}
-            >
-                {CreateView && <CreateView
-                    isCreate={true}
-                    onCompleted={handleCreated}
-                    onCancel={handleCreateClose}
-                    overrideObject={{ __typename: createObjectType }}
-                    zIndex={zIndex + 2}
-                />}
-            </LargeDialog>
+            />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
                 id="select-create-type-mnu"
@@ -386,7 +357,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All'=' */}
-                {tabParams.filter((t) => !["All"].includes(t.searchType as any)).map(tab => (
+                {tabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
                     <MenuItem
                         key={tab.searchType}
                         onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
@@ -408,14 +379,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             >
                 <TopBar
                     display="dialog"
-                    help={t("FindObjectDialogHelp")}
                     hideTitleOnDesktop={true}
                     onClose={() => { handleCancel(); }}
                     title={t("SearchVrooli")}
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
-                        currTab={currTab!}
+                        currTab={currTab}
                         fullWidth
+                        ignoreIcons={true}
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
@@ -458,9 +429,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                             }
                             return result;
                         }}
-                        searchType={searchData?.searchType ?? (searchType === "All" ? "Popular" : (searchType ?? "Popular"))}
+                        searchType={searchType}
                         zIndex={zIndex}
-                        where={searchData?.where ?? { ...(where ?? {}) }}
+                        where={where ?? {}}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (

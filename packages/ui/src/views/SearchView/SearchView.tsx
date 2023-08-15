@@ -82,13 +82,7 @@ export const SearchView = ({
     // Popup button for adding new objects
     const [popupButton, setPopupButton] = useState<boolean>(false);
 
-    const {
-        currTab,
-        handleTabChange,
-        searchType,
-        tabs,
-        where,
-    } = useTabs<SearchPageTabOption>(tabParams, 0);
+    const { currTab, handleTabChange, searchType, tabs, where } = useTabs<SearchPageTabOption>(tabParams, 0);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;

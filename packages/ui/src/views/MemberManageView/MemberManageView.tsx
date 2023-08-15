@@ -5,7 +5,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
-import { AddIcon, HistoryIcon, LockIcon, UnlockIcon, UserIcon } from "icons";
+import { AddIcon, LockIcon, UnlockIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -39,17 +39,15 @@ export const MemberManageView = ({
 
     // Data for each tab
     const tabParams = useMemo(() => ([{
-        Icon: UserIcon,
         titleKey: "Member" as CommonKey,
         searchType: SearchType.Member,
         tabType: MemberManagePageTabOption.Members,
         where: { organizationId },
     }, {
-        Icon: HistoryIcon,
         titleKey: "Invite" as CommonKey,
         searchType: SearchType.MemberInvite,
         tabType: MemberManagePageTabOption.MemberInvites,
-        where: { statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] },
+        where: { organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] },
     }] as const), [organizationId]);
 
     const {
@@ -121,6 +119,7 @@ export const MemberManageView = ({
                 below={<PageTabs
                     ariaLabel="search-tabs"
                     currTab={currTab}
+                    fullWidth
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}

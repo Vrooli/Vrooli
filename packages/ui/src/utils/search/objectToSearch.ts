@@ -144,49 +144,48 @@ export enum HistoryPageTabOption {
 }
 
 export enum MemberManagePageTabOption {
-    Members = "Members",
-    MemberInvites = "MemberInvites",
+    Member = "Member",
+    MemberInvite = "MemberInvite",
 }
 
 export enum MyStuffPageTabOption {
-    Apis = "Apis",
-    Notes = "Notes",
-    Organizations = "Organizations",
-    Projects = "Projects",
-    Questions = "Questions",
-    Reminders = "Reminders",
-    Routines = "Routines",
-    SmartContracts = "SmartContracts",
-    Schedules = "Schedules",
-    Standards = "Standards",
-    Users = "Users",
+    Api = "Api",
+    Note = "Note",
+    Organization = "Organization",
+    Project = "Project",
+    Question = "Question",
+    Reminder = "Reminder",
+    Routine = "Routine",
+    SmartContract = "SmartContract",
+    Schedule = "Schedule",
+    Standard = "Standard",
+    User = "User",
 }
 
 export enum SearchPageTabOption {
-    Apis = "Apis",
-    Notes = "Notes",
-    Organizations = "Organizations",
-    Projects = "Projects",
-    Questions = "Questions",
-    Routines = "Routines",
-    SmartContracts = "SmartContracts",
-    Standards = "Standards",
-    Users = "Users",
+    Api = "Api",
+    Note = "Note",
+    Organization = "Organization",
+    Project = "Project",
+    Question = "Question",
+    Routine = "Routine",
+    SmartContract = "SmartContract",
+    Standard = "Standard",
+    User = "User",
 }
 
 export enum CalendarPageTabOption {
     All = "All",
-    FocusModes = "FocusModes",
-    Meetings = "Meetings",
-    RunProjects = "RunProjects",
-    RunRoutines = "RunRoutines",
+    FocusMode = "FocusMode",
+    Meeting = "Meeting",
+    RunProject = "RunProject",
+    RunRoutine = "RunRoutine",
 }
 
 export enum InboxPageTabOption {
-    Notifications = "Notifications",
-    Messages = "Messages",
+    Notification = "Notification",
+    Message = "Message",
 }
-
 
 /**
  * Maps search types to values needed to query and display results

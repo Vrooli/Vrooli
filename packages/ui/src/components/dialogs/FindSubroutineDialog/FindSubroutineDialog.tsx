@@ -47,10 +47,8 @@ export const FindSubroutineDialog = ({
         {...params}
         find="Full"
         handleComplete={onComplete}
-        limitTo={["RoutineVersion"]}
-        searchData={{
-            searchType: "RoutineVersion",
-            where,
-        }}
+        limitTo={["Routines"]}
+        onlyVersioned
+        where={where}
     />;
 };

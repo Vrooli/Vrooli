@@ -69,6 +69,7 @@ export const BuildEditButtons = ({
                     disabledSubmit={loading || !canSubmitMutate}
                     display="page"
                     errors={errors}
+                    hideTextOnMobile
                     isCreate={isAdding}
                     onCancel={handleCancel}
                     onSubmit={handleSubmit}

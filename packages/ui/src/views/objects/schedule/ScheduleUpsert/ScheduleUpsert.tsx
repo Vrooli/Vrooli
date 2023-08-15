@@ -3,15 +3,14 @@ import { fetchLazyWrapper } from "api";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ScheduleForm, scheduleInitialValues, transformScheduleValues, validateScheduleValues } from "forms/ScheduleForm/ScheduleForm";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams } from "route";
 import { toDisplay } from "utils/display/pageTools";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useTabs } from "utils/hooks/useTabs";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
@@ -20,7 +19,7 @@ import { ScheduleShape } from "utils/shape/models/schedule";
 import { calendarTabParams } from "views/CalendarView/CalendarView";
 import { ScheduleUpsertProps } from "../types";
 
-const tabParams = (calendarTabParams) => calendarTabParams.filter(tp => tp.tabType !== "All");
+const tabParams = calendarTabParams.filter(tp => tp.tabType !== "All");
 
 export const ScheduleUpsert = ({
     canChangeTab = true,
@@ -40,39 +39,14 @@ export const ScheduleUpsert = ({
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
-        return tabParams(calendarTabParams).map((tab, i) => ({
-            index: i,
-            Icon: tab.Icon,
-            label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            value: tab.tabType,
-        }));
-    }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<CalendarPageTabOption>>(() => {
-        if (!isCreate) return tabs[0];
-        if (defaultTab !== undefined) {
-            const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === defaultTab);
-            if (index !== -1) return tabs[index];
-        }
-        const searchParams = parseSearchParams();
-        const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === searchParams.type);
-        // Default to bookmarked tab
-        if (index === -1) return tabs[0];
-        // Return tab
-        return tabs[index];
-    });
-    useEffect(() => {
-        if (!isCreate && defaultTab !== undefined) {
-            const index = tabParams(calendarTabParams).findIndex(tab => tab.tabType === defaultTab);
-            if (index !== -1) setCurrTab(tabs[index]);
-        }
-    }, [defaultTab, isCreate, tabs]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<CalendarPageTabOption>) => {
-        e.preventDefault();
-        // Update curr tab
-        setCurrTab(tab);
-    }, []);
+    const {
+        currTab,
+        handleTabChange,
+        tabs,
+    } = useTabs<CalendarPageTabOption>(
+        tabParams,
+        defaultTab ? (tabParams.findIndex(tp => tp.tabType === defaultTab) ?? 0) : 0,
+    );
 
     const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
@@ -85,10 +59,10 @@ export const ScheduleUpsert = ({
             // because Formik will treat them as uncontrolled inputs and throw errors. 
             // Instead, we pretend that false is null and an empty string is undefined.
             ...(isCreate && canSetScheduleFor ? {
-                focusMode: currTab.value === "FocusModes" ? false : "",
-                meeting: currTab.value === "Meetings" ? false : "",
-                runProject: currTab.value === "RunProjects" ? false : "",
-                runRoutine: currTab.value === "RunRoutines" ? false : "",
+                focusMode: currTab.value === "FocusMode" ? false : "",
+                meeting: currTab.value === "Meeting" ? false : "",
+                runProject: currTab.value === "RunProject" ? false : "",
+                runRoutine: currTab.value === "RunRoutine" ? false : "",
             } : {}),
         } as Schedule),
     });
@@ -125,6 +99,7 @@ export const ScheduleUpsert = ({
                 below={isCreate && canChangeTab && <PageTabs
                     ariaLabel="schedule-link-tabs"
                     currTab={currTab}
+                    fullWidth
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}

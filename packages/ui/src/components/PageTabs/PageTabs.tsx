@@ -8,6 +8,7 @@ export const PageTabs = <T extends string | number | object>({
     currTab,
     fullWidth = false,
     id,
+    ignoreIcons = false,
     onChange,
     tabs,
     sx,
@@ -192,7 +193,7 @@ export const PageTabs = <T extends string | number | object>({
                     palette.primary.contrastText :
                     palette.primary.light);
                 return (
-                    <Tooltip key={index} title={Icon ? label : ""}>
+                    <Tooltip key={index} title={(Icon && !ignoreIcons) ? label : ""}>
                         <Box
                             id={`${ariaLabel}-${index}`}
                             ref={tabRefs.current[index]}
@@ -211,7 +212,7 @@ export const PageTabs = <T extends string | number | object>({
                                 filter: isSelected ? "none" : "brightness(0.8)",
                             }}
                         >
-                            {Icon ? <Icon fill={tabColor} /> : <Typography variant="body2" style={{ color: tabColor }}>{label}</Typography>}
+                            {(Icon && !ignoreIcons) ? <Icon fill={tabColor} /> : <Typography variant="body2" style={{ color: tabColor }}>{label}</Typography>}
                         </Box>
                     </Tooltip>
                 );

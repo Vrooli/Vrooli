@@ -187,13 +187,13 @@ export const UserView = ({
         // Users are invited, and bots are added (since you don't need permission to use a public bot)
         const needsInvite = !user.isBot;
         // TODO open dialog
-    }, []);
+    }, [user]);
 
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
         if (!user) return;
         // TODO
-    }, []);
+    }, [user]);
 
     return (
         <>

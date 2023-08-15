@@ -48,6 +48,8 @@ export interface PageTabsProps<T> {
     currTab: PageTab<T>,
     fullWidth?: boolean,
     id?: string,
+    /** Ignore Icons in tabs, rendering them using labels instead */
+    ignoreIcons?: boolean,
     onChange: (event: React.ChangeEvent<unknown>, value: any) => unknown,
     tabs: PageTab<T>[],
     sx?: SxType,

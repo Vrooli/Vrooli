@@ -30,43 +30,43 @@ type BaseParams = {
 // Data for each tab TODO add bot tab
 const tabParams: BaseParams[] = [{
     searchType: SearchType.Routine,
-    tabType: MyStuffPageTabOption.Routines,
+    tabType: MyStuffPageTabOption.Routine,
     where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Project,
-    tabType: MyStuffPageTabOption.Projects,
+    tabType: MyStuffPageTabOption.Project,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Schedule,
-    tabType: MyStuffPageTabOption.Schedules,
+    tabType: MyStuffPageTabOption.Schedule,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Reminder,
-    tabType: MyStuffPageTabOption.Reminders,
+    tabType: MyStuffPageTabOption.Reminder,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Note,
-    tabType: MyStuffPageTabOption.Notes,
+    tabType: MyStuffPageTabOption.Note,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Question,
-    tabType: MyStuffPageTabOption.Questions,
+    tabType: MyStuffPageTabOption.Question,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Organization,
-    tabType: MyStuffPageTabOption.Organizations,
+    tabType: MyStuffPageTabOption.Organization,
     where: (userId) => ({ memberUserIds: [userId] }),
 }, {
     searchType: SearchType.Standard,
-    tabType: MyStuffPageTabOption.Standards,
+    tabType: MyStuffPageTabOption.Standard,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.Api,
-    tabType: MyStuffPageTabOption.Apis,
+    tabType: MyStuffPageTabOption.Api,
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     searchType: SearchType.SmartContract,
-    tabType: MyStuffPageTabOption.SmartContracts,
+    tabType: MyStuffPageTabOption.SmartContract,
     where: () => ({ visibility: VisibilityType.Own }),
 }];
 
@@ -99,15 +99,15 @@ export const MyStuffView = ({
         // Always keeps routines, projects, and notes
         const filteredTabParams = tabParams.filter(tab => {
             switch (tab.tabType) {
-                case MyStuffPageTabOption.Apis:
+                case MyStuffPageTabOption.Api:
                     return Boolean(apisCount);
-                case MyStuffPageTabOption.Organizations:
+                case MyStuffPageTabOption.Organization:
                     return Boolean(membershipsCount);
-                case MyStuffPageTabOption.Questions:
+                case MyStuffPageTabOption.Question:
                     return Boolean(questionsAskedCount);
-                case MyStuffPageTabOption.SmartContracts:
+                case MyStuffPageTabOption.SmartContract:
                     return Boolean(smartContractsCount);
-                case MyStuffPageTabOption.Standards:
+                case MyStuffPageTabOption.Standard:
                     return Boolean(standardsCount);
             }
             return true;

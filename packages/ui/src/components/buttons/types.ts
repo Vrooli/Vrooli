@@ -64,6 +64,8 @@ export interface GridSubmitButtonsProps {
     disabledSubmit?: boolean;
     display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
+    /** Hides button text on mobile */
+    hideTextOnMobile?: boolean;
     isCreate: boolean;
     loading?: boolean;
     onCancel: () => unknown;
