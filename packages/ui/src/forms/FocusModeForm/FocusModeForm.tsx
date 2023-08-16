@@ -85,7 +85,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.FocusModes}
+                defaultTab={CalendarPageTabOption.FocusMode}
                 handleDelete={handleDeleteSchedule}
                 isCreate={editingSchedule === null}
                 isMutate={false}

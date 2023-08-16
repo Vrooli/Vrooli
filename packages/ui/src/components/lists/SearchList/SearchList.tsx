@@ -29,7 +29,6 @@ export function SearchList<DataType extends NavigableObject>({
     searchType,
     sxs,
     onItemClick,
-    onScrolledFar,
     where,
     zIndex,
 }: SearchListProps) {
@@ -67,10 +66,7 @@ export function SearchList<DataType extends NavigableObject>({
         if (!loading && scrolledY > windowHeight - 500) {
             loadMore();
         }
-        if (scrolledY > 100) {
-            if (onScrolledFar) onScrolledFar();
-        }
-    }, [loading, loadMore, onScrolledFar]);
+    }, [loading, loadMore]);
 
     // Set event listener for infinite scroll
     useEffect(() => {

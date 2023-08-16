@@ -7,7 +7,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
@@ -20,6 +20,7 @@ import { getObjectUrl } from "utils/navigation/openObject";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
+import { searchViewTabParams } from "../../../views/SearchView/SearchView";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
@@ -49,91 +50,33 @@ export type FindObjectTabOptions = "All" |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
 
 // Data for each tab. Ordered by tab index
-const tabParams = [{
-    Icon: VisibleIcon,
-    titleKey: "All" as CommonKey,
-    searchType: SearchType.Popular,
-    tabType: "All" as const,
-    where: {},
-}, {
-    Icon: RoutineIcon,
-    titleKey: "Routine" as CommonKey,
-    searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routine,
-    where: {},
-}, {
-    Icon: ProjectIcon,
-    titleKey: "Project" as CommonKey,
-    searchType: SearchType.Project,
-    tabType: SearchPageTabOption.Project,
-    where: {},
-}, {
-    Icon: HelpIcon,
-    titleKey: "Question" as CommonKey,
-    searchType: SearchType.Question,
-    tabType: SearchPageTabOption.Question,
-    where: {},
-}, {
-    Icon: NoteIcon,
-    titleKey: "Note" as CommonKey,
-    searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Note,
-    where: {},
-}, {
-    Icon: OrganizationIcon,
-    titleKey: "Organization" as CommonKey,
-    searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organization,
-    where: {},
-}, {
-    Icon: UserIcon,
-    titleKey: "User" as CommonKey,
-    searchType: SearchType.User,
-    tabType: SearchPageTabOption.User,
-    where: {},
-}, {
-    Icon: StandardIcon,
-    titleKey: "Standard" as CommonKey,
-    searchType: SearchType.Standard,
-    tabType: SearchPageTabOption.Standard,
-    where: {},
-}, {
-    Icon: ApiIcon,
-    titleKey: "Api" as CommonKey,
-    searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Api,
-    where: {},
-}, {
-    Icon: SmartContractIcon,
-    titleKey: "SmartContract" as CommonKey,
-    searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContract,
-    where: {},
-}, {
-    Icon: FocusModeIcon,
-    titleKey: "FocusMode" as CommonKey,
-    searchType: SearchType.FocusMode,
-    tabType: CalendarPageTabOption.FocusMode,
-    where: {},
-}, {
-    Icon: OrganizationIcon,
-    titleKey: "Meeting" as CommonKey,
-    searchType: SearchType.Meeting,
-    tabType: CalendarPageTabOption.Meeting,
-    where: {},
-}, {
-    Icon: RoutineIcon,
-    titleKey: "RunRoutine" as CommonKey,
-    searchType: SearchType.RunRoutine,
-    tabType: CalendarPageTabOption.RunRoutine,
-    where: {},
-}, {
-    Icon: ProjectIcon,
-    titleKey: "RunProject" as CommonKey,
-    searchType: SearchType.RunProject,
-    tabType: CalendarPageTabOption.RunProject,
-    where: {},
-}];
+const tabParams = [
+    ...searchViewTabParams,
+    {
+        Icon: FocusModeIcon,
+        titleKey: "FocusMode" as CommonKey,
+        searchType: SearchType.FocusMode,
+        tabType: CalendarPageTabOption.FocusMode,
+        where: () => ({}),
+    }, {
+        Icon: OrganizationIcon,
+        titleKey: "Meeting" as CommonKey,
+        searchType: SearchType.Meeting,
+        tabType: CalendarPageTabOption.Meeting,
+        where: () => ({}),
+    }, {
+        Icon: RoutineIcon,
+        titleKey: "RunRoutine" as CommonKey,
+        searchType: SearchType.RunRoutine,
+        tabType: CalendarPageTabOption.RunRoutine,
+        where: () => ({}),
+    }, {
+        Icon: ProjectIcon,
+        titleKey: "RunProject" as CommonKey,
+        searchType: SearchType.RunProject,
+        tabType: CalendarPageTabOption.RunProject,
+        where: () => ({}),
+    }];
 
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
@@ -181,7 +124,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         if (onlyVersioned) filtered = filtered.filter(tab => `${tab.tabType}Version` in SearchType);
         return filtered;
     }, [limitTo, onlyVersioned]);
-    const { currTab, handleTabChange, searchType, tabs } = useTabs<FindObjectTabOptions>(filteredTabs, 0);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+    } = useTabs<FindObjectTabOptions>({ tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
@@ -241,18 +189,13 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [isOpen]);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
-        e.preventDefault();
         // If tab is 'All', open menu to select type
-        if (searchType === SearchType.Popular || !currTab) setSelectCreateTypeAnchorEl(e.currentTarget);
+        if (searchType === SearchType.Popular) setSelectCreateTypeAnchorEl(e.currentTarget);
         // Otherwise, open create dialog for current tab
-        setCreateObjectType(tabParams.find(tab => tab.tabType === currTab!.value)?.searchType as any);
+        else setCreateObjectType(currTab.searchType.replace("Version", "") as CreateViewTypes ?? null);
     }, [currTab, searchType]);
     const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
-        if (type) {
-            setCreateObjectType(type as any); // Open the Create Object dialog
-            // Wait for the Create Object dialog to open fully (which is loaded asynchronously) 
-            // before closing the Popover. Otherwise, it can get stuck open.
-        }
+        if (type) setCreateObjectType(type.replace("Version", "") as CreateViewTypes);
         else setSelectCreateTypeAnchorEl(null);
     }, []);
 
@@ -337,6 +280,11 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
+    const focusSearch = useCallback(() => {
+        const searchInput = document.getElementById("search-bar-find-object-search-list");
+        searchInput?.focus();
+    }, []);
+
     return (
         <>
             {/* Dialog for creating new object type */}
@@ -350,13 +298,13 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
-                id="select-create-type-mnu"
+                id="select-create-type-menu"
                 anchorEl={selectCreateTypeAnchorEl}
                 disableScrollLock={true}
                 open={Boolean(selectCreateTypeAnchorEl)}
                 onClose={() => onSelectCreateTypeClose()}
             >
-                {/* Never show 'All'=' */}
+                {/* Never show 'All' */}
                 {tabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
                     <MenuItem
                         key={tab.searchType}
@@ -397,13 +345,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     margin: { xs: 0, sm: 2 },
                     paddingTop: 4,
                 }}>
-                    {/* Create object button. Convenient for when you can't find 
-                what you're looking for */}
-                    <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
-                        <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
-                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </ColorIconButton>
-                    </SideActionButtons>
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
@@ -431,7 +372,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         }}
                         searchType={searchType}
                         zIndex={zIndex}
-                        where={where ?? {}}
+                        where={where()}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (
@@ -461,6 +402,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         </Stack>
                     )}
                 </Box>
+                <SideActionButtons display="dialog" zIndex={zIndex + 1001}>
+                    <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                    <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                </SideActionButtons>
             </LargeDialog>
         </>
     );

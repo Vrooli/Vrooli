@@ -9,7 +9,6 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
-import { PageTab } from "components/types";
 import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +22,7 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFetch } from "utils/hooks/useFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
+import { PageTab } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -49,10 +49,10 @@ export const DashboardView = ({
     const tabs = useMemo<PageTab<FocusMode>[]>(() => allFocusModes.map((mode, index) => ({
         index,
         label: mode.name,
-        value: mode,
+        tabType: mode,
     })), [allFocusModes]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id);
+        const match = tabs.find(tab => tab.tabType.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
@@ -61,7 +61,7 @@ export const DashboardView = ({
         e.preventDefault();
         PubSub.get().publishFocusMode({
             __typename: "ActiveFocusMode" as const,
-            mode: tab.value,
+            mode: tab.tabType,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
@@ -329,7 +329,7 @@ export const DashboardView = ({
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Notes}`); },
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Note}`); },
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),

@@ -43,10 +43,11 @@ export const ScheduleUpsert = ({
         currTab,
         handleTabChange,
         tabs,
-    } = useTabs<CalendarPageTabOption>(
+    } = useTabs<CalendarPageTabOption>({
         tabParams,
-        defaultTab ? (tabParams.findIndex(tp => tp.tabType === defaultTab) ?? 0) : 0,
-    );
+        defaultTab: defaultTab ? (tabParams.findIndex(tp => tp.tabType === defaultTab) ?? 0) : 0,
+        display,
+    });
 
     const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
@@ -59,10 +60,10 @@ export const ScheduleUpsert = ({
             // because Formik will treat them as uncontrolled inputs and throw errors. 
             // Instead, we pretend that false is null and an empty string is undefined.
             ...(isCreate && canSetScheduleFor ? {
-                focusMode: currTab.value === "FocusMode" ? false : "",
-                meeting: currTab.value === "Meeting" ? false : "",
-                runProject: currTab.value === "RunProject" ? false : "",
-                runRoutine: currTab.value === "RunRoutine" ? false : "",
+                focusMode: currTab.tabType === "FocusMode" ? false : "",
+                meeting: currTab.tabType === "Meeting" ? false : "",
+                runProject: currTab.tabType === "RunProject" ? false : "",
+                runRoutine: currTab.tabType === "RunRoutine" ? false : "",
             } : {}),
         } as Schedule),
     });
@@ -94,7 +95,7 @@ export const ScheduleUpsert = ({
             <TopBar
                 display={display}
                 onClose={handleCancel}
-                title={t(`${isCreate ? "Create" : "Update"}${currTab.value.substring(0, currTab.value.length - 1)}` as any)}
+                title={t(`${isCreate ? "Create" : "Update"}${currTab.tabType}` as any)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
                     ariaLabel="schedule-link-tabs"

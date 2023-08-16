@@ -128,7 +128,7 @@ export const ReminderList = ({
                 options={[{
                     Icon: OpenInNewIcon,
                     label: t("SeeAll"),
-                    onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminders}`); },
+                    onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
                 }, {
                     Icon: AddIcon,
                     label: t("Create"),

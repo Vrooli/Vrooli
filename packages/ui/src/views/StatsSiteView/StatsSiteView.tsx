@@ -6,7 +6,6 @@ import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toDisplay } from "utils/display/pageTools";
@@ -14,6 +13,7 @@ import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
+import { PageTab } from "utils/hooks/useTabs";
 import { StatsSiteViewProps } from "../types";
 
 /**
@@ -92,14 +92,14 @@ export const StatsSiteView = ({
         return tabs.map((tab, i) => ({
             index: i,
             label: t(tab, { count: 2 }),
-            value: tab,
+            tabType: tab,
         }));
     }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<typeof TabOptions[number]>>(tabs[0]);
     const handleTabChange = useCallback((e: any, tab: PageTab<typeof TabOptions[number]>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.
-        const period = tabPeriods[tab.value];
+        const period = tabPeriods[tab.tabType];
         const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
         const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
         setPeriod({ after: newAfter, before: newBefore });
@@ -109,7 +109,7 @@ export const StatsSiteView = ({
     const [getStats, { data: statsData, loading, errors }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointGetStatsSite,
         inputs: {
-            periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
+            periodType: tabPeriodTypes[currTab.tabType] as StatPeriodType,
             periodTimeFrame: {
                 after: period.after.toISOString(),
                 before: period.before.toISOString(),
@@ -181,7 +181,7 @@ export const StatsSiteView = ({
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
                 range={period}
-                strictIntervalRange={tabPeriods[currTab.value]}
+                strictIntervalRange={tabPeriods[currTab.tabType]}
                 zIndex={zIndex}
             />
             {/* Date range diplay */}

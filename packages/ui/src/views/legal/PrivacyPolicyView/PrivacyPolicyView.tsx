@@ -3,12 +3,12 @@ import { Box } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
 import { useMarkdown } from "utils/hooks/useMarkdown";
+import { PageTab } from "utils/hooks/useTabs";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
@@ -54,12 +54,12 @@ export const PrivacyPolicyView = ({
     const tabs = useMemo<PageTab<TabOptions>[]>(() => Object.keys(TabOptions).map((option, index) => ({
         index,
         label: t(option as TabOptions),
-        value: option as TabOptions,
+        tabType: option as TabOptions,
     })), [t]);
     const currTab = useMemo(() => tabs[0], [tabs]);
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
-        setLocation(LINKS[tab.value], { replace: true });
+        setLocation(LINKS[tab.tabType], { replace: true });
     }, [setLocation]);
 
     return <>

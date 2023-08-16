@@ -78,7 +78,7 @@ export const RunRoutineForm = forwardRef<BaseFormRef | undefined, RunRoutineForm
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunRoutines}
+                defaultTab={CalendarPageTabOption.RunRoutine}
                 handleDelete={handleDeleteSchedule}
                 isCreate={editingSchedule === null}
                 isMutate={false}

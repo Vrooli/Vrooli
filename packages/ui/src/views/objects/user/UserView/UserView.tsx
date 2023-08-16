@@ -1,4 +1,4 @@
-import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, VisibilityType } from "@local/shared";
 import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -8,13 +8,11 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
-import { PageTab } from "components/types";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, SearchIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,47 +23,40 @@ import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
+import { defaultYou, getYou, placeholderColor } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useTabs } from "utils/hooks/useTabs";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { SearchType } from "utils/search/objectToSearch";
+import { SearchType, UserPageTabOption } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
-enum TabOptions {
-    Details = "Details",
-    Project = "Project",
-    Organization = "Organization",
+type TabWhereParams = {
+    userId: string;
+    permissions: YouInflated;
 }
 
-type TabParams = {
-    searchType: SearchType;
-    tabType: Omit<TabOptions, TabOptions.Details>;
-    where: { [x: string]: any };
-} | {
-    tabType: TabOptions.Details;
-}
-
-// Data for each tab
-const tabParams: TabParams[] = [
-    // Only available for bots
-    {
-        tabType: TabOptions.Details,
-    }, {
-        searchType: SearchType.Project,
-        tabType: TabOptions.Project,
-        where: {},
-    }, {
-        searchType: SearchType.Organization,
-        tabType: TabOptions.Organization,
-        where: {},
-    },
-];
+const tabParams = [{
+    titleKey: "Details" as CommonKey,
+    searchType: SearchType.User, // Ignored
+    tabType: UserPageTabOption.Details,
+    where: () => ({}),
+}, {
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Project,
+    tabType: UserPageTabOption.Project,
+    where: ({ userId, permissions }: TabWhereParams) => ({ ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+}, {
+    titleKey: "Organization" as CommonKey,
+    searchType: SearchType.Organization,
+    tabType: UserPageTabOption.Organization,
+    where: ({ userId }: TabWhereParams) => ({ memberUserIds: [user.id], visibility: VisibilityType.All }),
+}];
 
 export const UserView = ({
     isOpen,
@@ -132,31 +123,13 @@ export const UserView = ({
         };
     }, [language, user]);
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        // Remove details tab if not a bot
-        const tabs = user?.isBot ? tabParams : tabParams.filter(t => t.tabType !== TabOptions.Details);
-        // Return tabs shaped for the tab component
-        return tabs.map((tab, i) => ({
-            color: palette.secondary.dark,
-            index: i,
-            label: t(tab.tabType as CommonKey, { count: 2, defaultValue: tab.tabType }),
-            value: tab.tabType,
-        })) as PageTab<TabOptions>[];
-    }, [palette.secondary.dark, t, user?.isBot]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
-    useEffect(() => {
-        setCurrTab(tabs[0]);
-    }, [tabs]);
-
-    // Create search data
-    const searchData = useMemo<SearchListGenerator | null>(() => {
-        if (!user || !user.id || !uuidValidate(user.id) || currTab.value === TabOptions.Details) return null;
-        if (currTab.value === TabOptions.Organization)
-            return toSearchListData("Organization", "SearchOrganization", { memberUserIds: [user.id], visibility: VisibilityType.All });
-        return toSearchListData("Project", "SearchProject", { ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-    }, [user, currTab.value, permissions.canUpdate]);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<UserPageTabOption>({ tabParams, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -178,8 +151,8 @@ export const UserView = ({
 
     /** Opens add new page */
     const toAddNew = useCallback(() => {
-        setLocation(`${LINKS[currTab.value]}/add`);
-    }, [currTab.value, setLocation]);
+        setLocation(`${LINKS[currTab.tabType]}/add`);
+    }, [currTab.tabType, setLocation]);
 
     /** Opens dialog to add or invite user to an organization/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
@@ -347,7 +320,7 @@ export const UserView = ({
                         borderBottom: `1px solid ${palette.divider}`,
                     }}
                 />
-                {currTab.value === TabOptions.Details && (
+                {currTab.tabType === UserPageTabOption.Details && (
                     <FormSection sx={{
                         overflowX: "hidden",
                         marginTop: 0,
@@ -465,7 +438,7 @@ export const UserView = ({
                         </Stack>
                     </FormSection>
                 )}
-                {searchData !== null && currTab.value !== TabOptions.Details && <Box>
+                {searchData !== null && currTab.tabType !== UserPageTabOption.Details && <Box>
                     <SearchList
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
@@ -493,7 +466,7 @@ export const UserView = ({
                 sx={{ position: "fixed" }}
             >
                 {/* Toggle search filters */}
-                {currTab.value !== TabOptions.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                {currTab.tabType !== UserPageTabOption.Details ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </ColorIconButton> : null}
                 {/* Add/invite to meeting/chat button */}

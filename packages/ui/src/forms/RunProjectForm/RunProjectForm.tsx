@@ -78,7 +78,7 @@ export const RunProjectForm = forwardRef<BaseFormRef | undefined, RunProjectForm
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunProjects}
+                defaultTab={CalendarPageTabOption.RunProject}
                 handleDelete={handleDeleteSchedule}
                 isCreate={editingSchedule === null}
                 isMutate={false}

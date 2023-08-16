@@ -30,27 +30,27 @@ export const calendarTabParams = [{
     titleKey: "All" as CommonKey,
     searchType: SearchType.Schedule,
     tabType: CalendarPageTabOption.All,
-    where: {},
+    where: () => ({}),
 }, {
     titleKey: "Meeting" as CommonKey,
     searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.Meetings,
-    where: { scheduleFor: ScheduleFor.Meeting },
+    tabType: CalendarPageTabOption.Meeting,
+    where: () => ({ scheduleFor: ScheduleFor.Meeting }),
 }, {
     titleKey: "Routine" as CommonKey,
     searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.RunRoutines,
-    where: { scheduleFor: ScheduleFor.RunRoutine },
+    tabType: CalendarPageTabOption.RunRoutine,
+    where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
 }, {
     titleKey: "Project" as CommonKey,
     searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.RunProjects,
-    where: { scheduleFor: ScheduleFor.RunProject },
+    tabType: CalendarPageTabOption.RunProject,
+    where: () => ({ scheduleFor: ScheduleFor.RunProject }),
 }, {
     titleKey: "FocusMode" as CommonKey,
     searchType: SearchType.Schedule,
-    tabType: CalendarPageTabOption.FocusModes,
-    where: { scheduleFor: ScheduleFor.FocusMode },
+    tabType: CalendarPageTabOption.FocusMode,
+    where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
 }];
 
 const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
@@ -205,7 +205,13 @@ export const CalendarView = ({
         }
     }, []);
 
-    const { currTab, handleTabChange, searchType, tabs, where } = useTabs<CalendarPageTabOption>(calendarTabParams, 0);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<CalendarPageTabOption>({ tabParams: calendarTabParams, display });
 
     // Find schedules
     const {
@@ -226,7 +232,7 @@ export const CalendarView = ({
                 before: dateRange.end.toISOString(),
             } : undefined,
             scheduleForUserId: getCurrentUser(session)?.id,
-            ...where,
+            ...where(),
         },
     });
     // Load more schedules when date range changes
@@ -290,7 +296,7 @@ export const CalendarView = ({
         <>
             {/* Dialog for creating/updating schedules */}
             <ScheduleUpsert
-                defaultTab={currTab.value === "All" ? CalendarPageTabOption.Meetings : currTab.value}
+                defaultTab={currTab.tabType === "All" ? CalendarPageTabOption.Meeting : currTab.tabType}
                 handleDelete={handleDeleteSchedule}
                 isCreate={editingSchedule === null}
                 isMutate={true}

@@ -1,6 +1,7 @@
 import { ChatMessage, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
-import { SvgComponent, SxType } from "types";
+import { SxType } from "types";
+import { PageTab } from "utils/hooks/useTabs";
 
 export interface ChatBubbleProps {
     message: ChatMessage & { isUnsent?: boolean }
@@ -32,16 +33,6 @@ export interface DiagonalWaveLoaderProps {
     color?: string;
     sx?: SxType;
 }
-
-export type PageTab<T> = {
-    color?: string,
-    href?: string,
-    /** If set, icon is displayed and label becomes a toolip */
-    Icon?: SvgComponent;
-    index: number,
-    label: string,
-    value: T
-};
 
 export interface PageTabsProps<T> {
     ariaLabel: string,

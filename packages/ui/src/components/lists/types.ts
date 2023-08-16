@@ -188,7 +188,6 @@ export interface SearchListProps {
         listContainer?: SxType;
     }
     onItemClick?: (item: any) => unknown;
-    onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
     /** Additional where clause to pass to the query */
     where?: { [key: string]: object };
     zIndex: number;

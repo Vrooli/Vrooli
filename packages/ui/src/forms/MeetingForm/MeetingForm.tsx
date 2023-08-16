@@ -86,7 +86,7 @@ export const MeetingForm = forwardRef<BaseFormRef | undefined, MeetingFormProps>
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.Meetings}
+                defaultTab={CalendarPageTabOption.Meeting}
                 handleDelete={handleDeleteSchedule}
                 isCreate={editingSchedule === null}
                 isMutate={false}

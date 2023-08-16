@@ -11,22 +11,22 @@ const tabParams = [{
     titleKey: "View" as CommonKey,
     searchType: SearchType.View,
     tabType: HistoryPageTabOption.Viewed,
-    where: {},
+    where: () => ({}),
 }, {
     titleKey: "Bookmark" as CommonKey,
     searchType: SearchType.BookmarkList,
     tabType: HistoryPageTabOption.Bookmarked,
-    where: {},
+    where: () => ({}),
 }, {
     titleKey: "Active" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
-    where: { statuses: [RunStatus.InProgress, RunStatus.Scheduled] },
+    where: () => ({ statuses: [RunStatus.InProgress, RunStatus.Scheduled] }),
 }, {
     titleKey: "Complete" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
-    where: { statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] },
+    where: () => ({ statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] }),
 }];
 
 /**
@@ -38,7 +38,14 @@ export const HistoryView = ({
     zIndex,
 }: HistoryViewProps) => {
     const display = toDisplay(isOpen);
-    const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        title,
+        where,
+    } = useTabs<HistoryPageTabOption>({ tabParams, display });
 
     return (
         <>
@@ -67,7 +74,7 @@ export const HistoryView = ({
                         marginTop: 2,
                     },
                 }}
-                where={where}
+                where={where()}
             />}
         </>
     );

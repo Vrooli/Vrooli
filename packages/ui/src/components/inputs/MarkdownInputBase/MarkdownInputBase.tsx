@@ -592,6 +592,7 @@ export const MarkdownInputBase = ({
             // On enter key press
             if (e.key === "Enter") {
                 const { selectionStart, selectionEnd, value } = e.target;
+                console.log("key was enter");
                 let [trimmedLine] = getLineAtIndex(value, selectionStart);
                 trimmedLine = trimmedLine.trimStart();
                 const isNumberList = /^\d+\.\s/.test(trimmedLine);
@@ -614,9 +615,11 @@ export const MarkdownInputBase = ({
                         textToInsert += "* ";
                     }
                     textArea.value = replaceText(value, textToInsert, selectionStart, selectionEnd);
+                    console.log("enter key new value", textArea.value);
                     handleChange(textArea.value);
                 }
             }
+            console.log("made it to the end");
         };
         // Handle key press events for preview
         const handleFullComponentKeyDown = (e: any) => {

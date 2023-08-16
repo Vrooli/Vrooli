@@ -27,12 +27,12 @@ const tabParams = [{
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Message,
-    where: {},
+    where: () => ({}),
 }, {
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
     tabType: InboxPageTabOption.Notification,
-    where: {},
+    where: () => ({}),
 }];
 
 type InboxType = "Chat" | "Notification";
@@ -48,7 +48,14 @@ export const InboxView = ({
     const { palette } = useTheme();
     const display = toDisplay(isOpen);
 
-    const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<InboxPageTabOption>(tabParams, 0);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        title,
+        where,
+    } = useTabs<InboxPageTabOption>({ tabParams, display });
 
     const {
         allData,
@@ -59,7 +66,6 @@ export const InboxView = ({
         searchType,
         where,
     });
-    console.log("usetabs data", allData, currTab, searchType, where);
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
@@ -120,11 +126,11 @@ export const InboxView = ({
     }, [closeCreateChat]);
 
     const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
-        if (currTab.value === InboxPageTabOption.Notifications) {
+        if (currTab.tabType === InboxPageTabOption.Notification) {
             return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
         }
         return [openCreateChat, AddIcon, "CreateChat"] as const;
-    }, [currTab.value, onMarkAllAsRead, openCreateChat]);
+    }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof (ChatListItemActions | NotificationListItemActions), id: string) => {
         switch (action) {

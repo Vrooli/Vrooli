@@ -23,7 +23,7 @@ export const FindSubroutineDialog = ({
     const where = useMemo(() => {
         // If no routineVersionId, then we are creating a new routine
         if (!routineVersionId || !uuidValidate(routineVersionId)) return { visibility: VisibilityType.All };
-        return {
+        return () => ({
             // Ignore current routine
             excludeIds: [routineVersionId],
             // Don't include incomplete/internal routines, unless they're your own
@@ -40,14 +40,14 @@ export const FindSubroutineDialog = ({
                 isInternalWithRoot: false,
             } : {}),
             visibility: VisibilityType.All,
-        };
+        });
     }, [ownerField, routineVersionId]);
 
     return <FindObjectDialog
         {...params}
         find="Full"
         handleComplete={onComplete}
-        limitTo={["Routines"]}
+        limitTo={["Routine"]}
         onlyVersioned
         where={where}
     />;

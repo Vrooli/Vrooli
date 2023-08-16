@@ -1,4 +1,4 @@
-import { BookmarkFor, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
+import { BookmarkFor, CommonKey, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
@@ -9,54 +9,48 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { ResourceListVertical } from "components/lists/resource";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { SearchListGenerator } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
-import { PageTab } from "components/types";
 import { EditIcon, EllipsisIcon, OrganizationIcon, SearchIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
-import { placeholderColor, toSearchListData } from "utils/display/listTools";
+import { placeholderColor, YouInflated } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useTabs } from "utils/hooks/useTabs";
 import { PubSub } from "utils/pubsub";
-import { SearchType } from "utils/search/objectToSearch";
+import { OrganizationPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { OrganizationViewProps } from "../types";
 
-enum TabOptions {
-    Resource = "Resource",
-    Project = "Project",
-    Member = "Member",
+type TabWhereParams = {
+    organizationId: string;
+    permissions: YouInflated;
 }
 
-type TabParams = {
-    searchType: SearchType;
-    tabType: TabOptions;
-    where: { [x: string]: any };
-}
-
-// Data for each tab
-const tabParams: TabParams[] = [{
+const tabParams = [{
+    titleKey: "Resource" as CommonKey,
     searchType: SearchType.Resource,
-    tabType: TabOptions.Resource,
-    where: {},
+    tabType: OrganizationPageTabOption.Resource,
+    where: () => ({}),
 }, {
+    titleKey: "Project" as CommonKey,
     searchType: SearchType.Project,
-    tabType: TabOptions.Project,
-    where: {},
+    tabType: OrganizationPageTabOption.Project,
+    where: ({ organizationId, permissions }: TabWhereParams) => ({ ownedByOrganizationId: organizationId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
 }, {
+    titleKey: "Member" as CommonKey,
     searchType: SearchType.Member,
-    tabType: TabOptions.Member,
-    where: {},
+    tabType: OrganizationPageTabOption.Member,
+    where: ({ organizationId }: TabWhereParams) => ({ organizationId }),
 }];
 
 export const OrganizationView = ({
@@ -113,29 +107,13 @@ export const OrganizationView = ({
         />
     ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization, zIndex]);
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs = tabParams;
-        // Remove resources if there are none, and you cannot add them
-        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
-        // Return tabs shaped for the tab component
-        return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? "#8e6b00" : palette.secondary.dark, // Custom color for resources
-            index: i,
-            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
-            value: tab.tabType,
-        }));
-    }, [palette.secondary.dark, permissions.canUpdate, resources, t]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
-
-    // Create search data
-    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        // NOTE: The first tab doesn't have search results, as it is the user's set resources
-        if (currTab.value === TabOptions.Member)
-            return toSearchListData("Member", "SearchMember", { organizationId: organization?.id });
-        return toSearchListData("Project", "SearchProject", { ownedByOrganizationId: organization?.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-    }, [currTab, organization?.id, permissions.canUpdate]);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<OrganizationPageTabOption>({ tabParams, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -160,8 +138,8 @@ export const OrganizationView = ({
      */
     const toAddNew = useCallback((event: any) => {
         // TODO need member page
-        if (currTab.value === TabOptions.Member) return;
-        setLocation(`${LINKS[currTab.value]}/add`);
+        if (currTab.tabType === OrganizationPageTabOption.Member) return;
+        setLocation(`${LINKS[currTab.tabType]}/add`);
     }, [currTab, setLocation]);
 
     return (
@@ -311,7 +289,7 @@ export const OrganizationView = ({
                 />
                 <Box>
                     {
-                        currTab.value === TabOptions.Resource ? resources : (
+                        currTab.tabType === OrganizationPageTabOption.Resource ? resources : (
                             <SearchList
                                 canSearch={() => uuidValidate(organization?.id)}
                                 dummyLength={display === "page" ? 5 : 3}
@@ -329,7 +307,7 @@ export const OrganizationView = ({
                                     listContainer: { borderRadius: 0 },
                                 }}
                                 take={20}
-                                where={where}
+                                where={where({ organizationId: organization?.id ?? "", permissions })}
                                 zIndex={zIndex}
                             />
                         )
@@ -342,7 +320,7 @@ export const OrganizationView = ({
                 sx={{ position: "fixed" }}
             >
                 {/* Toggle search filters */}
-                {currTab.value !== TabOptions.Resource ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
+                {currTab.tabType !== OrganizationPageTabOption.Resource ? <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={toggleSearchFilters} >
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </ColorIconButton> : null}
             </SideActionButtons>

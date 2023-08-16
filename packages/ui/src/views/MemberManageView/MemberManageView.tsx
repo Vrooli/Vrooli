@@ -1,20 +1,31 @@
 import { CommonKey, MemberInviteStatus } from "@local/shared";
-import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useField } from "formik";
-import { AddIcon, LockIcon, UnlockIcon } from "icons";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { AddIcon, LockIcon, SearchIcon, UnlockIcon } from "icons";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { centeredDiv } from "styles";
 import { toDisplay } from "utils/display/pageTools";
 import { useTabs } from "utils/hooks/useTabs";
 import { MemberManagePageTabOption, SearchType } from "utils/search/objectToSearch";
-import { SessionContext } from "utils/SessionContext";
 import { MemberManageViewProps } from "../types";
+
+const tabParams = [{
+    titleKey: "Member" as CommonKey,
+    searchType: SearchType.Member,
+    tabType: MemberManagePageTabOption.Member,
+    where: (organizationId: string) => ({ organizationId }),
+}, {
+    titleKey: "Invite" as CommonKey,
+    searchType: SearchType.MemberInvite,
+    tabType: MemberManagePageTabOption.MemberInvite,
+    where: (organizationId: string) => ({ organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
+}];
 
 /**
  * View members and invited members of an organization
@@ -25,30 +36,9 @@ export const MemberManageView = ({
     isOpen,
     zIndex,
 }: MemberManageViewProps) => {
-    const session = useContext(SessionContext);
-    const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = toDisplay(isOpen);
-
-    // Popup button, which opens either an add or invite dialog
-    const [popupButton, setPopupButton] = useState<boolean>(false);
-
-    const [shareDialogOpen, setShareDialogOpen] = useState(false);
-    const closeShareDialog = useCallback(() => setShareDialogOpen(false), []);
-
-    // Data for each tab
-    const tabParams = useMemo(() => ([{
-        titleKey: "Member" as CommonKey,
-        searchType: SearchType.Member,
-        tabType: MemberManagePageTabOption.Members,
-        where: { organizationId },
-    }, {
-        titleKey: "Invite" as CommonKey,
-        searchType: SearchType.MemberInvite,
-        tabType: MemberManagePageTabOption.MemberInvites,
-        where: { organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] },
-    }] as const), [organizationId]);
 
     const {
         currTab,
@@ -56,39 +46,19 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>(tabParams, 0);
+    } = useTabs<MemberManagePageTabOption>({ tabParams, display });
 
     const [isOpenToNewMembersField, , isOpenToNewMembersHelpers] = useField("isOpenToNewMembers");
 
     const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
-    const onInviteClick = useCallback(() => {
+    const onCreateStart = useCallback(() => {
         setInviteDialogOpen(true);
-    }, [setInviteDialogOpen]);
+    }, []);
 
-    const handleScrolledFar = useCallback(() => { setPopupButton(true); }, []);
-    const popupButtonContainer = useMemo(() => (
-        <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            <Tooltip title={"Invite a user to join your organization"}>
-                <Button
-                    onClick={onInviteClick}
-                    size="large"
-                    variant="contained"
-                    sx={{
-                        zIndex: 100,
-                        minWidth: "min(100%, 200px)",
-                        height: "48px",
-                        borderRadius: 3,
-                        position: "fixed",
-                        bottom: "calc(5em + env(safe-area-inset-bottom))",
-                        transform: popupButton ? "translateY(0)" : "translateY(calc(10em + env(safe-area-inset-bottom)))",
-                        transition: "transform 1s ease-in-out",
-                    }}
-                >
-                    {t("Invite")}
-                </Button>
-            </Tooltip>
-        </Box>
-    ), [onInviteClick, popupButton, t]);
+    const focusSearch = useCallback(() => {
+        const searchInput = document.getElementById("search-bar-member-manage-list");
+        searchInput?.focus();
+    }, []);
 
     return (
         <MaybeLargeDialog
@@ -111,7 +81,7 @@ export const MemberManageView = ({
                     onCompleted={handleCreated}
                     onCancel={handleCreateClose}
                     zIndex={zIndex + 2}
-                />*/}
+                /> */}
             {/* Main dialog */}
             <TopBar
                 display={display}
@@ -151,15 +121,26 @@ export const MemberManageView = ({
                 </Tooltip>
             </Stack >
             {searchType && <SearchList
-                id="main-search-page-list"
+                id="member-manage-list"
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}
-                onScrolledFar={handleScrolledFar}
                 zIndex={zIndex}
-                where={where}
+                where={where(organizationId)}
+                sxs={{ search: { marginTop: 2 } }}
             />}
-            {popupButtonContainer}
+            <SideActionButtons
+                display={display}
+                zIndex={zIndex + 2}
+                sx={{ position: "fixed" }}
+            >
+                <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
+                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
+                <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onCreateStart} >
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
+            </SideActionButtons>
         </MaybeLargeDialog>
     );
 };

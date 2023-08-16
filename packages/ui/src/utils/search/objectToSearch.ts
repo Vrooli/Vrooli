@@ -162,7 +162,14 @@ export enum MyStuffPageTabOption {
     User = "User",
 }
 
+export enum OrganizationPageTabOption {
+    Resource = "Resource",
+    Project = "Project",
+    Member = "Member",
+}
+
 export enum SearchPageTabOption {
+    All = "All",
     Api = "Api",
     Note = "Note",
     Organization = "Organization",
@@ -172,6 +179,12 @@ export enum SearchPageTabOption {
     SmartContract = "SmartContract",
     Standard = "Standard",
     User = "User",
+}
+
+export enum UserPageTabOption {
+    Details = "Details",
+    Project = "Project",
+    Organization = "Organization",
 }
 
 export enum CalendarPageTabOption {
