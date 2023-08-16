@@ -23,7 +23,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getYou, placeholderColor } from "utils/display/listTools";
+import { defaultYou, getYou, placeholderColor, YouInflated } from "utils/display/listTools";
 import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -41,21 +41,27 @@ type TabWhereParams = {
     permissions: YouInflated;
 }
 
+const tabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
 const tabParams = [{
+    color: tabColor,
     titleKey: "Details" as CommonKey,
     searchType: SearchType.User, // Ignored
     tabType: UserPageTabOption.Details,
     where: () => ({}),
 }, {
+    color: tabColor,
     titleKey: "Project" as CommonKey,
+    searchPlaceholderKey: "SearchProject" as CommonKey,
     searchType: SearchType.Project,
     tabType: UserPageTabOption.Project,
-    where: ({ userId, permissions }: TabWhereParams) => ({ ownedByUserId: user.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+    where: ({ userId, permissions }: TabWhereParams) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
 }, {
+    color: tabColor,
     titleKey: "Organization" as CommonKey,
+    searchPlaceholderKey: "SearchOrganization" as CommonKey,
     searchType: SearchType.Organization,
     tabType: UserPageTabOption.Organization,
-    where: ({ userId }: TabWhereParams) => ({ memberUserIds: [user.id], visibility: VisibilityType.All }),
+    where: ({ userId }: TabWhereParams) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
 }];
 
 export const UserView = ({
@@ -123,16 +129,28 @@ export const UserView = ({
         };
     }, [language, user]);
 
+    const availableTabs = useMemo(() => {
+        // Details tab is only for bots
+        if (user?.isBot) return tabParams;
+        return tabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
+    }, [user]);
     const {
         currTab,
         handleTabChange,
+        searchPlaceholderKey,
         searchType,
         tabs,
         where,
-    } = useTabs<UserPageTabOption>({ tabParams, display });
+    } = useTabs<UserPageTabOption>({ tabParams: availableTabs, display });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+    // If showing search filter, focus the search input
+    useEffect(() => {
+        if (!showSearchFilters) return;
+        const searchInput = document.getElementById("search-bar-user-view-list");
+        searchInput?.focus();
+    }, [showSearchFilters]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -438,14 +456,14 @@ export const UserView = ({
                         </Stack>
                     </FormSection>
                 )}
-                {searchData !== null && currTab.tabType !== UserPageTabOption.Details && <Box>
+                {currTab.tabType !== UserPageTabOption.Details && <Box>
                     <SearchList
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
-                        searchType={searchData.searchType}
-                        searchPlaceholder={searchData.placeholder}
+                        searchType={searchType}
+                        searchPlaceholder={searchPlaceholderKey}
                         sxs={showSearchFilters ? {
                             search: { marginTop: 2 },
                             listContainer: { borderRadius: 0 },
@@ -455,7 +473,7 @@ export const UserView = ({
                             listContainer: { borderRadius: 0 },
                         }}
                         take={20}
-                        where={searchData.where}
+                        where={where({ userId: user?.id ?? "", permissions })}
                         zIndex={zIndex}
                     />
                 </Box>}

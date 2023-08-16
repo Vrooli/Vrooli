@@ -53,7 +53,6 @@ export const InboxView = ({
         handleTabChange,
         searchType,
         tabs,
-        title,
         where,
     } = useTabs<InboxPageTabOption>({ tabParams, display });
 
@@ -185,7 +184,7 @@ export const InboxView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={title}
+                title={currTab.label}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
                     currTab={currTab}

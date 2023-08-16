@@ -3921,8 +3921,8 @@ export type PopularResult = {
 };
 
 export enum PopularSortBy {
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   ViewsAsc = 'ViewsAsc',
   ViewsDesc = 'ViewsDesc'
 }

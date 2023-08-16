@@ -56,19 +56,6 @@ export const ProjectView = ({
         };
     }, [language, existing]);
 
-    // // Handle tabs
-    // const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-    //     let tabs: TabOptions[] = Object.values(TabOptions);
-    //     // Return tabs shaped for the tab component
-    //     return tabs.map((tab, i) => ({
-    //         index: i,
-    //         label: t(tab, { count: 2 }),
-    //         value: tab,
-    //     }));
-    // }, [t]);
-    // const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    // const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {

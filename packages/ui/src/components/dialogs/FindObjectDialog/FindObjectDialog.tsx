@@ -44,7 +44,7 @@ type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
  * All valid search types for the FindObjectDialog.  
  * Note: The 'Version' types are converted to their non-versioned type.
  */
-export type FindObjectTabOptions = "All" |
+export type FindObjectTabOption = "All" |
     SearchPageTabOption | `${SearchPageTabOption}` |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
     "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
@@ -76,7 +76,8 @@ const tabParams = [
         searchType: SearchType.RunProject,
         tabType: CalendarPageTabOption.RunProject,
         where: () => ({}),
-    }];
+    },
+];
 
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
@@ -119,7 +120,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const filteredTabs = useMemo(() => {
         let filtered = tabParams;
         // Apply limitTo filter
-        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.tabType) || limitTo.includes(`${tab.tabType}Version` as FindObjectTabOptions));
+        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.tabType) || limitTo.includes(`${tab.tabType}Version` as FindObjectTabOption));
         // If onlyVersioned, filter tabs which don't have a corresponding versioned search type
         if (onlyVersioned) filtered = filtered.filter(tab => `${tab.tabType}Version` in SearchType);
         return filtered;
@@ -129,7 +130,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         handleTabChange,
         searchType,
         tabs,
-    } = useTabs<FindObjectTabOptions>({ tabParams: filteredTabs, display: "dialog" });
+    } = useTabs<FindObjectTabOption>({ tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
@@ -372,7 +373,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         }}
                         searchType={searchType}
                         zIndex={zIndex}
-                        where={where()}
+                        where={where}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (

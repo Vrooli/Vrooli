@@ -34,15 +34,15 @@ export interface DiagonalWaveLoaderProps {
     sx?: SxType;
 }
 
-export interface PageTabsProps<T> {
+export interface PageTabsProps<T, S extends boolean = true> {
     ariaLabel: string,
-    currTab: PageTab<T>,
+    currTab: PageTab<T, S>,
     fullWidth?: boolean,
     id?: string,
     /** Ignore Icons in tabs, rendering them using labels instead */
     ignoreIcons?: boolean,
-    onChange: (event: React.ChangeEvent<unknown>, value: any) => unknown,
-    tabs: PageTab<T>[],
+    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<T, S>) => unknown,
+    tabs: PageTab<T, S>[],
     sx?: SxType,
 }
 

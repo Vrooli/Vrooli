@@ -46,7 +46,7 @@ export const DashboardView = ({
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode>[]>(() => allFocusModes.map((mode, index) => ({
+    const tabs = useMemo<PageTab<FocusMode, false>[]>(() => allFocusModes.map((mode, index) => ({
         index,
         label: mode.name,
         tabType: mode,
@@ -57,7 +57,7 @@ export const DashboardView = ({
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
         e.preventDefault();
         PubSub.get().publishFocusMode({
             __typename: "ActiveFocusMode" as const,

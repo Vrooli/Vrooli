@@ -1,5 +1,5 @@
 import { BookmarkFor, CommonKey, endpointGetOrganization, LINKS, Organization, ResourceList, uuidValidate, VisibilityType } from "@local/shared";
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -35,18 +35,21 @@ type TabWhereParams = {
     organizationId: string;
     permissions: YouInflated;
 }
-
+const tabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
 const tabParams = [{
+    color: tabColor,
     titleKey: "Resource" as CommonKey,
     searchType: SearchType.Resource,
     tabType: OrganizationPageTabOption.Resource,
     where: () => ({}),
 }, {
+    color: tabColor,
     titleKey: "Project" as CommonKey,
     searchType: SearchType.Project,
     tabType: OrganizationPageTabOption.Project,
     where: ({ organizationId, permissions }: TabWhereParams) => ({ ownedByOrganizationId: organizationId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
 }, {
+    color: tabColor,
     titleKey: "Member" as CommonKey,
     searchType: SearchType.Member,
     tabType: OrganizationPageTabOption.Member,
@@ -110,6 +113,7 @@ export const OrganizationView = ({
     const {
         currTab,
         handleTabChange,
+        searchPlaceholderKey,
         searchType,
         tabs,
         where,
@@ -117,6 +121,12 @@ export const OrganizationView = ({
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
+    // If showing search filter, focus the search input
+    useEffect(() => {
+        if (!showSearchFilters) return;
+        const searchInput = document.getElementById("search-bar-organization-view-list");
+        searchInput?.focus();
+    }, [showSearchFilters]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -297,7 +307,7 @@ export const OrganizationView = ({
                                 hideUpdateButton={true}
                                 id="organization-view-list"
                                 searchType={searchType}
-                                searchPlaceholder={placeholder}
+                                searchPlaceholder={searchPlaceholderKey}
                                 sxs={showSearchFilters ? {
                                     search: { marginTop: 2 },
                                     listContainer: { borderRadius: 0 },

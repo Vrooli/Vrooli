@@ -43,7 +43,6 @@ export const HistoryView = ({
         handleTabChange,
         searchType,
         tabs,
-        title,
         where,
     } = useTabs<HistoryPageTabOption>({ tabParams, display });
 
@@ -53,7 +52,7 @@ export const HistoryView = ({
                 display={display}
                 hideTitleOnDesktop={true}
                 onClose={onClose}
-                title={title}
+                title={currTab.label}
                 below={<PageTabs
                     ariaLabel="history-tabs"
                     currTab={currTab}

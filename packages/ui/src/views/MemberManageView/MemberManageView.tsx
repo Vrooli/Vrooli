@@ -51,7 +51,7 @@ export const MemberManageView = ({
     const [isOpenToNewMembersField, , isOpenToNewMembersHelpers] = useField("isOpenToNewMembers");
 
     const [isInviteDialogOpen, setInviteDialogOpen] = useState(false);
-    const onCreateStart = useCallback(() => {
+    const onInviteStart = useCallback(() => {
         setInviteDialogOpen(true);
     }, []);
 
@@ -100,7 +100,7 @@ export const MemberManageView = ({
                 <Tooltip title={t("Invite")} placement="top">
                     <IconButton
                         size="medium"
-                        onClick={onInviteClick}
+                        onClick={onInviteStart}
                         sx={{
                             padding: 1,
                         }}
@@ -137,7 +137,7 @@ export const MemberManageView = ({
                 <ColorIconButton aria-label="filter-list" background={palette.secondary.main} onClick={focusSearch} >
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </ColorIconButton>
-                <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onCreateStart} >
+                <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={onInviteStart} >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </ColorIconButton>
             </SideActionButtons>

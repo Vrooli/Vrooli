@@ -3,7 +3,7 @@ import { PageTabsProps } from "components/types";
 import { createRef, useCallback, useEffect, useRef } from "react";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 
-export const PageTabs = <T extends string | number | object>({
+export const PageTabs = <T, S extends boolean = true>({
     ariaLabel,
     currTab,
     fullWidth = false,
@@ -12,7 +12,7 @@ export const PageTabs = <T extends string | number | object>({
     onChange,
     tabs,
     sx,
-}: PageTabsProps<T>) => {
+}: PageTabsProps<T, S>) => {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -189,7 +189,13 @@ export const PageTabs = <T extends string | number | object>({
         >
             {tabs.map(({ color, href, Icon, label }, index) => {
                 const isSelected = currTab.index === index;
-                const tabColor = color ?? (isMobile ?
+                const providedColor = color !== undefined ?
+                    typeof color === "string" ? color :
+                        isSelected ?
+                            color.active :
+                            color.inactive :
+                    undefined;
+                const tabColor = providedColor ?? (isMobile ?
                     palette.primary.contrastText :
                     palette.primary.light);
                 return (

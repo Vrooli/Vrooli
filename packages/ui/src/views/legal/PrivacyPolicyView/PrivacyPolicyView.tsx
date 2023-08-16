@@ -1,14 +1,14 @@
-import { LINKS } from "@local/shared";
+import { CommonKey, LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useCallback, useMemo } from "react";
+import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { toDisplay } from "utils/display/pageTools";
 import { useMarkdown } from "utils/hooks/useMarkdown";
-import { PageTab } from "utils/hooks/useTabs";
+import { PageTab, useTabs } from "utils/hooks/useTabs";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
@@ -31,10 +31,22 @@ const BUSINESS_DATA = {
     APP_URL: "https://vrooli.com",
 };
 
-enum TabOptions {
+export enum PolicyTabOption {
     Privacy = "Privacy",
     Terms = "Terms",
 }
+
+export const policyTabParams = [
+    {
+        titleKey: "Privacy" as CommonKey,
+        href: LINKS.Privacy,
+        tabType: PolicyTabOption.Privacy,
+    }, {
+        titleKey: "Terms" as CommonKey,
+        href: LINKS.Terms,
+        tabType: PolicyTabOption.Terms,
+    },
+];
 
 export const PrivacyPolicyView = ({
     isOpen,
@@ -51,15 +63,10 @@ export const PrivacyPolicyView = ({
         return markdown;
     });
 
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => Object.keys(TabOptions).map((option, index) => ({
-        index,
-        label: t(option as TabOptions),
-        tabType: option as TabOptions,
-    })), [t]);
-    const currTab = useMemo(() => tabs[0], [tabs]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
-        e.preventDefault();
-        setLocation(LINKS[tab.tabType], { replace: true });
+    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ tabParams: policyTabParams, defaultTab: 0, display: "dialog" });
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
+        event.preventDefault();
+        setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
 
     return <>

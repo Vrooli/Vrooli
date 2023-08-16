@@ -13,7 +13,7 @@ import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { ViewDisplayType } from "views/types";
-import { FindObjectTabOptions } from "./FindObjectDialog/FindObjectDialog";
+import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
@@ -87,7 +87,7 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
     handleCancel: () => unknown;
     handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
-    limitTo?: FindObjectTabOptions[];
+    limitTo?: FindObjectTabOption[];
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
     where?: { [key: string]: object };

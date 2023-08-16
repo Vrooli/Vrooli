@@ -1,7 +1,5 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, ChatParticipant, CommentFor, CommonKey, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
-import { SearchListGenerator } from "components/lists/types";
+import { Api, ApiVersion, Bookmark, BookmarkFor, ChatParticipant, CommentFor, DotNotation, exists, GqlModelType, isOfType, Member, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, View } from "@local/shared";
 import { AutocompleteOption } from "types";
-import { SearchType } from "utils/search/objectToSearch";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
@@ -412,17 +410,3 @@ const placeholderColors: [string, string][] = [
 export const placeholderColor = (): [string, string] => {
     return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
 };
-
-/**
- * Creates object containing information required to display a search list 
- * for an object type.
- */
-export const toSearchListData = (
-    searchType: SearchType | `${SearchType}`,
-    placeholder: CommonKey,
-    where: Record<string, any>,
-): SearchListGenerator => ({
-    searchType,
-    placeholder,
-    where,
-});
