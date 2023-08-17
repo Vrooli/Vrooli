@@ -187,10 +187,6 @@ export const user_profileUpdate = {
   },
   "wallets": {
     "id": true,
-    "handles": {
-      "id": true,
-      "handle": true
-    },
     "name": true,
     "publicAddress": true,
     "stakingAddress": true,

@@ -71,7 +71,7 @@ export const useErrorPopover = ({
                 }}
                 zIndex={zIndex + 1}
             >
-                <MarkdownDisplay content={errorMessage} zIndex={zIndex} />
+                <MarkdownDisplay content={errorMessage} zIndex={zIndex} sx={{ minHeight: "unset"}} />
             </PopoverWithArrow>
         );
     }, [closePopover, errorAnchorEl, errorMessage, zIndex]);

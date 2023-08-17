@@ -43,14 +43,14 @@ const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { StartView } = lazily(() => import("./views/StartView/StartView"));
-const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
+const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
 const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
-const { ReminderUpsert, ReminderView } = lazily(() => import("./views/objects/reminder"));
+const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
 const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
@@ -258,13 +258,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <QuestionView {...viewProps} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} isCreate={true} />
+                    <ReminderCrud {...viewProps} isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert {...viewProps} isCreate={false} />
+                    <ReminderCrud {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
-                    <ReminderView {...viewProps} />
+                    <ReminderCrud {...viewProps} isCreate={false} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}

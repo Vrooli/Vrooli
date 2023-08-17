@@ -60,18 +60,18 @@ export const CookiesSnack = ({
             }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                     {/* Cookie icon */}
-                    <LargeCookieIcon width="60px" height="60px" fill={palette.background.textPrimary} />
+                    <LargeCookieIcon width="48px" height="48px" fill={palette.background.textPrimary} />
                     {/* Close Icon */}
                     <IconButton onClick={handleClose}>
                         <CloseIcon width="32px" height="32px" fill={palette.background.textPrimary} />
                     </IconButton>
                 </Stack>
                 {/* Title */}
-                <Typography variant="body1" sx={{ mt: 2 }}>
+                <Typography variant="body1" sx={{ mt: 1 }}>
                     {t("CookiesDetails")}
                 </Typography>
                 {/* Buttons */}
-                <Grid container spacing={2} sx={{ mt: 2 }}>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
                     <Grid item xs={6}>
                         <Button
                             fullWidth

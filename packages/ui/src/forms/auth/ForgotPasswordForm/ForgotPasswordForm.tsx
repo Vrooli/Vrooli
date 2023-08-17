@@ -42,7 +42,7 @@ export const ForgotPasswordForm = ({
                         inputs: { ...values },
                         successCondition: (data) => data.success === true,
                         onSuccess: () => setLocation(LINKS.Home),
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                         successMessage: () => ({ messageKey: "RequestSentCheckEmail" }),
                     });
                 }}

@@ -9,6 +9,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -17,19 +18,19 @@ import { SessionContext } from "utils/SessionContext";
 import { NoteViewProps } from "../types";
 
 export const NoteView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: NoteViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { id, isLoading, object: noteVersion, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion>({
         ...endpointGetNoteVersion,
-        partialData,
+        objectType: "NoteVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (noteVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [noteVersion?.translations]);
@@ -40,17 +41,13 @@ export const NoteView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name, text } = useMemo(() => {
-        const { description, name, text } = getTranslation(noteVersion ?? partialData, [language]);
+        const { description, name, text } = getTranslation(noteVersion, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
             text: text ?? "",
         };
-    }, [language, noteVersion, partialData]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [language, noteVersion]);
 
     const actionData = useObjectActions({
         object: noteVersion,
@@ -64,7 +61,7 @@ export const NoteView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(name, t("Note"))}
+                title={firstString(name, t("Note", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

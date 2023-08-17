@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -21,20 +23,20 @@ import { SessionContext } from "utils/SessionContext";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion>({
         ...endpointGetSmartContractVersion,
-        partialData,
+        objectType: "SmartContractVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (smartContractVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [smartContractVersion?.translations]);
@@ -45,16 +47,12 @@ export const SmartContractView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(smartContractVersion ?? partialData, [language]);
+        const { description, name } = getTranslation(smartContractVersion, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
             name,
         };
-    }, [language, smartContractVersion, partialData]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [language, smartContractVersion]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -167,7 +165,7 @@ export const SmartContractView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("SmartContract")}
+                title={firstString(name, t("SmartContract"))}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

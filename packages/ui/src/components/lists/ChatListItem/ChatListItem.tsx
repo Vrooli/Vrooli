@@ -48,7 +48,6 @@ export function ChatListItem({
             subtitle: "",
         };
     }, [data, session]);
-    console.log("in ChatListItem yeet", title, subtitle);
 
     return (
         <ObjectListItemBase

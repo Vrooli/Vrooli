@@ -1,15 +1,14 @@
-import { ApiVersion, Chat, CommonKey, FocusMode, GqlModelType, Meeting, Member, NoteVersion, Notification, Organization, Project, ProjectVersion, Question, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, Tag, User } from "@local/shared";
+import { Chat, CommonKey, FocusMode, Meeting, Member, Notification, Organization, Project, ProjectVersion, QuestionForType, Reminder, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { ReactNode } from "react";
 import { AwardDisplay, NavigableObject, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 
-export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | Question | RoutineVersion | SmartContractVersion | StandardVersion | User;
-export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
+export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
@@ -25,7 +24,7 @@ export type ActionsType<A = undefined> = A extends undefined
     ? { onAction?: undefined }
     : { onAction: <K extends keyof A>(action: K, ...args: ActionFunctions<A>[K]) => void }
 
-type ObjectListItemBaseProps<T extends ListObjectType> = {
+type ObjectListItemBaseProps<T extends ListObject> = {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
@@ -33,23 +32,19 @@ type ObjectListItemBaseProps<T extends ListObjectType> = {
     canNavigate?: (item: NavigableObject) => boolean | void;
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
-    /**
-     * True if update button should be hidden
-     */
+    /** If update button should be hidden */
     hideUpdateButton?: boolean;
-    /**
-     * True if data is still being fetched
-     */
+    /** If data is still being fetched */
     loading: boolean;
     data: T | null;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: T["__typename"];
     onClick?: (data: T) => void;
     subtitleOverride?: string;
     titleOverride?: string;
     toTheRight?: React.ReactNode;
     zIndex: number;
 }
-export type ObjectListItemProps<T extends ListObjectType, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
+export type ObjectListItemProps<T extends ListObject, A = undefined> = ObjectListItemBaseProps<T> & ActionsType<A>
 
 export type ChatListItemActions = {
     MarkAsRead: (id: string) => void;
@@ -185,14 +180,14 @@ export interface SearchListProps {
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    resolve?: (data: any) => unknown;
+    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => unknown;
     searchType: SearchType | `${SearchType}`;
     sxs?: {
         search?: SxType;
         buttons?: SxType;
+        listContainer?: SxType;
     }
     onItemClick?: (item: any) => unknown;
-    onScrolledFar?: () => unknown; // Called when scrolled far enough to prompt the user to create a new object
     /** Additional where clause to pass to the query */
     where?: { [key: string]: object };
     zIndex: number;
@@ -204,6 +199,7 @@ export interface SearchQueryVariablesInput<SortBy> {
     searchString?: string | null;
     after?: string | null;
     take?: number | null;
+    createdTimeFrame?: TimeFrame | null;
 }
 
 export interface SettingsToggleListItemProps {

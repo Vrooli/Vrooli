@@ -20,21 +20,22 @@ import { OwnerShape } from "utils/shape/models/types";
 
 export const noteInitialValues = (
     session: Session | undefined,
-    existing?: NoteVersion | null | undefined,
+    existing?: Partial<NoteVersion> | null | undefined,
 ): NoteVersionShape => ({
     __typename: "NoteVersion" as const,
     id: DUMMY_ID,
     directoryListings: [],
     isPrivate: true,
+    versionLabel: existing?.versionLabel ?? "1.0.0",
+    ...existing,
     root: {
         id: DUMMY_ID,
         isPrivate: true,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id! } as OwnerShape,
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: existing?.versionLabel ?? "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "NoteVersionTranslation" as const,
         id: DUMMY_ID,
@@ -45,15 +46,12 @@ export const noteInitialValues = (
     }]),
 });
 
-export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {
-    return existing === undefined
-        ? shapeNoteVersion.create(values)
-        : shapeNoteVersion.update(existing, values);
-}
+export const transformNoteValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
+    isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
 
-export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
-    const transformedValues = transformNoteValues(values, existing);
-    const validationSchema = noteVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateNoteValues = async (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) => {
+    const transformedValues = transformNoteValues(values, existing, isCreate);
+    const validationSchema = noteVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

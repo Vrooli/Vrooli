@@ -1,40 +1,32 @@
-import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import termsMarkdown from "assets/policy/terms.md";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { PageTab } from "components/types";
-import { ChangeEvent, useCallback, useMemo } from "react";
+import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { toDisplay } from "utils/display/pageTools";
 import { useMarkdown } from "utils/hooks/useMarkdown";
+import { PageTab, useTabs } from "utils/hooks/useTabs";
+import { PolicyTabOption, policyTabParams } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
-enum TabOptions {
-    Privacy = "Privacy",
-    Terms = "Terms",
-}
-
 export const TermsView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: TermsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const terms = useMarkdown(termsMarkdown);
 
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => Object.keys(TabOptions).map((option, index) => ({
-        index,
-        label: t(option as TabOptions),
-        value: option as TabOptions,
-    })), [t]);
-    const currTab = useMemo(() => tabs[1], [tabs]);
-    const handleTabChange = useCallback((e: ChangeEvent<unknown>, tab: PageTab<TabOptions>) => {
-        e.preventDefault();
-        setLocation(LINKS[tab.value], { replace: true });
+    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ tabParams: policyTabParams, defaultTab: 1, display: "dialog" });
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
+        event.preventDefault();
+        setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
 
     return <>

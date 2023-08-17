@@ -8,9 +8,9 @@ import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type FocusModeShape = Pick<FocusMode, "id" | "name" | "description"> & {
-    __typename?: "FocusMode",
+    __typename: "FocusMode",
     reminderList?: ReminderListShape | null,
-    resourceList?: ResourceListShape | null,
+    resourceList?: Omit<ResourceListShape, "listFor"> | null;
     labels?: LabelShape[] | null,
     filters?: FocusModeFilterShape[] | null,
     schedule?: ScheduleShape | null,
@@ -20,7 +20,7 @@ export const shapeFocusMode: ShapeModel<FocusModeShape, FocusModeCreateInput, Fo
     create: (d) => ({
         ...createPrims(d, "id", "name", "description"),
         ...createRel(d, "reminderList", ["Create", "Connect"], "one", shapeReminderList),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
+        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "FocusMode" } })),
         ...createRel(d, "labels", ["Create", "Connect"], "many", shapeLabel),
         ...createRel(d, "filters", ["Create"], "many", shapeFocusModeFilter),
         ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
@@ -28,7 +28,7 @@ export const shapeFocusMode: ShapeModel<FocusModeShape, FocusModeCreateInput, Fo
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "name", "description"),
         ...updateRel(o, u, "reminderList", ["Create", "Connect", "Disconnect", "Update"], "one", shapeReminderList),
-        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
+        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "FocusMode" } })),
         ...updateRel(o, u, "labels", ["Create", "Connect", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "filters", ["Create", "Delete"], "many", shapeFocusModeFilter),
         ...updateRel(o, u, "schedule", ["Create", "Update"], "one", shapeSchedule),

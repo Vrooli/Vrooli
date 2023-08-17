@@ -1,12 +1,14 @@
-import { BookmarkFor, endpointGetProjectVersion, ProjectVersion } from "@local/shared";
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, endpointGetProjectVersion, LINKS, ProjectVersion } from "@local/shared";
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -14,26 +16,28 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
+import { toDisplay } from "utils/display/pageTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: ProjectViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion>({
         ...endpointGetProjectVersion,
-        partialData,
+        objectType: "ProjectVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -44,31 +48,13 @@ export const ProjectView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { name, description, handle } = useMemo(() => {
-        const { description, name } = getTranslation(existing ?? partialData, [language]);
+        const { description, name } = getTranslation(existing, [language]);
         return {
             name,
             description,
-            handle: existing?.root?.handle ?? partialData?.root?.handle,
+            handle: existing?.root?.handle,
         };
-    }, [language, existing, partialData]);
-
-    useEffect(() => {
-        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
-        else document.title = `${name} | Vrooli`;
-    }, [handle, name]);
-
-    // // Handle tabs
-    // const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-    //     let tabs: TabOptions[] = Object.values(TabOptions);
-    //     // Return tabs shaped for the tab component
-    //     return tabs.map((tab, i) => ({
-    //         index: i,
-    //         label: t(tab, { count: 2 }),
-    //         value: tab,
-    //     }));
-    // }, [t]);
-    // const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    // const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
+    }, [language, existing]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -85,103 +71,12 @@ export const ProjectView = ({
         setObject: setProjectVersion,
     });
 
-    /**
-     * Displays name, avatar, bio, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <OverviewContainer>
-            <Tooltip title={t("MoreOptions")}>
-                <IconButton
-                    aria-label={t("MoreOptions")}
-                    size="small"
-                    onClick={openMoreMenu}
-                    sx={{
-                        display: "block",
-                        marginLeft: "auto",
-                        marginRight: 1,
-                    }}
-                >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
-                </IconButton>
-            </Tooltip>
-            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
-                {/* Title */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : <Title
-                        title={name}
-                        variant="header"
-                        options={permissions.canUpdate ? [{
-                            label: t("Edit"),
-                            Icon: EditIcon,
-                            onClick: () => { actionData.onActionStart("Edit"); },
-                        }] : []}
-                        zIndex={zIndex}
-                    />
-                }
-                {/* Handle */}
-                {
-                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
-                        <Typography
-                            variant="h6"
-                            textAlign="center"
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                            }}
-                        >${handle}</Typography>
-                    </Link>
-                }
-                {/* Created date */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    textBeforeDate="Created"
-                    timestamp={existing?.created_at}
-                    width={"33%"}
-                    zIndex={zIndex}
-                />
-                {/* Description */}
-                {
-                    isLoading && (
-                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    )
-                }
-                {
-                    !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
-                }
-                <Stack direction="row" spacing={2} alignItems="center">
-                    {/* <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip> */}
-                    <ShareButton object={existing} zIndex={zIndex} />
-                    <BookmarkButton
-                        disabled={!permissions.canBookmark}
-                        objectId={existing?.id ?? ""}
-                        bookmarkFor={BookmarkFor.Project}
-                        isBookmarked={existing?.root?.you?.isBookmarked ?? false}
-                        bookmarks={existing?.root?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
-                        zIndex={zIndex}
-                    />
-                </Stack>
-            </Stack>
-        </OverviewContainer>
-    ), [palette.background.textSecondary, palette.background.textPrimary, palette.secondary.dark, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, handle, existing, description, zIndex, actionData]);
-
     return (
         <>
             <TopBar
                 display={display}
                 onClose={onClose}
+                tabTitle={handle ? `${name} (@${handle})` : name}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -192,7 +87,95 @@ export const ProjectView = ({
                 onClose={closeMoreMenu}
                 zIndex={zIndex + 1}
             />
-            {overviewComponent}
+            <OverviewContainer>
+                <Stack direction="row" mr={2}>
+                    <Tooltip title={t("MoreOptions")}>
+                        <IconButton
+                            aria-label={t("MoreOptions")}
+                            size="small"
+                            onClick={openMoreMenu}
+                            sx={{
+                                display: "block",
+                                marginLeft: "auto",
+                                marginRight: 1,
+                            }}
+                        >
+                            <EllipsisIcon fill={palette.background.textSecondary} />
+                        </IconButton>
+                    </Tooltip>
+                    <BookmarkButton
+                        objectId={existing?.id ?? ""}
+                        bookmarkFor={BookmarkFor.Project}
+                        isBookmarked={existing?.root?.you?.isBookmarked ?? false}
+                        bookmarks={existing?.root?.bookmarks ?? 0}
+                        onChange={(isBookmarked: boolean) => { }}
+                        zIndex={zIndex}
+                    />
+                </Stack>
+                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
+                    alignItems: "flex-start",
+                }}>
+                    {/* Title */}
+                    {
+                        (isLoading && !name) ? (
+                            <TextLoading size="header" sx={{ width: "50%" }} />
+                        ) : <Title
+                            title={name}
+                            variant="header"
+                            options={permissions.canUpdate ? [{
+                                label: t("Edit"),
+                                Icon: EditIcon,
+                                onClick: () => { actionData.onActionStart("Edit"); },
+                            }] : []}
+                            zIndex={zIndex}
+                            sxs={{ stack: { padding: 0, paddingBottom: handle ? 0 : 2 } }}
+                        />
+                    }
+                    {/* Handle */}
+                    {
+                        handle && <Typography
+                            variant="h6"
+                            textAlign="center"
+                            fontFamily="monospace"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.Project}/${handle}`);
+                                PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
+                            }}
+                            sx={{
+                                color: palette.secondary.dark,
+                                cursor: "pointer",
+                                paddingBottom: 2,
+                            }}
+                        >@{handle}</Typography>
+                    }
+                    {/* Description */}
+                    {
+                        (isLoading && !description) ? (
+                            <TextLoading lines={2} size="body1" sx={{ width: "85%" }} />
+                        ) : (
+                            <MarkdownDisplay
+                                variant="body1"
+                                sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}
+                                content={description ?? "No description set"}
+                                zIndex={zIndex}
+                            />
+                        )
+                    }
+                    <Stack direction="row" spacing={2} sx={{
+                        alignItems: "center",
+                    }}>
+                        {/* Created date */}
+                        <DateDisplay
+                            loading={isLoading}
+                            showIcon={true}
+                            textBeforeDate="Created"
+                            timestamp={existing?.created_at}
+                            zIndex={zIndex}
+                        />
+                        <ReportsLink object={existing} />
+                    </Stack>
+                </Stack>
+            </OverviewContainer>
             {/* View routines and standards associated with this project */}
             <Box>
                 {/* Breadcrumbs to show directory hierarchy */}

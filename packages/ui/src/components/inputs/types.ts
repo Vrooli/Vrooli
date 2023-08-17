@@ -1,9 +1,9 @@
-import { Comment, CommentFor, StandardVersion, Tag } from "@local/shared";
+import { Comment, CommentFor, ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
 import { SvgComponent, SxType } from "types";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 
@@ -19,6 +19,7 @@ export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
 
 export interface CommentUpsertInputProps {
     comment: Comment | undefined;
+    isOpen: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;
@@ -150,7 +151,7 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, "onChange"> & {
      * Callback to provide data for "@" tagging dropdown. 
      * If not provided, the dropdown will not appear.
      */
-    getTaggableItems?: (query: string) => Promise<ListObjectType[]>;
+    getTaggableItems?: (query: string) => Promise<ListObject[]>;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
@@ -219,6 +220,7 @@ export interface ResourceListHorizontalInputProps {
     disabled?: boolean;
     isCreate: boolean;
     isLoading?: boolean;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
     zIndex: number;
 }
 

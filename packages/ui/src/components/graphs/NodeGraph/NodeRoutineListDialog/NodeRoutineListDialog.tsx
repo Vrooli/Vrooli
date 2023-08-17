@@ -23,7 +23,6 @@ export const NodeRoutineListDialog = ({
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => nodeRoutineListInitialValues(session, node?.routineVersion as any, node), [node, session]);
-    console.log("noderoutinelistdialog render", node, initialValues);
 
     return (
         <LargeDialog
@@ -38,7 +37,7 @@ export const NodeRoutineListDialog = ({
                 onClose={handleClose}
                 title={t(isEditing ? "NodeRoutineListEdit" : "NodeRoutineListInfo")}
                 titleId={titleId}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -46,7 +45,7 @@ export const NodeRoutineListDialog = ({
                 onSubmit={(values) => {
                     handleClose(values);
                 }}
-                validate={async (values) => await validateNodeRoutineListValues(values, node ?? undefined)}
+                validate={async (values) => await validateNodeRoutineListValues(values, initialValues, false)}
             >
                 {(formik) => <NodeRoutineListForm
                     display="dialog"
@@ -56,7 +55,7 @@ export const NodeRoutineListDialog = ({
                     isOpen={isOpen}
                     onCancel={handleClose}
                     ref={formRef}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

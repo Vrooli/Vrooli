@@ -9,6 +9,7 @@ import { SearchIcon } from "icons";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getSiteLanguage } from "utils/authentication/session";
+import { toDisplay } from "utils/display/pageTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
@@ -17,13 +18,14 @@ import { SessionContext } from "utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsDisplayViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -57,7 +59,7 @@ export const SettingsDisplayView = ({
                                     languages: [getSiteLanguage(session)],
                                 },
                                 onSuccess: (data) => { onProfileUpdate(data); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

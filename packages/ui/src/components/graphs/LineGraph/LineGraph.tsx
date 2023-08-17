@@ -195,7 +195,7 @@ export const LineGraph = ({
                 {verticalLines}
             </>
         );
-    }, [data, dims.height, dims.width, padding]);
+    }, [data, dims.height, dims.width]);
 
     const closeTimeout = useRef<number | null>(null);
 

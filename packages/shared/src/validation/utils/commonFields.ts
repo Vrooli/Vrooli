@@ -10,7 +10,7 @@ import { enumToYup } from "./builders";
 import { blankToUndefined } from "./builders/blankToUndefined";
 import { toPosInt } from "./builders/toPosInt";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, passwordErr, reqErr } from "./errors";
-import { adaHandleRegex, passwordRegex, urlRegex } from "./regex";
+import { handleRegex, passwordRegex, urlRegex } from "./regex";
 import { minVersionTest } from "./versions";
 
 // db fields
@@ -21,9 +21,9 @@ export const apiCallData = yup.string().transform(blankToUndefined).max(8192, ma
 export const email = yup.string().transform(blankToUndefined).email().max(256, maxStrErr);
 export const handle = yup.string().transform(blankToUndefined).min(3, minStrErr).max(16, maxStrErr).test(
     "handle",
-    "Must start with a '$', be from 3-16 characters, and only contain letters and numbers",
+    "Must be 3-16 characters, and only contain letters and numbers",
     (value: string | undefined) => {
-        return value !== undefined ? adaHandleRegex.test(value) : true;
+        return value !== undefined ? handleRegex.test(value) : true;
     },
 );
 export const hexColor = yup.string().transform(blankToUndefined).max(16, maxStrErr);

@@ -326,6 +326,7 @@ export async function init(prisma: PrismaType) {
             id: adminId,
         },
         update: {
+            handle: "matt",
             premium: {
                 upsert: {
                     create: {
@@ -343,6 +344,7 @@ export async function init(prisma: PrismaType) {
         },
         create: {
             id: adminId,
+            handle: "matt",
             name: "Matt Halloran",
             password: hashPassword(process.env.ADMIN_PASSWORD ?? ""),
             reputation: 1000000, // TODO temporary until community grows
@@ -396,10 +398,12 @@ export async function init(prisma: PrismaType) {
             id: valyxaId,
         },
         update: {
+            handle: "valyxa",
             invitedByUser: { connect: { id: adminId } },
         },
         create: {
             id: valyxaId,
+            handle: "valyxa",
             isBot: true,
             name: "Valyxa",
             password: hashPassword(process.env.VALYXA_PASSWORD ?? ""),
@@ -466,6 +470,7 @@ export async function init(prisma: PrismaType) {
         vrooli = await prisma.organization.create({
             data: {
                 id: organizationId,
+                handle: "vrooli",
                 createdBy: { connect: { id: admin.id } },
                 translations: {
                     create: [
@@ -533,6 +538,14 @@ export async function init(prisma: PrismaType) {
                         },
                     },
                 },
+            },
+        });
+    }
+    else {
+        await prisma.organization.update({
+            where: { id: vrooli.id },
+            data: {
+                handle: "vrooli",
             },
         });
     }

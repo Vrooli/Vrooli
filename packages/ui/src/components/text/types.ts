@@ -1,6 +1,7 @@
-import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@local/shared";
+import { Routine } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
+import { ListObject } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
@@ -30,10 +31,8 @@ export interface OwnerLabelProps {
     }
 }
 
-export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
-export interface StatsCompactProps<T extends StatsCompactPropsObject> {
+export interface StatsCompactProps<T extends ListObject> {
     handleObjectUpdate: (object: T) => void;
-    loading: boolean;
     object: T | null | undefined;
 }
 
@@ -65,13 +64,9 @@ export interface TitleProps {
 
 export interface VersionDisplayProps extends BoxProps {
     confirmVersionChange?: (callback: () => void) => void;
-    currentVersion: { versionLabel: string } | null | undefined;
+    currentVersion: Partial<{ versionLabel: string }> | null | undefined;
     loading?: boolean;
     prefix?: string;
     versions?: { versionLabel: string }[];
     zIndex: number;
-}
-
-export interface ViewsDisplayProps {
-    views: number | null;
 }

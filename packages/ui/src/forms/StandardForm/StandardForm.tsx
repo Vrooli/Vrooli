@@ -24,7 +24,7 @@ import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/s
 
 export const standardInitialValues = (
     session: Session | undefined,
-    existing?: StandardVersion | null | undefined,
+    existing?: Partial<StandardVersion> | null | undefined,
 ): StandardVersionShape => ({
     __typename: "StandardVersion" as const,
     id: DUMMY_ID,
@@ -40,6 +40,8 @@ export const standardInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Standard" as const,
         id: DUMMY_ID,
@@ -49,9 +51,8 @@ export const standardInitialValues = (
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "StandardVersionTranslation" as const,
         id: DUMMY_ID,
@@ -62,15 +63,12 @@ export const standardInitialValues = (
     }]),
 });
 
-export const transformStandardValues = (values: StandardVersionShape, existing?: StandardVersionShape) => {
-    return existing === undefined
-        ? shapeStandardVersion.create(values)
-        : shapeStandardVersion.update(existing, values);
-};
+export const transformStandardValues = (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) =>
+    isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
 
-export const validateStandardValues = async (values: StandardVersionShape, existing?: StandardVersionShape) => {
-    const transformedValues = transformStandardValues(values, existing);
-    const validationSchema = standardVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateStandardValues = async (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) => {
+    const transformedValues = transformStandardValues(values, existing, isCreate);
+    const validationSchema = standardVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -151,6 +149,7 @@ export const StandardForm = forwardRef<BaseFormRef | undefined, StandardFormProp
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "StandardVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <TagSelector

@@ -43,15 +43,12 @@ export const nodeEndInitialValues = (
     };
 };
 
-export const transformNodeEndValues = (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
-    return existing === undefined
-        ? shapeNode.create(values)
-        : shapeNode.update(existing, values);
-};
+export const transformNodeEndValues = (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) =>
+    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
 
-export const validateNodeEndValues = async (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
-    const transformedValues = transformNodeEndValues(values, existing);
-    const validationSchema = nodeValidation[existing === undefined ? "create" : "update"]({});
+export const validateNodeEndValues = async (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) => {
+    const transformedValues = transformNodeEndValues(values, existing, isCreate);
+    const validationSchema = nodeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

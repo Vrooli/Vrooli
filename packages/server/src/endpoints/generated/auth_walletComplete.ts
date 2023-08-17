@@ -7,8 +7,8 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "walletComplete",
         "loc": {
-          "start": 5327,
-          "end": 5341
+          "start": 5297,
+          "end": 5311
         }
       },
       "arguments": [
@@ -18,8 +18,8 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 5342,
-              "end": 5347
+              "start": 5312,
+              "end": 5317
             }
           },
           "value": {
@@ -28,18 +28,18 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "input",
               "loc": {
-                "start": 5350,
-                "end": 5355
+                "start": 5320,
+                "end": 5325
               }
             },
             "loc": {
-              "start": 5349,
-              "end": 5355
+              "start": 5319,
+              "end": 5325
             }
           },
           "loc": {
-            "start": 5342,
-            "end": 5355
+            "start": 5312,
+            "end": 5325
           }
         }
       ],
@@ -53,15 +53,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "firstLogIn",
               "loc": {
-                "start": 5363,
-                "end": 5373
+                "start": 5333,
+                "end": 5343
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 5363,
-              "end": 5373
+              "start": 5333,
+              "end": 5343
             }
           },
           {
@@ -70,8 +70,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "session",
               "loc": {
-                "start": 5378,
-                "end": 5385
+                "start": 5348,
+                "end": 5355
               }
             },
             "arguments": [],
@@ -85,25 +85,25 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "Session_full",
                     "loc": {
-                      "start": 5399,
-                      "end": 5411
+                      "start": 5369,
+                      "end": 5381
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 5396,
-                    "end": 5411
+                    "start": 5366,
+                    "end": 5381
                   }
                 }
               ],
               "loc": {
-                "start": 5386,
-                "end": 5417
+                "start": 5356,
+                "end": 5387
               }
             },
             "loc": {
-              "start": 5378,
-              "end": 5417
+              "start": 5348,
+              "end": 5387
             }
           },
           {
@@ -112,8 +112,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "wallet",
               "loc": {
-                "start": 5422,
-                "end": 5428
+                "start": 5392,
+                "end": 5398
               }
             },
             "arguments": [],
@@ -127,36 +127,36 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "Wallet_common",
                     "loc": {
-                      "start": 5442,
-                      "end": 5455
+                      "start": 5412,
+                      "end": 5425
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 5439,
-                    "end": 5455
+                    "start": 5409,
+                    "end": 5425
                   }
                 }
               ],
               "loc": {
-                "start": 5429,
-                "end": 5461
+                "start": 5399,
+                "end": 5431
               }
             },
             "loc": {
-              "start": 5422,
-              "end": 5461
+              "start": 5392,
+              "end": 5431
             }
           }
         ],
         "loc": {
-          "start": 5357,
-          "end": 5465
+          "start": 5327,
+          "end": 5435
         }
       },
       "loc": {
-        "start": 5327,
-        "end": 5465
+        "start": 5297,
+        "end": 5435
       }
     },
     {
@@ -3842,77 +3842,17 @@ export const auth_walletComplete = {
       "kind": "Field",
       "name": {
         "kind": "Name",
-        "value": "handles",
-        "loc": {
-          "start": 5193,
-          "end": 5200
-        }
-      },
-      "arguments": [],
-      "directives": [],
-      "selectionSet": {
-        "kind": "SelectionSet",
-        "selections": [
-          {
-            "kind": "Field",
-            "name": {
-              "kind": "Name",
-              "value": "id",
-              "loc": {
-                "start": 5207,
-                "end": 5209
-              }
-            },
-            "arguments": [],
-            "directives": [],
-            "loc": {
-              "start": 5207,
-              "end": 5209
-            }
-          },
-          {
-            "kind": "Field",
-            "name": {
-              "kind": "Name",
-              "value": "handle",
-              "loc": {
-                "start": 5214,
-                "end": 5220
-              }
-            },
-            "arguments": [],
-            "directives": [],
-            "loc": {
-              "start": 5214,
-              "end": 5220
-            }
-          }
-        ],
-        "loc": {
-          "start": 5201,
-          "end": 5222
-        }
-      },
-      "loc": {
-        "start": 5193,
-        "end": 5222
-      }
-    },
-    {
-      "kind": "Field",
-      "name": {
-        "kind": "Name",
         "value": "name",
         "loc": {
-          "start": 5223,
-          "end": 5227
+          "start": 5193,
+          "end": 5197
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 5223,
-        "end": 5227
+        "start": 5193,
+        "end": 5197
       }
     },
     {
@@ -3921,15 +3861,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "publicAddress",
         "loc": {
-          "start": 5228,
-          "end": 5241
+          "start": 5198,
+          "end": 5211
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 5228,
-        "end": 5241
+        "start": 5198,
+        "end": 5211
       }
     },
     {
@@ -3938,15 +3878,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "stakingAddress",
         "loc": {
-          "start": 5242,
-          "end": 5256
+          "start": 5212,
+          "end": 5226
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 5242,
-        "end": 5256
+        "start": 5212,
+        "end": 5226
       }
     },
     {
@@ -3955,15 +3895,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "verified",
         "loc": {
-          "start": 5257,
-          "end": 5265
+          "start": 5227,
+          "end": 5235
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 5257,
-        "end": 5265
+        "start": 5227,
+        "end": 5235
       }
     }
   ],
@@ -7763,77 +7703,17 @@ export const auth_walletComplete = {
             "kind": "Field",
             "name": {
               "kind": "Name",
-              "value": "handles",
-              "loc": {
-                "start": 5193,
-                "end": 5200
-              }
-            },
-            "arguments": [],
-            "directives": [],
-            "selectionSet": {
-              "kind": "SelectionSet",
-              "selections": [
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "id",
-                    "loc": {
-                      "start": 5207,
-                      "end": 5209
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 5207,
-                    "end": 5209
-                  }
-                },
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "handle",
-                    "loc": {
-                      "start": 5214,
-                      "end": 5220
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 5214,
-                    "end": 5220
-                  }
-                }
-              ],
-              "loc": {
-                "start": 5201,
-                "end": 5222
-              }
-            },
-            "loc": {
-              "start": 5193,
-              "end": 5222
-            }
-          },
-          {
-            "kind": "Field",
-            "name": {
-              "kind": "Name",
               "value": "name",
               "loc": {
-                "start": 5223,
-                "end": 5227
+                "start": 5193,
+                "end": 5197
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 5223,
-              "end": 5227
+              "start": 5193,
+              "end": 5197
             }
           },
           {
@@ -7842,15 +7722,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "publicAddress",
               "loc": {
-                "start": 5228,
-                "end": 5241
+                "start": 5198,
+                "end": 5211
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 5228,
-              "end": 5241
+              "start": 5198,
+              "end": 5211
             }
           },
           {
@@ -7859,15 +7739,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "stakingAddress",
               "loc": {
-                "start": 5242,
-                "end": 5256
+                "start": 5212,
+                "end": 5226
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 5242,
-              "end": 5256
+              "start": 5212,
+              "end": 5226
             }
           },
           {
@@ -7876,26 +7756,26 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "verified",
               "loc": {
-                "start": 5257,
-                "end": 5265
+                "start": 5227,
+                "end": 5235
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 5257,
-              "end": 5265
+              "start": 5227,
+              "end": 5235
             }
           }
         ],
         "loc": {
           "start": 5188,
-          "end": 5267
+          "end": 5237
         }
       },
       "loc": {
         "start": 5155,
-        "end": 5267
+        "end": 5237
       }
     }
   },
@@ -7907,8 +7787,8 @@ export const auth_walletComplete = {
       "kind": "Name",
       "value": "walletComplete",
       "loc": {
-        "start": 5278,
-        "end": 5292
+        "start": 5248,
+        "end": 5262
       }
     },
     "variableDefinitions": [
@@ -7920,13 +7800,13 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 5294,
-              "end": 5299
+              "start": 5264,
+              "end": 5269
             }
           },
           "loc": {
-            "start": 5293,
-            "end": 5299
+            "start": 5263,
+            "end": 5269
           }
         },
         "type": {
@@ -7937,24 +7817,24 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "WalletCompleteInput",
               "loc": {
-                "start": 5301,
-                "end": 5320
+                "start": 5271,
+                "end": 5290
               }
             },
             "loc": {
-              "start": 5301,
-              "end": 5320
+              "start": 5271,
+              "end": 5290
             }
           },
           "loc": {
-            "start": 5301,
-            "end": 5321
+            "start": 5271,
+            "end": 5291
           }
         },
         "directives": [],
         "loc": {
-          "start": 5293,
-          "end": 5321
+          "start": 5263,
+          "end": 5291
         }
       }
     ],
@@ -7968,8 +7848,8 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "walletComplete",
             "loc": {
-              "start": 5327,
-              "end": 5341
+              "start": 5297,
+              "end": 5311
             }
           },
           "arguments": [
@@ -7979,8 +7859,8 @@ export const auth_walletComplete = {
                 "kind": "Name",
                 "value": "input",
                 "loc": {
-                  "start": 5342,
-                  "end": 5347
+                  "start": 5312,
+                  "end": 5317
                 }
               },
               "value": {
@@ -7989,18 +7869,18 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "input",
                   "loc": {
-                    "start": 5350,
-                    "end": 5355
+                    "start": 5320,
+                    "end": 5325
                   }
                 },
                 "loc": {
-                  "start": 5349,
-                  "end": 5355
+                  "start": 5319,
+                  "end": 5325
                 }
               },
               "loc": {
-                "start": 5342,
-                "end": 5355
+                "start": 5312,
+                "end": 5325
               }
             }
           ],
@@ -8014,15 +7894,15 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "firstLogIn",
                   "loc": {
-                    "start": 5363,
-                    "end": 5373
+                    "start": 5333,
+                    "end": 5343
                   }
                 },
                 "arguments": [],
                 "directives": [],
                 "loc": {
-                  "start": 5363,
-                  "end": 5373
+                  "start": 5333,
+                  "end": 5343
                 }
               },
               {
@@ -8031,8 +7911,8 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "session",
                   "loc": {
-                    "start": 5378,
-                    "end": 5385
+                    "start": 5348,
+                    "end": 5355
                   }
                 },
                 "arguments": [],
@@ -8046,25 +7926,25 @@ export const auth_walletComplete = {
                         "kind": "Name",
                         "value": "Session_full",
                         "loc": {
-                          "start": 5399,
-                          "end": 5411
+                          "start": 5369,
+                          "end": 5381
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 5396,
-                        "end": 5411
+                        "start": 5366,
+                        "end": 5381
                       }
                     }
                   ],
                   "loc": {
-                    "start": 5386,
-                    "end": 5417
+                    "start": 5356,
+                    "end": 5387
                   }
                 },
                 "loc": {
-                  "start": 5378,
-                  "end": 5417
+                  "start": 5348,
+                  "end": 5387
                 }
               },
               {
@@ -8073,8 +7953,8 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "wallet",
                   "loc": {
-                    "start": 5422,
-                    "end": 5428
+                    "start": 5392,
+                    "end": 5398
                   }
                 },
                 "arguments": [],
@@ -8088,47 +7968,47 @@ export const auth_walletComplete = {
                         "kind": "Name",
                         "value": "Wallet_common",
                         "loc": {
-                          "start": 5442,
-                          "end": 5455
+                          "start": 5412,
+                          "end": 5425
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 5439,
-                        "end": 5455
+                        "start": 5409,
+                        "end": 5425
                       }
                     }
                   ],
                   "loc": {
-                    "start": 5429,
-                    "end": 5461
+                    "start": 5399,
+                    "end": 5431
                   }
                 },
                 "loc": {
-                  "start": 5422,
-                  "end": 5461
+                  "start": 5392,
+                  "end": 5431
                 }
               }
             ],
             "loc": {
-              "start": 5357,
-              "end": 5465
+              "start": 5327,
+              "end": 5435
             }
           },
           "loc": {
-            "start": 5327,
-            "end": 5465
+            "start": 5297,
+            "end": 5435
           }
         }
       ],
       "loc": {
-        "start": 5323,
-        "end": 5467
+        "start": 5293,
+        "end": 5437
       }
     },
     "loc": {
-      "start": 5269,
-      "end": 5467
+      "start": 5239,
+      "end": 5437
     }
   },
   "variableValues": {},

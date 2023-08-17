@@ -1,6 +1,6 @@
 import { Dialog, useTheme } from "@mui/material";
 import { UpTransition } from "../../transitions";
-import { LargeDialogProps } from "../types";
+import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
 export const LargeDialog = ({
     children,
@@ -11,7 +11,7 @@ export const LargeDialog = ({
     zIndex,
     sxs,
 }: LargeDialogProps) => {
-    const { palette } = useTheme();
+    const { palette, spacing } = useTheme();
 
     return (
         <Dialog
@@ -34,7 +34,7 @@ export const LargeDialog = ({
                         top: { xs: "auto", sm: undefined },
                         position: { xs: "absolute", sm: "relative" },
                         display: { xs: "block", sm: "inline-block" },
-                        borderRadius: 2,
+                        borderRadius: { xs: `${spacing(1)} ${spacing(1)} 0 0`, sm: 2 },
                         background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
                         color: palette.background.textPrimary,
                         "& > .MuiDialogContent-root": {
@@ -47,5 +47,22 @@ export const LargeDialog = ({
         >
             {children}
         </Dialog>
+    );
+};
+
+/** Wraps children in a dialog is display is dialog */
+export const MaybeLargeDialog = ({
+    children,
+    display,
+    onClose,
+    ...props
+}: MaybeLargeDialogProps) => {
+    return display === "dialog" ? (
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        <LargeDialog onClose={onClose ?? (() => { })} {...props}>
+            {children}
+        </LargeDialog>
+    ) : (
+        <>{children}</>
     );
 };

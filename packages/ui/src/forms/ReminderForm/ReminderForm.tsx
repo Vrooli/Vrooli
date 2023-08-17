@@ -17,39 +17,38 @@ import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 import { ReminderItemShape } from "utils/shape/models/reminderItem";
 
+export type NewReminderShape = Partial<Omit<Reminder, "reminderList">> & { reminderList: Partial<Reminder["reminderList"]> & { id: string } };
+
 export const reminderInitialValues = (
     session: Session | undefined,
-    reminderListId: string | undefined,
-    existing?: Reminder | null | undefined,
+    existing?: Partial<NewReminderShape> | null | undefined,
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,
     dueDate: null,
     index: 0,
     isComplete: false,
-    reminderList: {
-        __typename: "ReminderList" as const,
-        id: reminderListId ?? DUMMY_ID,
-        // If there's no reminderListId, add additional fields to create a new reminderList
-        ...(reminderListId === undefined && {
-            focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
-        }),
-    },
     reminderItems: [],
     ...existing,
+    reminderList: {
+        __typename: "ReminderList" as const,
+        id: existing?.reminderList?.id ?? DUMMY_ID,
+        // If there's no reminderListId, add additional fields to create a new reminderList
+        ...(existing?.reminderList?.id === undefined && {
+            focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
+        }),
+        ...existing?.reminderList,
+    },
     description: existing?.description ?? "",
     name: existing?.name ?? "",
 });
 
-export function transformReminderValues(values: ReminderShape, existing?: ReminderShape) {
-    return existing === undefined
-        ? shapeReminder.create(values)
-        : shapeReminder.update(existing, values);
-}
+export const transformReminderValues = (values: ReminderShape, existing: ReminderShape, isCreate: boolean) =>
+    isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 
-export const validateReminderValues = async (values: ReminderShape, existing?: ReminderShape) => {
-    const transformedValues = transformReminderValues(values, existing);
-    const validationSchema = reminderValidation[existing === undefined ? "create" : "update"]({});
+export const validateReminderValues = async (values: ReminderShape, existing: ReminderShape, isCreate: boolean) => {
+    const transformedValues = transformReminderValues(values, existing, isCreate);
+    const validationSchema = reminderValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -70,7 +69,6 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [, , dueDateHelpers] = useField("dueDate");
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
     const handleDeleteStep = (index: number) => {
@@ -138,98 +136,100 @@ export const ReminderForm = forwardRef<BaseFormRef | undefined, ReminderFormProp
                             type="datetime-local"
                         />
                         {/* Steps to complete reminder */}
-                        <Title
-                            Icon={ListNumberIcon}
-                            title={t("Step", { count: 2 })}
-                            variant="subheader"
-                            zIndex={zIndex}
-                        />
-                        <Droppable droppableId="reminderItems">
-                            {(provided) => (
-                                <div ref={provided.innerRef} {...provided.droppableProps}>
-                                    {
-                                        (reminderItemsField.value ?? []).map((reminderItem, i) => (
-                                            <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
-                                                {(provided) => (
-                                                    <Box
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        sx={{
-                                                            borderRadius: 2,
-                                                            boxShadow: 4,
-                                                            marginBottom: 2,
-                                                            padding: 2,
-                                                            background: palette.background.default,
-                                                        }}>
-                                                        <Stack
-                                                            direction="row"
-                                                            alignItems="flex-start"
-                                                            spacing={2}
-                                                        >
-                                                            <Stack spacing={1} sx={{ width: "100%" }}>
-                                                                <Field
-                                                                    fullWidth
-                                                                    name={`reminderItems[${i}].name`}
-                                                                    label={t("Name")}
-                                                                    as={TextField}
-                                                                />
-                                                                <MarkdownInput
-                                                                    maxChars={2048}
-                                                                    maxRows={6}
-                                                                    minRows={2}
-                                                                    name={`reminderItems[${i}].description`}
-                                                                    placeholder={t("Description")}
-                                                                    zIndex={zIndex}
-                                                                />
-                                                                <DateInput
-                                                                    name={`reminderItems[${i}].dueDate`}
-                                                                    label={t("DueDateOptional")}
-                                                                    type="datetime-local"
-                                                                />
-                                                                <FormControlLabel
-                                                                    control={<Field
-                                                                        name={`reminderItems[${i}].isComplete`}
-                                                                        type="checkbox"
-                                                                        as={Checkbox}
+                        <Box display="flex" flexDirection="column">
+                            <Title
+                                Icon={ListNumberIcon}
+                                title={t("Step", { count: 2 })}
+                                variant="subheader"
+                                zIndex={zIndex}
+                            />
+                            <Droppable droppableId="reminderItems">
+                                {(provided) => (
+                                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                                        {
+                                            (reminderItemsField.value ?? []).map((reminderItem, i) => (
+                                                <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
+                                                    {(provided) => (
+                                                        <Box
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            sx={{
+                                                                borderRadius: 2,
+                                                                boxShadow: 4,
+                                                                marginBottom: 2,
+                                                                padding: 2,
+                                                                background: palette.background.default,
+                                                            }}>
+                                                            <Stack
+                                                                direction="row"
+                                                                alignItems="flex-start"
+                                                                spacing={2}
+                                                            >
+                                                                <Stack spacing={1} sx={{ width: "100%" }}>
+                                                                    <Field
+                                                                        fullWidth
+                                                                        name={`reminderItems[${i}].name`}
+                                                                        label={t("Name")}
+                                                                        as={TextField}
+                                                                    />
+                                                                    <MarkdownInput
+                                                                        maxChars={2048}
+                                                                        maxRows={6}
+                                                                        minRows={2}
+                                                                        name={`reminderItems[${i}].description`}
+                                                                        placeholder={t("Description")}
+                                                                        zIndex={zIndex}
+                                                                    />
+                                                                    <DateInput
+                                                                        name={`reminderItems[${i}].dueDate`}
+                                                                        label={t("DueDateOptional")}
+                                                                        type="datetime-local"
+                                                                    />
+                                                                    <FormControlLabel
+                                                                        control={<Field
+                                                                            name={`reminderItems[${i}].isComplete`}
+                                                                            type="checkbox"
+                                                                            as={Checkbox}
+                                                                            size="small"
+                                                                            color="secondary"
+                                                                        />}
+                                                                        label={t("CompleteQuestion")}
+                                                                    />
+                                                                </Stack>
+                                                                <Stack spacing={1} width={32} sx={{ justifyContent: "center", alignItems: "center" }}>
+                                                                    <IconButton
+                                                                        edge="end"
                                                                         size="small"
-                                                                        color="secondary"
-                                                                    />}
-                                                                    label={t("CompleteQuestion")}
-                                                                />
+                                                                        onClick={() => handleDeleteStep(i)}
+                                                                        sx={{ margin: "auto" }}
+                                                                    >
+                                                                        <DeleteIcon fill={palette.error.light} />
+                                                                    </IconButton>
+                                                                    <Box
+                                                                        {...provided.dragHandleProps}
+                                                                    >
+                                                                        <DragIcon fill={palette.background.textPrimary} />
+                                                                    </Box>
+                                                                </Stack>
                                                             </Stack>
-                                                            <Stack spacing={1} width={32}>
-                                                                <IconButton
-                                                                    edge="end"
-                                                                    size="small"
-                                                                    onClick={() => handleDeleteStep(i)}
-                                                                    sx={{ margin: "auto" }}
-                                                                >
-                                                                    <DeleteIcon fill={palette.error.light} />
-                                                                </IconButton>
-                                                                <Box
-                                                                    {...provided.dragHandleProps}
-                                                                >
-                                                                    <DragIcon fill={palette.background.textPrimary} />
-                                                                </Box>
-                                                            </Stack>
-                                                        </Stack>
-                                                    </Box>
-                                                )}
-                                            </Draggable>
-                                        ))
-                                    }
-                                    {provided.placeholder}
-                                </div>
-                            )}
-                        </Droppable>
-                        <Button
-                            startIcon={<AddIcon />}
-                            onClick={handleAddStep}
-                            variant="outlined"
-                            sx={{ alignSelf: "center", mt: 1 }}
-                        >
-                            {t("StepAdd")}
-                        </Button>
+                                                        </Box>
+                                                    )}
+                                                </Draggable>
+                                            ))
+                                        }
+                                        {provided.placeholder}
+                                    </div>
+                                )}
+                            </Droppable>
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={handleAddStep}
+                                variant="outlined"
+                                sx={{ alignSelf: "center", mt: 1 }}
+                            >
+                                {t("StepAdd")}
+                            </Button>
+                        </Box>
                     </FormContainer>
                 </BaseForm>
             </DragDropContext>

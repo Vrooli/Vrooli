@@ -1,15 +1,15 @@
-import { BaseViewProps } from "views/types";
+import { ViewProps } from "views/types";
 
-export type CreateViewProps = BaseViewProps
+export type CreateViewProps = ViewProps
 
-export type DashboardViewProps = BaseViewProps
+export type DashboardViewProps = ViewProps
 
-export type HomeViewProps = BaseViewProps
+export type HomeViewProps = ViewProps
 
-export type HistoryViewProps = BaseViewProps
+export type HistoryViewProps = ViewProps
 
-export type LandingViewProps = BaseViewProps
+export type LandingViewProps = ViewProps
 
-export type MyStuffViewProps = BaseViewProps
+export type MyStuffViewProps = ViewProps
 
-export type InboxViewProps = BaseViewProps
+export type InboxViewProps = ViewProps

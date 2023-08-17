@@ -1,4 +1,4 @@
-import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
+import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
@@ -19,6 +19,7 @@ export const VersionDisplay = ({
     zIndex,
     ...props
 }: VersionDisplayProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const handleVersionChange = useCallback((version: string) => {
@@ -64,8 +65,7 @@ export const VersionDisplay = ({
         onClick: open,
     });
 
-    if (!currentVersion) return null;
-    if (loading) return (
+    if (loading && !currentVersion?.versionLabel) return (
         <Box sx={{
             ...(props.sx ?? {}),
             display: "flex",
@@ -108,8 +108,9 @@ export const VersionDisplay = ({
                     variant="body1"
                     sx={{
                         cursor: listItems.length > 1 ? "pointer" : "default",
+                        color: palette.background.textSecondary,
                     }}
-                >{`${prefix}${currentVersion.versionLabel}`}</Typography>
+                >{`${prefix}${currentVersion?.versionLabel ?? "x.x.x"}`}</Typography>
             </Tooltip>
         </Box>
     );

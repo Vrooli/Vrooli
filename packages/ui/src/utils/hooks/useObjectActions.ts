@@ -1,10 +1,10 @@
-import { BookmarkFor, CopyType, DeleteType, exists, GqlModelType, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
+import { BookmarkFor, CopyType, DeleteType, exists, LINKS, ReactionFor, ReportFor, setDotNotationValue } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
 import { NavigableObject } from "types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display/listTools";
+import { getDisplay, getYou, getYouDot, ListObject } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
@@ -13,12 +13,10 @@ import { useCopier } from "./useCopier";
 import { useVoter } from "./useVoter";
 
 export type UseObjectActionsProps = {
-    /**
-     * Checks if navigation away from the current page is allowed
-     */
+    /** Checks if navigation away from the current page is allowed */
     canNavigate?: ((item: NavigableObject) => boolean | void) | null | undefined
-    object: ListObjectType | null | undefined;
-    objectType: GqlModelType | `${GqlModelType}`;
+    object: ListObject | null | undefined;
+    objectType: ListObject["__typename"];
     onClick?: (item: NavigableObject) => void;
     openAddCommentDialog?: () => void;
     setLocation: SetLocation;
@@ -27,12 +25,12 @@ export type UseObjectActionsProps = {
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];
-    closeBookmarkDialog: () => void;
-    closeDeleteDialog: () => void;
-    closeDonateDialog: () => void;
-    closeShareDialog: () => void;
-    closeStatsDialog: () => void;
-    closeReportDialog: () => void;
+    closeBookmarkDialog: () => unknown;
+    closeDeleteDialog: () => unknown;
+    closeDonateDialog: () => unknown;
+    closeShareDialog: () => unknown;
+    closeStatsDialog: () => unknown;
+    closeReportDialog: () => unknown;
     hasBookmarkingSupport: boolean;
     hasCopyingSupport: boolean;
     hasDeletingSupport: boolean;
@@ -46,14 +44,14 @@ export type UseObjectActionsReturn = {
     isShareDialogOpen: boolean;
     isStatsDialogOpen: boolean;
     isReportDialogOpen: boolean;
-    objectType: GqlModelType | `${GqlModelType}`;
-    onActionStart: (action: ObjectAction | `${ObjectAction}`) => void;
-    onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => void;
-    openDeleteDialog: () => void;
-    openDonateDialog: () => void;
-    openShareDialog: () => void;
-    openStatsDialog: () => void;
-    openReportDialog: () => void;
+    objectType: ListObject["__typename"];
+    onActionStart: (action: ObjectAction | `${ObjectAction}`) => unknown;
+    onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
+    openDeleteDialog: () => unknown;
+    openDonateDialog: () => unknown;
+    openShareDialog: () => unknown;
+    openStatsDialog: () => unknown;
+    openReportDialog: () => unknown;
 }
 
 const openDialogIfExists = (dialog: (() => void) | null | undefined) => {

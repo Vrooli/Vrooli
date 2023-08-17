@@ -22,7 +22,7 @@ import { ChatShape, shapeChat } from "utils/shape/models/chat";
 
 export const chatInitialValues = (
     session: Session | undefined,
-    existing?: Chat | null | undefined,
+    existing?: Partial<Chat> | null | undefined,
 ): ChatShape => ({
     __typename: "Chat" as const,
     id: uuid(),
@@ -41,15 +41,12 @@ export const chatInitialValues = (
     }]),
 });
 
-export const transformChatValues = (values: ChatShape, existing?: ChatShape) => {
-    return existing === undefined
-        ? shapeChat.create(values)
-        : shapeChat.update(existing, values);
-};
+export const transformChatValues = (values: ChatShape, existing: ChatShape, isCreate: boolean) =>
+    isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
 
-export const validateChatValues = async (values: ChatShape, existing?: ChatShape) => {
-    const transformedValues = transformChatValues(values, existing);
-    const validationSchema = chatValidation[existing === undefined ? "create" : "update"]({});
+export const validateChatValues = async (values: ChatShape, existing: ChatShape, isCreate: boolean) => {
+    const transformedValues = transformChatValues(values, existing, isCreate);
+    const validationSchema = chatValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

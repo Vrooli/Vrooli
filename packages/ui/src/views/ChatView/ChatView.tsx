@@ -1,7 +1,8 @@
-import { Chat, ChatCreateInput, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInvite, ChatMessage, DUMMY_ID, endpointGetChat, endpointPostChat, FindByIdInput, LINKS, orDefault, uuid, uuidValidate, VALYXA_ID } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, socket } from "api";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -11,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
@@ -22,11 +24,25 @@ import { updateArray } from "utils/shape/general";
 import { shapeChat } from "utils/shape/models/chat";
 import { ChatViewProps } from "views/types";
 
+/** Basic chatInfo for a new convo with Valyxa */
+export const assistantChatInfo: ChatViewProps["chatInfo"] = {
+    invites: [{
+        __typename: "ChatInvite" as const,
+        id: uuid(),
+        user: {
+            __typename: "User" as const,
+            id: VALYXA_ID,
+            isBot: true,
+            name: "Valyxa",
+        },
+    }] as ChatInvite[],
+};
+
 export const ChatView = ({
     botSettings,
     chatInfo,
     context,
-    display = "page",
+    isOpen,
     onClose,
     task,
     zIndex,
@@ -36,6 +52,7 @@ export const ChatView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
+    const display = toDisplay(isOpen);
 
     const [getData, { loading: isFindLoading, errors: findErrors }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
     const [createChat, { loading: isCreateLoading, errors: createErrors }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
@@ -43,7 +60,7 @@ export const ChatView = ({
     useDisplayServerError(findErrors ?? createErrors);
 
     useEffect(() => {
-        if (chat) return;
+        if (chat || !isOpen) return;
         // Check if the chat already exists, or if the URL has an id
         let chatId = chatInfo?.id;
         if (!chatId && window.location.pathname.startsWith(LINKS.Chat)) {
@@ -68,6 +85,7 @@ export const ChatView = ({
                 fetch: createChat,
                 inputs: shapeChat.create({
                     ...chatInfo,
+                    __typename: "Chat",
                     id: uuid(),
                     openToAnyoneWithInvite: chatInfo?.openToAnyoneWithInvite ?? false,
                     translations: orDefault(chatInfo?.translations, [{
@@ -80,7 +98,7 @@ export const ChatView = ({
                 onSuccess: (data) => { setChat(data); },
             });
         }
-    }, [chat, chatInfo, createChat, getData, lng]);
+    }, [chat, chatInfo, createChat, getData, isOpen, lng]);
 
     // Handle websocket for chat messages (e.g. new message, new reactions, etc.)
     useEffect(() => {
@@ -176,143 +194,151 @@ export const ChatView = ({
     console.log("context in chatview", messages, chat?.messages);
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={{
-                editingMessage: "",
-                newMessage: context ?? "",
-            }}
-            onSubmit={(values, helpers) => {
-                if (!chat) return;
-                const isEditing = values.editingMessage.trim().length > 0;
-                if (isEditing) {
-                    //TODO
-                } else {
-                    //TODO
-                    const text = values.newMessage.trim();
-                    if (text.length === 0) return;
-                    // for now, just add the message to the list
-                    const newMessage: ChatMessage & { isUnsent?: boolean } = {
-                        __typename: "ChatMessage" as const,
-                        id: uuid(),
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        isUnsent: true,
-                        chat: {
-                            __typename: "Chat" as const,
-                            id: chat.id,
-                        } as any,
-                        translations: [{
-                            __typename: "ChatMessageTranslation" as const,
-                            id: DUMMY_ID,
-                            language: lng,
-                            text,
-                        }],
-                        user: {
-                            __typename: "User" as const,
-                            id: getCurrentUser(session).id,
-                            isBot: false,
-                            name: getCurrentUser(session).name,
-                        },
-                        you: {
-                            canDelete: true,
-                            canUpdate: true,
-                            canReply: true,
-                            canReport: true,
-                            canReact: true,
-                            reaction: null,
-                        },
-                    } as any;
-                    console.log("creating message 0", newMessage);
-                    setMessages([...messages, newMessage]);
-                    helpers.setFieldValue("newMessage", "");
-                }
-            }}
-        // validate={async (values) => await validateNoteValues(values, existing)}
+        <MaybeLargeDialog
+            display={display}
+            id="chat-dialog"
+            isOpen={isOpen ?? false}
+            onClose={onClose}
+            zIndex={zIndex}
         >
-            {(formik) => <>
-                <TopBar
-                    display={display}
-                    onClose={() => {
-                        if (formik.values.editingMessage.trim().length > 0) {
-                            PubSub.get().publishAlertDialog({
-                                messageKey: "UnsavedChangesBeforeCancel",
-                                buttons: [
-                                    { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
-                                    { labelKey: "No" },
-                                ],
-                            });
-                        } else {
-                            tryOnClose(onClose, setLocation);
-                        }
-                    }}
-                    // TODO change title so that when pressed, you can switch chats or add a new chat
-                    title={firstString(title, botSettings ? "AI Chat" : "Chat")}
-                    zIndex={zIndex}
-                />
-                {/* TODO add ChatSideMenu component */}
-                <Stack direction="column" spacing={4}>
-                    <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
-                        {messages.map((message: ChatMessage, index) => {
-                            const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
-                            return <ChatBubble
-                                key={index}
-                                message={message}
-                                index={index}
-                                isOwn={isOwn}
-                                onUpdated={(updatedMessage) => {
-                                    setMessages(updateArray(messages,
-                                        messages.findIndex(m => m.id === updatedMessage.id),
-                                        updatedMessage,
-                                    ));
+            <Formik
+                enableReinitialize={true}
+                initialValues={{
+                    editingMessage: "",
+                    newMessage: context ?? "",
+                }}
+                onSubmit={(values, helpers) => {
+                    if (!chat) return;
+                    const isEditing = values.editingMessage.trim().length > 0;
+                    if (isEditing) {
+                        //TODO
+                    } else {
+                        //TODO
+                        const text = values.newMessage.trim();
+                        if (text.length === 0) return;
+                        // for now, just add the message to the list
+                        const newMessage: ChatMessage & { isUnsent?: boolean } = {
+                            __typename: "ChatMessage" as const,
+                            id: uuid(),
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            isUnsent: true,
+                            chat: {
+                                __typename: "Chat" as const,
+                                id: chat.id,
+                            } as any,
+                            translations: [{
+                                __typename: "ChatMessageTranslation" as const,
+                                id: DUMMY_ID,
+                                language: lng,
+                                text,
+                            }],
+                            user: {
+                                __typename: "User" as const,
+                                id: getCurrentUser(session).id,
+                                isBot: false,
+                                name: getCurrentUser(session).name,
+                            },
+                            you: {
+                                canDelete: true,
+                                canUpdate: true,
+                                canReply: true,
+                                canReport: true,
+                                canReact: true,
+                                reaction: null,
+                            },
+                        } as any;
+                        console.log("creating message 0", newMessage);
+                        setMessages([...messages, newMessage]);
+                        helpers.setFieldValue("newMessage", "");
+                    }
+                }}
+            // validate={async (values) => await validateNoteValues(values, existing)}
+            >
+                {(formik) => <>
+                    <TopBar
+                        display={display}
+                        onClose={() => {
+                            if (formik.values.editingMessage.trim().length > 0) {
+                                PubSub.get().publishAlertDialog({
+                                    messageKey: "UnsavedChangesBeforeCancel",
+                                    buttons: [
+                                        { labelKey: "Yes", onClick: () => { tryOnClose(onClose, setLocation); } },
+                                        { labelKey: "No" },
+                                    ],
+                                });
+                            } else {
+                                tryOnClose(onClose, setLocation);
+                            }
+                        }}
+                        // TODO change title so that when pressed, you can switch chats or add a new chat
+                        title={firstString(title, botSettings ? "AI Chat" : "Chat")}
+                        zIndex={zIndex}
+                    />
+                    {/* TODO add ChatSideMenu component */}
+                    <Stack direction="column" spacing={4}>
+                        <Box sx={{ overflowY: "auto", maxHeight: "calc(100vh - 64px)" }}>
+                            {messages.map((message: ChatMessage, index) => {
+                                const isOwn = message.you.canUpdate || message.user?.id === getCurrentUser(session).id;
+                                return <ChatBubble
+                                    key={index}
+                                    message={message}
+                                    index={index}
+                                    isOwn={isOwn}
+                                    onUpdated={(updatedMessage) => {
+                                        setMessages(updateArray(messages,
+                                            messages.findIndex(m => m.id === updatedMessage.id),
+                                            updatedMessage,
+                                        ));
+                                    }}
+                                    zIndex={zIndex}
+                                />;
+                            })}
+                        </Box>
+                        <Box sx={{
+                            background: palette.primary.dark,
+                            color: palette.primary.contrastText,
+                        }}>
+                            <MarkdownInput
+                                actionButtons={[{
+                                    Icon: AddIcon,
+                                    onClick: () => {
+                                        if (!chat) {
+                                            PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
+                                            return;
+                                        }
+                                        formik.handleSubmit();
+                                    },
+                                }]}
+                                disabled={!chat}
+                                disableAssistant={true}
+                                fullWidth
+                                getTaggableItems={async (searchString) => {
+                                    // Find all users in the chat, plus @Everyone
+                                    let users = [
+                                        //TODO handle @Everyone
+                                        ...(chat?.participants?.map(p => p.user) ?? []),
+                                    ];
+                                    // Filter out current user
+                                    users = users.filter(p => p.id !== getCurrentUser(session).id);
+                                    // Filter out users that don't match the search string
+                                    users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
+                                    return users;
+                                }}
+                                maxChars={1500}
+                                minRows={4}
+                                maxRows={15}
+                                name="newMessage"
+                                sxs={{
+                                    bar: { borderRadius: 0 },
+                                    textArea: { paddingRight: 4, border: "none" },
                                 }}
                                 zIndex={zIndex}
-                            />;
-                        })}
-                    </Box>
-                    <Box sx={{
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                    }}>
-                        <MarkdownInput
-                            actionButtons={[{
-                                Icon: AddIcon,
-                                onClick: () => {
-                                    if (!chat) {
-                                        PubSub.get().publishSnack({ message: "Chat not found", severity: "Error" });
-                                        return;
-                                    }
-                                    formik.handleSubmit();
-                                },
-                            }]}
-                            disabled={!chat}
-                            disableAssistant={true}
-                            fullWidth
-                            getTaggableItems={async (searchString) => {
-                                // Find all users in the chat, plus @Everyone
-                                let users = [
-                                    //TODO handle @Everyone
-                                    ...(chat?.participants?.map(p => p.user) ?? []),
-                                ];
-                                // Filter out current user
-                                users = users.filter(p => p.id !== getCurrentUser(session).id);
-                                // Filter out users that don't match the search string
-                                users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-                                return users;
-                            }}
-                            maxChars={1500}
-                            minRows={4}
-                            maxRows={15}
-                            name="newMessage"
-                            sxs={{
-                                bar: { borderRadius: 0 },
-                                textArea: { paddingRight: 4, border: "none" },
-                            }}
-                            zIndex={zIndex}
-                        />
-                    </Box>
-                </Stack>
-            </>}
-        </Formik >
+                            />
+                        </Box>
+                    </Stack>
+                </>}
+            </Formik>
+        </MaybeLargeDialog>
     );
 };

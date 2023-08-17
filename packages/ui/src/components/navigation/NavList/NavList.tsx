@@ -92,6 +92,7 @@ export const NavList = () => {
                         width: "40px",
                         height: "40px",
                         margin: "auto",
+                        marginRight: 1,
                         cursor: "pointer",
                     }}
                 >

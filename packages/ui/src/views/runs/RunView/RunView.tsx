@@ -2,6 +2,7 @@ import { endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpo
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
@@ -376,7 +378,7 @@ const convertProjectVersionToStep = (
 };
 
 export const RunView = ({
-    display = "page",
+    isOpen,
     onClose,
     runnableObject,
     zIndex = 400,
@@ -385,6 +387,7 @@ export const RunView = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
     console.log("run view", zIndex);
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
@@ -975,135 +978,143 @@ export const RunView = ({
     }, [currentStep, handleUserInputsUpdate, run, saveProgress, steps, subroutinesLoading, toDecision, zIndex]);
 
     return (
-        <Box sx={{ minHeight: "100vh" }}>
-            <Box sx={{
-                margin: "auto",
-            }}>
-                {/* Contains name bar and progress bar */}
-                <Stack direction="column" spacing={0}>
-                    {/* Top bar */}
-                    <Box sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "0.5rem",
-                        width: "100%",
-                        backgroundColor: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                    }}>
-                        {/* Close Icon */}
-                        <IconButton
-                            edge="end"
-                            aria-label="close"
-                            onClick={toFinishNotComplete}
-                            color="inherit"
-                        >
-                            <CloseIcon width='32px' height='32px' />
-                        </IconButton>
-                        {/* Title and steps */}
-                        <Stack direction="row" spacing={1} sx={{
+        <MaybeLargeDialog
+            display={display}
+            id="run-dialog"
+            isOpen={isOpen ?? false}
+            onClose={onClose}
+            zIndex={zIndex}
+        >
+            <Box sx={{ minHeight: "100vh" }}>
+                <Box sx={{
+                    margin: "auto",
+                }}>
+                    {/* Contains name bar and progress bar */}
+                    <Stack direction="column" spacing={0}>
+                        {/* Top bar */}
+                        <Box sx={{
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
+                            justifyContent: "space-between",
+                            padding: "0.5rem",
+                            width: "100%",
+                            backgroundColor: palette.primary.dark,
+                            color: palette.primary.contrastText,
                         }}>
-                            <Typography variant="h5" component="h2">{name}</Typography>
-                            {(currentStepNumber >= 0 && stepsInCurrentNode >= 0) ?
-                                <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
-                                : null}
-                            {/* Help icon */}
-                            {instructions && <HelpButton markdown={instructions} zIndex={zIndex} />}
-                        </Stack>
-                        {/* Steps explorer drawer */}
-                        <RunStepsDialog
-                            currStep={currStepLocation}
-                            handleLoadSubroutine={(id: string) => { getSubroutines({ ids: [id] }); }}
-                            handleCurrStepLocationUpdate={setCurrStepLocation}
-                            history={progress}
-                            percentComplete={progressPercentage}
-                            rootStep={steps}
-                            zIndex={zIndex + 3}
-                        />
-                    </Box>
-                    {/* Progress bar */}
-                    <LinearProgress color="secondary" variant="determinate" value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
-                </Stack>
-                {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
-                <Box sx={{
-                    background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "auto",
-                    marginBottom: "72px + env(safe-area-inset-bottom)",
-                    overflowY: "auto",
-                    minHeight: "100vh",
-                }}>
-                    {childView}
-                </Box>
-                {/* Action bar */}
-                <Box sx={{
-                    position: "fixed",
-                    bottom: "0",
-                    paddingBottom: "env(safe-area-inset-bottom)",
-                    // safe-area-inset-bottom is the iOS navigation bar
-                    height: "calc(56px + env(safe-area-inset-bottom))",
-                    width: "-webkit-fill-available",
-                    zIndex: 4,
-                    background: palette.primary.dark,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                }}>
-                    <Grid container spacing={2} sx={{
-                        width: "min(100%, 700px)",
-                        margin: 0,
+                            {/* Close Icon */}
+                            <IconButton
+                                edge="end"
+                                aria-label="close"
+                                onClick={toFinishNotComplete}
+                                color="inherit"
+                            >
+                                <CloseIcon width='32px' height='32px' />
+                            </IconButton>
+                            {/* Title and steps */}
+                            <Stack direction="row" spacing={1} sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}>
+                                <Typography variant="h5" component="h2">{name}</Typography>
+                                {(currentStepNumber >= 0 && stepsInCurrentNode >= 0) ?
+                                    <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
+                                    : null}
+                                {/* Help icon */}
+                                {instructions && <HelpButton markdown={instructions} zIndex={zIndex} />}
+                            </Stack>
+                            {/* Steps explorer drawer */}
+                            <RunStepsDialog
+                                currStep={currStepLocation}
+                                handleLoadSubroutine={(id: string) => { getSubroutines({ ids: [id] }); }}
+                                handleCurrStepLocationUpdate={setCurrStepLocation}
+                                history={progress}
+                                percentComplete={progressPercentage}
+                                rootStep={steps}
+                                zIndex={zIndex + 3}
+                            />
+                        </Box>
+                        {/* Progress bar */}
+                        <LinearProgress color="secondary" variant="determinate" value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
+                    </Stack>
+                    {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
+                    <Box sx={{
+                        background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "auto",
+                        marginBottom: "72px + env(safe-area-inset-bottom)",
+                        overflowY: "auto",
+                        minHeight: "100vh",
                     }}>
-                        {/* There are only ever 1 or 2 options shown. 
+                        {childView}
+                    </Box>
+                    {/* Action bar */}
+                    <Box sx={{
+                        position: "fixed",
+                        bottom: "0",
+                        paddingBottom: "env(safe-area-inset-bottom)",
+                        // safe-area-inset-bottom is the iOS navigation bar
+                        height: "calc(56px + env(safe-area-inset-bottom))",
+                        width: "-webkit-fill-available",
+                        zIndex: 4,
+                        background: palette.primary.dark,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}>
+                        <Grid container spacing={2} sx={{
+                            width: "min(100%, 700px)",
+                            margin: 0,
+                        }}>
+                            {/* There are only ever 1 or 2 options shown. 
                         In either case, we want the buttons to be placed as 
                         if there are always 2 */}
-                        <Grid item xs={6} p={1}>
-                            {previousStep && <Button
-                                fullWidth
-                                startIcon={<ArrowLeftIcon />}
-                                onClick={toPrevious}
-                                disabled={unsavedChanges}
-                                variant="outlined"
-                            >
-                                {t("Previous")}
-                            </Button>}
+                            <Grid item xs={6} p={1}>
+                                {previousStep && <Button
+                                    fullWidth
+                                    startIcon={<ArrowLeftIcon />}
+                                    onClick={toPrevious}
+                                    disabled={unsavedChanges}
+                                    variant="outlined"
+                                >
+                                    {t("Previous")}
+                                </Button>}
+                            </Grid>
+                            <Grid item xs={6} p={1}>
+                                {nextStep && (<Button
+                                    fullWidth
+                                    startIcon={<ArrowRightIcon />}
+                                    onClick={toNext} // NOTE: changes are saved on next click
+                                    disabled={!subroutineComplete}
+                                    variant="contained"
+                                >
+                                    {t("Next")}
+                                </Button>)}
+                                {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
+                                    fullWidth
+                                    startIcon={<SuccessIcon />}
+                                    onClick={toNext}
+                                    variant="contained"
+                                >
+                                    {t("Complete")}
+                                </Button>)}
+                            </Grid>
                         </Grid>
-                        <Grid item xs={6} p={1}>
-                            {nextStep && (<Button
-                                fullWidth
-                                startIcon={<ArrowRightIcon />}
-                                onClick={toNext} // NOTE: changes are saved on next click
-                                disabled={!subroutineComplete}
-                                variant="contained"
-                            >
-                                {t("Next")}
-                            </Button>)}
-                            {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
-                                fullWidth
-                                startIcon={<SuccessIcon />}
-                                onClick={toNext}
-                                variant="contained"
-                            >
-                                {t("Complete")}
-                            </Button>)}
-                        </Grid>
-                    </Grid>
-                </Box>
-                <Box p={2} sx={{
-                    background: palette.primary.dark,
-                    position: "fixed",
-                    bottom: 0,
-                    width: "100vw",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                }}>
+                    </Box>
+                    <Box p={2} sx={{
+                        background: palette.primary.dark,
+                        position: "fixed",
+                        bottom: 0,
+                        width: "100vw",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}>
+                    </Box>
                 </Box>
             </Box>
-        </Box>
+        </MaybeLargeDialog>
     );
 };

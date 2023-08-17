@@ -2,7 +2,6 @@ import { DUMMY_ID, RunProject, runProjectValidation, RunStatus, Schedule, Sessio
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { useField } from "formik";
 import { BaseForm, BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunProjectFormProps } from "forms/types";
@@ -18,7 +17,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const runProjectInitialValues = (
     session: Session | undefined,
-    existing?: RunProject | null | undefined,
+    existing?: Partial<RunProject> | null | undefined,
 ): RunProjectShape => ({
     __typename: "RunProject" as const,
     id: DUMMY_ID,
@@ -33,15 +32,12 @@ export const runProjectInitialValues = (
     ...existing,
 });
 
-export function transformRunProjectValues(values: RunProjectShape, existing?: RunProjectShape) {
-    return existing === undefined
-        ? shapeRunProject.create(values)
-        : shapeRunProject.update(existing, values);
-}
+export const transformRunProjectValues = (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) =>
+    isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
 
-export const validateRunProjectValues = async (values: RunProjectShape, existing?: RunProjectShape) => {
-    const transformedValues = transformRunProjectValues(values, existing);
-    const validationSchema = runProjectValidation[existing === undefined ? "create" : "update"]({});
+export const validateRunProjectValues = async (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) => {
+    const transformedValues = transformRunProjectValues(values, existing, isCreate);
+    const validationSchema = runProjectValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -79,27 +75,19 @@ export const RunProjectForm = forwardRef<BaseFormRef | undefined, RunProjectForm
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.RunProject}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 1}
-            >
-                <ScheduleUpsert
-                    canChangeTab={false}
-                    canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.RunProjects}
-                    display="dialog"
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={false}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                zIndex={zIndex + 1001}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}

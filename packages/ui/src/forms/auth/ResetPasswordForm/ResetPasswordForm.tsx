@@ -57,7 +57,7 @@ export const ResetPasswordForm = ({
                             setLocation(LINKS.Home);
                         },
                         successMessage: () => ({ messageKey: "PasswordReset" }),
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
                 validationSchema={emailResetPasswordSchema}

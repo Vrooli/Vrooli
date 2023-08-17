@@ -34,7 +34,7 @@ export const DateDisplay = ({
         onClick: open,
     });
 
-    if (loading) return (
+    if (loading && !timestamp) return (
         <TextLoading size="body2" sx={{ width: "100px", ...props }} />
     );
     if (!timestamp) return null;

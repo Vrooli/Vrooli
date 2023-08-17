@@ -33,7 +33,7 @@ export const Page = ({
         <>
             {/* Hidden div under the page for top overscroll color.
             Color should mimic `content-wrap` component, but with sx override */}
-            <Box id="yeet" sx={{
+            <Box sx={{
                 backgroundColor: (sx as any)?.background ?? (sx as any)?.backgroundColor ?? (palette.mode === "light" ? "#c2cadd" : palette.background.default),
                 height: "100vh",
                 position: "fixed",

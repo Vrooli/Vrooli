@@ -31,15 +31,10 @@ export function TitleContainer({
             />
             <Box
                 sx={{
-                    boxShadow: 4,
                     borderRadius: { xs: 0, sm: 2 },
                     overflow: "overlay",
                     background: palette.background.paper,
                     width: "min(100%, 700px)",
-                    cursor: onClick ? "pointer" : "default",
-                    "&:hover": {
-                        filter: `brightness(onClick ? ${102} : ${100}%)`,
-                    },
                     ...sx,
                 }}
             >

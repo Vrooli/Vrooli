@@ -6,13 +6,15 @@ import { SideActionButtons } from "components/buttons/SideActionButtons/SideActi
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SiteSearchBar } from "components/inputs/search";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
-import { listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { listToAutocomplete } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
@@ -23,26 +25,22 @@ import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: BookmarkListViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
         ...endpointGetBookmarkList,
-        partialData,
+        objectType: "BookmarkList",
     });
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
-
-    useEffect(() => {
-        document.title = `${label} | Vrooli`;
-    }, [label]);
 
     const actionData = useObjectActions({
         object: existing,
@@ -95,15 +93,6 @@ export const BookmarkListView = ({
     }, []);
 
     const autocompleteOptions = useMemo(() => listToAutocomplete(bookmarks, getUserLanguages(session)), [bookmarks, session]);
-    const bookmarkListItems = useMemo(() => (
-        listToListItems({
-            dummyItems: new Array(5).fill("Routine"),
-            items: bookmarks,
-            keyPrefix: "bookmark-list-item",
-            loading: isLoading,
-            zIndex,
-        })
-    ), [bookmarks, isLoading, zIndex]);
 
     return (
         <>
@@ -153,9 +142,15 @@ export const BookmarkListView = ({
                 </SideActionButtons>
                 <ListContainer
                     emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={bookmarkListItems.length === 0}
+                    isEmpty={bookmarks.length === 0 && !isLoading}
                 >
-                    {bookmarkListItems}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Routine")}
+                        items={bookmarks}
+                        keyPrefix="bookmark-list-item"
+                        loading={isLoading}
+                        zIndex={zIndex}
+                    />
                 </ListContainer>
             </>
         </>

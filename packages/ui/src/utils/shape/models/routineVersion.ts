@@ -14,14 +14,14 @@ export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id
 }
 
 export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes" | "smartContractCallData"> & {
-    __typename?: "RoutineVersion";
+    __typename: "RoutineVersion";
     apiVersion?: { id: string } | null;
     directoryListings?: { id: string }[] | null;
     inputs?: RoutineVersionInputShape[] | null;
     nodes?: NodeShape[] | null;
     nodeLinks?: NodeLinkShape[] | null;
     outputs?: RoutineVersionOutputShape[] | null;
-    resourceList?: { id: string } | ResourceListShape | null;
+    resourceList?: Omit<ResourceListShape, "listFor"> | null;
     root?: { id: string } | RoutineShape | null;
     smartContractVersion?: { id: string } | null;
     suggestedNextByRoutineVersion?: { id: string }[] | null;
@@ -42,7 +42,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: d.id } })),
         ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: d.id } })),
         ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: d.id } })),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
+        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "RoutineVersion" } })),
         ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
         ...createRel(d, "smartContractVersion", ["Connect"], "one"),
         ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
@@ -56,7 +56,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...updateRel(o, u, "nodes", ["Create", "Update", "Delete"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: o.id } })),
         ...updateRel(o, u, "nodeLinks", ["Create", "Update", "Delete"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: o.id } })),
         ...updateRel(o, u, "outputs", ["Create", "Update", "Delete"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: o.id } })),
-        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
+        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "RoutineVersion" } })),
         ...updateRel(o, u, "root", ["Update"], "one", shapeRoutine),
         ...updateRel(o, u, "smartContractVersion", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "suggestedNextByRoutineVersion", ["Connect", "Disconnect"], "many"),

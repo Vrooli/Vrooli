@@ -1,15 +1,14 @@
 import { calculateOccurrences, DUMMY_ID, endpointGetFeedHome, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Note, NoteVersion, Reminder, ResourceList, uuid } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
+import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ReminderList } from "components/lists/reminder";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { HomePrompt } from "components/text/HomePrompt/HomePrompt";
-import { PageTab } from "components/types";
 import { AddIcon, MonthIcon, NoteIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,11 +16,13 @@ import { useLocation } from "route";
 import { centeredDiv } from "styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { getDisplay, listToAutocomplete, listToListItems } from "utils/display/listTools";
+import { getDisplay, listToAutocomplete } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFetch } from "utils/hooks/useFetch";
 import { useReactSearch } from "utils/hooks/useReactSearch";
+import { PageTab } from "utils/hooks/useTabs";
 import { openObject } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -32,34 +33,35 @@ import { DashboardViewProps } from "../types";
 
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: DashboardViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     // Handle focus modes
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode>[]>(() => allFocusModes.map((mode, index) => ({
+    const tabs = useMemo<PageTab<FocusMode, false>[]>(() => allFocusModes.map((mode, index) => ({
         index,
         label: mode.name,
-        value: mode,
+        tabType: mode,
     })), [allFocusModes]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id);
+        const match = tabs.find(tab => tab.tabType.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
         e.preventDefault();
         PubSub.get().publishFocusMode({
             __typename: "ActiveFocusMode" as const,
-            mode: tab.value,
+            mode: tab.tabType,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
@@ -186,15 +188,6 @@ export const DashboardView = ({
         }
     }, [data]);
 
-    const noteItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill("Note"),
-        items: notes,
-        keyPrefix: "note-list-item",
-        loading,
-        onClick,
-        zIndex,
-    }), [onClick, notes, loading, zIndex]);
-
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true); }, []);
     const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false); }, []);
@@ -230,35 +223,20 @@ export const DashboardView = ({
         });
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime());
-        const first10 = result.slice(0, 10);
-        // Convert to list items
-        return listToListItems({
-            dummyItems: new Array(5).fill("Event"),
-            items: first10,
-            keyPrefix: "event-list-item",
-            loading,
-            onClick,
-            zIndex,
-        });
-    }, [onClick, data?.schedules, loading, session, zIndex]);
+        return result.slice(0, 10);
+    }, [data?.schedules, session]);
 
     return (
         <PageContainer>
             {/* Create note dialog */}
-            <LargeDialog
-                id="add-note-dialog"
-                onClose={closeCreateNote}
+            <NoteUpsert
+                isCreate={true}
                 isOpen={isCreateNoteOpen}
-                zIndex={zIndex + 1}
-            >
-                <NoteUpsert
-                    display="dialog"
-                    isCreate={true}
-                    onCancel={closeCreateNote}
-                    onCompleted={onNoteCreated}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={closeCreateNote}
+                onCompleted={onNoteCreated}
+                overrideObject={{ __typename: "NoteVersion" }}
+                zIndex={zIndex + 1001}
+            />
             {/* Main content */}
             <TopBar
                 display={display}
@@ -293,7 +271,13 @@ export const DashboardView = ({
                 />
             </Stack>
             {/* Result feeds */}
-            <Stack spacing={10} direction="column" mt={10}>
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "auto",
+                marginTop: 10,
+                gap: 4,
+            }}>
                 {/* Resources */}
                 <ResourceListHorizontal
                     id="main-resource-list"
@@ -302,14 +286,15 @@ export const DashboardView = ({
                     handleUpdate={setResourceList}
                     loading={loading}
                     mutate={true}
+                    parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
                     zIndex={zIndex}
                 />
                 {/* Events */}
                 <ListTitleContainer
                     Icon={MonthIcon}
                     id="main-event-list"
-                    isEmpty={upcomingEvents.length === 0}
-                    title={t("Schedule")}
+                    isEmpty={upcomingEvents.length === 0 && !loading}
+                    title={t("Schedule", { count: 1 })}
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("Open"),
@@ -317,7 +302,14 @@ export const DashboardView = ({
                     }]}
                     zIndex={zIndex}
                 >
-                    {upcomingEvents}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Event")}
+                        items={upcomingEvents}
+                        keyPrefix="event-list-item"
+                        loading={loading}
+                        onClick={onClick}
+                        zIndex={zIndex}
+                    />
                 </ListTitleContainer>
                 {/* Reminders */}
                 <ReminderList
@@ -332,12 +324,12 @@ export const DashboardView = ({
                 <ListTitleContainer
                     Icon={NoteIcon}
                     id="main-note-list"
-                    isEmpty={noteItems.length === 0}
+                    isEmpty={notes.length === 0 && !loading}
                     title={t("Note", { count: 2 })}
                     options={[{
                         Icon: OpenInNewIcon,
                         label: t("SeeAll"),
-                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Notes}`); },
+                        onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Note}`); },
                     }, {
                         Icon: AddIcon,
                         label: t("Create"),
@@ -345,9 +337,16 @@ export const DashboardView = ({
                     }]}
                     zIndex={zIndex}
                 >
-                    {noteItems}
+                    <ObjectList
+                        dummyItems={new Array(5).fill("Note")}
+                        items={notes}
+                        keyPrefix="note-list-item"
+                        loading={loading}
+                        onClick={onClick}
+                        zIndex={zIndex}
+                    />
                 </ListTitleContainer>
-            </Stack>
+            </Box>
         </PageContainer>
     );
 };

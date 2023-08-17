@@ -48,7 +48,7 @@ export const RunPickerMenu = ({
     const [createRunProject] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
     const [createRunRoutine] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const createNewRun = useCallback(() => {
-        if (!runnableObject) {
+        if (!runnableObject || !runnableObject.id) {
             PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
@@ -119,7 +119,7 @@ export const RunPickerMenu = ({
     }, [open, runnableObject, createNewRun, onSelect, session?.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
-        if (!runnableObject || !runnableObject.you.runs) return [];
+        if (!runnableObject || !runnableObject.you || !runnableObject.you.runs) return [];
         // Find incomplete runs
         const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({

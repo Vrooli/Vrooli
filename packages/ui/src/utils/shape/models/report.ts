@@ -4,7 +4,7 @@ import { firstString } from "utils/display/stringTools";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 
 export type ReportShape = Pick<Report, "id" | "details" | "language" | "reason"> & {
-    __typename?: "Report";
+    __typename: "Report";
     createdFor: { __typename: ReportFor, id: string };
     otherReason?: string | null;
 }

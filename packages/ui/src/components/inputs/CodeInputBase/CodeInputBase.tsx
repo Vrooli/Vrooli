@@ -15,14 +15,14 @@ import { jsonToString } from "utils/shape/general";
 import { redo, undo } from "@codemirror/commands";
 import { Extension, StateField } from "@codemirror/state";
 import { BlockInfo, Decoration, EditorView, gutter, GutterMarker, showTooltip } from "@codemirror/view";
-import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
-import { AssistantDialogProps } from "components/dialogs/types";
 import { ErrorIcon, MagicIcon, OpenThreadIcon, RedoIcon, UndoIcon, WarningIcon } from "icons";
 import ReactDOMServer from "react-dom/server";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
+import { ChatViewProps } from "views/types";
 import { CodeInputBaseProps } from "../types";
 
 export enum StandardLanguage {
@@ -512,12 +512,13 @@ export const CodeInputBase = ({
     }, [mode]);
 
     // Handle assistant dialog
-    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
+        chatInfo: assistantChatInfo,
         context: undefined,
         isOpen: false,
         task: "standard",
-        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
@@ -597,7 +598,7 @@ export const CodeInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <AssistantDialog {...assistantDialogProps} />
+            <ChatView {...assistantDialogProps} />
             <Stack direction="column" spacing={0} sx={{
                 borderRadius: 1.5,
                 overflow: "hidden",

@@ -15,6 +15,8 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
@@ -22,24 +24,24 @@ import { SessionContext } from "utils/SessionContext";
 import { ApiViewProps } from "../types";
 
 export const ApiView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: ApiViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
     const profileColors = useMemo(() => placeholderColor(), []);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
         ...endpointGetApiVersion,
-        partialData,
+        objectType: "ApiVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
@@ -48,7 +50,7 @@ export const ApiView = ({
     const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
         const { canBookmark } = apiVersion?.root?.you ?? {};
         const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
-        const { details, name, summary } = getTranslation(apiVersion ?? partialData, [language]);
+        const { details, name, summary } = getTranslation(apiVersion, [language]);
         return {
             details,
             canBookmark,
@@ -56,11 +58,7 @@ export const ApiView = ({
             resourceList,
             summary,
         };
-    }, [language, apiVersion, partialData]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [language, apiVersion]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
@@ -75,6 +73,7 @@ export const ApiView = ({
             }}
             loading={isLoading}
             mutate={true}
+            parent={{ __typename: "ApiVersion", id: apiVersion?.id ?? "" }}
             zIndex={zIndex}
         />
     ) : null, [resourceList, permissions.canUpdate, isLoading, zIndex, apiVersion, setApiVersion]);
@@ -190,6 +189,7 @@ export const ApiView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
+                title={firstString(name, t("Api", { count: 1 }))}
                 zIndex={zIndex}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}

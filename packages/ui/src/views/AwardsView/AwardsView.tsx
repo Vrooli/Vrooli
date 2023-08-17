@@ -8,6 +8,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
+import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useFetch } from "utils/hooks/useFetch";
@@ -21,13 +22,14 @@ const categoryList = Object.values(AwardCategory);
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 export const AwardsView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
+    const display = toDisplay(isOpen);
 
     // All awards. Combined with you award progress fetched from the backend.
     const [awards, setAwards] = useState<AwardDisplay[]>(() => {

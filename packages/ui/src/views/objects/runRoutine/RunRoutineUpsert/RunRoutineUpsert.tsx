@@ -1,42 +1,63 @@
-import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
+import { endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { RunRoutineForm, runRoutineInitialValues, transformRunRoutineValues, validateRunRoutineValues } from "forms/RunRoutineForm/RunRoutineForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { RunRoutineShape } from "utils/shape/models/runRoutine";
 import { RunRoutineUpsertProps } from "../types";
 
 export const RunRoutineUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: RunRoutineUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointGetRunRoutine);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
+        ...endpointGetRunRoutine,
+        objectType: "RunRoutine",
+        overrideObject,
+        transform: (existing) => runRoutineInitialValues(session, existing),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => runRoutineInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput>({
+        display,
+        endpointCreate: endpointPostRunRoutine,
+        endpointUpdate: endpointPutRunRoutine,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="run-routine-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -45,7 +66,7 @@ export const RunRoutineUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +74,12 @@ export const RunRoutineUpsert = ({
                     }
                     fetchLazyWrapper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
                         fetch,
-                        inputs: transformRunRoutineValues(values, existing),
+                        inputs: transformRunRoutineValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateRunRoutineValues(values, existing)}
+                validate={async (values) => await validateRunRoutineValues(values, existing, isCreate)}
             >
                 {(formik) => <RunRoutineForm
                     display={display}
@@ -71,6 +92,6 @@ export const RunRoutineUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

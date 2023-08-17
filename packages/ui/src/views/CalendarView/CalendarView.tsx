@@ -2,65 +2,55 @@ import { calculateOccurrences, CommonKey, Schedule, ScheduleFor, ScheduleSearchR
 import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
-import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, FocusModeIcon, MonthIcon, OrganizationIcon, ProjectIcon, RoutineIcon, TodayIcon, VisibleIcon, WeekIcon } from "icons";
+import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
-import { addSearchParams, parseSearchParams, useLocation } from "route";
-import { CalendarEvent, SvgComponent } from "types";
+import { CalendarEvent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
 import { useDimensions } from "utils/hooks/useDimensions";
 import { useFindMany } from "utils/hooks/useFindMany";
+import { useTabs } from "utils/hooks/useTabs";
 import { useWindowSize } from "utils/hooks/useWindowSize";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { CalendarViewProps } from "views/types";
 
-// Tab data type
-type CalendarBaseParams = {
-    Icon: SvgComponent;
-    titleKey: CommonKey;
-    tabType: CalendarPageTabOption;
-    filterType?: ScheduleFor;
-}
-
-type CalendarPageTab = PageTab<CalendarPageTabOption> & { filterType: ScheduleFor | undefined };
-
 // Data for each tab. Ordered by tab index
-export const calendarTabParams: CalendarBaseParams[] = [{
-    Icon: VisibleIcon,
-    titleKey: "All",
+export const calendarTabParams = [{
+    titleKey: "All" as CommonKey,
+    searchType: SearchType.Schedule,
     tabType: CalendarPageTabOption.All,
+    where: () => ({}),
 }, {
-    Icon: OrganizationIcon,
-    titleKey: "Meeting",
-    tabType: CalendarPageTabOption.Meetings,
-    filterType: ScheduleFor.Meeting,
+    titleKey: "Meeting" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.Meeting,
+    where: () => ({ scheduleFor: ScheduleFor.Meeting }),
 }, {
-    Icon: RoutineIcon,
-    titleKey: "Routine",
-    tabType: CalendarPageTabOption.RunRoutines,
-    filterType: ScheduleFor.RunRoutine,
+    titleKey: "Routine" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.RunRoutine,
+    where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
 }, {
-    Icon: ProjectIcon,
-    titleKey: "Project",
-    tabType: CalendarPageTabOption.RunProjects,
-    filterType: ScheduleFor.RunProject,
+    titleKey: "Project" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.RunProject,
+    where: () => ({ scheduleFor: ScheduleFor.RunProject }),
 }, {
-    Icon: FocusModeIcon,
-    titleKey: "FocusMode",
-    tabType: CalendarPageTabOption.FocusModes,
-    filterType: ScheduleFor.FocusMode,
+    titleKey: "FocusMode" as CommonKey,
+    searchType: SearchType.Schedule,
+    tabType: CalendarPageTabOption.FocusMode,
+    where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
 }];
 
 const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
@@ -160,14 +150,13 @@ const DayColumnHeader = ({ label }) => {
 };
 
 export const CalendarView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
-    const { t } = useTranslation();
+    const display = toDisplay(isOpen);
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
     // Defaults to current month
@@ -216,31 +205,13 @@ export const CalendarView = ({
         }
     }, []);
 
-    // Handle tabs
-    const tabs = useMemo<CalendarPageTab[]>(() => {
-        return calendarTabParams.map((tab, i) => ({
-            index: i,
-            Icon: tab.Icon,
-            label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            value: tab.tabType,
-            filterType: tab.filterType,
-        }));
-    }, [t]);
-    const [currTab, setCurrTab] = useState<CalendarPageTab>(() => {
-        const searchParams = parseSearchParams();
-        const index = calendarTabParams.findIndex(tab => tab.tabType === searchParams.type);
-        // Default to bookmarked tab
-        if (index === -1) return tabs[0];
-        // Return tab
-        return tabs[index];
-    });
-    const handleTabChange = useCallback((e: any, tab: CalendarPageTab) => {
-        e.preventDefault();
-        // Update search params
-        addSearchParams(setLocation, { type: tab.value });
-        // Update curr tab
-        setCurrTab(tab);
-    }, [setLocation]);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<CalendarPageTabOption>({ tabParams: calendarTabParams, display });
 
     // Find schedules
     const {
@@ -248,8 +219,7 @@ export const CalendarView = ({
         loading,
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
-        canSearch: () => true,
-        searchType: "Schedule",
+        searchType,
         where: {
             // Only find schedules that hav not ended, 
             // and will start before the date range ends
@@ -261,8 +231,8 @@ export const CalendarView = ({
                 after: add(dateRange.start, { years: -1000 }).toISOString(),
                 before: dateRange.end.toISOString(),
             } : undefined,
-            scheduleFor: currTab.filterType,
             scheduleForUserId: getCurrentUser(session)?.id,
+            ...where(),
         },
     });
     // Load more schedules when date range changes
@@ -325,25 +295,17 @@ export const CalendarView = ({
     return (
         <>
             {/* Dialog for creating/updating schedules */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                defaultTab={currTab.tabType === "All" ? CalendarPageTabOption.Meeting : currTab.tabType}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={true}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
                 zIndex={zIndex + 2}
-            >
-                <ScheduleUpsert
-                    defaultTab={currTab.value === "All" ? CalendarPageTabOption.Meetings : currTab.value}
-                    display="dialog"
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={true}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1002}
-                />
-            </LargeDialog>
+            />
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open

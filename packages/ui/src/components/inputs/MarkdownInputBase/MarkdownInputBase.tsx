@@ -4,8 +4,6 @@
 import { Box, CircularProgress, IconButton, List, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
-import { AssistantDialog } from "components/dialogs/AssistantDialog/AssistantDialog";
-import { AssistantDialogProps } from "components/dialogs/types";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -13,11 +11,14 @@ import { useTranslation } from "react-i18next";
 import { linkColors, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
-import { getDisplay, ListObjectType } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { useDebounce } from "utils/hooks/useDebounce";
+import { useIsLeftHanded } from "utils/hooks/useIsLeftHanded";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { assistantChatInfo, ChatView } from "views/ChatView/ChatView";
+import { ChatViewProps } from "views/types";
 import { MarkdownInputBaseProps } from "../types";
 
 interface TagItemDropdownPros {
@@ -25,8 +26,8 @@ interface TagItemDropdownPros {
     focusedIndex: number;
     handleClose: () => void;
     handleFocusChange: (index: number) => void;
-    handleSelect: (item: ListObjectType) => void;
-    items: ListObjectType[];
+    handleSelect: (item: ListObject) => void;
+    items: ListObject[];
 }
 
 /** When using "@" to tag an object, displays options */
@@ -217,13 +218,14 @@ export const MarkdownInputBase = ({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
+    const isLeftHanded = useIsLeftHanded();
 
     // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
     const changeStack = useRef<string[]>([value]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
 
     // Internal value (since value passed back is debounced)
-    const [internalValue, setInternalValue] = useState<string>(value);
+    const [internalValue, setInternalValue] = useState<string>(value ?? "");
     useEffect(() => {
         // If new value is one of the recent items in the stack 
         // (i.e. debounce is firing while user is still typing),
@@ -311,12 +313,13 @@ export const MarkdownInputBase = ({
         onChangeDebounced(updatedText);
     }, [changeStackIndex, onChangeDebounced]);
 
-    const [assistantDialogProps, setAssistantDialogProps] = useState<AssistantDialogProps>({
+    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatViewProps>({
+        chatInfo: assistantChatInfo,
         context: undefined,
         isOpen: false,
         task: "note",
-        handleClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
-        handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        onClose: () => { setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
+        // handleComplete: (data) => { console.log("completed", data); setAssistantDialogProps(props => ({ ...props, isOpen: false })); },
         zIndex: zIndex + 1,
     });
     const openAssistantDialog = useCallback(() => {
@@ -461,8 +464,8 @@ export const MarkdownInputBase = ({
     const [dropdownAnchorEl, setDropdownAnchorEl] = useState<HTMLElement | null>(null);
     const [dropdownTabIndex, setDropdownTabIndex] = useState(0); // The index of the currently selected item in the dropdown
     const [tagString, setTagString] = useState(""); // What has been typed after the "@"
-    const [dropdownList, setDropdownList] = useState<ListObjectType[]>([]); // The list of items currently being displayed
-    const [cachedTags, setCachedTags] = useState<Record<string, ListObjectType[]>>({}); // The cached list of items for each tag string, to prevent unnecessary queries
+    const [dropdownList, setDropdownList] = useState<ListObject[]>([]); // The list of items currently being displayed
+    const [cachedTags, setCachedTags] = useState<Record<string, ListObject[]>>({}); // The cached list of items for each tag string, to prevent unnecessary queries
     // Callback to parent to get items, or to get cached items if they exist
     useEffect(() => {
         if (!dropdownAnchorEl || typeof getTaggableItems !== "function") return;
@@ -491,7 +494,7 @@ export const MarkdownInputBase = ({
 
         fetchItems();
     }, [cachedTags, dropdownAnchorEl, getTaggableItems, tagString]);
-    const selectDropdownItem = useCallback((item: ListObjectType) => {
+    const selectDropdownItem = useCallback((item: ListObject) => {
         // Tagged item is inserted as a link
         const asLink = `[@${getDisplay(item).title}](${window.location.origin}${getObjectUrl(item)})`;
         // Insert the link, replacing the tag string and the "@" symbol
@@ -589,6 +592,7 @@ export const MarkdownInputBase = ({
             // On enter key press
             if (e.key === "Enter") {
                 const { selectionStart, selectionEnd, value } = e.target;
+                console.log("key was enter");
                 let [trimmedLine] = getLineAtIndex(value, selectionStart);
                 trimmedLine = trimmedLine.trimStart();
                 const isNumberList = /^\d+\.\s/.test(trimmedLine);
@@ -611,9 +615,11 @@ export const MarkdownInputBase = ({
                         textToInsert += "* ";
                     }
                     textArea.value = replaceText(value, textToInsert, selectionStart, selectionEnd);
+                    console.log("enter key new value", textArea.value);
                     handleChange(textArea.value);
                 }
             }
+            console.log("made it to the end");
         };
         // Handle key press events for preview
         const handleFullComponentKeyDown = (e: any) => {
@@ -648,7 +654,7 @@ export const MarkdownInputBase = ({
     const LINE_HEIGHT_MULTIPLIER = 1.5;
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     useEffect(() => {
-        if (!textAreaRef.current) return;
+        if (!textAreaRef.current || typeof value !== "string") return;
         const lines = (value.match(/\n/g)?.length || 0) + 1;
         const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
         const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
@@ -661,7 +667,7 @@ export const MarkdownInputBase = ({
     return (
         <>
             {/* Assistant dialog for generating text */}
-            <AssistantDialog {...assistantDialogProps} />
+            <ChatView {...assistantDialogProps} />
             {/* Dropdown for tagging items */}
             <TagItemDropdown
                 anchorEl={dropdownAnchorEl}
@@ -955,28 +961,35 @@ export const MarkdownInputBase = ({
                         )
                 }
                 {/* Help text, characters remaining indicator, and action buttons */}
-                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    spacing={1}
+                {(helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
                     sx={{
                         padding: 1,
+                        display: "flex",
+                        flexDirection: isLeftHanded ? "row-reverse" : "row",
+                        gap: 1,
+                        justifyContent: "space-between",
+                        alitnItems: "center",
                     }}
                 >
                     {/* Helper text label */}
                     {
-                        helperText &&
-                        <Typography variant="body1" sx={{ color: "red", paddingTop: 1 }}>
+                        // helperText &&
+                        <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
                             {helperText}
                         </Typography>
                     }
-                    <Stack direction="row" ml="auto" spacing={1}>
+                    <Box sx={{
+                        display: "flex",
+                        gap: 2,
+                        ...(isLeftHanded ?
+                            { marginRight: "auto", flexDirection: "row-reverse" } :
+                            { marginLeft: "auto", flexDirection: "row" }),
+                    }}>
                         {/* Characters remaining indicator */}
                         {
                             !disabled && maxChars !== undefined &&
                             <CharLimitIndicator
-                                chars={internalValue.length}
+                                chars={internalValue?.length ?? 0}
                                 maxChars={maxChars}
                             />
                         }
@@ -995,8 +1008,8 @@ export const MarkdownInputBase = ({
                                 </Tooltip>
                             ))
                         }
-                    </Stack>
-                </Stack>}
+                    </Box>
+                </Box>}
             </Stack>
         </>
     );

@@ -38,9 +38,7 @@ export const OrganizationModel: ModelLogic<OrganizationModelLogic, typeof suppFi
         shape: {
             pre: async ({ createList, updateList, prisma, userData }) => {
                 [...createList, ...updateList].forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                // Validate AdaHandles
-                const handleData = updateList.map(u => ({ id: u.id, handle: u.handle })) as { id: string, handle: string | null | undefined }[];
-                await handlesCheck(prisma, "Organization", handleData, userData.languages);
+                await handlesCheck(prisma, "Organization", createList, updateList, userData.languages);
                 // Find translations that need text embeddings
                 const maps = preShapeEmbeddableTranslatable({ createList, updateList, objectType: __typename });
                 return { ...maps };

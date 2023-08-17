@@ -27,6 +27,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
     Post: "post",
     ProjectVersion: "projectVersion",
     RoutineVersion: "routineVersion",
+    SmartContractVersion: "smartContractVersion",
     StandardVersion: "standardVersion",
     Tag: "tag",
     User: "user",

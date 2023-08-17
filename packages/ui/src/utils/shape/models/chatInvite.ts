@@ -1,6 +1,6 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteUpdateInput } from "@local/shared";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type ChatInviteShape = Pick<ChatInvite, "id" | "message"> & {
     __typename?: "ChatInvite";
@@ -16,7 +16,5 @@ export const shapeChatInvite: ShapeModel<ChatInviteShape, ChatInviteCreateInput,
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "message"),
-        ...updateRel(o, u, "chat", ["Connect"], "one"),
-        ...updateRel(o, u, "user", ["Connect"], "one"),
     }, a),
 };

@@ -26,7 +26,7 @@ import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion"
 
 export const apiInitialValues = (
     session: Session | undefined,
-    existing?: ApiVersion | null | undefined,
+    existing?: Partial<ApiVersion> | null | undefined,
 ): ApiVersionShape => ({
     __typename: "ApiVersion" as const,
     id: DUMMY_ID,
@@ -38,15 +38,16 @@ export const apiInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Api" as const,
         id: DUMMY_ID,
         isPrivate: false,
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     translations: orDefault(existing?.translations, [{
         __typename: "ApiVersionTranslation" as const,
         id: DUMMY_ID,
@@ -57,15 +58,12 @@ export const apiInitialValues = (
     }]),
 });
 
-export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersionShape) => {
-    return existing === undefined
-        ? shapeApiVersion.create(values)
-        : shapeApiVersion.update(existing, values);
-};
+export const transformApiValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
+    isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
 
-export const validateApiValues = async (values: ApiVersionShape, existing?: ApiVersionShape) => {
-    const transformedValues = transformApiValues(values, existing);
-    const validationSchema = apiVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateApiValues = async (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) => {
+    const transformedValues = transformApiValues(values, existing, isCreate);
+    const validationSchema = apiVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -215,6 +213,7 @@ export const ApiForm = forwardRef<BaseFormRef | undefined, ApiFormProps>(({
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "ApiVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <TagSelector

@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, orDefault, Resource, ResourceListFor, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
 import { Stack } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -17,22 +17,27 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 
+/** New resources must include a list ID and an index */
+export type NewResourceShape = Partial<Omit<Resource, "list">> & {
+    index: number,
+    list: Partial<Resource["list"]> & ({ id: string } | { listFor: ResourceListFor | `${ResourceListFor}`, listForId: string })
+};
+
 export const resourceInitialValues = (
     session: Session | undefined,
-    listId: string | undefined,
-    existing?: Resource | null | undefined,
+    existing: NewResourceShape,
 ): ResourceShape => ({
     __typename: "Resource" as const,
     id: DUMMY_ID,
-    index: 0,
     link: "",
-    list: {
-        __typename: "ResourceList" as const,
-        id: listId ?? DUMMY_ID,
-    },
     usedFor: ResourceUsedFor.Context,
     ...existing,
-    translations: orDefault(existing?.translations, [{
+    list: {
+        __typename: "ResourceList" as const,
+        ...existing.list,
+        id: existing.list.id ?? DUMMY_ID,
+    },
+    translations: orDefault(existing.translations, [{
         __typename: "ResourceTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
@@ -41,15 +46,12 @@ export const resourceInitialValues = (
     }]),
 });
 
-export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {
-    return existing === undefined
-        ? shapeResource.create(values)
-        : shapeResource.update(existing, values);
-}
+export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
+    isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
 
-export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
-    const transformedValues = transformResourceValues(values, existing);
-    const validationSchema = resourceValidation[existing === undefined ? "create" : "update"]({});
+export const validateResourceValues = async (values: ResourceShape, existing: ResourceShape, isCreate: boolean) => {
+    const transformedValues = transformResourceValues(values, existing, isCreate);
+    const validationSchema = resourceValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

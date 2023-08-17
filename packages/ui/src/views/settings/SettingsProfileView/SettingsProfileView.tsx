@@ -7,6 +7,7 @@ import { Formik } from "formik";
 import { SettingsProfileForm } from "forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
@@ -17,12 +18,13 @@ import { createPrims } from "utils/shape/models/tools";
 import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsProfileViewProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -71,8 +73,8 @@ export const SettingsProfileView = ({
                                     ...values,
                                 }),
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                                onSuccess: (updated) => { helpers.setSubmitting(false); onProfileUpdate(updated); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onSuccess: (updated) => { onProfileUpdate(updated); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

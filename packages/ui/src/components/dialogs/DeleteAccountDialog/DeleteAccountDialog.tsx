@@ -46,7 +46,7 @@ export const DeleteAccountDialog = ({
                 id={titleId}
                 title={`Delete "${name}"`}
                 onClose={() => { handleClose(false); }}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}

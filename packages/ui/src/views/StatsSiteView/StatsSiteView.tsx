@@ -1,4 +1,4 @@
-import { endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { CommonKey, endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { Box, Divider, List, ListItem, ListItemText, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
@@ -6,14 +6,15 @@ import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
-import { StatsViewProps } from "../types";
+import { PageTab, useTabs } from "utils/hooks/useTabs";
+import { StatsSiteViewProps } from "../types";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -26,12 +27,16 @@ import { StatsViewProps } from "../types";
  * For example, the "Daily" tab will display the hourly stats data
  * for the previous 24 hours.
  */
-const TabOptions = ["Daily", "Weekly", "Monthly", "Yearly", "AllTime"] as const;
+enum StatsTabOption {
+    Daily = "Daily",
+    Weekly = "Weekly",
+    Monthly = "Monthly",
+    Yearly = "Yearly",
+    AllTime = "AllTime",
+}
 
-/**
- * Stores the time frame interval for each tab.
- */
-const tabPeriods: { [key in typeof TabOptions[number]]: number } = {
+/** Maps tab options to time frame intervals (in milliseconds) */
+const tabPeriods: { [key in StatsTabOption]: number } = {
     Daily: 24 * 60 * 60 * 1000, // Past 24 hours
     Weekly: 7 * 24 * 60 * 60 * 1000, // Past 7 days
     Monthly: 30 * 24 * 60 * 60 * 1000, // Past 30 days
@@ -39,10 +44,8 @@ const tabPeriods: { [key in typeof TabOptions[number]]: number } = {
     AllTime: Number.MAX_SAFE_INTEGER, // All time
 };
 
-/**
- * Maps tab options to PeriodType.
- */
-const tabPeriodTypes = {
+/** Maps tab options to PeriodType */
+const tabPeriodTypes: { [key in StatsTabOption]: StatPeriodType | `${StatPeriodType}` } = {
     Daily: "Hourly",
     Weekly: "Daily",
     Monthly: "Weekly",
@@ -50,19 +53,42 @@ const tabPeriodTypes = {
     AllTime: "Yearly",
 } as const;
 
+const tabParams = [
+    {
+        titleKey: "Daily" as CommonKey,
+        tabType: StatsTabOption.Daily,
+    }, {
+        titleKey: "Weekly" as CommonKey,
+        tabType: StatsTabOption.Weekly,
+    },
+    {
+        titleKey: "Monthly" as CommonKey,
+        tabType: StatsTabOption.Monthly,
+    },
+    {
+        titleKey: "Yearly" as CommonKey,
+        tabType: StatsTabOption.Yearly,
+    },
+    {
+        titleKey: "AllTime" as CommonKey,
+        tabType: StatsTabOption.AllTime,
+    },
+];
+
 // Stats should not be earlier than February 2023.
 const MIN_DATE = new Date(2023, 1, 1);
 
 /**
  * Displays site-wide statistics, organized by time period.
  */
-export const StatsView = ({
-    display = "page",
+export const StatsSiteView = ({
+    isOpen,
     onClose,
     zIndex,
-}: StatsViewProps) => {
+}: StatsSiteViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
@@ -83,31 +109,21 @@ export const StatsView = ({
         handleDateRangeClose();
     }, [period.after, period.before]);
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<typeof TabOptions[number]>[]>(() => {
-        const tabs = TabOptions;
-        // Return tabs shaped for the tab component
-        return tabs.map((tab, i) => ({
-            index: i,
-            label: t(tab, { count: 2 }),
-            value: tab,
-        }));
-    }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<typeof TabOptions[number]>>(tabs[0]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<typeof TabOptions[number]>) => {
+    const { currTab, setCurrTab, tabs } = useTabs<StatsTabOption, false>({ tabParams, display });
+    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsTabOption, false>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.
-        const period = tabPeriods[tab.value];
+        const period = tabPeriods[tab.tabType];
         const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
         const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
         setPeriod({ after: newAfter, before: newBefore });
-    }, []);
+    }, [setCurrTab]);
 
     // Handle querying stats data.
     const [getStats, { data: statsData, loading, errors }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointGetStatsSite,
         inputs: {
-            periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
+            periodType: tabPeriodTypes[currTab.tabType] as StatPeriodType,
             periodTimeFrame: {
                 after: period.after.toISOString(),
                 before: period.before.toISOString(),
@@ -179,7 +195,7 @@ export const StatsView = ({
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
                 range={period}
-                strictIntervalRange={tabPeriods[currTab.value]}
+                strictIntervalRange={tabPeriods[currTab.tabType]}
                 zIndex={zIndex}
             />
             {/* Date range diplay */}

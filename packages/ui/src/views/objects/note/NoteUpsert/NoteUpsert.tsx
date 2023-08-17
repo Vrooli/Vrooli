@@ -1,68 +1,91 @@
-import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, FindVersionInput, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
+import { endpointGetNoteVersion, endpointPostNoteVersion, endpointPutNoteVersion, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm, noteInitialValues, transformNoteValues, validateNoteValues } from "forms/NoteForm/NoteForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { useContext, useRef } from "react";
+import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { NoteVersionShape } from "utils/shape/models/noteVersion";
 import { NoteUpsertProps } from "../types";
 
 export const NoteUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: NoteUpsertProps) => {
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, NoteVersion>(endpointGetNoteVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
+        ...endpointGetNoteVersion,
+        objectType: "NoteVersion",
+        overrideObject,
+        transform: (data) => noteInitialValues(session, data),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => noteInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<NoteVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<NoteVersionCreateInput, NoteVersion>(endpointPostNoteVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<NoteVersionUpdateInput, NoteVersion>(endpointPutNoteVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostNoteVersion,
+        endpointUpdate: endpointPutNoteVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={initialValues}
-            onSubmit={(values, helpers) => {
-                if (!isCreate && !existing) {
-                    PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
-                    return;
-                }
-                fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
-                    fetch,
-                    inputs: transformNoteValues(values, existing),
-                    onSuccess: (data) => { handleCompleted(data); },
-                    onError: () => { helpers.setSubmitting(false); },
-                });
-            }}
-            validate={async (values) => await validateNoteValues(values, existing)}
+        <MaybeLargeDialog
+            display={display}
+            id="note-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
         >
-            {(formik) =>
-                <NoteForm
-                    display={display}
-                    isCreate={isCreate}
-                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
-                    isOpen={true}
-                    onCancel={handleCancel}
-                    ref={formRef}
-                    versions={[]}
-                    zIndex={zIndex}
-                    {...formik}
-                />
-            }
-        </Formik>
+            <Formik
+                enableReinitialize={true}
+                initialValues={existing}
+                onSubmit={(values, helpers) => {
+                    if (!isCreate && !existing) {
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
+                        return;
+                    }
+                    fetchLazyWrapper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+                        fetch,
+                        inputs: transformNoteValues(values, existing, isCreate),
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
+                    });
+                }}
+                validate={async (values) => await validateNoteValues(values, existing, isCreate)}
+            >
+                {(formik) =>
+                    <NoteForm
+                        display={display}
+                        isCreate={isCreate}
+                        isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
+                        isOpen={true}
+                        onCancel={handleCancel}
+                        ref={formRef}
+                        versions={[]}
+                        zIndex={zIndex}
+                        {...formik}
+                    />
+                }
+            </Formik>
+        </MaybeLargeDialog>
     );
 };

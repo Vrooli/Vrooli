@@ -3,6 +3,13 @@ import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Sched
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
+import { ListObject } from "utils/display/listTools";
+
+/** 
+ * An object which at least includes its type.
+ * Useful when the object has not been fully loaded
+ */
+export type PartialWithType<T extends { __typename: string }> = Partial<T> & { __typename: T["__typename"] };
 
 export interface SvgProps {
     fill?: string;
@@ -47,28 +54,10 @@ export type IWrap<T> = { input: T }
 
 
 /** An object connected to routing */
-export type NavigableObject = {
+export type NavigableObject = Omit<ListObject, "__typename"> & {
     __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
-    id: string,
-    projectVersion?: {
-        __typename: "ProjectVersion",
-        id: string
-    } | null,
-    root?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string,
-    } | null,
-    routineVersion?: {
-        __typename: "RoutineVersion",
-        id: string
-    } | null,
-    to?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string,
-    }
+    id?: string,
 }
 
 /**
@@ -179,26 +168,15 @@ export interface ObjectOption {
     __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
-    root?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string
-    } | null;
-    versions?: { id: string }[] | null;
+    root?: ListObject | null;
+    versions?: ListObject[] | null;
     isFromHistory?: boolean;
     isBookmarked?: boolean;
     label: string;
     bookmarks?: number;
     [key: string]: any;
-    runnableObject?: {
-        __typename: `${GqlModelType}`
-        id: string
-    } | null,
-    to?: {
-        __typename: `${GqlModelType}`,
-        handle?: string | null,
-        id: string,
-    }
+    runnableObject?: ListObject | null,
+    to?: ListObject
 }
 
 export interface ShortcutOption {

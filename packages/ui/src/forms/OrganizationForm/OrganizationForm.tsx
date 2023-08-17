@@ -21,7 +21,7 @@ import { OrganizationShape, shapeOrganization } from "utils/shape/models/organiz
 
 export const organizationInitialValues = (
     session: Session | undefined,
-    existing?: Organization | null | undefined,
+    existing?: Partial<Organization> | null | undefined,
 ): OrganizationShape => ({
     __typename: "Organization" as const,
     id: DUMMY_ID,
@@ -38,15 +38,12 @@ export const organizationInitialValues = (
     }]),
 });
 
-export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {
-    return existing === undefined
-        ? shapeOrganization.create(values)
-        : shapeOrganization.update(existing, values);
-};
+export const transformOrganizationValues = (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) =>
+    isCreate ? shapeOrganization.create(values) : shapeOrganization.update(existing, values);
 
-export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
-    const transformedValues = transformOrganizationValues(values, existing);
-    const validationSchema = organizationValidation[existing === undefined ? "create" : "update"]({});
+export const validateOrganizationValues = async (values: OrganizationShape, existing: OrganizationShape, isCreate: boolean) => {
+    const transformedValues = transformOrganizationValues(values, existing, isCreate);
+    const validationSchema = organizationValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -99,7 +96,7 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
-                        profile={{ __typename: "Organization", ...values }}
+                        profile={{ ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection>
@@ -133,6 +130,7 @@ export const OrganizationForm = forwardRef<BaseFormRef | undefined, Organization
                     </FormSection>
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "Organization", id: values.id }}
                         zIndex={zIndex}
                     />
                 </FormContainer>

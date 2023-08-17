@@ -5,8 +5,8 @@ export const urlRegex = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|1
 // Cardano payment wallet address (i.e. starts with "addr1", and is 103 characters long in total)
 export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/;
 
-// ADA Handle (i.e. starts with "$", and is 3-16 characters (not including the "$"))
-export const adaHandleRegex = /^\$[a-zA-Z0-9]{3,16}$/;
+// Handle (i.e. 3-16 characters, no special characters)
+export const handleRegex = /^[a-zA-Z0-9]{3,16}$/;
 
 // See https://stackoverflow. com/a/21456918/10240279 for more options
 export const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;

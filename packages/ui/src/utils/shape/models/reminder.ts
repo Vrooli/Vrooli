@@ -5,8 +5,8 @@ import { ReminderListShape, shapeReminderList } from "./reminderList";
 import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ReminderShape = Pick<Reminder, "id" | "name" | "description" | "dueDate" | "index" | "isComplete"> & {
-    __typename?: "Reminder";
-    reminderList?: { id: string } | ReminderListShape | null;
+    __typename: "Reminder";
+    reminderList: { id: string } | ReminderListShape;
     reminderItems?: ReminderItemShape[] | null,
 }
 

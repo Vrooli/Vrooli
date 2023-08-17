@@ -418,12 +418,6 @@ export const AuthEndpoints: EndpointsAuth = {
                 select: {
                     id: true,
                     name: true,
-                    handles: {
-                        select: {
-                            id: true,
-                            handle: true,
-                        },
-                    },
                     publicAddress: true,
                     stakingAddress: true,
                     verified: true,

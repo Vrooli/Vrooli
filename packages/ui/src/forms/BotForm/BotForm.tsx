@@ -21,7 +21,7 @@ import { BotShape, shapeBot } from "utils/shape/models/bot";
 
 export const botInitialValues = (
     session: Session | undefined,
-    existing?: User | null | undefined,
+    existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape => {
     const { creativity, verbosity, translations } = findBotData(getUserLanguages(session)[0], existing);
 
@@ -30,7 +30,7 @@ export const botInitialValues = (
         id: DUMMY_ID,
         creativity,
         isPrivate: false,
-        name: "Bot Name",
+        name: "",
         verbosity,
         ...existing,
         isBot: true,
@@ -38,15 +38,12 @@ export const botInitialValues = (
     };
 };
 
-export function transformBotValues(session: Session | undefined, values: BotShape, existing?: User | null | undefined) {
-    return existing === undefined
-        ? shapeBot.create(values)
-        : shapeBot.update(botInitialValues(session, existing), values);
-}
+export const transformBotValues = (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) =>
+    isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
 
-export const validateBotValues = async (session: Session | undefined, values: BotShape, existing?: User | null | undefined) => {
-    const transformedValues = transformBotValues(session, values, existing);
-    const validationSchema = botValidation[existing === undefined ? "create" : "update"]({});
+export const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
+    const transformedValues = transformBotValues(session, values, existing, isCreate);
+    const validationSchema = botValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -102,7 +99,7 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
                         onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
                         name="profileImage"
-                        profile={{ __typename: "User", ...values }}
+                        profile={{ ...values }}
                         zIndex={zIndex}
                     />
                     <FormSection sx={{
@@ -120,6 +117,12 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                             fullWidth
                             name="name"
                             label={t("Name")}
+                            as={TextField}
+                        />
+                        <Field
+                            fullWidth
+                            name="handle"
+                            label={t("Handle")}
                             as={TextField}
                         />
                         <TranslatedMarkdownInput
@@ -242,17 +245,17 @@ export const BotForm = forwardRef<BaseFormRef | undefined, BotFormProps>(({
                         </Stack>
                     </FormSection>
                 </FormContainer>
-                <GridSubmitButtons
-                    display={display}
-                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                zIndex={zIndex}
+            />
         </>
     );
 });

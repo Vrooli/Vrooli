@@ -22,7 +22,7 @@ import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/pro
 
 export const projectInitialValues = (
     session: Session | undefined,
-    existing?: ProjectVersion | null | undefined,
+    existing?: Partial<ProjectVersion> | null | undefined,
 ): ProjectVersionShape => ({
     __typename: "ProjectVersion" as const,
     id: DUMMY_ID,
@@ -32,6 +32,8 @@ export const projectInitialValues = (
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     },
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Project" as const,
         id: DUMMY_ID,
@@ -39,9 +41,8 @@ export const projectInitialValues = (
         owner: { __typename: "User", id: getCurrentUser(session)!.id! },
         parent: null,
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
     directories: orDefault(existing?.directories, [{
         __typename: "ProjectVersionDirectory" as const,
         id: DUMMY_ID,
@@ -63,15 +64,12 @@ export const projectInitialValues = (
     }]),
 });
 
-export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    return existing === undefined
-        ? shapeProjectVersion.create(values)
-        : shapeProjectVersion.update(existing, values);
-};
+export const transformProjectValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
+    isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
 
-export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
-    const transformedValues = transformProjectValues(values, existing);
-    const validationSchema = projectVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateProjectValues = async (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) => {
+    const transformedValues = transformProjectValues(values, existing, isCreate);
+    const validationSchema = projectVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

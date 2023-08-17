@@ -10,7 +10,7 @@ import { ScheduleRecurrenceShape, shapeScheduleRecurrence } from "./scheduleRecu
 import { createPrims, createRel, shapeDate, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ScheduleShape = Pick<Schedule, "id" | "startTime" | "endTime" | "timezone"> & {
-    __typename?: "Schedule";
+    __typename: "Schedule";
     exceptions: ScheduleExceptionShape[];
     focusMode?: { id: string } | FocusModeShape | null;
     labels?: LabelShape[] | null;

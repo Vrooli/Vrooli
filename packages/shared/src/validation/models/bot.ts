@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { bio, blankToUndefined, bool, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { bio, blankToUndefined, bool, handle, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 
 const botSettings = yup.string().transform(blankToUndefined).max(4096, maxStrErr);
 
@@ -16,6 +16,7 @@ export const botValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
         botSettings: req(botSettings),
+        handle: opt(handle),
         isPrivate: opt(bool),
         name: req(name),
     }, [
@@ -24,6 +25,7 @@ export const botValidation: YupModel = {
     update: ({ o }) => yupObj({
         id: req(id),
         botSettings: opt(botSettings),
+        handle: opt(handle),
         isPrivate: opt(bool),
         name: opt(name),
     }, [

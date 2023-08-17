@@ -9,7 +9,7 @@ import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedComplexity" | "contextSwitches" | "name" | "status" | "timeElapsed"> & {
-    __typename?: "RunRoutine";
+    __typename: "RunRoutine";
     steps?: RunRoutineStepShape[] | null;
     inputs?: RunRoutineInputShape[] | null;
     schedule?: ScheduleShape | null;

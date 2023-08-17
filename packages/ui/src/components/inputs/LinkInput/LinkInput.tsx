@@ -112,6 +112,5 @@ export const LinkInput = ({
                 )}
             </Box>
         </>
-
     );
 };

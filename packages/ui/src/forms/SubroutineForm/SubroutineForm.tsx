@@ -49,15 +49,12 @@ export const subroutineInitialValues = (
     }]),
 });
 
-export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    return existing === undefined
-        ? shapeNodeRoutineListItem.create(values)
-        : shapeNodeRoutineListItem.update(existing, values);
-};
+export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) =>
+    isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
 
-export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
-    const transformedValues = transformSubroutineValues(values, existing);
-    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? "create" : "update"]({});
+export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape | undefined, isCreate: boolean) => {
+    const transformedValues = transformSubroutineValues(values, existing, isCreate);
+    const validationSchema = nodeRoutineListItemValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -212,6 +209,7 @@ export const SubroutineForm = forwardRef<BaseFormRef | undefined, SubroutineForm
                                 canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
                                 mutate={false}
+                                parent={{ __typename: "RoutineVersion", id: values.id }}
                                 zIndex={zIndex}
                             />
                         </Grid>

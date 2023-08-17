@@ -1,29 +1,22 @@
-import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, Comment, CommonKey, DeleteType, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
-import { StatsCompactPropsObject, TitleProps } from "components/text/types";
+import { TitleProps } from "components/text/types";
 import { BaseObjectFormProps } from "forms/types";
 import { ReactNode } from "react";
-import { AssistantTask, DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
+import { DirectoryStep, NavigableObject, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
-import { ListObjectType } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
-import { SearchType } from "utils/search/objectToSearch";
 import { CommentShape } from "utils/shape/models/comment";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ViewDisplayType } from "views/types";
+import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
-export interface AssistantDialogProps {
-    context?: string;
-    task?: AssistantTask;
-    handleClose: () => unknown;
-    handleComplete: (data: any) => unknown;
-    isOpen: boolean;
-    zIndex: number;
-}
 
 export interface CommentDialogProps extends Omit<BaseObjectFormProps<CommentShape>, "display"> {
     parent: Comment | null;
@@ -89,21 +82,15 @@ export type SelectOrCreateObject = ApiVersion |
  */
 export type FindObjectDialogType = "Full" | "List" | "Url";
 export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
-    /**
-     * Determines the type of data returned when an object is selected
-     */
+    /** The type of data returned when an object is selected */
     find: Find;
     handleCancel: () => unknown;
     handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
-    limitTo?: SelectOrCreateObjectType[];
-    /**
-     * If not set, uses "Popular" endpoint to get data
-     */
-    searchData?: {
-        searchType: SearchType | `${SearchType}`;
-        where: { [key: string]: string | number | boolean | object | null | undefined; };
-    }
+    limitTo?: FindObjectTabOption[];
+    /** Forces selection to be a version, and removes unversioned items from limitTo */
+    onlyVersioned?: boolean;
+    where?: { [key: string]: object };
     zIndex: number;
 }
 
@@ -152,6 +139,7 @@ export enum ObjectDialogAction {
     Add = "Add",
     Cancel = "Cancel",
     Close = "Close",
+    Delete = "Delete",
     Edit = "Edit",
     Next = "Next",
     Previous = "Previous",
@@ -163,33 +151,6 @@ export interface ReorderInputDialogProps {
     isInput: boolean;
     listLength: number;
     startIndex: number;
-    zIndex: number;
-}
-
-export interface ReportDialogProps extends DialogProps {
-    forId: string;
-    onClose: () => unknown;
-    open: boolean;
-    reportFor: ReportFor;
-    title?: string;
-    zIndex: number;
-}
-
-export interface ResourceDialogProps extends Omit<DialogProps, "open"> {
-    /**
-     * Index in resource list. -1 if new
-     */
-    index: number;
-    isOpen: boolean;
-    listId: string;
-    /**
-     * Determines if add resource should be called by this dialog, or is handled later
-     */
-    mutate: boolean;
-    onClose: () => unknown;
-    onCreated: (resource: Resource) => unknown;
-    onUpdated: (index: number, resource: Resource) => unknown;
-    partialData?: Partial<Resource>;
     zIndex: number;
 }
 
@@ -209,7 +170,7 @@ export interface TranscriptDialogProps {
 }
 
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
-    object: ListObjectType | null | undefined;
+    object: ListObject | null | undefined;
     zIndex: number;
 }
 
@@ -217,7 +178,7 @@ export interface ObjectActionMenuProps {
     actionData: UseObjectActionsReturn;
     anchorEl: HTMLElement | null;
     exclude?: ObjectAction[];
-    object: ListObjectType | null | undefined;
+    object: ListObject | null | undefined;
     onClose: () => unknown;
     zIndex: number;
 }
@@ -300,21 +261,13 @@ export interface SelectLanguageMenuProps {
     zIndex: number;
 }
 
-export interface StatsDialogProps<T extends StatsCompactPropsObject> {
-    handleObjectUpdate: (object: T) => unknown;
-    isOpen: boolean;
-    object: T | null | undefined;
-    onClose: () => unknown;
-    zIndex: number;
-}
-
 export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => unknown;
     onAdd: (run: RunProject | RunRoutine) => unknown;
     onDelete: (run: RunProject | RunRoutine) => unknown;
     onSelect: (run: RunProject | RunRoutine | null) => unknown;
-    runnableObject?: RoutineVersion | ProjectVersion | null;
+    runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
     zIndex: number;
 }
 
@@ -326,6 +279,11 @@ export interface LargeDialogProps {
     titleId?: string;
     zIndex: number;
     sxs?: { paper?: SxType; }
+}
+
+export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "onClose"> {
+    display: ViewDisplayType;
+    onClose?: () => unknown;
 }
 
 export interface WalletInstallDialogProps {

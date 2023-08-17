@@ -12,12 +12,12 @@ export type OrganizationTranslationShape = Pick<OrganizationTranslation, "id" | 
 }
 
 export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNewMembers" | "isPrivate"> & {
-    __typename?: "Organization";
+    __typename: "Organization";
     bannerImage?: string | File | null;
     memberInvites?: MemberInviteShape[] | null;
     membersDelete?: { id: string }[] | null;
     profileImage?: string | File | null;
-    resourceList?: ResourceListShape | null;
+    resourceList?: Omit<ResourceListShape, "listFor"> | null;
     roles?: RoleShape[] | null;
     tags?: ({ tag: string } | TagShape)[] | null;
     translations?: OrganizationTranslationShape[] | null;
@@ -32,7 +32,7 @@ export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreate
     create: (d) => ({
         ...createPrims(d, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...createRel(d, "memberInvites", ["Create"], "many", shapeMemberInvite),
-        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList),
+        ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: d.id, __typename: "Organization" } })),
         ...createRel(d, "roles", ["Create"], "many", shapeRole),
         ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
         ...createRel(d, "translations", ["Create"], "many", shapeOrganizationTranslation),
@@ -40,7 +40,7 @@ export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreate
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "bannerImage", "handle", "isOpenToNewMembers", "isPrivate", "profileImage"),
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),
-        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
+        ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "Organization" } })),
         ...updateRel(o, u, "roles", ["Create", "Update", "Delete"], "many", shapeRole),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeOrganizationTranslation),

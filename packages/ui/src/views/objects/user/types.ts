@@ -1,4 +1,4 @@
 import { User } from "@local/shared";
-import { ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
 
-export type UserViewProps = ViewProps<User>
+export type UserViewProps = ObjectViewProps<User>

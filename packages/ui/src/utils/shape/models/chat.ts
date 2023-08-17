@@ -10,7 +10,7 @@ export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "de
 }
 
 export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
-    __typename?: "Chat";
+    __typename: "Chat";
     invites?: ChatInviteShape[] | null;
     labels?: ({ id: string } | LabelShape)[];
     organization?: { id: string } | null;

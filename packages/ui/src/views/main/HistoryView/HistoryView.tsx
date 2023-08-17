@@ -2,46 +2,49 @@ import { CommonKey, RunStatus } from "@local/shared";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, VisibleIcon } from "icons";
+import { toDisplay } from "utils/display/pageTools";
 import { useTabs } from "utils/hooks/useTabs";
 import { HistoryPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
 const tabParams = [{
-    Icon: VisibleIcon,
     titleKey: "View" as CommonKey,
     searchType: SearchType.View,
     tabType: HistoryPageTabOption.Viewed,
-    where: {},
+    where: () => ({}),
 }, {
-    Icon: BookmarkFilledIcon,
     titleKey: "Bookmark" as CommonKey,
     searchType: SearchType.BookmarkList,
     tabType: HistoryPageTabOption.Bookmarked,
-    where: {},
+    where: () => ({}),
 }, {
-    Icon: RoutineActiveIcon,
     titleKey: "Active" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
-    where: { statuses: [RunStatus.InProgress, RunStatus.Scheduled] },
+    where: () => ({ statuses: [RunStatus.InProgress, RunStatus.Scheduled] }),
 }, {
-    Icon: RoutineCompleteIcon,
     titleKey: "Complete" as CommonKey,
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
-    where: { statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] },
+    where: () => ({ statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] }),
 }];
 
 /**
  * Shows items you've bookmarked, viewed, or run recently.
  */
 export const HistoryView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: HistoryViewProps) => {
-    const { currTab, handleTabChange, searchType, tabs, title, where } = useTabs<HistoryPageTabOption>(tabParams, 0);
+    const display = toDisplay(isOpen);
+    const {
+        currTab,
+        handleTabChange,
+        searchType,
+        tabs,
+        where,
+    } = useTabs<HistoryPageTabOption>({ tabParams, display });
 
     return (
         <>
@@ -49,7 +52,7 @@ export const HistoryView = ({
                 display={display}
                 hideTitleOnDesktop={true}
                 onClose={onClose}
-                title={title}
+                title={currTab.label}
                 below={<PageTabs
                     ariaLabel="history-tabs"
                     currTab={currTab}
@@ -70,7 +73,7 @@ export const HistoryView = ({
                         marginTop: 2,
                     },
                 }}
-                where={where}
+                where={where()}
             />}
         </>
     );

@@ -97,22 +97,22 @@ export const maybeMulter = <TInput extends object | undefined>(config?: UploadCo
             return next();  // No multer needed, proceed to next middleware.
         }
 
-        // Find the highest max file size and max number of files, since we don't know which 
+        // Find the combined max file size and max number of files, since we don't know which 
         // fields the files are associated with yet.
         // Later on we'll do these checks again, but for each field.
-        const maxMaxFileSize = config.fields.filter(field => field.maxFileSize !== undefined).length > 0 ?
-            Math.max(...config.fields.map(field => field.maxFileSize ?? 0)) :
-            undefined;
-        const maxMaxFiles = config.fields.filter(field => field.maxFiles !== undefined).length > 0 ?
-            Math.max(...config.fields.map(field => field.maxFiles ?? 0)) :
-            undefined;
+        const totalMaxFileSize = config.fields
+            .map(field => field.maxFileSize ?? (10 * 1024 * 1024)) // Each field defaults to 10MB if not specified.
+            .reduce((acc, value) => acc + value, 0);
+        const totalMaxFiles = config.fields
+            .map(field => field.maxFiles ?? 1) // Each field defaults to 1 if not specified.
+            .reduce((acc, value) => acc + value, 0);
         // Create multer options
         const multerOptions: MulterOptions = {
             limits: {
                 // Maximum file size in bytes. Defaults to 10MB.
-                fileSize: maxMaxFileSize ?? 10 * 1024 * 1024,
+                fileSize: totalMaxFileSize,
                 // Maximum number of files. Defaults to 1.
-                files: maxMaxFiles ?? 1,
+                files: totalMaxFiles,
             },
         };
 

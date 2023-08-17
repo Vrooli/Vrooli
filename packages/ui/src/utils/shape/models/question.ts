@@ -9,7 +9,7 @@ export type QuestionTranslationShape = Pick<QuestionTranslation, "id" | "languag
 }
 
 export type QuestionShape = Pick<Question, "id" | "isPrivate"> & {
-    __typename?: "Question";
+    __typename: "Question";
     acceptedAnswer?: { id: string } | null;
     forObject?: { __typename: QuestionForType | `${QuestionForType}`, id: string } | null;
     referencing?: string;

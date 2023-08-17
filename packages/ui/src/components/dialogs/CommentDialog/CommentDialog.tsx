@@ -60,33 +60,45 @@ export const CommentDialog = ({
                 onClose={onCancel}
                 title={t(isCreate ? "AddComment" : "EditComment")}
                 titleId={titleId}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <BaseForm
                 dirty={dirty}
                 display="dialog"
                 isLoading={isLoading}
-                maxWidth={700}
                 ref={ref}
+                style={{
+                    width: "min(700px, 100vw)",
+                    paddingBottom: 0,
+                }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
                     placeholder={t("PleaseBeNice")}
-                    minRows={3}
+                    minRows={10}
                     sxs={{
                         bar: {
                             borderRadius: 0,
                             background: palette.primary.main,
+                            position: "sticky",
+                            top: 0,
+                        },
+                        root: {
+                            height: "100%",
+                            position: "relative",
+                            maxWidth: "800px",
                         },
                         textArea: {
                             borderRadius: 0,
                             resize: "none",
-                            height: parent ? "70vh" : "100vh",
+                            height: "100%",
+                            overflow: "hidden", // Container handles scrolling
                             background: palette.background.paper,
+                            border: "none",
                         },
                     }}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                 />
                 {/* Display parent underneath */}
                 {parent && (
@@ -105,7 +117,7 @@ export const CommentDialog = ({
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={props.handleSubmit}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                 />
             </BaseForm>
         </LargeDialog>

@@ -1,42 +1,63 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, FindVersionInput } from "@local/shared";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: ApiUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, ApiVersion>(endpointGetApiVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+        ...endpointGetApiVersion,
+        objectType: "ApiVersion",
+        overrideObject,
+        transform: (data) => apiInitialValues(session, data),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => apiInitialValues(session), [session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ApiVersionCreateInput, ApiVersion>(endpointPostApiVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ApiVersionUpdateInput, ApiVersion>(endpointPutApiVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostApiVersion,
+        endpointUpdate: endpointPutApiVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="api-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -45,7 +66,7 @@ export const ApiUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +74,12 @@ export const ApiUpsert = ({
                     }
                     fetchLazyWrapper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
                         fetch,
-                        inputs: transformApiValues(values, existing),
+                        inputs: transformApiValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateApiValues(values, existing)}
+                validate={async (values) => await validateApiValues(values, existing, isCreate)}
             >
                 {(formik) => <ApiForm
                     display={display}
@@ -72,6 +93,6 @@ export const ApiUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

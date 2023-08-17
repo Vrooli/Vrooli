@@ -37,7 +37,7 @@ export const NodeEndDialog = ({
                 onClose={handleClose}
                 title={t(isEditing ? "NodeEndEdit" : "NodeEndInfo")}
                 titleId={titleId}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <Formik
                 enableReinitialize={true}
@@ -45,7 +45,7 @@ export const NodeEndDialog = ({
                 onSubmit={(values) => {
                     handleClose(values as any);
                 }}
-                validate={async (values) => await validateNodeEndValues(values, node)}
+                validate={async (values) => await validateNodeEndValues(values, node, false)}
             >
                 {(formik) => <NodeEndForm
                     display="dialog"
@@ -55,7 +55,7 @@ export const NodeEndDialog = ({
                     isOpen={isOpen}
                     onCancel={handleClose}
                     ref={formRef}
-                    zIndex={zIndex + 1000}
+                    zIndex={zIndex}
                     {...formik}
                 />}
             </Formik>

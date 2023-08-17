@@ -4,8 +4,8 @@ import { EndpointsFeed, FeedEndpoints } from "../logic";
 
 export const typeDef = gql`
     enum PopularSortBy {
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         ViewsAsc
         ViewsDesc
     }

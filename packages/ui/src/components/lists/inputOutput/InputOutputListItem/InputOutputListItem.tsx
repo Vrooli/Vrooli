@@ -19,8 +19,8 @@ import { InputOutputListItemProps } from "../types";
 export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
     dragProps,
     dragHandleProps,
-    isEditing,
     index,
+    isEditing,
     isInput,
     isOpen,
     item,
@@ -57,10 +57,10 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
             enableReinitialize={true}
             initialValues={initialValues}
             onSubmit={(values, helpers) => {
-                handleUpdate(index, transformRoutineVersionIOValues(values, isInput, item));
+                handleUpdate(index, transformRoutineVersionIOValues(values, isInput, item, true));
                 helpers.setSubmitting(false);
             }}
-            validate={async (values) => await validateRoutineVersionIOValues(values, isInput, item)}
+            validate={async (values) => await validateRoutineVersionIOValues(values, isInput, item, true)}
         >
             {(formik) => <Box
                 id={`${isInput ? "input" : "output"}-item-${index}`}

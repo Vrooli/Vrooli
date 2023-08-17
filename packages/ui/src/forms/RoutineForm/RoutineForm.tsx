@@ -1,7 +1,6 @@
 import { DUMMY_ID, Node, NodeLink, orDefault, RoutineVersion, routineVersionTranslationValidation, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -27,7 +26,6 @@ import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
@@ -35,7 +33,7 @@ import { BuildView } from "views/BuildView/BuildView";
 
 export const routineInitialValues = (
     session: Session | undefined,
-    existing?: RoutineVersion | null | undefined,
+    existing?: Partial<RoutineVersion> | null | undefined,
 ): RoutineVersionShape => ({
     __typename: "RoutineVersion" as const,
     id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
@@ -46,18 +44,19 @@ export const routineInitialValues = (
     nodeLinks: [],
     nodes: [],
     outputs: [],
+    versionLabel: "1.0.0",
+    ...existing,
     root: {
         __typename: "Routine" as const,
         id: DUMMY_ID,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)!.id! },
+        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
         permissions: JSON.stringify({}),
         tags: [],
+        ...existing?.root,
     },
-    versionLabel: "1.0.0",
-    ...existing,
-    resourceList: orDefault<ResourceListShape>(existing?.resourceList, {
+    resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
     }),
@@ -71,15 +70,12 @@ export const routineInitialValues = (
     }]),
 });
 
-export const transformRoutineValues = (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    return existing === undefined
-        ? shapeRoutineVersion.create(values)
-        : shapeRoutineVersion.update(existing, values);
-};
+export const transformRoutineValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
+    isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
 
-export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
-    const transformedValues = transformRoutineValues(values, existing);
-    const validationSchema = routineVersionValidation[existing === undefined ? "create" : "update"]({});
+export const validateRoutineValues = async (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineValues(values, existing, isCreate);
+    const validationSchema = routineVersionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -101,7 +97,6 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -195,6 +190,7 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                     />
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "RoutineVersion", id: values.id }}
                         zIndex={zIndex}
                     />
                     <FormSection>
@@ -290,35 +286,27 @@ export const RoutineForm = forwardRef<BaseFormRef | undefined, RoutineFormProps>
                             isMultiStep === true && (
                                 <>
                                     {/* Dialog for building routine graph */}
-                                    <LargeDialog
-                                        id="build-routine-graph-dialog"
+                                    <BuildView
+                                        handleCancel={handleGraphClose}
                                         onClose={handleGraphClose}
+                                        handleSubmit={handleGraphSubmit}
+                                        isEditing={true}
                                         isOpen={isGraphOpen}
-                                        titleId=""
-                                        zIndex={zIndex + 1300}
-                                        sxs={{ paper: { display: "contents" } }}
-                                    >
-                                        <BuildView
-                                            handleCancel={handleGraphClose}
-                                            onClose={handleGraphClose}
-                                            handleSubmit={handleGraphSubmit}
-                                            isEditing={true}
-                                            loading={false}
-                                            routineVersion={{
-                                                id: idField.value,
-                                                nodeLinks: nodeLinksField.value as NodeLink[],
-                                                nodes: nodesField.value as Node[],
-                                            }}
-                                            translationData={{
-                                                language,
-                                                setLanguage,
-                                                handleAddLanguage,
-                                                handleDeleteLanguage,
-                                                languages,
-                                            }}
-                                            zIndex={zIndex + 2300}
-                                        />
-                                    </LargeDialog>
+                                        loading={false}
+                                        routineVersion={{
+                                            id: idField.value,
+                                            nodeLinks: nodeLinksField.value as NodeLink[],
+                                            nodes: nodesField.value as Node[],
+                                        }}
+                                        translationData={{
+                                            language,
+                                            setLanguage,
+                                            handleAddLanguage,
+                                            handleDeleteLanguage,
+                                            languages,
+                                        }}
+                                        zIndex={zIndex + 2300}
+                                    />
                                     {/* Button to display graph */}
                                     <Grid item xs={12} mb={4}>
                                         <Button

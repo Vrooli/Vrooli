@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -28,19 +29,19 @@ import { TagShape } from "utils/shape/models/tag";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: QuestionViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
         ...endpointGetQuestion,
-        partialData,
+        objectType: "Question",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -51,10 +52,6 @@ export const QuestionView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { title, subtitle } = useMemo(() => getDisplay(existing, [language]), [existing, language]);
-
-    useEffect(() => {
-        document.title = `${title} | Vrooli`;
-    }, [title]);
 
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
     const tags = useMemo<TagShape[] | null | undefined>(() => initialValues?.tags as TagShape[] | null | undefined, [initialValues]);
@@ -89,7 +86,7 @@ export const QuestionView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(title, t("Question"))}
+                title={firstString(title, t("Question", { count: 1 }))}
                 below={availableLanguages.length > 1 && <SelectLanguageMenu
                     currentLanguage={language}
                     handleCurrent={setLanguage}

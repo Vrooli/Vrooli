@@ -19,6 +19,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
+import { toDisplay } from "utils/display/pageTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -40,19 +41,19 @@ const containerProps = (palette: Palette) => ({
 });
 
 export const StandardView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: StandardViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion>({
         ...endpointGetStandardVersion,
-        partialData,
+        objectType: "StandardVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -63,13 +64,9 @@ export const StandardView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(existing ?? partialData, [language]);
+        const { description, name } = getTranslation(existing, [language]);
         return { description, name };
-    }, [existing, partialData, language]);
-
-    useEffect(() => {
-        document.title = `${name} | Vrooli`;
-    }, [name]);
+    }, [existing, language]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -83,7 +80,7 @@ export const StandardView = ({
         setObject: setStandardVersion,
     });
 
-    const initialValues = useMemo(() => standardInitialValues(session, (existing ?? partialData as any)), [existing, partialData, session]);
+    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -146,6 +143,7 @@ export const StandardView = ({
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
+                    parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
                     zIndex={zIndex}
                 />}
                 {/* Box with description */}

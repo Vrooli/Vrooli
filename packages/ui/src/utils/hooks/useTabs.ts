@@ -1,56 +1,83 @@
 import { CommonKey } from "@local/shared";
-import { useCallback, useMemo, useState } from "react";
+import { Palette, useTheme } from "@mui/material";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
 import { SvgComponent } from "types";
 import { SearchType } from "utils/search/objectToSearch";
+import { ViewDisplayType } from "views/types";
 
-type TabParams<T> = {
-    Icon: SvgComponent,
+export type TabParam<T, S extends boolean = true> = {
+    color?: (palette: Palette) => (string | { active: string, inactive: string })
+    href?: string;
+    Icon?: SvgComponent,
     titleKey: CommonKey;
-    searchType: SearchType;
     tabType: T;
-    where: { [x: string]: any };
-}
+} & (S extends true ? {
+    searchPlaceholderKey?: CommonKey;
+    searchType: SearchType;
+    where: (params?: any) => { [x: string]: any };
+} : object);
 
-type UseTabsParams<T, U extends Record<string, any> = object> = TabParams<T> & U;
+export type PageTab<T, S extends boolean = true> = {
+    color?: string | { active: string, inactive: string };
+    href?: string;
+    index: number;
+    Icon?: SvgComponent;
+    label: string;
+    tabType: T;
+} & (S extends true ? {
+    searchPlaceholder: string;
+    searchType: SearchType;
+} : object);
+
+type UseTabsParam<T, S extends boolean = true> = TabParam<T, S>;
 
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <T, U extends Record<string, any> = object>(tabParams: readonly UseTabsParams<T, U>[], defaultTab: number) => {
+export const useTabs = <T, S extends boolean = true>({
+    defaultTab = 0,
+    display,
+    tabParams,
+}: {
+    defaultTab?: number,
+    display: ViewDisplayType,
+    tabParams: readonly UseTabsParam<T, S>[],
+}) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const { palette } = useTheme();
 
-    const tabs = useMemo(() => {
+    const tabs = useMemo<PageTab<T, S>[]>(() => {
         return tabParams.map((tab, i) => ({
-            index: i,
+            color: typeof tab.color === "function" ? tab.color(palette) : tab.color,
+            href: tab.href,
             Icon: tab.Icon,
+            index: i,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            value: tab.tabType,
+            searchPlaceholder: t((tab as UseTabsParam<T, true>).searchPlaceholderKey ?? "Search"),
+            searchType: (tab as UseTabsParam<T, true>).searchType,
+            tabType: tab.tabType,
         }));
-    }, [t, tabParams]);
+    }, [palette, t, tabParams]);
 
-    const [currTab, setCurrTab] = useState(() => {
+    const [currTab, setCurrTab] = useState<PageTab<T, S>>(() => {
+        // If this is not for a page, we can't use URL params
+        if (display !== "page") return tabs[defaultTab];
         const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
-
+        const index = tabs.findIndex(tab => tab.tabType === searchParams.type);
         if (index === -1) return tabs[defaultTab];
         return tabs[index];
     });
 
-    const handleTabChange = useCallback((e, tab) => {
+    const handleTabChange = useCallback((e: ChangeEvent<unknown>, tab: PageTab<T, S>) => {
         e.preventDefault();
-        addSearchParams(setLocation, { type: tab.value });
+        if (display === "page") addSearchParams(setLocation, { type: tab.tabType });
         setCurrTab(tab);
-    }, [setLocation]);
+    }, [display, setLocation]);
 
-    const { searchType, title, where, ...rest } = useMemo(() => {
-        return {
-            ...tabParams[currTab.index],
-            title: currTab.label,
-        };
-    }, [currTab.index, currTab.label, tabParams]);
+    const currTabParams = useMemo(() => tabParams[currTab.index], [currTab.index, tabParams]);
 
-    return { searchType, title, where, tabs, currTab, handleTabChange, ...rest };
+    return { tabs, currTab, setCurrTab, handleTabChange, ...currTabParams };
 };

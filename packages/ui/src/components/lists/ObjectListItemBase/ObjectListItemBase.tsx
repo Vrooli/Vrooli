@@ -14,8 +14,9 @@ import { useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { SvgComponent } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from "utils/display/listTools";
+import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import usePress from "utils/hooks/usePress";
@@ -38,7 +39,7 @@ import { ObjectListItemProps } from "../types";
  * (On large screens, these are displayed at the bottom instead of the right.)
  * - To the right, but left of action buttons: custom component(s)
  */
-export function ObjectListItemBase<T extends ListObjectType>({
+export function ObjectListItemBase<T extends ListObject>({
     canNavigate,
     belowSubtitle,
     belowTags,
@@ -89,6 +90,8 @@ export function ObjectListItemBase<T extends ListObjectType>({
             const shouldContinue = canNavigate(data);
             if (shouldContinue === false) return;
         }
+        // Store object in local storage, so we can display it while the full data loads
+        setCookiePartialData(data, "list");
         // Navigate to the object's page
         setLocation(link);
     }, [data, link, onClick, canNavigate, setLocation]);
@@ -122,7 +125,6 @@ export function ObjectListItemBase<T extends ListObjectType>({
     const leftColumn = useMemo(() => {
         // Show icons for organizations, users, and members
         if (isOfType(object, "Organization", "User", "Member")) {
-            console.log("calculating left column", object);
             const isBot = (object as unknown as User).isBot || (object as unknown as Member).user?.isBot || (object as unknown as Chat).participants?.[0]?.user?.isBot;
             let Icon: SvgComponent;
             if (object.__typename === "Organization") {
@@ -135,6 +137,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
             return (
                 <Avatar
                     src={extractImageUrl((object as unknown as { profileImage: string }).profileImage, (object as unknown as { updated_at: string }).updated_at, 50)}
+                    alt={`${object.name}'s profile picture`}
                     sx={{
                         backgroundColor: profileColors[0],
                         width: isMobile ? "40px" : "50px",
@@ -192,6 +195,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
+                        aria-label={t("Edit")}
                         href={editUrl}
                         onClick={handleEditClick}
                         sx={{
@@ -235,7 +239,7 @@ export function ObjectListItemBase<T extends ListObjectType>({
                 />}
             </Stack>
         );
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, zIndex, canComment]);
 
     const actionData = useObjectActions({
         canNavigate,

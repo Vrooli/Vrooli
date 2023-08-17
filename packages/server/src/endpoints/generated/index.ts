@@ -280,5 +280,4 @@ export * from "./user_profileEmailUpdate";
 export * from "./user_deleteOne";
 export * from "./user_exportData";
 export * from "./view_findMany";
-export * from "./wallet_findHandles";
 export * from "./wallet_update";

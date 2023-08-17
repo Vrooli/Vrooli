@@ -2,7 +2,7 @@ import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVe
 import { ButtonProps, IconButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { NavigableObject, SvgProps, SxType } from "types";
+import { NavigableObject, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -64,6 +64,8 @@ export interface GridSubmitButtonsProps {
     disabledSubmit?: boolean;
     display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
+    /** Hides button text on mobile */
+    hideTextOnMobile?: boolean;
     isCreate: boolean;
     loading?: boolean;
     onCancel: () => unknown;
@@ -109,7 +111,7 @@ export interface ReportsButtonProps {
 }
 
 export interface ReportsLinkProps {
-    object: (NavigableObject & { reportsCount: number }) | null | undefined;
+    object: (NavigableObject & { reportsCount?: number }) | null | undefined;
 }
 
 export interface RunButtonProps {
@@ -118,7 +120,7 @@ export interface RunButtonProps {
     handleRunDelete: (run: RunProject | RunRoutine) => unknown;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
-    runnableObject: ProjectVersion | RoutineVersion | null;
+    runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
     zIndex: number;
 }
 

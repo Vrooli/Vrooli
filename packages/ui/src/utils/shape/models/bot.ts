@@ -17,8 +17,8 @@ export type BotTranslationShape = {
     tone?: string | null;
 }
 
-export type BotShape = Pick<User, "id" | "isPrivate" | "name"> & {
-    __typename?: "User";
+export type BotShape = Pick<User, "id" | "handle" | "isPrivate" | "name"> & {
+    __typename: "User";
     bannerImage?: string | File | null;
     creativity?: number | null;
     isBot?: true;
@@ -42,7 +42,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Extract bot settings from translations
         const textData = createRel(d, "translations", ["Create"], "many", shapeBotTranslation);
         // Convert to object, where keys are language codes and values are the bot settings
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
+        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         return {
             isBot: true,
             botSettings: JSON.stringify({
@@ -50,7 +50,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 creativity: d.creativity ?? undefined,
                 verbosity: d.verbosity ?? undefined,
             }),
-            ...createPrims(d, "id", "bannerImage", "isBot", "name", "profileImage"),
+            ...createPrims(d, "id", "bannerImage", "handle", "isBot", "name", "profileImage"),
             ...createRel(d, "translations", ["Create"], "many", shapeUserTranslation),
         };
     },
@@ -59,7 +59,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         const textData = updateRel({ ...o, translations: [] }, u, "translations", ["Create", "Update", "Delete"], "many", shapeBotTranslation); // Use empty array for original translations to ensure that all translations are included
         // Convert created to object.
         // Note: Shouldn't have to worry about updated since we set the original to empty array (making all translations seem like creates).
-        const textSettings = Object.fromEntries(textData.translationsCreate.map(({ language, ...rest }) => [language, rest]));
+        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
         const deletedTranslations = o.translations?.filter(t => !u.translations?.some(t2 => t2.id === t.id));
         if (deletedTranslations) {
@@ -71,7 +71,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 creativity: u.creativity ?? undefined,
                 verbosity: u.verbosity ?? undefined,
             }),
-            ...updatePrims(o, u, "id", "bannerImage", "isBot", "name", "profileImage"),
+            ...updatePrims(o, u, "id", "bannerImage", "handle", "isBot", "name", "profileImage"),
             ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
         }, a);
     },

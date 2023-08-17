@@ -1,42 +1,63 @@
-import { endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
+import { endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { StandardForm, standardInitialValues, transformStandardValues, validateStandardValues } from "forms/StandardForm/StandardForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { StandardUpsertProps } from "../types";
 
 export const StandardUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: StandardUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, StandardVersion>(endpointGetStandardVersion);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
+        ...endpointGetStandardVersion,
+        objectType: "StandardVersion",
+        overrideObject,
+        transform: (existing) => standardInitialValues(session, existing),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<StandardVersionCreateInput, StandardVersion>(endpointPostStandardVersion);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<StandardVersionUpdateInput, StandardVersion>(endpointPutStandardVersion);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
+        display,
+        endpointCreate: endpointPostStandardVersion,
+        endpointUpdate: endpointPutStandardVersion,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="standard-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -45,7 +66,7 @@ export const StandardUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +74,12 @@ export const StandardUpsert = ({
                     }
                     fetchLazyWrapper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
                         fetch,
-                        inputs: transformStandardValues(values, existing),
+                        inputs: transformStandardValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateStandardValues(values, existing)}
+                validate={async (values) => await validateStandardValues(values, existing, isCreate)}
             >
                 {(formik) => <StandardForm
                     display={display}
@@ -72,6 +93,6 @@ export const StandardUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

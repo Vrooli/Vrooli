@@ -1,5 +1,6 @@
 import { NoteVersion } from "@local/shared";
-import { UpsertProps, ViewProps } from "../types";
+import { ObjectViewProps } from "views/types";
+import { UpsertProps } from "../types";
 
 export type NoteUpsertProps = UpsertProps<NoteVersion>
-export type NoteViewProps = ViewProps<NoteVersion>
+export type NoteViewProps = ObjectViewProps<NoteVersion>

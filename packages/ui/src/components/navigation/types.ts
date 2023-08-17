@@ -15,6 +15,8 @@ export type NavbarProps = {
         onClick: (e?: any) => void;
     }[];
     shouldHideTitle?: boolean;
+    /** Sets tab title, if different than the Navbar title */
+    tabTitle?: string;
     title?: string | undefined;
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
@@ -38,5 +40,6 @@ export interface TopBarProps extends Omit<TitleProps, "variant"> {
     onClose?: () => void,
     below?: JSX.Element | boolean
     hideTitleOnDesktop?: boolean,
+    tabTitle?: string,
     titleId?: string
 }

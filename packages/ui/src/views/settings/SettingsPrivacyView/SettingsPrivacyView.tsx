@@ -6,17 +6,19 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Formik } from "formik";
 import { SettingsPrivacyForm } from "forms/settings";
 import { useTranslation } from "react-i18next";
+import { toDisplay } from "utils/display/pageTools";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({
-    display = "page",
+    isOpen,
     onClose,
     zIndex,
 }: SettingsPrivacyViewProps) => {
     const { t } = useTranslation();
+    const display = toDisplay(isOpen);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -53,7 +55,7 @@ export const SettingsPrivacyView = ({
                                 inputs: values,
                                 successMessage: () => ({ messageKey: "SettingsUpdated" }),
                                 onSuccess: (data) => { onProfileUpdate(data); },
-                                onError: () => { helpers.setSubmitting(false); },
+                                onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
                         validationSchema={userValidation.update({})}

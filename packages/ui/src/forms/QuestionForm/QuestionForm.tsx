@@ -19,7 +19,7 @@ import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 
 export const questionInitialValues = (
     session: Session | undefined,
-    existing?: Question | null | undefined,
+    existing?: Partial<Question> | null | undefined,
 ): QuestionShape => ({
     __typename: "Question" as const,
     id: DUMMY_ID,
@@ -37,15 +37,12 @@ export const questionInitialValues = (
     }]),
 });
 
-export function transformQuestionValues(values: QuestionShape, existing?: QuestionShape) {
-    return existing === undefined
-        ? shapeQuestion.create(values)
-        : shapeQuestion.update(existing, values);
-}
+export const transformQuestionValues = (values: QuestionShape, existing: QuestionShape, isCreate: boolean) =>
+    isCreate ? shapeQuestion.create(values) : shapeQuestion.update(existing, values);
 
-export const validateQuestionValues = async (values: QuestionShape, existing?: QuestionShape) => {
-    const transformedValues = transformQuestionValues(values, existing);
-    const validationSchema = questionValidation[existing === undefined ? "create" : "update"]({});
+export const validateQuestionValues = async (values: QuestionShape, existing: QuestionShape, isCreate: boolean) => {
+    const transformedValues = transformQuestionValues(values, existing, isCreate);
+    const validationSchema = questionValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };

@@ -1,34 +1,32 @@
 import { endpointGetRunProject, RunProject } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
+import { toDisplay } from "utils/display/pageTools";
+import { firstString } from "utils/display/stringTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { RunProjectViewProps } from "../types";
 
 export const RunProjectView = ({
-    display = "page",
+    isOpen,
     onClose,
-    partialData,
     zIndex,
 }: RunProjectViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const display = toDisplay(isOpen);
 
     const { object: existing, isLoading, setObject: setRunProject } = useObjectFromUrl<RunProject>({
         ...endpointGetRunProject,
-        partialData,
+        objectType: "RunProject",
     });
 
     const { title } = useMemo(() => ({ title: getDisplay(existing).title ?? "" }), [existing]);
-
-    useEffect(() => {
-        document.title = `${title} | Vrooli`;
-    }, [title]);
 
     const actionData = useObjectActions({
         object: existing,
@@ -42,7 +40,7 @@ export const RunProjectView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t("Run", { count: 1 })}
+                title={firstString(title, t("Run", { count: 1 }))}
                 zIndex={zIndex}
             />
             <>

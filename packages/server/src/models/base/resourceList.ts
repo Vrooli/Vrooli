@@ -1,4 +1,4 @@
-import { MaxObjects, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel, shapeHelper } from "../../builders";
 import { getLogic } from "../../getters";
@@ -14,6 +14,17 @@ import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ResourceListModelLogic } from "./types";
+
+const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
+    ApiVersion: "apiVersion",
+    FocusMode: "focusMode",
+    Organization: "organization",
+    Post: "post",
+    ProjectVersion: "projectVersion",
+    RoutineVersion: "routineVersion",
+    SmartContractVersion: "smartContractVersion",
+    StandardVersion: "standardVersion",
+};
 
 const __typename = "ResourceList" as const;
 const suppFields = [] as const;
@@ -31,14 +42,7 @@ export const ResourceListModel: ModelLogic<ResourceListModelLogic, typeof suppFi
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: "apiVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "ApiVersion", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Organization", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "post", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "Post", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "ProjectVersion", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "RoutineVersion", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "SmartContractVersion", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "StandardVersion", parentRelationshipName: "resourceList", data, ...rest })),
-                ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, isRequired: false, objectType: "FocusMode", parentRelationshipName: "resourceList", data, ...rest })),
+                [forMapper[data.listFor]]: { connect: { id: data.listForConnect } },
                 ...(await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, isRequired: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),

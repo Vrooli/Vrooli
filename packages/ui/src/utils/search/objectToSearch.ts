@@ -144,49 +144,61 @@ export enum HistoryPageTabOption {
 }
 
 export enum MemberManagePageTabOption {
-    Members = "Members",
-    MemberInvites = "MemberInvites",
+    Member = "Member",
+    MemberInvite = "MemberInvite",
 }
 
 export enum MyStuffPageTabOption {
-    Apis = "Apis",
-    Notes = "Notes",
-    Organizations = "Organizations",
-    Projects = "Projects",
-    Questions = "Questions",
-    Reminders = "Reminders",
-    Routines = "Routines",
-    SmartContracts = "SmartContracts",
-    Schedules = "Schedules",
-    Standards = "Standards",
-    Users = "Users",
+    Api = "Api",
+    Note = "Note",
+    Organization = "Organization",
+    Project = "Project",
+    Question = "Question",
+    Reminder = "Reminder",
+    Routine = "Routine",
+    SmartContract = "SmartContract",
+    Schedule = "Schedule",
+    Standard = "Standard",
+    User = "User",
+}
+
+export enum OrganizationPageTabOption {
+    Resource = "Resource",
+    Project = "Project",
+    Member = "Member",
 }
 
 export enum SearchPageTabOption {
-    Apis = "Apis",
-    Notes = "Notes",
-    Organizations = "Organizations",
-    Projects = "Projects",
-    Questions = "Questions",
-    Routines = "Routines",
-    SmartContracts = "SmartContracts",
-    Standards = "Standards",
-    Users = "Users",
+    All = "All",
+    Api = "Api",
+    Note = "Note",
+    Organization = "Organization",
+    Project = "Project",
+    Question = "Question",
+    Routine = "Routine",
+    SmartContract = "SmartContract",
+    Standard = "Standard",
+    User = "User",
+}
+
+export enum UserPageTabOption {
+    Details = "Details",
+    Project = "Project",
+    Organization = "Organization",
 }
 
 export enum CalendarPageTabOption {
     All = "All",
-    FocusModes = "FocusModes",
-    Meetings = "Meetings",
-    RunProjects = "RunProjects",
-    RunRoutines = "RunRoutines",
+    FocusMode = "FocusMode",
+    Meeting = "Meeting",
+    RunProject = "RunProject",
+    RunRoutine = "RunRoutine",
 }
 
 export enum InboxPageTabOption {
-    Notifications = "Notifications",
-    Messages = "Messages",
+    Notification = "Notification",
+    Message = "Message",
 }
-
 
 /**
  * Maps search types to values needed to query and display results
@@ -259,4 +271,25 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     Transfer: transferSearchParams,
     User: userSearchParams,
     View: viewSearchParams,
+};
+
+/**
+ * For searches with multiple types, combines the results of each type into a single array
+ */
+export const combineSearchResults = (searchResults: object): object[] => {
+    // Find largest array length 
+    const max: number = Object.values(searchResults).reduce((acc: number, val: any[]) => {
+        return Math.max(acc, val.length);
+    }, -Infinity);
+    // Initialize result array
+    const result: any[] = [];
+    // Loop through each index
+    for (let i = 0; i < max; i++) {
+        // Loop through each object type
+        for (const key in searchResults) {
+            // If index exists, push to result
+            if (Array.isArray(searchResults[key]) && searchResults[key][i]) result.push(searchResults[key][i]);
+        }
+    }
+    return result;
 };

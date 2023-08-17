@@ -1,7 +1,6 @@
 import { User } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField } from "formik";
@@ -74,23 +73,13 @@ export const MembersButton = ({
 
     return (
         <>
-            <LargeDialog
-                id="members-dialog"
-                onClose={closeDialog}
+            {/* Dialog for managing members */}
+            <MemberManageView
                 isOpen={isDialogOpen}
+                onClose={closeDialog}
+                organizationId={idField.value ?? ""}
                 zIndex={zIndex}
-                sxs={{
-                    paper: {
-                        minHeight: "min(100vh - 64px, 600px)",
-                    },
-                }}
-            >
-                <MemberManageView
-                    onClose={closeDialog}
-                    organizationId={idField.value ?? ""}
-                    zIndex={zIndex + 1000}
-                />
-            </LargeDialog>
+            />
             <Stack
                 direction="column"
                 alignItems="center"

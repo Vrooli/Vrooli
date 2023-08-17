@@ -2,7 +2,6 @@ import { DUMMY_ID, FocusMode, focusModeValidation, Schedule, Session } from "@lo
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { Title } from "components/text/Title/Title";
@@ -19,7 +18,7 @@ import { ScheduleUpsert } from "views/objects/schedule";
 
 export const focusModeInitialValues = (
     session: Session | undefined,
-    existing?: FocusMode | null | undefined,
+    existing?: Partial<FocusMode> | null | undefined,
 ): FocusModeShape => ({
     __typename: "FocusMode" as const,
     id: DUMMY_ID,
@@ -40,15 +39,12 @@ export const focusModeInitialValues = (
     ...existing,
 });
 
-export function transformFocusModeValues(values: FocusModeShape, existing?: FocusModeShape) {
-    return existing === undefined
-        ? shapeFocusMode.create(values)
-        : shapeFocusMode.update(existing, values);
-}
+export const transformFocusModeValues = (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) =>
+    isCreate ? shapeFocusMode.create(values) : shapeFocusMode.update(existing, values);
 
-export const validateFocusModeValues = async (values: FocusModeShape, existing?: FocusModeShape) => {
-    const transformedValues = transformFocusModeValues(values, existing);
-    const validationSchema = focusModeValidation[existing === undefined ? "create" : "update"]({});
+export const validateFocusModeValues = async (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) => {
+    const transformedValues = transformFocusModeValues(values, existing, isCreate);
+    const validationSchema = focusModeValidation[isCreate ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 };
@@ -86,27 +82,19 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
     return (
         <>
             {/* Dialog to create/update schedule */}
-            <LargeDialog
-                id="schedule-dialog"
-                onClose={handleCloseScheduleDialog}
+            <ScheduleUpsert
+                canChangeTab={false}
+                canSetScheduleFor={false}
+                defaultTab={CalendarPageTabOption.FocusMode}
+                handleDelete={handleDeleteSchedule}
+                isCreate={editingSchedule === null}
+                isMutate={false}
                 isOpen={isScheduleDialogOpen}
-                titleId={""}
-                zIndex={zIndex + 1}
-            >
-                <ScheduleUpsert
-                    canChangeTab={false}
-                    canSetScheduleFor={false}
-                    defaultTab={CalendarPageTabOption.FocusModes}
-                    display="dialog"
-                    handleDelete={handleDeleteSchedule}
-                    isCreate={editingSchedule === null}
-                    isMutate={false}
-                    onCancel={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    partialData={editingSchedule ?? undefined}
-                    zIndex={zIndex + 1001}
-                />
-            </LargeDialog>
+                onCancel={handleCloseScheduleDialog}
+                onCompleted={handleScheduleCompleted}
+                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                zIndex={zIndex + 1001}
+            />
             <BaseForm
                 dirty={dirty}
                 display={display}
@@ -201,6 +189,7 @@ export const FocusModeForm = forwardRef<BaseFormRef | undefined, FocusModeFormPr
                     </ListContainer>}
                     <ResourceListHorizontalInput
                         isCreate={true}
+                        parent={{ __typename: "FocusMode", id: values.id }}
                         zIndex={zIndex}
                     />
                     <Title

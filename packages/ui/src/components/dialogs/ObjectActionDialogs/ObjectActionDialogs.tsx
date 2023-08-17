@@ -3,11 +3,11 @@ import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SessionContext } from "utils/SessionContext";
+import { ReportUpsert } from "views/objects/report";
+import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
-import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { StatsDialog } from "../StatsDialog/StatsDialog";
 import { ObjectActionDialogsProps } from "../types";
 
 export const ObjectActionDialogs = ({
@@ -64,11 +64,12 @@ export const ObjectActionDialogs = ({
                 handleClose={closeDeleteDialog}
                 zIndex={zIndex + 1}
             />}
-            {object?.id && hasReportingSupport && <ReportDialog
-                forId={object.id}
-                onClose={closeReportDialog}
-                open={isReportDialogOpen}
-                reportFor={objectType as unknown as ReportFor}
+            {object?.id && hasReportingSupport && <ReportUpsert
+                isCreate={true}
+                isOpen={isReportDialogOpen}
+                onCancel={closeReportDialog}
+                onCompleted={closeReportDialog}
+                overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
                 zIndex={zIndex + 1}
             />}
             {hasSharingSupport && <ShareObjectDialog
@@ -77,7 +78,7 @@ export const ObjectActionDialogs = ({
                 onClose={closeShareDialog}
                 zIndex={zIndex + 1}
             />}
-            {hasStatsSupport && <StatsDialog
+            {hasStatsSupport && <StatsObjectView
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}

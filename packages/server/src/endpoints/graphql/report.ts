@@ -12,6 +12,7 @@ export const typeDef = gql`
         Post
         ProjectVersion
         RoutineVersion
+        SmartContractVersion
         StandardVersion
         Tag
         User

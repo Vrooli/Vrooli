@@ -1,42 +1,63 @@
-import { Chat, ChatCreateInput, ChatUpdateInput, endpointGetChat, endpointPostChat, endpointPutChat, FindVersionInput } from "@local/shared";
+import { Chat, ChatCreateInput, ChatUpdateInput, endpointGetChat, endpointPostChat, endpointPutChat } from "@local/shared";
 import { fetchLazyWrapper } from "api";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ChatForm, chatInitialValues, transformChatValues, validateChatValues } from "forms/ChatForm/ChatForm";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { MakeLazyRequest, useLazyFetch } from "utils/hooks/useLazyFetch";
+import { toDisplay } from "utils/display/pageTools";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { ChatShape } from "utils/shape/models/chat";
 import { ChatUpsertProps } from "../types";
 
 export const ChatUpsert = ({
-    display = "page",
     isCreate,
+    isOpen,
     onCancel,
     onCompleted,
+    overrideObject,
     zIndex,
 }: ChatUpsertProps) => {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
+    const display = toDisplay(isOpen);
 
-    // Fetch existing data
-    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl({}), [isCreate]);
-    const [getData, { data: existing, loading: isReadLoading }] = useLazyFetch<FindVersionInput, Chat>(endpointGetChat);
-    useEffect(() => { id && getData({ id }); }, [getData, id]);
+    const { isLoading: isReadLoading, object: existing } = useObjectFromUrl<Chat, ChatShape>({
+        ...endpointGetChat,
+        objectType: "Chat",
+        overrideObject,
+        transform: (data) => chatInitialValues(session, data),
+    });
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => chatInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleCompleted } = useUpsertActions<Chat>(display, isCreate, onCancel, onCompleted);
-    const [create, { loading: isCreateLoading }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
-    const [update, { loading: isUpdateLoading }] = useLazyFetch<ChatUpdateInput, Chat>(endpointPutChat);
-    const fetch = (isCreate ? create : update) as MakeLazyRequest<ChatCreateInput | ChatUpdateInput, Chat>;
+    const {
+        fetch,
+        handleCancel,
+        handleCompleted,
+        isCreateLoading,
+        isUpdateLoading,
+    } = useUpsertActions<Chat, ChatCreateInput, ChatUpdateInput>({
+        display,
+        endpointCreate: endpointPostChat,
+        endpointUpdate: endpointPutChat,
+        isCreate,
+        onCancel,
+        onCompleted,
+    });
 
     return (
-        <>
+        <MaybeLargeDialog
+            display={display}
+            id="chat-upsert-dialog"
+            isOpen={isOpen ?? false}
+            onClose={handleCancel}
+            zIndex={zIndex}
+        >
             <TopBar
                 display={display}
                 onClose={handleCancel}
@@ -45,7 +66,7 @@ export const ChatUpsert = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={initialValues}
+                initialValues={existing}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
@@ -53,12 +74,12 @@ export const ChatUpsert = ({
                     }
                     fetchLazyWrapper<ChatCreateInput | ChatUpdateInput, Chat>({
                         fetch,
-                        inputs: transformChatValues(values, existing),
+                        inputs: transformChatValues(values, existing, isCreate),
                         onSuccess: (data) => { handleCompleted(data); },
-                        onError: () => { helpers.setSubmitting(false); },
+                        onCompleted: () => { helpers.setSubmitting(false); },
                     });
                 }}
-                validate={async (values) => await validateChatValues(values, existing)}
+                validate={async (values) => await validateChatValues(values, existing, isCreate)}
             >
                 {(formik) => <ChatForm
                     display={display}
@@ -71,6 +92,6 @@ export const ChatUpsert = ({
                     {...formik}
                 />}
             </Formik>
-        </>
+        </MaybeLargeDialog>
     );
 };

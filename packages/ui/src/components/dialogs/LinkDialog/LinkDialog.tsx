@@ -194,7 +194,7 @@ export const LinkDialog = ({
                 title={t(isAdd ? "LinkAdd" : "LinkEdit")}
                 help={helpText}
                 onClose={handleCancel}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
             <DialogContent sx={{
                 marginBottom: "64px",
@@ -209,7 +209,7 @@ export const LinkDialog = ({
                 isCreate={isAdd}
                 onCancel={handleCancel}
                 onSubmit={addLink}
-                zIndex={zIndex + 1000}
+                zIndex={zIndex}
             />
         </LargeDialog>
     );

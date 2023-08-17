@@ -3,11 +3,22 @@
  * @param strings Strings to check
  * @returns First non-blank, non-whitespace string, or empty string if none found
  */
-export const firstString = (...strings: (string | null | undefined | (() => string))[]): string => {
+export const firstString = (...strings: unknown[]): string => {
     for (const obj of strings) {
-        const str = typeof obj === "function" ? obj() : obj;
+        let str: string | undefined;
+
+        if (typeof obj === "string") {
+            str = obj;
+        } else if (typeof obj === "function") {
+            const result = obj();
+            if (typeof result === "string") {
+                str = result;
+            }
+        }
+
         if (str && str.trim() !== "") return str;
     }
+
     return "";
 };
 

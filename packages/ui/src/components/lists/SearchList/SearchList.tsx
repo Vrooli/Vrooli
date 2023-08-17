@@ -6,18 +6,19 @@ import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
-import { listToListItems } from "utils/display/listTools";
+import { ListObject } from "utils/display/listTools";
 import { useFindMany } from "utils/hooks/useFindMany";
 import { openObject } from "utils/navigation/openObject";
+import { ObjectList } from "../ObjectList/ObjectList";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
-    canSearch = () => true,
+    canSearch,
     dummyLength = 5,
     handleAdd,
     hideUpdateButton,
@@ -28,7 +29,6 @@ export function SearchList<DataType extends NavigableObject>({
     searchType,
     sxs,
     onItemClick,
-    onScrolledFar,
     where,
     zIndex,
 }: SearchListProps) {
@@ -42,8 +42,6 @@ export function SearchList<DataType extends NavigableObject>({
         autocompleteOptions,
         loading,
         loadMore,
-        pageData,
-        parseData,
         searchString,
         setAdvancedSearchParams,
         setSortBy,
@@ -59,17 +57,7 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-
-    const listItems = useMemo(() => listToListItems({
-        canNavigate,
-        dummyItems: new Array(dummyLength).fill(searchType),
-        hideUpdateButton,
-        items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
-        keyPrefix: `${searchType}-list-item`,
-        loading,
-        onClick: onItemClick,
-        zIndex,
-    }), [canNavigate, dummyLength, searchType, hideUpdateButton, allData, parseData, pageData, loading, onItemClick, zIndex]);
+    console.log("searchlist searchString", searchString);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -79,10 +67,7 @@ export function SearchList<DataType extends NavigableObject>({
         if (!loading && scrolledY > windowHeight - 500) {
             loadMore();
         }
-        if (scrolledY > 100) {
-            if (onScrolledFar) onScrolledFar();
-        }
-    }, [loading, loadMore, onScrolledFar]);
+    }, [loading, loadMore]);
 
     // Set event listener for infinite scroll
     useEffect(() => {
@@ -90,7 +75,10 @@ export function SearchList<DataType extends NavigableObject>({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString); }, [setSearchString]);
+    const handleSearch = useCallback((newString: string) => {
+        console.log("handleSearch called", newString);
+        setSearchString(newString);
+    }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -144,9 +132,19 @@ export function SearchList<DataType extends NavigableObject>({
             />
             <ListContainer
                 emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={listItems.length === 0}
+                isEmpty={allData.length === 0 && !loading}
+                sx={{ ...sxs?.listContainer }}
             >
-                {listItems}
+                <ObjectList
+                    canNavigate={canNavigate}
+                    dummyItems={new Array(dummyLength).fill(searchType)}
+                    hideUpdateButton={hideUpdateButton}
+                    items={allData as ListObject[]}
+                    keyPrefix={`${searchType}-list-item`}
+                    loading={loading}
+                    onClick={onItemClick}
+                    zIndex={zIndex}
+                />
             </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{
