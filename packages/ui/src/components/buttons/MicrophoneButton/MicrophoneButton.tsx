@@ -1,7 +1,7 @@
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { TranscriptDialog } from "components/dialogs/TranscriptDialog/TranscriptDialog";
 import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSpeech } from "utils/hooks/useSpeech";
 import { PubSub } from "utils/pubsub";
@@ -45,9 +45,17 @@ export const MicrophoneButton = ({
         }, HINT_AFTER_MILLI));
     }, [transcriptTimeout, transcript]);
 
+    const isMounted = useRef(false);
     useEffect(() => {
-        if (!isListening) onTranscriptChange(transcript);
+        // If component has mounted
+        if (isMounted.current) {
+            if (!isListening) onTranscriptChange(transcript);
+        } else {
+            // Update the ref to indicate that the component has mounted
+            isMounted.current = true;
+        }
     }, [isListening, transcript, onTranscriptChange]);
+
 
 
     const Icon = useMemo(() => {

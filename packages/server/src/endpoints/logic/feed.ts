@@ -106,7 +106,6 @@ export const FeedEndpoints: EndpointsFeed = {
                 standards: "Standard",
                 users: "User",
             }, req.session.languages, true);
-            const bookmarksQuery = { bookmarks: { gte: 0 } };  // Minimum bookmarks required to show up in results. Should increase in the future.
             const take = 5;
             const commonReadParams = { prisma, req };
             // Checks if object type should be included in results
@@ -117,74 +116,74 @@ export const FeedEndpoints: EndpointsFeed = {
             // Query apis
             const { nodes: apis } = shouldInclude("Api") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.apis as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ApiSortBy.ScoreDesc },
+                input: { take, sortBy: ApiSortBy.ScoreDesc, ...input },
                 objectType: "Api",
             }) : { nodes: [] };
             // Query notes
             const { nodes: notes } = shouldInclude("Note") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.notes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: NoteSortBy.ScoreDesc },
+                input: { take, sortBy: NoteSortBy.ScoreDesc, ...input },
                 objectType: "Note",
             }) : { nodes: [] };
             // Query organizations
             const { nodes: organizations } = shouldInclude("Organization") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: OrganizationSortBy.BookmarksDesc },
+                input: { take, sortBy: OrganizationSortBy.BookmarksDesc, ...input },
                 objectType: "Organization",
             }) : { nodes: [] };
             // Query projects
             const { nodes: projects } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.ScoreDesc, isComplete: true },
+                input: { take, sortBy: ProjectSortBy.ScoreDesc, isComplete: true, ...input },
                 objectType: "Project",
             }) : { nodes: [] };
             // Query questions
             const { nodes: questions } = shouldInclude("Question") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 // Make sure question is not attached to any objects (i.e. standalone)
-                additionalQueries: { ...bookmarksQuery, api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
+                additionalQueries: { api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
                 info: partial.questions as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: QuestionSortBy.ScoreDesc, isComplete: true },
+                input: { take, sortBy: QuestionSortBy.ScoreDesc, isComplete: true, ...input },
                 objectType: "Question",
             }) : { nodes: [] };
             // Query routines
             const { nodes: routines } = shouldInclude("Routine") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RoutineSortBy.ScoreDesc, isComplete: true, isInternal: false },
+                input: { take, sortBy: RoutineSortBy.ScoreDesc, isComplete: true, isInternal: false, ...input },
                 objectType: "Routine",
             }) : { nodes: [] };
             // Query smart contracts
             const { nodes: smartContracts } = shouldInclude("SmartContract") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.smartContracts as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: SmartContractSortBy.ScoreDesc, isComplete: true },
+                input: { take, sortBy: SmartContractSortBy.ScoreDesc, isComplete: true, ...input },
                 objectType: "SmartContract",
             }) : { nodes: [] };
             // Query standards
             const { nodes: standards } = shouldInclude("Standard") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                additionalQueries: { isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: StandardSortBy.ScoreDesc, type: "JSON" },
+                input: { take, sortBy: StandardSortBy.ScoreDesc, type: "JSON", ...input },
                 objectType: "Standard",
             }) : { nodes: [] };
             // Query users
             const { nodes: users } = shouldInclude("User") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...bookmarksQuery },
+                additionalQueries: {},
                 info: partial.users as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
+                input: { take, sortBy: UserSortBy.BookmarksDesc, ...input },
                 objectType: "User",
             }) : { nodes: [] };
             // Add supplemental fields to every result

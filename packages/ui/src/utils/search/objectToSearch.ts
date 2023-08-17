@@ -272,3 +272,24 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     User: userSearchParams,
     View: viewSearchParams,
 };
+
+/**
+ * For searches with multiple types, combines the results of each type into a single array
+ */
+export const combineSearchResults = (searchResults: object): object[] => {
+    // Find largest array length 
+    const max: number = Object.values(searchResults).reduce((acc: number, val: any[]) => {
+        return Math.max(acc, val.length);
+    }, -Infinity);
+    // Initialize result array
+    const result: any[] = [];
+    // Loop through each index
+    for (let i = 0; i < max; i++) {
+        // Loop through each object type
+        for (const key in searchResults) {
+            // If index exists, push to result
+            if (Array.isArray(searchResults[key]) && searchResults[key][i]) result.push(searchResults[key][i]);
+        }
+    }
+    return result;
+};

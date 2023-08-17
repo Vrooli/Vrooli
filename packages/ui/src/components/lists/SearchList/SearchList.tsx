@@ -57,6 +57,7 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
+    console.log("searchlist searchString", searchString);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -74,7 +75,10 @@ export function SearchList<DataType extends NavigableObject>({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString); }, [setSearchString]);
+    const handleSearch = useCallback((newString: string) => {
+        console.log("handleSearch called", newString);
+        setSearchString(newString);
+    }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object

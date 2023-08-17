@@ -11,10 +11,11 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { toDisplay } from "utils/display/pageTools";
+import { parseData } from "utils/hooks/useFindMany";
 import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { combineSearchResults, SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";
 
@@ -175,6 +176,10 @@ export const SearchView = ({
                 id="main-search-page-list"
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
+                resolve={(data, type) => {
+                    if (type === SearchType.Popular) return combineSearchResults(data);
+                    return parseData(data, type);
+                }}
                 searchType={searchType}
                 zIndex={zIndex}
                 where={where()}

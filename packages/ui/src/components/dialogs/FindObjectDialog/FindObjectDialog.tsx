@@ -14,10 +14,11 @@ import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
+import { parseData } from "utils/hooks/useFindMany";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, combineSearchResults, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
 import { searchViewTabParams } from "../../../views/SearchView/SearchView";
@@ -353,23 +354,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         dummyLength={3}
                         onItemClick={onInputSelect}
                         take={20}
-                        // Combine results for each object type
-                        resolve={(data: { [x: string]: any }) => {
-                            // Find largest array length 
-                            const max: number = Object.values(data).reduce((acc: number, val: any[]) => {
-                                return Math.max(acc, val.length);
-                            }, -Infinity);
-                            // Initialize result array
-                            const result: any[] = [];
-                            // Loop through each index
-                            for (let i = 0; i < max; i++) {
-                                // Loop through each object type
-                                for (const key in data) {
-                                    // If index exists, push to result
-                                    if (Array.isArray(data[key]) && data[key][i]) result.push(data[key][i]);
-                                }
-                            }
-                            return result;
+                        resolve={(data, type) => {
+                            console.log("findobjectdialog resolve data: ", type, data);
+                            if (type === SearchType.Popular) return combineSearchResults(data);
+                            return parseData(data, type);
                         }}
                         searchType={searchType}
                         zIndex={zIndex}

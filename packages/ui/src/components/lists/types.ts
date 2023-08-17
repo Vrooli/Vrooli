@@ -180,7 +180,7 @@ export interface SearchListProps {
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    resolve?: (data: any) => unknown;
+    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => unknown;
     searchType: SearchType | `${SearchType}`;
     sxs?: {
         search?: SxType;

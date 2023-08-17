@@ -1,5 +1,5 @@
 import { BookmarkFor, CommonKey, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, VisibilityType } from "@local/shared";
-import { Box, IconButton, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Palette, Slider, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
