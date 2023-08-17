@@ -65,6 +65,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         // Update the state to loading
         setState(s => ({ ...s, loading: true }));
         // Make the request
+        console.log("fetching data", endpointOverride || endpoint, inputs);
         const result = await fetchData({
             endpoint: endpointOverride || endpoint as string,
             inputs,

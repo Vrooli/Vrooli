@@ -18,7 +18,7 @@ import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
-    canSearch = () => true,
+    canSearch,
     dummyLength = 5,
     handleAdd,
     hideUpdateButton,

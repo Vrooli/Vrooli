@@ -1,4 +1,4 @@
-import { exists, lowercaseFirstLetter, TimeFrame } from "@local/shared";
+import { deepClone, exists, lowercaseFirstLetter, TimeFrame } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
@@ -112,6 +112,8 @@ export const useFindMany = <DataType extends Record<string, any>>({
         timeFrame: undefined,
         where: stableWhere ?? {},
     });
+    // Store params for the last search
+    const lastParams = useRef<FullSearchParams>(deepClone(params.current));
 
     // Handle URL search params
     const updateUrl = useCallback(() => {
@@ -160,8 +162,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
     useEffect(() => {
         params.current.loading = loading;
     }, [loading]);
+    /** Function for fetching new data, only when there isn't data currently being fetched */
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
+        lastParams.current = deepClone(params.current);
         params.current.loading = true;
         getPageData({
             take,
@@ -221,6 +225,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             sortBy,
             hasMore: true,
         };
+        setAllData([]);
         updateUrl();
         getData();
     }, [updateUrl, searchType, getData]);
@@ -249,6 +254,29 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
+        // If params have changed since this fetch started, invalidate it and refetch
+        const last = {
+            advancedSearchParams: lastParams.current.advancedSearchParams,
+            endpoint: lastParams.current.endpoint,
+            searchString: lastParams.current.searchString,
+            sortBy: lastParams.current.sortBy,
+            timeFrame: lastParams.current.timeFrame,
+            where: lastParams.current.where,
+        };
+        const current = {
+            advancedSearchParams: params.current.advancedSearchParams,
+            endpoint: params.current.endpoint,
+            searchString: params.current.searchString,
+            sortBy: params.current.sortBy,
+            timeFrame: params.current.timeFrame,
+            where: params.current.where,
+        };
+        if (JSON.stringify(last) !== JSON.stringify(current)) {
+            setAllData([]);
+            getData();
+            return;
+        }
+        // Parse data
         const parsedData = parseData(pageData, stableResolve);
         if (!parsedData) {
             setAllData([]);
@@ -277,24 +305,31 @@ export const useFindMany = <DataType extends Record<string, any>>({
         else {
             setAllData(parsedData);
         }
-    }, [pageData, stableResolve]);
+    }, [getData, pageData, stableResolve]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => listToAutocomplete(allData as unknown as ListObject[], getUserLanguages(session)), [allData, session]);
 
     const setSortBy = useCallback((sortBy: string) => {
-        params.current.sortBy = updateSortBy(params.current, sortBy);
+        const newSortBy = updateSortBy(params.current, sortBy);
+        if (newSortBy === params.current.sortBy) return;
+        params.current.sortBy = newSortBy;
+        setAllData([]);
         updateUrl();
         getData();
     }, [getData, updateUrl]);
 
     const setSearchString = useCallback((searchString: string) => {
+        if (searchString === params.current.searchString) return;
         params.current.searchString = searchString;
+        setAllData([]);
         updateUrl();
         getData();
     }, [getData, updateUrl]);
 
     const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
+        if (timeFrame === params.current.timeFrame) return;
         params.current.timeFrame = timeFrame;
+        setAllData([]);
         updateUrl();
         getData();
     }, [getData, updateUrl]);
