@@ -79,6 +79,12 @@ export const endpoints = {
             update: toMutation("chatUpdate", "ChatUpdateInput", chatPartial, "full"),
         };
     },
+    chatsGrouped: async () => {
+        const { chatsGrouped: chatsGroupedPartial } = await import("./partial/chatsGrouped");
+        return {
+            findMany: toQuery("chatsGrouped", "ChatsGroupedSearchInput", ...(await toSearch(chatsGroupedPartial))),
+        };
+    },
     chatInvite: async () => {
         const { chatInvite: chatInvitePartial } = await import("./partial/chatInvite");
         return {
@@ -139,10 +145,9 @@ export const endpoints = {
         };
     },
     feed: async () => {
-        const { homeResult: homeResultPartial, popularResult: popularResultPartial } = await import("./partial/feed");
+        const { homeResult: homeResultPartial } = await import("./partial/feed");
         return {
             home: toQuery("home", "HomeInput", homeResultPartial, "list"),
-            popular: toQuery("popular", "PopularInput", popularResultPartial, "list"),
         };
     },
     issue: async () => {
@@ -277,6 +282,25 @@ export const endpoints = {
         return {
             create: toMutation("phoneCreate", "PhoneCreateInput", phonePartial, "full"),
             update: toMutation("sendVerificationText", "SendVerificationTextInput", successPartial, "full"),
+        };
+    },
+    popular: async () => {
+        const { popular: popularPartial } = await import("./partial/popular");
+        return {
+            findMany: toQuery("populars", "PopularSearchInput", ...(await toSearch(popularPartial, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorApi: true,
+                    endCursorNote: true,
+                    endCursorOrganization: true,
+                    endCursorProject: true,
+                    endCursorQuestion: true,
+                    endCursorRoutine: true,
+                    endCursorSmartContract: true,
+                    endCursorStandard: true,
+                    endCursorUser: true,
+                },
+            }))),
         };
     },
     post: async () => {

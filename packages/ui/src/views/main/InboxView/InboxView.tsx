@@ -26,7 +26,12 @@ import { InboxViewProps } from "../types";
 const tabParams = [{
     titleKey: "Message" as CommonKey,
     searchType: SearchType.Chat,
-    tabType: InboxPageTabOption.Message,
+    tabType: InboxPageTabOption.Dm,
+    where: () => ({}),
+}, {
+    titleKey: "Message" as CommonKey,
+    searchType: SearchType.Chat,
+    tabType: InboxPageTabOption.GroupChat,
     where: () => ({}),
 }, {
     titleKey: "Notification" as CommonKey,

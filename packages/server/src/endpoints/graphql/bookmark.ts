@@ -104,6 +104,6 @@ export const resolvers: {
 } = {
     BookmarkSortBy,
     BookmarkFor,
-    BookmarkTo: { __resolveType(obj: any) { return resolveUnion(obj); } },
+    BookmarkTo: { __resolveType(obj) { return resolveUnion(obj); } },
     ...BookmarkEndpoints,
 };

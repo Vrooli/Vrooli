@@ -1,7 +1,13 @@
+import { PageInfo } from "@local/shared";
 import { modelToGql, toPartialGqlInfo } from "../builders";
 import { getLogic } from "../getters";
 import { readManyHelper } from "./readManyHelper";
 import { ReadManyHelperProps } from "./types";
+
+export type ReadManyAsFeedResult = {
+    pageInfo: PageInfo;
+    nodes: object[];
+}
 
 /**
  * Helper function for reading many objects and converting them to a GraphQL response
@@ -14,7 +20,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     objectType,
     prisma,
     req,
-}: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<{ pageInfo: any, nodes: any[] }> {
+}: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<ReadManyAsFeedResult> {
     const readManyResult = await readManyHelper({
         additionalQueries,
         addSupplemental: false,

@@ -28,6 +28,9 @@ import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
 import { ObjectListItemProps } from "../types";
 
+const LIST_PREFIX = "list-item-";
+const EDIT_PREFIX = "edit-list-item-";
+
 /**
  * A list item that automatically supports most object types, with props 
  * for adding additional, type-specific content. General layout is:
@@ -77,7 +80,7 @@ export function ObjectListItemBase<T extends ListObject>({
 
     const link = useMemo(() => (data && (typeof canNavigate !== "function" || canNavigate(data))) ? getObjectUrl(data) : "", [data, canNavigate]);
     const handleClick = useCallback((target: EventTarget) => {
-        if (!target.id || !target.id.startsWith("list-item-")) return;
+        if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
         // If onClick is supplied, call it instead of navigating
@@ -100,7 +103,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const handleEditClick = useCallback((event: any) => {
         event.preventDefault();
         const target = event.target;
-        if (!target.id || !target.id.startsWith("edit-list-item-")) return;
+        if (!target.id || !target.id.startsWith(EDIT_PREFIX)) return;
         // If data not supplied, don't open
         if (!data) return;
         // If canNavigate is supplied, call it
@@ -193,7 +196,7 @@ export function ObjectListItemBase<T extends ListObject>({
             >
                 {!hideUpdateButton && canUpdate &&
                     <Box
-                        id={`edit-list-item-button-${id}`}
+                        id={`${EDIT_PREFIX}button-${id}`}
                         component="a"
                         aria-label={t("Edit")}
                         href={editUrl}
@@ -206,7 +209,7 @@ export function ObjectListItemBase<T extends ListObject>({
                             pointerEvents: "all",
                             paddingBottom: isMobile ? "0px" : "4px",
                         }}>
-                        <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
+                        <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
                 {isMobile && canReact && object && (
@@ -262,7 +265,7 @@ export function ObjectListItemBase<T extends ListObject>({
             />
             {/* List item */}
             <ListItem
-                id={`list-item-${id}`}
+                id={`${LIST_PREFIX}${id}`}
                 disablePadding
                 button
                 component={link ? "a" : "div"}
@@ -290,7 +293,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     {/* Title */}
                     {loading ? <TextLoading /> :
                         (
-                            <Stack id={`list-item-title-stack-${id}`} direction="row" spacing={1} sx={{
+                            <Stack id={`${LIST_PREFIX}title-stack-${id}`} direction="row" spacing={1} sx={{
                                 ...smallHorizontalScrollbar(palette),
                             }}>
                                 <ListItemText

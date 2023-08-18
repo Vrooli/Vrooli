@@ -38,14 +38,32 @@ export const useBookmarker = ({
     const closeBookmarkDialog = useCallback(() => { setIsBookmarkDialogOpen(false); }, []);
 
     const handleAdd = useCallback(() => {
+        if (!objectId) {
+            PubSub.get().publishSnack({ messageKey: "NotFound", severity: "Error" });
+            return;
+        }
         const bookmarkListId = bookmarkLists && bookmarkLists.length ? bookmarkLists[0].id : undefined;
+        console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
+            id: uuid(),
+            to: {
+                __typename: BookmarkFor[objectType],
+                id: objectId,
+            },
+            list: {
+                __typename: "BookmarkList",
+                id: bookmarkListId ?? uuid(),
+                // Setting label marks this as a create, 
+                // which should only be done if there is no bookmarkListId
+                label: bookmarkListId ? undefined : "Favorites",
+            },
+        }));
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
                 id: uuid(),
                 to: {
                     __typename: BookmarkFor[objectType],
-                    id: objectId!,
+                    id: objectId,
                 },
                 list: {
                     __typename: "BookmarkList",

@@ -14,11 +14,10 @@ import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
-import { parseData } from "utils/hooks/useFindMany";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { useTabs } from "utils/hooks/useTabs";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { CalendarPageTabOption, combineSearchResults, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { CalendarPageTabOption, SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";
 import { searchViewTabParams } from "../../../views/SearchView/SearchView";
@@ -354,11 +353,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         dummyLength={3}
                         onItemClick={onInputSelect}
                         take={20}
-                        resolve={(data, type) => {
-                            console.log("findobjectdialog resolve data: ", type, data);
-                            if (type === SearchType.Popular) return combineSearchResults(data);
-                            return parseData(data, type);
-                        }}
                         searchType={searchType}
                         zIndex={zIndex}
                         where={where}

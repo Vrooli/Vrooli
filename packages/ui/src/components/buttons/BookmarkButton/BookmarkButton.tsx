@@ -103,7 +103,14 @@ export const BookmarkButton = ({
             />
             {/* Main content */}
             <Tooltip title={t("Bookmark", { count: 1 })}>
-                <IconButton aria-label={t("Bookmark", { count: 1 })} size="small" onClick={handleClick}>
+                <IconButton
+                    aria-label={t("Bookmark", { count: 1 })}
+                    size="small"
+                    onClick={handleClick}
+                    sx={{
+                        pointerEvents: disabled ? "none" : "auto",
+                    }}
+                >
                     <Icon fill={fill} />
                 </IconButton>
             </Tooltip>

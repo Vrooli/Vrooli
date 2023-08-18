@@ -909,6 +909,39 @@ export type ChatYou = {
   canUpdate: Scalars['Boolean'];
 };
 
+export type ChatsGrouped = {
+  __typename: 'ChatsGrouped';
+  chatsCount: Scalars['Int'];
+  participants: Array<ChatParticipant>;
+};
+
+export type ChatsGroupedEdge = {
+  __typename: 'ChatsGroupedEdge';
+  cursor: Scalars['String'];
+  node: ChatsGrouped;
+};
+
+export type ChatsGroupedSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ChatSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ChatsGroupedSearchResult = {
+  __typename: 'ChatsGroupedSearchResult';
+  edges: Array<ChatsGroupedEdge>;
+  pageInfo: PageInfo;
+};
+
 export type Comment = {
   __typename: 'Comment';
   bookmarkedBy?: Maybe<Array<User>>;
@@ -3888,11 +3921,12 @@ export type PhoneCreateInput = {
   phoneNumber: Scalars['String'];
 };
 
-export type PopularInput = {
-  objectType?: InputMaybe<PopularObjectType>;
-  searchString: Scalars['String'];
-  sortBy?: InputMaybe<PopularSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
+export type Popular = Api | Note | Organization | Project | Question | Routine | SmartContract | Standard | User;
+
+export type PopularEdge = {
+  __typename: 'PopularEdge';
+  cursor: Scalars['String'];
+  node: Popular;
 };
 
 export enum PopularObjectType {
@@ -3907,17 +3941,43 @@ export enum PopularObjectType {
   User = 'User'
 }
 
-export type PopularResult = {
-  __typename: 'PopularResult';
-  apis: Array<Api>;
-  notes: Array<Note>;
-  organizations: Array<Organization>;
-  projects: Array<Project>;
-  questions: Array<Question>;
-  routines: Array<Routine>;
-  smartContracts: Array<SmartContract>;
-  standards: Array<Standard>;
-  users: Array<User>;
+export type PopularPageInfo = {
+  __typename: 'PopularPageInfo';
+  endCursorApi?: Maybe<Scalars['String']>;
+  endCursorNote?: Maybe<Scalars['String']>;
+  endCursorOrganization?: Maybe<Scalars['String']>;
+  endCursorProject?: Maybe<Scalars['String']>;
+  endCursorQuestion?: Maybe<Scalars['String']>;
+  endCursorRoutine?: Maybe<Scalars['String']>;
+  endCursorSmartContract?: Maybe<Scalars['String']>;
+  endCursorStandard?: Maybe<Scalars['String']>;
+  endCursorUser?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type PopularSearchInput = {
+  apiAfter?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  noteAfter?: InputMaybe<Scalars['String']>;
+  objectType?: InputMaybe<PopularObjectType>;
+  organizationAfter?: InputMaybe<Scalars['String']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
+  questionAfter?: InputMaybe<Scalars['String']>;
+  routineAfter?: InputMaybe<Scalars['String']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  smartContractAfter?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<PopularSortBy>;
+  standardAfter?: InputMaybe<Scalars['String']>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userAfter?: InputMaybe<Scalars['String']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type PopularSearchResult = {
+  __typename: 'PopularSearchResult';
+  edges: Array<PopularEdge>;
+  pageInfo: PopularPageInfo;
 };
 
 export enum PopularSortBy {
@@ -4871,6 +4931,7 @@ export type Query = {
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
   chats: ChatSearchResult;
+  chatsGrouped: ChatsGroupedSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   focusMode?: Maybe<FocusMode>;
@@ -4901,7 +4962,7 @@ export type Query = {
   organizations: OrganizationSearchResult;
   payment?: Maybe<Payment>;
   payments: PaymentSearchResult;
-  popular: PopularResult;
+  popular: PopularSearchResult;
   post?: Maybe<Post>;
   posts: PostSearchResult;
   profile: User;
@@ -5072,6 +5133,11 @@ export type QueryChatsArgs = {
 };
 
 
+export type QueryChatsGroupedArgs = {
+  input: ChatsGroupedSearchInput;
+};
+
+
 export type QueryCommentArgs = {
   input: FindByIdInput;
 };
@@ -5218,7 +5284,7 @@ export type QueryPaymentsArgs = {
 
 
 export type QueryPopularArgs = {
-  input: PopularInput;
+  input: PopularSearchInput;
 };
 
 
@@ -9836,6 +9902,10 @@ export type ResolversTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ResolverTypeWrapper<ChatYou>;
+  ChatsGrouped: ResolverTypeWrapper<ChatsGrouped>;
+  ChatsGroupedEdge: ResolverTypeWrapper<ChatsGroupedEdge>;
+  ChatsGroupedSearchInput: ChatsGroupedSearchInput;
+  ChatsGroupedSearchResult: ResolverTypeWrapper<ChatsGroupedSearchResult>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
@@ -10040,9 +10110,12 @@ export type ResolversTypes = {
   PaymentType: PaymentType;
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
-  PopularInput: PopularInput;
+  Popular: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['User'];
+  PopularEdge: ResolverTypeWrapper<Omit<PopularEdge, 'node'> & { node: ResolversTypes['Popular'] }>;
   PopularObjectType: PopularObjectType;
-  PopularResult: ResolverTypeWrapper<PopularResult>;
+  PopularPageInfo: ResolverTypeWrapper<PopularPageInfo>;
+  PopularSearchInput: PopularSearchInput;
+  PopularSearchResult: ResolverTypeWrapper<PopularSearchResult>;
   PopularSortBy: PopularSortBy;
   Post: ResolverTypeWrapper<Omit<Post, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   PostCreateInput: PostCreateInput;
@@ -10584,6 +10657,10 @@ export type ResolversParentTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ChatYou;
+  ChatsGrouped: ChatsGrouped;
+  ChatsGroupedEdge: ChatsGroupedEdge;
+  ChatsGroupedSearchInput: ChatsGroupedSearchInput;
+  ChatsGroupedSearchResult: ChatsGroupedSearchResult;
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
   CommentSearchInput: CommentSearchInput;
@@ -10761,8 +10838,11 @@ export type ResolversParentTypes = {
   PaymentSearchResult: PaymentSearchResult;
   Phone: Phone;
   PhoneCreateInput: PhoneCreateInput;
-  PopularInput: PopularInput;
-  PopularResult: PopularResult;
+  Popular: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['User'];
+  PopularEdge: Omit<PopularEdge, 'node'> & { node: ResolversParentTypes['Popular'] };
+  PopularPageInfo: PopularPageInfo;
+  PopularSearchInput: PopularSearchInput;
+  PopularSearchResult: PopularSearchResult;
   Post: Omit<Post, 'owner'> & { owner: ResolversParentTypes['Owner'] };
   PostCreateInput: PostCreateInput;
   PostEdge: PostEdge;
@@ -11497,6 +11577,24 @@ export type ChatYouResolvers<ContextType = any, ParentType extends ResolversPare
   canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatsGroupedResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGrouped'] = ResolversParentTypes['ChatsGrouped']> = {
+  chatsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  participants?: Resolver<Array<ResolversTypes['ChatParticipant']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatsGroupedEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGroupedEdge'] = ResolversParentTypes['ChatsGroupedEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ChatsGrouped'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatsGroupedSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGroupedSearchResult'] = ResolversParentTypes['ChatsGroupedSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ChatsGroupedEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12453,16 +12551,33 @@ export type PhoneResolvers<ContextType = any, ParentType extends ResolversParent
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type PopularResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularResult'] = ResolversParentTypes['PopularResult']> = {
-  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
-  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
-  organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
-  projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
-  routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
-  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
-  users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+export type PopularResolvers<ContextType = any, ParentType extends ResolversParentTypes['Popular'] = ResolversParentTypes['Popular']> = {
+  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard' | 'User', ParentType, ContextType>;
+};
+
+export type PopularEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularEdge'] = ResolversParentTypes['PopularEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Popular'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PopularPageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularPageInfo'] = ResolversParentTypes['PopularPageInfo']> = {
+  endCursorApi?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorNote?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorOrganization?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorQuestion?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorRoutine?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorSmartContract?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorStandard?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorUser?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PopularSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularSearchResult'] = ResolversParentTypes['PopularSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['PopularEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PopularPageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12822,6 +12937,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
+  chatsGrouped?: Resolver<ResolversTypes['ChatsGroupedSearchResult'], ParentType, ContextType, RequireFields<QueryChatsGroupedArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
@@ -12852,7 +12968,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   organizations?: Resolver<ResolversTypes['OrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryOrganizationsArgs, 'input'>>;
   payment?: Resolver<Maybe<ResolversTypes['Payment']>, ParentType, ContextType, RequireFields<QueryPaymentArgs, 'input'>>;
   payments?: Resolver<ResolversTypes['PaymentSearchResult'], ParentType, ContextType, RequireFields<QueryPaymentsArgs, 'input'>>;
-  popular?: Resolver<ResolversTypes['PopularResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
+  popular?: Resolver<ResolversTypes['PopularSearchResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
   post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType, RequireFields<QueryPostArgs, 'input'>>;
   posts?: Resolver<ResolversTypes['PostSearchResult'], ParentType, ContextType, RequireFields<QueryPostsArgs, 'input'>>;
   profile?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
@@ -14725,6 +14841,9 @@ export type Resolvers<ContextType = any> = {
   ChatSearchResult?: ChatSearchResultResolvers<ContextType>;
   ChatTranslation?: ChatTranslationResolvers<ContextType>;
   ChatYou?: ChatYouResolvers<ContextType>;
+  ChatsGrouped?: ChatsGroupedResolvers<ContextType>;
+  ChatsGroupedEdge?: ChatsGroupedEdgeResolvers<ContextType>;
+  ChatsGroupedSearchResult?: ChatsGroupedSearchResultResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -14807,7 +14926,10 @@ export type Resolvers<ContextType = any> = {
   PaymentEdge?: PaymentEdgeResolvers<ContextType>;
   PaymentSearchResult?: PaymentSearchResultResolvers<ContextType>;
   Phone?: PhoneResolvers<ContextType>;
-  PopularResult?: PopularResultResolvers<ContextType>;
+  Popular?: PopularResolvers<ContextType>;
+  PopularEdge?: PopularEdgeResolvers<ContextType>;
+  PopularPageInfo?: PopularPageInfoResolvers<ContextType>;
+  PopularSearchResult?: PopularSearchResultResolvers<ContextType>;
   Post?: PostResolvers<ContextType>;
   PostEdge?: PostEdgeResolvers<ContextType>;
   PostSearchResult?: PostSearchResultResolvers<ContextType>;

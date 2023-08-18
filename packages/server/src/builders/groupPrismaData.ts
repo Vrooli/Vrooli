@@ -71,7 +71,7 @@ export const groupPrismaData = (
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         let childPartialInfo: PartialGraphQLInfo = partialInfo[key] as any;
-        if (childPartialInfo)
+        if (childPartialInfo && value) {
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
             if (
@@ -92,6 +92,7 @@ export const groupPrismaData = (
                 // If union type, update child partial
                 childPartialInfo = childPartialInfo[matchingType] as PartialGraphQLInfo;
             }
+        }
         // If value is an array
         if (Array.isArray(value)) {
             // Pass each element through groupPrismaData

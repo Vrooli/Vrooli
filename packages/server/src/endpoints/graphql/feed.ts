@@ -22,23 +22,46 @@ export const typeDef = gql`
         User
     }  
 
-    input PopularInput {
+    union Popular = Api | Note | Organization | Project | Question | Routine | SmartContract | Standard | User
+
+    input PopularSearchInput {
+        apiAfter: String
+        createdTimeFrame: TimeFrame
+        noteAfter: String
         objectType: PopularObjectType # To limit to a specific type
-        searchString: String!
+        organizationAfter: String
+        projectAfter: String
+        questionAfter: String
+        routineAfter: String
+        smartContractAfter: String
         sortBy: PopularSortBy
+        searchString: String
+        standardAfter: String
         take: Int
+        updatedTimeFrame: TimeFrame
+        userAfter: String
+        visibility: VisibilityType
     }
- 
-    type PopularResult {
-        apis: [Api!]!
-        notes: [Note!]!
-        organizations: [Organization!]!
-        projects: [Project!]!
-        questions: [Question!]!
-        routines: [Routine!]!
-        smartContracts: [SmartContract!]!
-        standards: [Standard!]!
-        users: [User!]!
+
+    type PopularSearchResult {
+        pageInfo: PopularPageInfo!
+        edges: [PopularEdge!]!
+    }
+    type PopularPageInfo {
+        hasNextPage: Boolean!
+        endCursorApi: String
+        endCursorNote: String
+        endCursorOrganization: String
+        endCursorProject: String
+        endCursorQuestion: String
+        endCursorRoutine: String
+        endCursorSmartContract: String
+        endCursorStandard: String
+        endCursorUser: String
+    }
+    type PopularEdge {
+        cursor: String!
+        node: Popular!
     }
 
     input HomeInput {
@@ -55,7 +78,7 @@ export const typeDef = gql`
 
     type Query {
         home(input: HomeInput!): HomeResult!
-        popular(input: PopularInput!): PopularResult!
+        popular(input: PopularSearchInput!): PopularSearchResult!
     }
  `;
 

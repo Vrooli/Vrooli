@@ -196,6 +196,7 @@ model chat {
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              String?                     @db.Uuid
     organizationId         String?                     @db.Uuid
+    participantsCount      Int                         @default(0)
     creator                user?                       @relation(fields: [creatorId], references: [id], onDelete: SetNull)
     organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     restrictedToRoles      chat_roles[]

@@ -62,6 +62,12 @@ export const typeDef = gql`
         you: ChatYou!
     }
 
+    # Chats with 2 participants (i.e. you and another user) grouped by the other user
+    type ChatsGrouped {
+        chatsCount: Int!
+        participants: [ChatParticipant!]!
+    }
+
     type ChatYou {
         canDelete: Boolean!
         canInvite: Boolean!
@@ -113,9 +119,35 @@ export const typeDef = gql`
         node: Chat!
     }
 
+    input ChatsGroupedSearchInput {
+        after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        openToAnyoneWithInvite: Boolean
+        labelsIds: [ID!]
+        organizationId: ID
+        searchString: String
+        sortBy: ChatSortBy
+        take: Int
+        translationLanguages: [String!]
+        updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
+    }
+
+    type ChatsGroupedSearchResult {
+        pageInfo: PageInfo!
+        edges: [ChatsGroupedEdge!]!
+    }
+
+    type ChatsGroupedEdge {
+        cursor: String!
+        node: ChatsGrouped!
+    }
+
     extend type Query {
         chat(input: FindByIdInput!): Chat
         chats(input: ChatSearchInput!): ChatSearchResult!
+        chatsGrouped(input: ChatsGroupedSearchInput!): ChatsGroupedSearchResult!
     }
 
     extend type Mutation {

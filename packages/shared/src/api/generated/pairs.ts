@@ -202,6 +202,12 @@ export const endpointGetChats = {
     tag: "chat",
 } as const;
 
+export const endpointGetChatsGrouped = {
+    endpoint: "/chatsGrouped",
+    method: "GET",
+    tag: "chat",
+} as const;
+
 export const endpointPostChat = {
     endpoint: "/chat",
     method: "POST",

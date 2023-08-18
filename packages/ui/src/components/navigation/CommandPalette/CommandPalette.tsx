@@ -1,4 +1,4 @@
-import { endpointGetFeedPopular, PopularInput, PopularResult, uuidValidate } from "@local/shared";
+import { endpointGetFeedPopular, PopularSearchInput, PopularSearchResult, uuidValidate } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -10,6 +10,7 @@ import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayServerError } from "utils/hooks/useDisplayServerError";
+import { parseData } from "utils/hooks/useFindMany";
 import { useLazyFetch } from "utils/hooks/useLazyFetch";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
@@ -62,7 +63,7 @@ export const CommandPalette = () => {
         return () => { PubSub.get().unsubscribe(dialogSub); };
     }, []);
 
-    const [refetch, { data, loading, errors }] = useLazyFetch<PopularInput, PopularResult>({
+    const [refetch, { data, loading, errors }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
         ...endpointGetFeedPopular,
         inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
     });
@@ -86,11 +87,7 @@ export const CommandPalette = () => {
             //     id: LINKS.Tutorial,
             // });
         }
-        // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
-        const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
-        const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
-            return b.bookmarks - a.bookmarks;
-        });
+        const queryItems = listToAutocomplete(parseData(data, "Popular"), languages);
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [t, searchString, data, languages, shortcutsItems]);
 
@@ -103,8 +100,6 @@ export const CommandPalette = () => {
         close();
         setSearchString("");
         // Get object url
-        // NOTE: actions don't require navigation, so they are ignored. 
-        // The search bar performs the action automatically
         const newLocation = getObjectUrl(newValue);
         if (!newLocation) return;
         // If new pathname is the same, reload page

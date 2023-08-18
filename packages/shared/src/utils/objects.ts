@@ -56,7 +56,7 @@ export const setDotNotationValue = <T extends Record<string, any>>(
  * @param value The value to check.
  * @returns True if the value is an object, false otherwise.
  */
-export function isObject(value: any): value is object {
+export function isObject(value: unknown): value is object {
     return value !== null && (typeof value === "object" || typeof value === "function");
 }
 
@@ -77,22 +77,25 @@ export const isOfType = <T extends string>(obj: any, ...types: T[]): obj is { __
 };
 
 export const deepClone = <T>(obj: T): T => {
-    if (obj === null) return null as any;
+    if (obj === null) return null as T;
+    if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
+
     if (typeof obj !== "object") return obj;
 
     if (Array.isArray(obj)) {
-        const arrCopy: any[] = [];
+        const arrCopy: unknown[] = [];
         for (let i = 0; i < obj.length; i++) {
-            arrCopy[i] = deepClone((obj as any)[i]);
+            arrCopy[i] = deepClone((obj as Array<unknown>)[i]);
         }
-        return arrCopy as any;
+        return arrCopy as unknown as T;
     } else {
-        const objCopy: { [key: string]: any } = {};
+        const objCopy: { [key: string]: unknown } = {};
         for (const key in obj) {
             if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                objCopy[key] = deepClone((obj as any)[key]);
+                objCopy[key] = deepClone((obj as Record<string, unknown>)[key]);
             }
         }
         return objCopy as T;
     }
 };
+

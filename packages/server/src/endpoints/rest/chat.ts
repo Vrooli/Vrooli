@@ -1,4 +1,4 @@
-import { chat_create, chat_findMany, chat_findOne, chat_update } from "../generated";
+import { chatsGrouped_findMany, chat_create, chat_findMany, chat_findOne, chat_update } from "../generated";
 import { ChatEndpoints } from "../logic";
 import { setupRoutes } from "./base";
 
@@ -9,6 +9,9 @@ export const ChatRest = setupRoutes({
     },
     "/chats": {
         get: [ChatEndpoints.Query.chats, chat_findMany],
+    },
+    "/chatsGrouped": {
+        get: [ChatEndpoints.Query.chatsGrouped, chatsGrouped_findMany],
     },
     "/chat": {
         post: [ChatEndpoints.Mutation.chatCreate, chat_create],

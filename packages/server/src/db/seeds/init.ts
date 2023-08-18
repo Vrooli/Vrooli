@@ -21,6 +21,48 @@ export async function init(prisma: PrismaType) {
 
     const EN = "en";
 
+    // TODO temporary
+    // Find every chat with a participantCount of 0, and update it 
+    // to match the _count of the participants relation
+    const chats = await prisma.chat.findMany({
+        where: {
+            participantsCount: 0,
+        },
+        select: {
+            id: true,
+            _count: {
+                select: {
+                    participants: true,
+                },
+            },
+        },
+    });
+    await Promise.all(chats.map(async chat => {
+        await prisma.chat.update({
+            where: { id: chat.id },
+            data: {
+                participantsCount: chat._count.participants,
+            },
+        });
+    }));
+
+    // TODO temporary
+    // Delete CIP-0025 standards
+    await prisma.standard.deleteMany({
+        where: {
+            createdById: "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2",
+            versions: {
+                some: {
+                    translations: {
+                        some: {
+                            name: "CIP-0025 - NFT Metadata Standard",
+                        },
+                    },
+                },
+            },
+        },
+    });
+
     //==============================================================
     /* #endregion Initialization */
     //==============================================================
@@ -662,7 +704,7 @@ export async function init(prisma: PrismaType) {
             data: {
                 root: {
                     create: {
-                        id: uuid(),
+                        id: standardCip0025Id,
                         permissions: JSON.stringify({}),
                         createdById: admin.id,
                         tags: {

@@ -63,6 +63,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Determine sort order
     // Make sure sort field is valid
     const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;
+    const desiredTake = Number.isInteger(input.take) ? input.take : DEFAULT_TAKE;
     // Find requested search array
     const select = selectHelper(partialInfo);
     let searchResults: any[];
@@ -70,7 +71,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
-            take: Number.isInteger(input.take) ? input.take : DEFAULT_TAKE,
+            take: desiredTake + 1, // Take one extra so we can determine if there is a next page
             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
             cursor: input.after ? {
                 id: input.after,
@@ -83,18 +84,13 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     }
     let hasNextPage = false;
     let endCursor: string | null = null;
-    // If there are results, find the end cursor and hasNextPage flag
+    // Check if there's an extra item (indicating more results)
+    if (searchResults.length > desiredTake) {
+        hasNextPage = true;
+        searchResults.pop(); // remove the extra item
+    }
     if (searchResults.length > 0) {
-        // Find cursor
         endCursor = searchResults[searchResults.length - 1].id;
-        // Query after the cursor to check if there are more results
-        const nextPage = await (model.delegate(prisma) as any).findMany({
-            take: 1,
-            cursor: {
-                id: endCursor,
-            },
-        });
-        hasNextPage = nextPage.length > 0;
     }
     //TODO validate that the user has permission to read all of the results, including relationships
     // Add supplemental fields, if requested

@@ -227,12 +227,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
         if (!newParams) return;
         const sortBy = updateSortBy(newParams, params.current.sortBy);
         after.current = {};
-        console.log("updating params.current a", params.current, {
-            ...params.current,
-            ...newParams,
-            sortBy,
-            hasMore: true,
-        });
         params.current = {
             ...params.current,
             ...newParams,
@@ -287,6 +281,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             where: params.current.where,
         };
         if (JSON.stringify(last) !== JSON.stringify(current)) {
+            console.log("THEY WERE DIFFERENT", last.timeFrame, current.timeFrame);
             setAllData([]);
             getData();
             return;

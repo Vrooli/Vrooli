@@ -163,17 +163,17 @@ export const BookmarkListForm = forwardRef<BaseFormRef | undefined, BookmarkList
                         Add Bookmark
                     </Button>
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={props.errors}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                    zIndex={zIndex}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={props.errors}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+                zIndex={zIndex}
+            />
         </>
     );
 });
