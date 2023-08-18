@@ -105,7 +105,20 @@ export const FeedEndpoints: EndpointsFeed = {
                 Standard: "Standard",
                 User: "User",
             }, req.session.languages, true);
-            const take = 5;
+            // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
+            const aftersCount = Object.entries(input).filter(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "").length;
+            const anyAfters = aftersCount > 0;
+            // Checks if object type should be included in results
+            const shouldInclude = (objectType: `${PopularSearchInput["objectType"]}`) => {
+                if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
+                return input.objectType ? input.objectType === objectType : true;
+            };
+            // Split take between each requested object type.
+            // If input.objectType is provided, take stays the same (as it's only querying one object type).
+            // If there are any "after" cursors, take is split evenly between each object type.
+            // If neither of the above are true, take is split evenly between each object type
+            const totalTake = 25;
+            const take = input.objectType ? totalTake : anyAfters ? Math.ceil(totalTake / aftersCount) : Math.ceil(totalTake / 9);
             const commonReadParams = { prisma, req };
             const commonInputParams = {
                 createdTimeFrame: input.createdTimeFrame,
@@ -113,13 +126,6 @@ export const FeedEndpoints: EndpointsFeed = {
                 take,
                 updatedTimeFrame: input.updatedTimeFrame,
                 visibility: input.visibility,
-            };
-            // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
-            const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
-            // Checks if object type should be included in results
-            const shouldInclude = (objectType: `${PopularSearchInput["objectType"]}`) => {
-                if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
-                return input.objectType ? input.objectType === objectType : true;
             };
             // Query apis
             const { nodes: apis, pageInfo: apisInfo } = shouldInclude("Api") ? await readManyAsFeedHelper({

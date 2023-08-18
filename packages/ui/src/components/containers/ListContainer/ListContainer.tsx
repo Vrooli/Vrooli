@@ -1,18 +1,20 @@
 import { Box, List, Typography, useTheme } from "@mui/material";
+import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ListContainerProps } from "../types";
 
-export const ListContainer = ({
+export const ListContainer = forwardRef<HTMLDivElement, ListContainerProps>(({
     children,
     emptyText,
+    id,
     isEmpty = false,
     sx,
-}: ListContainerProps) => {
+}, ref) => {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
     return (
-        <Box sx={{
+        <Box id={id} ref={ref} sx={{
             maxWidth: "1000px",
             marginLeft: "auto",
             marginRight: "auto",
@@ -39,4 +41,4 @@ export const ListContainer = ({
             )}
         </Box>
     );
-};
+});

@@ -192,6 +192,7 @@ export const MyStuffView = ({
             />
             {searchType && <SearchList
                 id="my-stuff-list"
+                display={display}
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}

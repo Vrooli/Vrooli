@@ -122,6 +122,7 @@ export const MemberManageView = ({
             </Stack >
             {searchType && <SearchList
                 id="member-manage-list"
+                display={display}
                 dummyLength={display === "page" ? 5 : 3}
                 take={20}
                 searchType={searchType}

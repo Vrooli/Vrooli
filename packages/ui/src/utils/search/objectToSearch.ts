@@ -7,6 +7,7 @@ import { chatSearchParams } from "./schemas/chat";
 import { chatInviteSearchParams } from "./schemas/chatInvite";
 import { chatMessageSearchParams } from "./schemas/chatMessage";
 import { chatParticipantSearchParams } from "./schemas/chatParticipant";
+import { chatsGroupedSearchParams } from "./schemas/chatsGrouped";
 import { commentSearchParams } from "./schemas/comment";
 import { focusModeSearchParams } from "./schemas/focusMode";
 import { issueSearchParams } from "./schemas/issue";
@@ -72,6 +73,7 @@ export enum SearchType {
     Bookmark = "Bookmark",
     BookmarkList = "BookmarkList",
     Chat = "Chat",
+    ChatsGrouped = "ChatsGrouped",
     ChatInvite = "ChatInvite",
     ChatMessage = "ChatMessage",
     ChatParticipant = "ChatParticipant",
@@ -210,6 +212,7 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     Bookmark: bookmarkSearchParams,
     BookmarkList: bookmarkListSearchParams,
     Chat: chatSearchParams,
+    ChatsGrouped: chatsGroupedSearchParams,
     ChatInvite: chatInviteSearchParams,
     ChatMessage: chatMessageSearchParams,
     ChatParticipant: chatParticipantSearchParams,

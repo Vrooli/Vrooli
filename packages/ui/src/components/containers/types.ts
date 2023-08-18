@@ -36,6 +36,7 @@ export interface TitleContainerProps {
 export interface ListContainerProps {
     children: ReactNode;
     emptyText?: string;
+    id?: string;
     isEmpty?: boolean;
     sx?: SxType;
 }

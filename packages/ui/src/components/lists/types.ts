@@ -7,6 +7,7 @@ import { ListObject } from "utils/display/listTools";
 import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
+import { ViewDisplayType } from "views/types";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -168,6 +169,7 @@ export interface SearchListProps {
      */
     canNavigate?: (item: any) => boolean,
     canSearch?: (where: any) => boolean;
+    display: ViewDisplayType;
     /**
      * How many dummy lists to display while loading. Smaller is better for lists displayed 
      * in dialogs, since a large dummy list with a small number of results will give 

@@ -6,7 +6,7 @@ import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
 import { PlusIcon } from "icons";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
@@ -19,6 +19,7 @@ import { SearchListProps } from "../types";
 export function SearchList<DataType extends NavigableObject>({
     canNavigate = () => true,
     canSearch,
+    display,
     dummyLength = 5,
     handleAdd,
     hideUpdateButton,
@@ -57,23 +58,50 @@ export function SearchList<DataType extends NavigableObject>({
         take,
         where,
     });
-    console.log("searchlist searchString", searchString);
 
-    // If near the bottom of the page, load more data
-    // If scrolled past a certain point, show an "Add New" button
+    // Handle infinite scroll
+    const containerRef = useRef<HTMLDivElement>(null);
+    const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
+        // If display is "page", use document instead
+        if (display === "page") return document;
+        // Otherwise, traverse up the DOM until we find a component with a role of "dialog"
+        while (element) {
+            if (element.getAttribute("role") === "dialog") {
+                return element;
+            }
+            element = element.parentElement;
+        }
+        return null;
+    }, [display]);
     const handleScroll = useCallback(() => {
-        const scrolledY = window.scrollY;
-        const windowHeight = window.innerHeight;
-        if (!loading && scrolledY > windowHeight - 500) {
+        const container = getScrollingContainer(containerRef.current) ?? window;
+        if (!container) return;
+        let scrolledY: number;
+        let scrollableHeight: number;
+        if (container === document) {
+            // When container is document, you should use document.documentElement or document.body based on browser compatibility
+            scrolledY = window.scrollY || window.pageYOffset;
+            scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        } else if (container instanceof HTMLElement) {
+            scrolledY = container.scrollTop;
+            scrollableHeight = container.scrollHeight - container.clientHeight;
+        } else {
+            return;
+        }
+        if (!loading && scrolledY > scrollableHeight - 500) {
             loadMore();
         }
-    }, [loading, loadMore]);
-
-    // Set event listener for infinite scroll
+    }, [getScrollingContainer, loading, loadMore]);
     useEffect(() => {
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [handleScroll]);
+        const scrollingContainer = getScrollingContainer(containerRef.current);
+        if (scrollingContainer) {
+            scrollingContainer.addEventListener("scroll", handleScroll);
+            return () => scrollingContainer.removeEventListener("scroll", handleScroll);
+        } else {
+            console.error("Could not find scrolling container - infinite scroll disabled");
+            return;
+        }
+    }, [getScrollingContainer, handleScroll]);
 
     const handleSearch = useCallback((newString: string) => {
         console.log("handleSearch called", newString);
@@ -131,6 +159,7 @@ export function SearchList<DataType extends NavigableObject>({
                 zIndex={zIndex}
             />
             <ListContainer
+                ref={containerRef}
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && !loading}
                 sx={{ ...sxs?.listContainer }}

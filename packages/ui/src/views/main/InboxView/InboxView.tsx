@@ -24,12 +24,12 @@ import { ChatUpsert } from "views/objects/chat/ChatUpsert/ChatUpsert";
 import { InboxViewProps } from "../types";
 
 const tabParams = [{
-    titleKey: "Message" as CommonKey,
-    searchType: SearchType.Chat,
+    titleKey: "Dm" as CommonKey,
+    searchType: SearchType.ChatsGrouped,
     tabType: InboxPageTabOption.Dm,
     where: () => ({}),
 }, {
-    titleKey: "Message" as CommonKey,
+    titleKey: "Group" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.GroupChat,
     where: () => ({}),

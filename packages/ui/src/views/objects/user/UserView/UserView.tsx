@@ -458,6 +458,7 @@ export const UserView = ({
                 )}
                 {currTab.tabType !== UserPageTabOption.Details && <Box>
                     <SearchList
+                        display={display}
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}

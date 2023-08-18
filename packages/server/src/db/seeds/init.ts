@@ -702,9 +702,10 @@ export async function init(prisma: PrismaType) {
         logger.info("📚 Creating CIP-0025 standard");
         standardCip0025 = await prisma.standard_version.create({
             data: {
+                id: standardCip0025Id,
                 root: {
                     create: {
-                        id: standardCip0025Id,
+                        id: uuid(),
                         permissions: JSON.stringify({}),
                         createdById: admin.id,
                         tags: {

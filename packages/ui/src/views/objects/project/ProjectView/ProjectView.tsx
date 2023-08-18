@@ -183,6 +183,7 @@ export const ProjectView = ({
                 {/* List of items in current directory */}
                 {/* <SearchList
                     canSearch={() => Boolean(projectVersion?.id)}
+                    display={display}
                     dummyLength={display === "page" ? 5 : 3}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
                     hideUpdateButton={true}

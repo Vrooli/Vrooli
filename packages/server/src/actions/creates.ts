@@ -3,7 +3,7 @@ import { addSupplementalFields, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { RecursivePartial } from "../types";
-import { cudHelper } from "./cudHelper";
+import { cudHelper } from "./cuds";
 import { CreateHelperProps } from "./types";
 
 /**

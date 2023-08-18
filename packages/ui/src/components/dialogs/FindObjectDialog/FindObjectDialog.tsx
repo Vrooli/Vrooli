@@ -350,6 +350,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     {!selectedObject && <SearchList
                         id="find-object-search-list"
                         canNavigate={() => false}
+                        display="dialog"
                         dummyLength={3}
                         onItemClick={onInputSelect}
                         take={20}

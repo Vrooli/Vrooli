@@ -1,4 +1,4 @@
-import { ChatSortBy } from "@local/shared";
+import { ChatsGroupedSortBy, ChatSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { ChatEndpoints, EndpointsChat } from "../logic";
 
@@ -14,6 +14,13 @@ export const typeDef = gql`
         InvitesDesc
         MessagesAsc
         MessagesDesc
+    }
+
+    enum ChatsGroupedSortBy {
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
     }
 
     input ChatCreateInput {
@@ -158,9 +165,11 @@ export const typeDef = gql`
 
 export const resolvers: {
     ChatSortBy: typeof ChatSortBy;
+    ChatsGroupedSortBy: typeof ChatsGroupedSortBy;
     Query: EndpointsChat["Query"];
     Mutation: EndpointsChat["Mutation"];
 } = {
     ChatSortBy,
+    ChatsGroupedSortBy,
     ...ChatEndpoints,
 };
