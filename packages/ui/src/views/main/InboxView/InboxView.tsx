@@ -32,7 +32,7 @@ const tabParams = [{
     titleKey: "Group" as CommonKey,
     searchType: SearchType.Chat,
     tabType: InboxPageTabOption.GroupChat,
-    where: () => ({}),
+    where: () => ({ minParticipants: 3 }),
 }, {
     titleKey: "Notification" as CommonKey,
     searchType: SearchType.Notification,
@@ -68,7 +68,7 @@ export const InboxView = ({
         setAllData,
     } = useFindMany<InboxObject>({
         searchType,
-        where,
+        where: where(),
     });
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);

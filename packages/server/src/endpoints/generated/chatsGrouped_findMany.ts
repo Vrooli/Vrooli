@@ -98,27 +98,44 @@ export const chatsGrouped_findMany = {
                         "kind": "Field",
                         "name": {
                           "kind": "Name",
-                          "value": "chatsCount",
+                          "value": "id",
                           "loc": {
                             "start": 142,
-                            "end": 152
+                            "end": 144
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
                           "start": 142,
-                          "end": 152
+                          "end": 144
                         }
                       },
                       {
                         "kind": "Field",
                         "name": {
                           "kind": "Name",
-                          "value": "participants",
+                          "value": "chatsCount",
                           "loc": {
-                            "start": 165,
-                            "end": 177
+                            "start": 157,
+                            "end": 167
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "loc": {
+                          "start": 157,
+                          "end": 167
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "user",
+                          "loc": {
+                            "start": 180,
+                            "end": 184
                           }
                         },
                         "arguments": [],
@@ -130,212 +147,135 @@ export const chatsGrouped_findMany = {
                               "kind": "Field",
                               "name": {
                                 "kind": "Name",
-                                "value": "user",
-                                "loc": {
-                                  "start": 196,
-                                  "end": 200
-                                }
-                              },
-                              "arguments": [],
-                              "directives": [],
-                              "selectionSet": {
-                                "kind": "SelectionSet",
-                                "selections": [
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "id",
-                                      "loc": {
-                                        "start": 223,
-                                        "end": 225
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 223,
-                                      "end": 225
-                                    }
-                                  },
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "bannerImage",
-                                      "loc": {
-                                        "start": 246,
-                                        "end": 257
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 246,
-                                      "end": 257
-                                    }
-                                  },
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "handle",
-                                      "loc": {
-                                        "start": 278,
-                                        "end": 284
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 278,
-                                      "end": 284
-                                    }
-                                  },
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "isBot",
-                                      "loc": {
-                                        "start": 305,
-                                        "end": 310
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 305,
-                                      "end": 310
-                                    }
-                                  },
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "name",
-                                      "loc": {
-                                        "start": 331,
-                                        "end": 335
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 331,
-                                      "end": 335
-                                    }
-                                  },
-                                  {
-                                    "kind": "Field",
-                                    "name": {
-                                      "kind": "Name",
-                                      "value": "profileImage",
-                                      "loc": {
-                                        "start": 356,
-                                        "end": 368
-                                      }
-                                    },
-                                    "arguments": [],
-                                    "directives": [],
-                                    "loc": {
-                                      "start": 356,
-                                      "end": 368
-                                    }
-                                  }
-                                ],
-                                "loc": {
-                                  "start": 201,
-                                  "end": 386
-                                }
-                              },
-                              "loc": {
-                                "start": 196,
-                                "end": 386
-                              }
-                            },
-                            {
-                              "kind": "Field",
-                              "name": {
-                                "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 403,
-                                  "end": 405
+                                  "start": 203,
+                                  "end": 205
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 403,
-                                "end": 405
+                                "start": 203,
+                                "end": 205
                               }
                             },
                             {
                               "kind": "Field",
                               "name": {
                                 "kind": "Name",
-                                "value": "created_at",
+                                "value": "bannerImage",
                                 "loc": {
-                                  "start": 422,
-                                  "end": 432
+                                  "start": 222,
+                                  "end": 233
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 422,
-                                "end": 432
+                                "start": 222,
+                                "end": 233
                               }
                             },
                             {
                               "kind": "Field",
                               "name": {
                                 "kind": "Name",
-                                "value": "updated_at",
+                                "value": "handle",
                                 "loc": {
-                                  "start": 449,
-                                  "end": 459
+                                  "start": 250,
+                                  "end": 256
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 449,
-                                "end": 459
+                                "start": 250,
+                                "end": 256
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "isBot",
+                                "loc": {
+                                  "start": 273,
+                                  "end": 278
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 273,
+                                "end": 278
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "name",
+                                "loc": {
+                                  "start": 295,
+                                  "end": 299
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 295,
+                                "end": 299
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "profileImage",
+                                "loc": {
+                                  "start": 316,
+                                  "end": 328
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 316,
+                                "end": 328
                               }
                             }
                           ],
                           "loc": {
-                            "start": 178,
-                            "end": 473
+                            "start": 185,
+                            "end": 342
                           }
                         },
                         "loc": {
-                          "start": 165,
-                          "end": 473
+                          "start": 180,
+                          "end": 342
                         }
                       }
                     ],
                     "loc": {
                       "start": 128,
-                      "end": 483
+                      "end": 352
                     }
                   },
                   "loc": {
                     "start": 123,
-                    "end": 483
+                    "end": 352
                   }
                 }
               ],
               "loc": {
                 "start": 98,
-                "end": 489
+                "end": 358
               }
             },
             "loc": {
               "start": 92,
-              "end": 489
+              "end": 358
             }
           },
           {
@@ -344,8 +284,8 @@ export const chatsGrouped_findMany = {
               "kind": "Name",
               "value": "pageInfo",
               "loc": {
-                "start": 494,
-                "end": 502
+                "start": 363,
+                "end": 371
               }
             },
             "arguments": [],
@@ -359,15 +299,15 @@ export const chatsGrouped_findMany = {
                     "kind": "Name",
                     "value": "endCursor",
                     "loc": {
-                      "start": 513,
-                      "end": 522
+                      "start": 382,
+                      "end": 391
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 513,
-                    "end": 522
+                    "start": 382,
+                    "end": 391
                   }
                 },
                 {
@@ -376,37 +316,37 @@ export const chatsGrouped_findMany = {
                     "kind": "Name",
                     "value": "hasNextPage",
                     "loc": {
-                      "start": 531,
-                      "end": 542
+                      "start": 400,
+                      "end": 411
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 531,
-                    "end": 542
+                    "start": 400,
+                    "end": 411
                   }
                 }
               ],
               "loc": {
-                "start": 503,
-                "end": 548
+                "start": 372,
+                "end": 417
               }
             },
             "loc": {
-              "start": 494,
-              "end": 548
+              "start": 363,
+              "end": 417
             }
           }
         ],
         "loc": {
           "start": 86,
-          "end": 552
+          "end": 421
         }
       },
       "loc": {
         "start": 58,
-        "end": 552
+        "end": 421
       }
     }
   ],
@@ -574,27 +514,44 @@ export const chatsGrouped_findMany = {
                             "kind": "Field",
                             "name": {
                               "kind": "Name",
-                              "value": "chatsCount",
+                              "value": "id",
                               "loc": {
                                 "start": 142,
-                                "end": 152
+                                "end": 144
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
                               "start": 142,
-                              "end": 152
+                              "end": 144
                             }
                           },
                           {
                             "kind": "Field",
                             "name": {
                               "kind": "Name",
-                              "value": "participants",
+                              "value": "chatsCount",
                               "loc": {
-                                "start": 165,
-                                "end": 177
+                                "start": 157,
+                                "end": 167
+                              }
+                            },
+                            "arguments": [],
+                            "directives": [],
+                            "loc": {
+                              "start": 157,
+                              "end": 167
+                            }
+                          },
+                          {
+                            "kind": "Field",
+                            "name": {
+                              "kind": "Name",
+                              "value": "user",
+                              "loc": {
+                                "start": 180,
+                                "end": 184
                               }
                             },
                             "arguments": [],
@@ -606,212 +563,135 @@ export const chatsGrouped_findMany = {
                                   "kind": "Field",
                                   "name": {
                                     "kind": "Name",
-                                    "value": "user",
-                                    "loc": {
-                                      "start": 196,
-                                      "end": 200
-                                    }
-                                  },
-                                  "arguments": [],
-                                  "directives": [],
-                                  "selectionSet": {
-                                    "kind": "SelectionSet",
-                                    "selections": [
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "id",
-                                          "loc": {
-                                            "start": 223,
-                                            "end": 225
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 223,
-                                          "end": 225
-                                        }
-                                      },
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "bannerImage",
-                                          "loc": {
-                                            "start": 246,
-                                            "end": 257
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 246,
-                                          "end": 257
-                                        }
-                                      },
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "handle",
-                                          "loc": {
-                                            "start": 278,
-                                            "end": 284
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 278,
-                                          "end": 284
-                                        }
-                                      },
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "isBot",
-                                          "loc": {
-                                            "start": 305,
-                                            "end": 310
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 305,
-                                          "end": 310
-                                        }
-                                      },
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "name",
-                                          "loc": {
-                                            "start": 331,
-                                            "end": 335
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 331,
-                                          "end": 335
-                                        }
-                                      },
-                                      {
-                                        "kind": "Field",
-                                        "name": {
-                                          "kind": "Name",
-                                          "value": "profileImage",
-                                          "loc": {
-                                            "start": 356,
-                                            "end": 368
-                                          }
-                                        },
-                                        "arguments": [],
-                                        "directives": [],
-                                        "loc": {
-                                          "start": 356,
-                                          "end": 368
-                                        }
-                                      }
-                                    ],
-                                    "loc": {
-                                      "start": 201,
-                                      "end": 386
-                                    }
-                                  },
-                                  "loc": {
-                                    "start": 196,
-                                    "end": 386
-                                  }
-                                },
-                                {
-                                  "kind": "Field",
-                                  "name": {
-                                    "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 403,
-                                      "end": 405
+                                      "start": 203,
+                                      "end": 205
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 403,
-                                    "end": 405
+                                    "start": 203,
+                                    "end": 205
                                   }
                                 },
                                 {
                                   "kind": "Field",
                                   "name": {
                                     "kind": "Name",
-                                    "value": "created_at",
+                                    "value": "bannerImage",
                                     "loc": {
-                                      "start": 422,
-                                      "end": 432
+                                      "start": 222,
+                                      "end": 233
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 422,
-                                    "end": 432
+                                    "start": 222,
+                                    "end": 233
                                   }
                                 },
                                 {
                                   "kind": "Field",
                                   "name": {
                                     "kind": "Name",
-                                    "value": "updated_at",
+                                    "value": "handle",
                                     "loc": {
-                                      "start": 449,
-                                      "end": 459
+                                      "start": 250,
+                                      "end": 256
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 449,
-                                    "end": 459
+                                    "start": 250,
+                                    "end": 256
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "isBot",
+                                    "loc": {
+                                      "start": 273,
+                                      "end": 278
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 273,
+                                    "end": 278
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "name",
+                                    "loc": {
+                                      "start": 295,
+                                      "end": 299
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 295,
+                                    "end": 299
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "profileImage",
+                                    "loc": {
+                                      "start": 316,
+                                      "end": 328
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 316,
+                                    "end": 328
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 178,
-                                "end": 473
+                                "start": 185,
+                                "end": 342
                               }
                             },
                             "loc": {
-                              "start": 165,
-                              "end": 473
+                              "start": 180,
+                              "end": 342
                             }
                           }
                         ],
                         "loc": {
                           "start": 128,
-                          "end": 483
+                          "end": 352
                         }
                       },
                       "loc": {
                         "start": 123,
-                        "end": 483
+                        "end": 352
                       }
                     }
                   ],
                   "loc": {
                     "start": 98,
-                    "end": 489
+                    "end": 358
                   }
                 },
                 "loc": {
                   "start": 92,
-                  "end": 489
+                  "end": 358
                 }
               },
               {
@@ -820,8 +700,8 @@ export const chatsGrouped_findMany = {
                   "kind": "Name",
                   "value": "pageInfo",
                   "loc": {
-                    "start": 494,
-                    "end": 502
+                    "start": 363,
+                    "end": 371
                   }
                 },
                 "arguments": [],
@@ -835,15 +715,15 @@ export const chatsGrouped_findMany = {
                         "kind": "Name",
                         "value": "endCursor",
                         "loc": {
-                          "start": 513,
-                          "end": 522
+                          "start": 382,
+                          "end": 391
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 513,
-                        "end": 522
+                        "start": 382,
+                        "end": 391
                       }
                     },
                     {
@@ -852,48 +732,48 @@ export const chatsGrouped_findMany = {
                         "kind": "Name",
                         "value": "hasNextPage",
                         "loc": {
-                          "start": 531,
-                          "end": 542
+                          "start": 400,
+                          "end": 411
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 531,
-                        "end": 542
+                        "start": 400,
+                        "end": 411
                       }
                     }
                   ],
                   "loc": {
-                    "start": 503,
-                    "end": 548
+                    "start": 372,
+                    "end": 417
                   }
                 },
                 "loc": {
-                  "start": 494,
-                  "end": 548
+                  "start": 363,
+                  "end": 417
                 }
               }
             ],
             "loc": {
               "start": 86,
-              "end": 552
+              "end": 421
             }
           },
           "loc": {
             "start": 58,
-            "end": 552
+            "end": 421
           }
         }
       ],
       "loc": {
         "start": 54,
-        "end": 554
+        "end": 423
       }
     },
     "loc": {
       "start": 1,
-      "end": 554
+      "end": 423
     }
   },
   "variableValues": {},

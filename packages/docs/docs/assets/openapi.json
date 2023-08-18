@@ -8090,6 +8090,16 @@
             ],
             "title": "ChatSearchInput.labelsIds"
           },
+          "maxParticipants": {
+            "title": "ChatSearchInput.maxParticipants",
+            "nullable": true,
+            "type": "number"
+          },
+          "minParticipants": {
+            "title": "ChatSearchInput.minParticipants",
+            "nullable": true,
+            "type": "number"
+          },
           "openToAnyoneWithInvite": {
             "title": "ChatSearchInput.openToAnyoneWithInvite",
             "nullable": true,
@@ -8574,18 +8584,20 @@
             "title": "ChatsGrouped.chatsCount",
             "type": "number"
           },
-          "participants": {
-            "items": {
-              "$ref": "#/components/schemas/ChatParticipant"
-            },
-            "title": "ChatsGrouped.participants",
-            "type": "array"
+          "id": {
+            "title": "ChatsGrouped.id",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User",
+            "title": "ChatsGrouped.user"
           }
         },
         "required": [
           "__typename",
           "chatsCount",
-          "participants"
+          "id",
+          "user"
         ],
         "additionalProperties": false,
         "title": "ChatsGrouped",
@@ -20293,8 +20305,8 @@
       },
       "PopularSearchInput": {
         "properties": {
-          "after": {
-            "title": "PopularSearchInput.after",
+          "apiAfter": {
+            "title": "PopularSearchInput.apiAfter",
             "nullable": true,
             "type": "string"
           },
@@ -20311,21 +20323,10 @@
             ],
             "title": "PopularSearchInput.createdTimeFrame"
           },
-          "ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "PopularSearchInput.ids",
-                "type": "array"
-              },
-              {
-                "title": "PopularSearchInput.ids",
-                "nullable": true
-              }
-            ],
-            "title": "PopularSearchInput.ids"
+          "noteAfter": {
+            "title": "PopularSearchInput.noteAfter",
+            "nullable": true,
+            "type": "string"
           },
           "objectType": {
             "anyOf": [
@@ -20351,8 +20352,33 @@
             ],
             "title": "PopularSearchInput.objectType"
           },
+          "organizationAfter": {
+            "title": "PopularSearchInput.organizationAfter",
+            "nullable": true,
+            "type": "string"
+          },
+          "projectAfter": {
+            "title": "PopularSearchInput.projectAfter",
+            "nullable": true,
+            "type": "string"
+          },
+          "questionAfter": {
+            "title": "PopularSearchInput.questionAfter",
+            "nullable": true,
+            "type": "string"
+          },
+          "routineAfter": {
+            "title": "PopularSearchInput.routineAfter",
+            "nullable": true,
+            "type": "string"
+          },
           "searchString": {
             "title": "PopularSearchInput.searchString",
+            "nullable": true,
+            "type": "string"
+          },
+          "smartContractAfter": {
+            "title": "PopularSearchInput.smartContractAfter",
             "nullable": true,
             "type": "string"
           },
@@ -20375,6 +20401,11 @@
             ],
             "title": "PopularSearchInput.sortBy"
           },
+          "standardAfter": {
+            "title": "PopularSearchInput.standardAfter",
+            "nullable": true,
+            "type": "string"
+          },
           "take": {
             "title": "PopularSearchInput.take",
             "nullable": true,
@@ -20392,6 +20423,11 @@
               }
             ],
             "title": "PopularSearchInput.updatedTimeFrame"
+          },
+          "userAfter": {
+            "title": "PopularSearchInput.userAfter",
+            "nullable": true,
+            "type": "string"
           },
           "visibility": {
             "anyOf": [

@@ -148,7 +148,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             ...select,
         });
     } catch (error) {
-        logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
+        logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, select, where, orderBy });
         throw new CustomError("0383", "InternalError", req.session.languages, { objectType });
     }
     let hasNextPage = false;

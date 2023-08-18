@@ -5,7 +5,8 @@ import { rel } from "../utils";
 export const chatsGrouped: GqlPartial<ChatsGrouped> = {
     __typename: "ChatsGrouped",
     common: {
+        id: true,
         chatsCount: true,
-        participants: async () => rel((await import("./chatParticipant")).chatParticipant, "list", { omit: "chat" }),
+        user: async () => rel((await import("./user")).user, "nav"),
     },
 };

@@ -71,8 +71,9 @@ export const typeDef = gql`
 
     # Chats with 2 participants (i.e. you and another user) grouped by the other user
     type ChatsGrouped {
+        id: ID! # The other user's ID
         chatsCount: Int!
-        participants: [ChatParticipant!]!
+        user: User!
     }
 
     type ChatYou {
@@ -107,6 +108,8 @@ export const typeDef = gql`
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
         labelsIds: [ID!]
+        maxParticipants: Int
+        minParticipants: Int
         organizationId: ID
         searchString: String
         sortBy: ChatSortBy
