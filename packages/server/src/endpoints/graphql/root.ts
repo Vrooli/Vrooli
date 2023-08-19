@@ -19,7 +19,6 @@ export const typeDef = gql`
         ChatInvite
         ChatMessage
         ChatParticipant
-        ChatsGrouped
         Comment
         Copy
         Email

@@ -44,7 +44,11 @@ export const noteVersion_findOne = {
         "language": true,
         "description": true,
         "name": true,
-        "text": true
+        "pages": {
+          "id": true,
+          "pageIndex": true,
+          "text": true
+        }
       },
       "__typename": "Note"
     },
@@ -175,7 +179,11 @@ export const noteVersion_findOne = {
     "language": true,
     "description": true,
     "name": true,
-    "text": true
+    "pages": {
+      "id": true,
+      "pageIndex": true,
+      "text": true
+    }
   },
   "versionNotes": true,
   "id": true,

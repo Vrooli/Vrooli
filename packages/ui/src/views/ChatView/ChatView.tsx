@@ -84,10 +84,10 @@ export const ChatView = ({
             fetchLazyWrapper<ChatCreateInput, Chat>({
                 fetch: createChat,
                 inputs: shapeChat.create({
+                    openToAnyoneWithInvite: false,
+                    id: uuid(),
                     ...chatInfo,
                     __typename: "Chat",
-                    id: uuid(),
-                    openToAnyoneWithInvite: chatInfo?.openToAnyoneWithInvite ?? false,
                     translations: orDefault(chatInfo?.translations, [{
                         __typename: "ChatTranslation" as const,
                         id: uuid(),

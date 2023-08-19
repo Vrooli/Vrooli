@@ -365,7 +365,11 @@ export const reaction_findMany = {
               "language": true,
               "description": true,
               "name": true,
-              "text": true
+              "pages": {
+                "id": true,
+                "pageIndex": true,
+                "text": true
+              }
             },
             "id": true,
             "created_at": true,

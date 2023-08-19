@@ -22,14 +22,14 @@ export const NoteVersionModel: ModelLogic<NoteVersionModelLogic, typeof suppFiel
             select: () => ({
                 id: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, text: true } },
+                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
                 const trans = bestTranslation(translations, languages);
                 return getEmbeddableString({
                     name: trans?.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    text: trans?.text?.slice(0, 512),
+                    description: trans?.description?.slice(0, 256),
                 }, languages[0]);
             },
         },

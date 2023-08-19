@@ -33,7 +33,6 @@ export * from "./chat_findOne";
 export * from "./chat_findMany";
 export * from "./chat_create";
 export * from "./chat_update";
-export * from "./chatsGrouped_findMany";
 export * from "./chatInvite_findOne";
 export * from "./chatInvite_findMany";
 export * from "./chatInvite_create";

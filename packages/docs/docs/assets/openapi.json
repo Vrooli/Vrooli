@@ -480,20 +480,6 @@
         }
       }
     },
-    "/chatsGrouped": {
-      "get": {
-        "operationId": "endpointGetChatsGrouped",
-        "tags": [
-          "chat"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
     "/chat": {
       "post": {
         "operationId": "endpointPostChat",
@@ -8571,245 +8557,6 @@
         "title": "ChatYou",
         "type": "object"
       },
-      "ChatsGrouped": {
-        "properties": {
-          "__typename": {
-            "title": "ChatsGrouped.__typename",
-            "enum": [
-              "ChatsGrouped"
-            ],
-            "type": "string"
-          },
-          "chatsCount": {
-            "title": "ChatsGrouped.chatsCount",
-            "type": "number"
-          },
-          "id": {
-            "title": "ChatsGrouped.id",
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User",
-            "title": "ChatsGrouped.user"
-          }
-        },
-        "required": [
-          "__typename",
-          "chatsCount",
-          "id",
-          "user"
-        ],
-        "additionalProperties": false,
-        "title": "ChatsGrouped",
-        "type": "object"
-      },
-      "ChatsGroupedEdge": {
-        "properties": {
-          "__typename": {
-            "title": "ChatsGroupedEdge.__typename",
-            "enum": [
-              "ChatsGroupedEdge"
-            ],
-            "type": "string"
-          },
-          "cursor": {
-            "title": "ChatsGroupedEdge.cursor",
-            "type": "string"
-          },
-          "node": {
-            "$ref": "#/components/schemas/ChatsGrouped",
-            "title": "ChatsGroupedEdge.node"
-          }
-        },
-        "required": [
-          "__typename",
-          "cursor",
-          "node"
-        ],
-        "additionalProperties": false,
-        "title": "ChatsGroupedEdge",
-        "type": "object"
-      },
-      "ChatsGroupedSearchInput": {
-        "properties": {
-          "after": {
-            "title": "ChatsGroupedSearchInput.after",
-            "nullable": true,
-            "type": "string"
-          },
-          "createdTimeFrame": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TimeFrame",
-                "title": "ChatsGroupedSearchInput.createdTimeFrame"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.createdTimeFrame",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.createdTimeFrame"
-          },
-          "ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "ChatsGroupedSearchInput.ids",
-                "type": "array"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.ids",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.ids"
-          },
-          "labelsIds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "ChatsGroupedSearchInput.labelsIds",
-                "type": "array"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.labelsIds",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.labelsIds"
-          },
-          "openToAnyoneWithInvite": {
-            "title": "ChatsGroupedSearchInput.openToAnyoneWithInvite",
-            "nullable": true,
-            "type": "boolean"
-          },
-          "organizationId": {
-            "title": "ChatsGroupedSearchInput.organizationId",
-            "nullable": true,
-            "type": "string"
-          },
-          "searchString": {
-            "title": "ChatsGroupedSearchInput.searchString",
-            "nullable": true,
-            "type": "string"
-          },
-          "sortBy": {
-            "anyOf": [
-              {
-                "enum": [
-                  "DateCreatedAsc",
-                  "DateCreatedDesc",
-                  "DateUpdatedAsc",
-                  "DateUpdatedDesc",
-                  "InvitesAsc",
-                  "InvitesDesc",
-                  "MessagesAsc",
-                  "MessagesDesc",
-                  "ParticipantsAsc",
-                  "ParticipantsDesc"
-                ],
-                "title": "ChatsGroupedSearchInput.sortBy",
-                "type": "string"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.sortBy",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.sortBy"
-          },
-          "take": {
-            "title": "ChatsGroupedSearchInput.take",
-            "nullable": true,
-            "type": "number"
-          },
-          "translationLanguages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "ChatsGroupedSearchInput.translationLanguages",
-                "type": "array"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.translationLanguages",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.translationLanguages"
-          },
-          "updatedTimeFrame": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TimeFrame",
-                "title": "ChatsGroupedSearchInput.updatedTimeFrame"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.updatedTimeFrame",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.updatedTimeFrame"
-          },
-          "visibility": {
-            "anyOf": [
-              {
-                "enum": [
-                  "All",
-                  "Own",
-                  "Private",
-                  "Public"
-                ],
-                "title": "ChatsGroupedSearchInput.visibility",
-                "type": "string"
-              },
-              {
-                "title": "ChatsGroupedSearchInput.visibility",
-                "nullable": true
-              }
-            ],
-            "title": "ChatsGroupedSearchInput.visibility"
-          }
-        },
-        "additionalProperties": false,
-        "title": "ChatsGroupedSearchInput",
-        "type": "object"
-      },
-      "ChatsGroupedSearchResult": {
-        "properties": {
-          "__typename": {
-            "title": "ChatsGroupedSearchResult.__typename",
-            "enum": [
-              "ChatsGroupedSearchResult"
-            ],
-            "type": "string"
-          },
-          "edges": {
-            "items": {
-              "$ref": "#/components/schemas/ChatsGroupedEdge"
-            },
-            "title": "ChatsGroupedSearchResult.edges",
-            "type": "array"
-          },
-          "pageInfo": {
-            "$ref": "#/components/schemas/PageInfo",
-            "title": "ChatsGroupedSearchResult.pageInfo"
-          }
-        },
-        "required": [
-          "__typename",
-          "edges",
-          "pageInfo"
-        ],
-        "additionalProperties": false,
-        "title": "ChatsGroupedSearchResult",
-        "type": "object"
-      },
       "Comment": {
         "properties": {
           "__typename": {
@@ -16628,6 +16375,86 @@
         "title": "NoteEdge",
         "type": "object"
       },
+      "NotePage": {
+        "properties": {
+          "__typename": {
+            "title": "NotePage.__typename",
+            "enum": [
+              "NotePage"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "title": "NotePage.id",
+            "type": "string"
+          },
+          "pageIndex": {
+            "title": "NotePage.pageIndex",
+            "type": "number"
+          },
+          "text": {
+            "title": "NotePage.text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "__typename",
+          "id",
+          "pageIndex",
+          "text"
+        ],
+        "additionalProperties": false,
+        "title": "NotePage",
+        "type": "object"
+      },
+      "NotePageCreateInput": {
+        "properties": {
+          "id": {
+            "title": "NotePageCreateInput.id",
+            "type": "string"
+          },
+          "pageIndex": {
+            "title": "NotePageCreateInput.pageIndex",
+            "type": "number"
+          },
+          "text": {
+            "title": "NotePageCreateInput.text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pageIndex",
+          "text"
+        ],
+        "additionalProperties": false,
+        "title": "NotePageCreateInput",
+        "type": "object"
+      },
+      "NotePageUpdateInput": {
+        "properties": {
+          "id": {
+            "title": "NotePageUpdateInput.id",
+            "type": "string"
+          },
+          "pageIndex": {
+            "title": "NotePageUpdateInput.pageIndex",
+            "nullable": true,
+            "type": "number"
+          },
+          "text": {
+            "title": "NotePageUpdateInput.text",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "NotePageUpdateInput",
+        "type": "object"
+      },
       "NoteSearchInput": {
         "properties": {
           "after": {
@@ -17518,9 +17345,12 @@
             "title": "NoteVersionTranslation.name",
             "type": "string"
           },
-          "text": {
-            "title": "NoteVersionTranslation.text",
-            "type": "string"
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/NotePage"
+            },
+            "title": "NoteVersionTranslation.pages",
+            "type": "array"
           }
         },
         "required": [
@@ -17528,7 +17358,7 @@
           "id",
           "language",
           "name",
-          "text"
+          "pages"
         ],
         "additionalProperties": false,
         "title": "NoteVersionTranslation",
@@ -17553,16 +17383,27 @@
             "title": "NoteVersionTranslationCreateInput.name",
             "type": "string"
           },
-          "text": {
-            "title": "NoteVersionTranslationCreateInput.text",
-            "type": "string"
+          "pagesCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NotePageCreateInput"
+                },
+                "title": "NoteVersionTranslationCreateInput.pagesCreate",
+                "type": "array"
+              },
+              {
+                "title": "NoteVersionTranslationCreateInput.pagesCreate",
+                "nullable": true
+              }
+            ],
+            "title": "NoteVersionTranslationCreateInput.pagesCreate"
           }
         },
         "required": [
           "id",
           "language",
-          "name",
-          "text"
+          "name"
         ],
         "additionalProperties": false,
         "title": "NoteVersionTranslationCreateInput",
@@ -17588,10 +17429,53 @@
             "nullable": true,
             "type": "string"
           },
-          "text": {
-            "title": "NoteVersionTranslationUpdateInput.text",
-            "nullable": true,
-            "type": "string"
+          "pagesCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NotePageCreateInput"
+                },
+                "title": "NoteVersionTranslationUpdateInput.pagesCreate",
+                "type": "array"
+              },
+              {
+                "title": "NoteVersionTranslationUpdateInput.pagesCreate",
+                "nullable": true
+              }
+            ],
+            "title": "NoteVersionTranslationUpdateInput.pagesCreate"
+          },
+          "pagesDelete": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "NoteVersionTranslationUpdateInput.pagesDelete",
+                "type": "array"
+              },
+              {
+                "title": "NoteVersionTranslationUpdateInput.pagesDelete",
+                "nullable": true
+              }
+            ],
+            "title": "NoteVersionTranslationUpdateInput.pagesDelete"
+          },
+          "pagesUpdate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NotePageUpdateInput"
+                },
+                "title": "NoteVersionTranslationUpdateInput.pagesUpdate",
+                "type": "array"
+              },
+              {
+                "title": "NoteVersionTranslationUpdateInput.pagesUpdate",
+                "nullable": true
+              }
+            ],
+            "title": "NoteVersionTranslationUpdateInput.pagesUpdate"
           }
         },
         "required": [

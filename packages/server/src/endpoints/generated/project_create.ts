@@ -84,7 +84,11 @@ export const project_create = {
           "language": true,
           "description": true,
           "name": true,
-          "text": true
+          "pages": {
+            "id": true,
+            "pageIndex": true,
+            "text": true
+          }
         },
         "__typename": "NoteVersion"
       },

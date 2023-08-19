@@ -911,47 +911,6 @@ export type ChatYou = {
   canUpdate: Scalars['Boolean'];
 };
 
-export type ChatsGrouped = {
-  __typename: 'ChatsGrouped';
-  chatsCount: Scalars['Int'];
-  id: Scalars['ID'];
-  user: User;
-};
-
-export type ChatsGroupedEdge = {
-  __typename: 'ChatsGroupedEdge';
-  cursor: Scalars['String'];
-  node: ChatsGrouped;
-};
-
-export type ChatsGroupedSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
-  openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ChatSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ChatsGroupedSearchResult = {
-  __typename: 'ChatsGroupedSearchResult';
-  edges: Array<ChatsGroupedEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum ChatsGroupedSortBy {
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
-
 export type Comment = {
   __typename: 'Comment';
   bookmarkedBy?: Maybe<Array<User>>;
@@ -1337,7 +1296,6 @@ export enum GqlModelType {
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',
   ChatParticipant = 'ChatParticipant',
-  ChatsGrouped = 'ChatsGrouped',
   Comment = 'Comment',
   Copy = 'Copy',
   Email = 'Email',
@@ -3328,6 +3286,25 @@ export type NoteEdge = {
   node: Note;
 };
 
+export type NotePage = {
+  __typename: 'NotePage';
+  id: Scalars['ID'];
+  pageIndex: Scalars['Int'];
+  text: Scalars['String'];
+};
+
+export type NotePageCreateInput = {
+  id: Scalars['ID'];
+  pageIndex: Scalars['Int'];
+  text: Scalars['String'];
+};
+
+export type NotePageUpdateInput = {
+  id: Scalars['ID'];
+  pageIndex?: InputMaybe<Scalars['Int']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
 export type NoteSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
@@ -3484,7 +3461,7 @@ export type NoteVersionTranslation = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name: Scalars['String'];
-  text: Scalars['String'];
+  pages: Array<NotePage>;
 };
 
 export type NoteVersionTranslationCreateInput = {
@@ -3492,7 +3469,7 @@ export type NoteVersionTranslationCreateInput = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name: Scalars['String'];
-  text: Scalars['String'];
+  pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
 };
 
 export type NoteVersionTranslationUpdateInput = {
@@ -3500,7 +3477,9 @@ export type NoteVersionTranslationUpdateInput = {
   id: Scalars['ID'];
   language: Scalars['String'];
   name?: InputMaybe<Scalars['String']>;
-  text?: InputMaybe<Scalars['String']>;
+  pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
+  pagesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  pagesUpdate?: InputMaybe<Array<NotePageUpdateInput>>;
 };
 
 export type NoteVersionUpdateInput = {
@@ -4942,7 +4921,6 @@ export type Query = {
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
   chats: ChatSearchResult;
-  chatsGrouped: ChatsGroupedSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   focusMode?: Maybe<FocusMode>;
@@ -5141,11 +5119,6 @@ export type QueryChatParticipantsArgs = {
 
 export type QueryChatsArgs = {
   input: ChatSearchInput;
-};
-
-
-export type QueryChatsGroupedArgs = {
-  input: ChatsGroupedSearchInput;
 };
 
 
@@ -9913,11 +9886,6 @@ export type ResolversTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ResolverTypeWrapper<ChatYou>;
-  ChatsGrouped: ResolverTypeWrapper<ChatsGrouped>;
-  ChatsGroupedEdge: ResolverTypeWrapper<ChatsGroupedEdge>;
-  ChatsGroupedSearchInput: ChatsGroupedSearchInput;
-  ChatsGroupedSearchResult: ResolverTypeWrapper<ChatsGroupedSearchResult>;
-  ChatsGroupedSortBy: ChatsGroupedSortBy;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
@@ -10069,6 +10037,9 @@ export type ResolversTypes = {
   Note: ResolverTypeWrapper<Omit<Note, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   NoteCreateInput: NoteCreateInput;
   NoteEdge: ResolverTypeWrapper<NoteEdge>;
+  NotePage: ResolverTypeWrapper<NotePage>;
+  NotePageCreateInput: NotePageCreateInput;
+  NotePageUpdateInput: NotePageUpdateInput;
   NoteSearchInput: NoteSearchInput;
   NoteSearchResult: ResolverTypeWrapper<NoteSearchResult>;
   NoteSortBy: NoteSortBy;
@@ -10669,10 +10640,6 @@ export type ResolversParentTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ChatYou;
-  ChatsGrouped: ChatsGrouped;
-  ChatsGroupedEdge: ChatsGroupedEdge;
-  ChatsGroupedSearchInput: ChatsGroupedSearchInput;
-  ChatsGroupedSearchResult: ChatsGroupedSearchResult;
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
   CommentSearchInput: CommentSearchInput;
@@ -10805,6 +10772,9 @@ export type ResolversParentTypes = {
   Note: Omit<Note, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   NoteCreateInput: NoteCreateInput;
   NoteEdge: NoteEdge;
+  NotePage: NotePage;
+  NotePageCreateInput: NotePageCreateInput;
+  NotePageUpdateInput: NotePageUpdateInput;
   NoteSearchInput: NoteSearchInput;
   NoteSearchResult: NoteSearchResult;
   NoteUpdateInput: NoteUpdateInput;
@@ -11592,25 +11562,6 @@ export type ChatYouResolvers<ContextType = any, ParentType extends ResolversPare
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ChatsGroupedResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGrouped'] = ResolversParentTypes['ChatsGrouped']> = {
-  chatsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ChatsGroupedEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGroupedEdge'] = ResolversParentTypes['ChatsGroupedEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['ChatsGrouped'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ChatsGroupedSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatsGroupedSearchResult'] = ResolversParentTypes['ChatsGroupedSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['ChatsGroupedEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type CommentResolvers<ContextType = any, ParentType extends ResolversParentTypes['Comment'] = ResolversParentTypes['Comment']> = {
   bookmarkedBy?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12290,6 +12241,13 @@ export type NoteEdgeResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type NotePageResolvers<ContextType = any, ParentType extends ResolversParentTypes['NotePage'] = ResolversParentTypes['NotePage']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  pageIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type NoteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteSearchResult'] = ResolversParentTypes['NoteSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['NoteEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
@@ -12337,7 +12295,7 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  pages?: Resolver<Array<ResolversTypes['NotePage']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12950,7 +12908,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
-  chatsGrouped?: Resolver<ResolversTypes['ChatsGroupedSearchResult'], ParentType, ContextType, RequireFields<QueryChatsGroupedArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
@@ -14854,9 +14811,6 @@ export type Resolvers<ContextType = any> = {
   ChatSearchResult?: ChatSearchResultResolvers<ContextType>;
   ChatTranslation?: ChatTranslationResolvers<ContextType>;
   ChatYou?: ChatYouResolvers<ContextType>;
-  ChatsGrouped?: ChatsGroupedResolvers<ContextType>;
-  ChatsGroupedEdge?: ChatsGroupedEdgeResolvers<ContextType>;
-  ChatsGroupedSearchResult?: ChatsGroupedSearchResultResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -14914,6 +14868,7 @@ export type Resolvers<ContextType = any> = {
   NodeTranslation?: NodeTranslationResolvers<ContextType>;
   Note?: NoteResolvers<ContextType>;
   NoteEdge?: NoteEdgeResolvers<ContextType>;
+  NotePage?: NotePageResolvers<ContextType>;
   NoteSearchResult?: NoteSearchResultResolvers<ContextType>;
   NoteVersion?: NoteVersionResolvers<ContextType>;
   NoteVersionEdge?: NoteVersionEdgeResolvers<ContextType>;

@@ -227,7 +227,11 @@ export const bookmarkList_update = {
             "language": true,
             "description": true,
             "name": true,
-            "text": true
+            "pages": {
+              "id": true,
+              "pageIndex": true,
+              "text": true
+            }
           },
           "id": true,
           "created_at": true,

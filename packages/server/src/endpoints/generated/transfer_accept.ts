@@ -166,7 +166,11 @@ export const transfer_accept = {
           "language": true,
           "description": true,
           "name": true,
-          "text": true
+          "pages": {
+            "id": true,
+            "pageIndex": true,
+            "text": true
+          }
         },
         "id": true,
         "created_at": true,

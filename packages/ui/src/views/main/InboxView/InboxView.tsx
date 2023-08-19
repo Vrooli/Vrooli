@@ -25,9 +25,9 @@ import { InboxViewProps } from "../types";
 
 const tabParams = [{
     titleKey: "Dm" as CommonKey,
-    searchType: SearchType.ChatsGrouped,
+    searchType: SearchType.Chat,
     tabType: InboxPageTabOption.Dm,
-    where: () => ({}),
+    where: () => ({ maxParticipants: 2 }),
 }, {
     titleKey: "Group" as CommonKey,
     searchType: SearchType.Chat,
@@ -70,6 +70,7 @@ export const InboxView = ({
         searchType,
         where: where(),
     });
+    console.log("alldata", allData);
 
     const [deleteMutation, { errors: deleteErrors }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
@@ -188,12 +189,15 @@ export const InboxView = ({
             {/* Main content */}
             <TopBar
                 display={display}
+                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={currTab.label}
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
-                    currTab={currTab}
                     fullWidth
+                    id="inbox-tabs"
+                    ignoreIcons
+                    currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
                 />}

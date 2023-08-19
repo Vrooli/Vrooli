@@ -79,12 +79,6 @@ export const endpoints = {
             update: toMutation("chatUpdate", "ChatUpdateInput", chatPartial, "full"),
         };
     },
-    chatsGrouped: async () => {
-        const { chatsGrouped: chatsGroupedPartial } = await import("./partial/chatsGrouped");
-        return {
-            findMany: toQuery("chatsGrouped", "ChatsGroupedSearchInput", ...(await toSearch(chatsGroupedPartial))),
-        };
-    },
     chatInvite: async () => {
         const { chatInvite: chatInvitePartial } = await import("./partial/chatInvite");
         return {

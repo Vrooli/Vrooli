@@ -1,4 +1,4 @@
-import { ChatsGroupedSortBy, ChatSortBy } from "@local/shared";
+import { ChatSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { ChatEndpoints, EndpointsChat } from "../logic";
 
@@ -14,13 +14,6 @@ export const typeDef = gql`
         InvitesDesc
         MessagesAsc
         MessagesDesc
-    }
-
-    enum ChatsGroupedSortBy {
-        DateCreatedAsc
-        DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
     }
 
     input ChatCreateInput {
@@ -67,13 +60,6 @@ export const typeDef = gql`
         translations: [ChatTranslation!]!
         translationsCount: Int!
         you: ChatYou!
-    }
-
-    # Chats with 2 participants (i.e. you and another user) grouped by the other user
-    type ChatsGrouped {
-        id: ID! # The other user's ID
-        chatsCount: Int!
-        user: User!
     }
 
     type ChatYou {
@@ -129,35 +115,9 @@ export const typeDef = gql`
         node: Chat!
     }
 
-    input ChatsGroupedSearchInput {
-        after: String
-        createdTimeFrame: TimeFrame
-        ids: [ID!]
-        openToAnyoneWithInvite: Boolean
-        labelsIds: [ID!]
-        organizationId: ID
-        searchString: String
-        sortBy: ChatSortBy
-        take: Int
-        translationLanguages: [String!]
-        updatedTimeFrame: TimeFrame
-        visibility: VisibilityType
-    }
-
-    type ChatsGroupedSearchResult {
-        pageInfo: PageInfo!
-        edges: [ChatsGroupedEdge!]!
-    }
-
-    type ChatsGroupedEdge {
-        cursor: String!
-        node: ChatsGrouped!
-    }
-
     extend type Query {
         chat(input: FindByIdInput!): Chat
         chats(input: ChatSearchInput!): ChatSearchResult!
-        chatsGrouped(input: ChatsGroupedSearchInput!): ChatsGroupedSearchResult!
     }
 
     extend type Mutation {
@@ -168,11 +128,9 @@ export const typeDef = gql`
 
 export const resolvers: {
     ChatSortBy: typeof ChatSortBy;
-    ChatsGroupedSortBy: typeof ChatsGroupedSortBy;
     Query: EndpointsChat["Query"];
     Mutation: EndpointsChat["Mutation"];
 } = {
     ChatSortBy,
-    ChatsGroupedSortBy,
     ...ChatEndpoints,
 };
